@@ -114,12 +114,12 @@ def plot_beam_info(beam_table, outfile=None, show=False):
 	
 def plot_all():
 	
-	data = tb.open_file('/home/leloup/ownCloud/phd_thesis/data/BPW34F_diodes/irradiated/HISKP/irradiation_3/diodes/1e13/1e13_diode_new_extraction.h5')
+	#data = tb.open_file('/home/leloup/ownCloud/phd_thesis/data/BPW34F_diodes/irradiated/HISKP/irradiation_3/diodes/1e13/1e13_diode_new_extraction.h5')
 	
-	beam_table = data.root.Hochstromraum.Beam
+	#beam_table = data.root.Hochstromraum.Beam
 	
-	plot_beam_info(beam_table, 'testii.pdf', True)
-
+	#plot_beam_info(beam_table, 'testii.pdf', True)
+	pass
 
 plot_all()
 	
