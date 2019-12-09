@@ -100,13 +100,25 @@ class PlotWrapperWidget(QtWidgets.QWidget):
                 lambda v: self.pw.plt.addItem(self.helper_line) if v else self.pw.plt.removeItem(self.helper_line))
             _sub_layout_1.addWidget(hl_checkbox)
 
-            spinbox = QtWidgets.QSpinBox()
-            spinbox.setRange(1, 3600)
-            spinbox.setValue(self.pw._period)
-            spinbox.setPrefix('Time period: ')
-            spinbox.setSuffix(' s')
-            spinbox.valueChanged.connect(lambda v: self.pw.update_period(v))
-            _sub_layout_1.addWidget(spinbox)
+            # Spinbox for period to be shown on x axis
+            spinbox_period = QtWidgets.QSpinBox()
+            spinbox_period.setRange(1, 3600)
+            spinbox_period.setValue(self.pw._period)
+            spinbox_period.setPrefix('Time period: ')
+            spinbox_period.setSuffix(' s')
+            spinbox_period.valueChanged.connect(lambda v: self.pw.update_period(v))
+            _sub_layout_1.addWidget(spinbox_period)
+
+        if hasattr(self.pw, 'update_refresh_rate'):
+
+            # Spinbox for plot refresh rate
+            spinbox_refresh = QtWidgets.QSpinBox()
+            spinbox_refresh.setRange(0, 60)
+            spinbox_refresh.setValue(int(1000 / self.pw.refresh_timer.interval()))
+            spinbox_refresh.setPrefix('Refresh rate: ')
+            spinbox_refresh.setSuffix(' Hz')
+            spinbox_refresh.valueChanged.connect(lambda v: self.pw.update_refresh_rate(v))
+            _sub_layout_1.addWidget(spinbox_refresh)
 
         # Button to move self.pw to PlotWindow instance
         self.btn_open = QtWidgets.QPushButton()
@@ -154,16 +166,36 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 class IrradPlotWidget(pg.PlotWidget):
     """Base class for plot widgets"""
 
-    def __init__(self, parent=None):
+    def __init__(self, refresh_rate=20, parent=None):
         super(IrradPlotWidget, self).__init__(parent)
 
+        # Store curves to be displayed
         self.curves = None
+
+        # Timer for refreshing plots with a given time interval to avoid unnecessary updating / high load
+        self.refresh_timer = QtCore.QTimer()
+
+        # Connect timeout signal of refresh timer to refresh_plot method
+        self.refresh_timer.timeout.connect(self.refresh_plot)
+
+        # Start timer
+        self.refresh_timer.start(int(1000 / refresh_rate))
 
     def _setup_plot(self):
         raise NotImplementedError('Please implement a _setup_plot method')
 
     def set_data(self):
         raise NotImplementedError('Please implement a set_data method')
+
+    def refresh_plot(self):
+        raise NotImplementedError('Please implement a refresh_plot method')
+
+    def update_refresh_rate(self, refresh_rate):
+        """Update rate with which the plot is drawn"""
+        if refresh_rate == 0:
+            self.refresh_timer.stop()  # Stops QTimer
+        else:
+            self.refresh_timer.start(int(1000 / refresh_rate))  # Restarts QTimer with new updated interval
 
     def show_data(self, curve=None, show=True):
         """Show/hide the data of curve in PlotItem. If *curve* is None, all curves are shown/hidden."""
@@ -191,8 +223,8 @@ class IrradPlotWidget(pg.PlotWidget):
 class ScrollingIrradDataPlot(IrradPlotWidget):
     """PlotWidget which displays a set of irradiation data curves over time"""
 
-    def __init__(self, channels, units=None, period=60, name=None, parent=None):
-        super(ScrollingIrradDataPlot, self).__init__(parent)
+    def __init__(self, channels, units=None, period=60, refresh_rate=20, name=None, parent=None):
+        super(ScrollingIrradDataPlot, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         self.channels = channels
         self.units = units
@@ -261,8 +293,8 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             if 'data_rate' in _meta:
                 self._drate = _meta['data_rate']
                 shape = int(round(self._drate) * self._period + 1)
-                self._time = np.zeros(shape=shape)
-                self._data = OrderedDict([(ch, np.zeros(shape=shape)) for i, ch in enumerate(self.channels)])
+                self._time = np.full(shape=shape, fill_value=np.nan)  # np.zeros(shape=shape)
+                self._data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for i, ch in enumerate(self.channels)])
 
         # Fill data
         else:
@@ -289,10 +321,19 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
                 self._data[ch][1:] = self._data[ch][:-1]
                 self._data[ch][0] = _data[ch]
 
-                if not self._filled:
-                    self.curves[ch].setData(self._time[self._data[ch] != 0], self._data[ch][self._data[ch] != 0])
-                else:
-                    self.curves[ch].setData(self._time, self._data[ch])
+    def refresh_plot(self):
+        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+
+        if self._data is None or self._time is None:
+            return
+
+        for curve in self.curves:
+
+            if not self._filled:
+                mask = ~np.isnan(self._data[curve])  # Mask all NaN values and invert bool mask
+                self.curves[curve].setData(self._time[mask], self._data[curve][mask])
+            else:
+                self.curves[curve].setData(self._time, self._data[curve])
 
     def update_axis_scale(self, scale, axis='left'):
         """Update the scale of current axis"""
@@ -306,8 +347,8 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Create new data and time
         shape = int(round(self._drate) * self._period + 1)
-        new_data = OrderedDict([(ch, np.zeros(shape=shape)) for i, ch in enumerate(self.channels)])
-        new_time = np.zeros(shape=shape)
+        new_data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for i, ch in enumerate(self.channels)])
+        new_time = np.full(shape=shape, fill_value=np.nan)
 
         # Check whether new time and data hold more or less indices
         decreased = True if self._time.shape[0] >= shape else False
@@ -316,7 +357,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             # Cut time axis
             new_time = self._time[:shape]
 
-            # If filled before, go to 0, else go to 0 if currnt index is bigger than new shape
+            # If filled before, go to 0, else go to 0 if current index is bigger than new shape
             if self._filled:
                 self._idx = 0
             else:
@@ -592,7 +633,7 @@ class BeamPositionItem:
             legend.removeItem(_lbl)
 
 
-class BeamPositionPlot(pg.PlotWidget):
+class BeamPositionPlot(IrradPlotWidget):
     """
     Plot for displaying the beam position. The position is displayed from analog and digital data if available.
     """
@@ -607,6 +648,9 @@ class BeamPositionPlot(pg.PlotWidget):
 
         # Setup the main plot
         self._setup_plot()
+
+        # Store data
+        self._data = {}
 
     def _setup_plot(self):
 
@@ -625,10 +669,10 @@ class BeamPositionPlot(pg.PlotWidget):
         self.plt.hideButtons()
         v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
         h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
-        label_left = pg.InfLineLabel(line=h_line, text='Left', position=0.05, movable=False)
-        label_right = pg.InfLineLabel(line=h_line, text='Right', position=0.95, movable=False)
-        label_up = pg.InfLineLabel(line=v_line, text='Up', position=0.95, movable=False)
-        label_down = pg.InfLineLabel(line=v_line, text='Down', position=0.05, movable=False)
+        _ = pg.InfLineLabel(line=h_line, text='Left', position=0.05, movable=False)
+        _ = pg.InfLineLabel(line=h_line, text='Right', position=0.95, movable=False)
+        _ = pg.InfLineLabel(line=v_line, text='Up', position=0.95, movable=False)
+        _ = pg.InfLineLabel(line=v_line, text='Down', position=0.05, movable=False)
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
@@ -663,7 +707,15 @@ class BeamPositionPlot(pg.PlotWidget):
                 continue
             h_shift = None if 'h' not in pos_data[sig] else pos_data[sig]['h']
             v_shift = None if 'v' not in pos_data[sig] else pos_data[sig]['v']
-            self.curves[sig].set_position(h_shift, v_shift)
+
+            # Update data
+            self._data[sig] = (h_shift, v_shift)
+
+    def refresh_plot(self):
+        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+        if self._data:
+            for sig in self.curves:
+                self.curves[sig].set_position(*self._data[sig])
 
     def show_data(self, curve=None, show=True):
         """Show/hide the data of channel in PlotItem. If *channel* is None, all curves are shown/hidden."""
@@ -689,8 +741,8 @@ class FluenceHist(IrradPlotWidget):
         Plot for displaying the beam position. The position is displayed from analog and digital data if available.
         """
 
-    def __init__(self, irrad_setup, daq_device=None, parent=None):
-        super(FluenceHist, self).__init__(parent=parent)
+    def __init__(self, irrad_setup, refresh_rate=5, daq_device=None, parent=None):
+        super(FluenceHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Init class attributes
         self.irrad_setup = irrad_setup
@@ -698,6 +750,8 @@ class FluenceHist(IrradPlotWidget):
 
         # Setup the main plot
         self._setup_plot()
+
+        self._data = {}
 
     def _setup_plot(self):
 
@@ -748,18 +802,21 @@ class FluenceHist(IrradPlotWidget):
         # Meta data and data
         _meta, _data = data['meta'], data['data']
 
-        fluence = data['data']['hist']
-        fluence_err = data['data']['hist_err']
-        mean = np.mean(fluence)
-        std = np.std(fluence)
+        self._data['hist'] = data['data']['hist']
+        self._data['hist_err'] = data['data']['hist_err']
 
-        self.curves['hist'].setData(range(len(fluence) + 1), fluence, stepMode=True)
-        self.curves['hist_points'].setData(x=np.arange(len(fluence)) + 0.5, y=fluence)
-        self.curves['hist_errors'].setData(x=np.arange(len(fluence)) + 0.5, y=fluence,
-                                        height=np.array(fluence_err), pen=_MPL_COLORS[2])
-        self.curves['mean'].setValue(mean)
-
-        p_label = 'Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(mean, std)
-        self.p_label.setFormat(p_label)
-        n_label = 'Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (mean, std)])
-        self.n_label.setFormat(n_label)
+    def refresh_plot(self):
+        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+        if self._data:
+            x = np.arange(len(self._data['hist']) + 1)
+            for curve in self.curves:
+                if curve == 'hist':
+                    self.curves[curve].setData(x=x, y=self._data['hist'], stepMode=True)
+                    mean, std = (f(self._data['hist']) for f in (np.mean, np.std))
+                    self.curves['mean'].setValue(mean)
+                    self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(mean, std))
+                    self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (mean, std)]))
+                elif curve == 'hist_points':
+                    self.curves[curve].setData(x=x[:-1] + 0.5, y=self._data['hist'])
+                elif curve == 'hist_errors':
+                    self.curves[curve].setData(x=x[:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
