@@ -450,7 +450,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                     logging.info("Server at {} confirmed shutdown".format(hostname))
 
-                    self.proc_mngr.current_procs.remove(hostname)
+                    # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
+                    try:
+                        self.proc_mngr.current_procs.remove(hostname)
+                    except ValueError:
+                        logging.warning("{} not in known processes. Ignore".format(hostname))
 
                     # Try to close
                     self.close()
