@@ -6,6 +6,7 @@ class WorkerSignals(QtCore.QObject):
     
     finished = QtCore.pyqtSignal()
     exceptionSignal = QtCore.pyqtSignal(Exception, str)
+    timeout = QtCore.pyqtSignal()
 
 
 class Worker(QtCore.QRunnable):
@@ -26,13 +27,26 @@ class Worker(QtCore.QRunnable):
         
         # Needs to be done this way since QRunnable cannot emit signals; QObject needed
         self.signals = WorkerSignals()
-    
+
+        # Timer to inform that a timeout occurred
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(True)
+        self.timeout = None
+
+    def set_timeout(self, timeout):
+        self.timeout = int(timeout)
+
     @QtCore.pyqtSlot()
     def run(self):
         """
         Runs the function func with given arguments args and keyword arguments kwargs.
         If errors or exceptions occur, a signal sends the exception to main thread.
         """
+
+        # Start timer if needed
+        if self.timeout is not None:
+            self.timer.timeout.connect(self.signals.timeout.emit())
+            self.timer.start(self.timeout)
 
         try:
             if self.args and self.kwargs:
