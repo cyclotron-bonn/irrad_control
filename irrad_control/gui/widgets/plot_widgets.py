@@ -264,8 +264,14 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.plt.showGrid(x=True, y=True, alpha=0.66)
         self.plt.setLimits(xMax=0)
 
-        # Make OrderedDict of curves
+        # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
         self.curves = OrderedDict([(ch, pg.PlotCurveItem(pen=_MPL_COLORS[i % len(_MPL_COLORS)])) for i, ch in enumerate(self.channels)])
+        self.active_curves = dict([(ch, False) for ch in self.channels])  # Store channel which is currently active (e.g. statistics are shown)
+
+        # TextItem for showing statistic of curves; set invisible first, only show on user request
+        self.stat_text = pg.TextItem(text='', border=pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine))
+        self.stat_text.setParentItem(self.plt)
+        self.stat_text.setVisible(False)
 
         # Make legend entries for curves
         self.legend = pg.LegendItem(offset=(80, -50))
@@ -274,6 +280,61 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         # Show data and legend
         for ch in self.channels:
             self.show_data(ch)
+            self.curves[ch].setOpacity(0.7)  # Needed for indication of active curves
+            self.curves[ch].opts['mouseWidth'] = 15  # Needed for indication of active curves
+
+        # Connect to relevant signals
+        self.plt.scene().sigMouseMoved.connect(self._indicate_active_curves)
+        self.plt.scene().sigMouseClicked.connect(self._set_active_curves)
+
+        # TODO: Maybe use proxies to limit load
+        #self._proxy_move = pg.SignalProxy(self.plt.scene().sigMouseMoved, rateLimit=20, slot=self._indicate_active_curves)
+        #self._proxy_click = pg.SignalProxy(self.plt.scene().sigMouseClicked, rateLimit=20, slot=self._set_active_curves)
+
+    def _indicate_active_curves(self, evt):
+        """Indicate if we are hovering over a curve"""
+
+        # Get mouse coordinates in the coordinate system of the plot
+        mouse_coordinates = self.plt.vb.mapSceneToView(evt)
+
+        # Set opacity of all the curves which are under the cursor to 1
+        for ch in self.channels:
+            if not self.active_curves[ch]:
+                self._draw_active_curve(curve=ch, active=self.curves[ch].mouseShape().contains(mouse_coordinates))
+
+    def _draw_active_curve(self, curve, active=True):
+        """Helper function which changes appearance of curves under the cursor"""
+
+        # Indicate activity status by changing pen and opacity
+        # FIXME: heavy load when pen width > 1 due to https://github.com/pyqtgraph/pyqtgraph/issues/533
+        if active:  # Curve is active
+            if self.curves[curve].opts['pen'].width() == 0.7:  # Only update if needed
+                self.curves[curve].opts['pen'].setWidthF(1.0)
+            if self.curves[curve].opacity() == 0.7:
+                self.curves[curve].setOpacity(1.0)
+        else:
+            if self.curves[curve].opts['pen'].width() == 1.0:  # Only update if needed
+                self.curves[curve].opts['pen'].setWidthF(0.7)
+            if self.curves[curve].opacity() == 1.0:
+                self.curves[curve].setOpacity(0.7)
+
+    def _set_active_curves(self, click):
+        """Method updating which curves are active; active curves statistics are shown on plot"""
+
+        # Get mouse coordinates in the coordinate system of the plot
+        mouse_coordinates = self.plt.vb.mapSceneToView(click.scenePos())
+
+        # Get curves which are under the mouse position
+        self.active_curves = dict([(ch, self.curves[ch].mouseShape().contains(mouse_coordinates)) for ch in self.channels])
+
+        if any(self.active_curves.values()):
+            self.stat_text.setPos(click.scenePos())
+            self.stat_text.setVisible(True)
+        else:
+            self.stat_text.setVisible(False)
+
+        for ch in self.channels:
+            self._draw_active_curve(curve=ch, active=self.active_curves[ch])
 
     def set_data(self, data):
         """Set the data of the plot. Input data is data plus meta data"""
@@ -327,13 +388,36 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         if self._data is None or self._time is None:
             return
 
+        # Update text for statistics widget and check how many curves are active
+        current_stat_text = ''
+        current_actives = [ch for ch in self.active_curves if self.active_curves[ch]]
+
+        # Loop variables
+        mask, i = None, 0
         for curve in self.curves:
 
+            # Update data of curves
             if not self._filled:
                 mask = ~np.isnan(self._data[curve])  # Mask all NaN values and invert bool mask
                 self.curves[curve].setData(self._time[mask], self._data[curve][mask])
             else:
                 self.curves[curve].setData(self._time, self._data[curve])
+
+            # Update statistics of active curves
+            if curve in current_actives:
+                if mask is not None:
+                    mean, std, entries = self._data[curve][mask].mean(), self._data[curve][mask].std(), self._data[curve][mask].shape[0]
+                else:
+                    mean, std, entries = self._data[curve].mean(), self._data[curve].std(), self._data[curve].shape[0]
+                current_stat_text += curve + u': ({:.2E} \u00B1 {:.2E}) {} (#{})'.format(mean, std, self.plt.getAxis('left').labelUnits, entries)
+                current_stat_text += '' if i == len(current_actives) - 1 else '\n'
+                i += 1
+
+        # If curves are active, update text and color accordingly
+        if current_actives:
+            current_stat_color = (100, 100, 100) if len(current_actives) != 1 else self.curves[current_actives[0]].opts['pen'].color()
+            self.stat_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+            self.stat_text.setText(current_stat_text)
 
     def update_axis_scale(self, scale, axis='left'):
         """Update the scale of current axis"""
