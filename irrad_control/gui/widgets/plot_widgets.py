@@ -281,7 +281,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         for ch in self.channels:
             self.show_data(ch)
             self.curves[ch].setOpacity(0.7)  # Needed for indication of active curves
-            self.curves[ch].opts['mouseWidth'] = 15  # Needed for indication of active curves
+            self.curves[ch].opts['mouseWidth'] = 20  # Needed for indication of active curves
 
         # Connect to relevant signals
         self.plt.scene().sigMouseMoved.connect(self._indicate_active_curves)
