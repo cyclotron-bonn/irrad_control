@@ -3,6 +3,7 @@ import sys
 import logging
 import paramiko
 import subprocess
+from collections import defaultdict
 from irrad_control import package_path, config_server_script
 
 
@@ -24,7 +25,9 @@ class ProcessManager(object):
         self.interpreter_proc = None
 
         # Keep track of processes which have been started
-        self.current_procs = []
+        self.active_pids = defaultdict(dict)
+
+        self.n_checks = 0
 
     def connect_to_server(self, hostname, username):
 
@@ -133,11 +136,56 @@ class ProcessManager(object):
         sftp.put(local_filepath, remote_filepath)
         sftp.close()
 
-    def kill_pid(self, pid, hostname=False):
+    def register_pid(self, hostname, pid, name=None):
+        """Register a *PID* on a *hostname* for monitoring its 'is_alive' status"""
+        self.active_pids[hostname]['pid'] = pid
+        self.active_pids[hostname]['name'] = name
+        self.active_pids[hostname]['active'] = True
+
+    def check_process_status(self):
+        """Function checking whether processes are alive"""
+
+        # Increment that bad boy; maybe we want to terminate if number of checks get's too large
+        self.n_checks += 1
+
+        for host in self.active_pids:
+
+            # Bash command outputting all running PIDs containing self.active_pids[host]['pid']
+            cmd = "ps -e | awk '{print $1}' " + '| grep {}'.format(self.active_pids[host]['pid'])
+
+            # We are checking on the status of some remote process
+            if host in self.client:
+                _, stdout, _ = self.client[host].exec_command(cmd)
+                host_p = stdout.readlines()
+                stdout.close()
+            # Localhost process
+            else:
+                try:
+                    host_p = subprocess.check_output(cmd, shell=True).splitlines()
+                except subprocess.CalledProcessError:
+                    host_p = ''
+
+            # No process
+            if not host_p:
+                self.active_pids[host]['active'] = False
+
+            # The process is within the running processes
+            elif any(int(hp.strip()) == int(self.active_pids[host]['pid']) for hp in host_p):
+                self.active_pids[host]['active'] = True
+
+            # Process is not running anymore
+            else:
+                self.active_pids[host]['active'] = False
+
+            msg = "Process {} with PID {} is {} active.".format(self.active_pids[host]['name'],
+                                                                self.active_pids[host]['pid'],
+                                                                '' if self.active_pids[host]['active'] else 'not')
+            logging.debug(msg)
+
+    def kill_pid(self, pid, hostname):
 
         # We're killing a process on a server
-        if hostname:
-
+        if hostname in self.client:
             logging.info('Killing server PC process with PID {}...'.format(pid))
 
             self._exec_cmd(hostname, 'kill {}'.format(pid))

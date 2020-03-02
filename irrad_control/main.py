@@ -81,6 +81,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init user interface
         self._init_ui()
         self._init_logging()
+
+        # Timer starting when application should be closed
+        self.close_timer = QtCore.QTimer()
+        self.close_timer.timeout.connect(self.close)
         
     def _init_ui(self):
         """
@@ -275,7 +279,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Launch interpreter process
         self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile']+'.yaml')
-        self.proc_mngr.current_procs.append('localhost')
+        self.send_cmd(hostname='localhost', target='interpreter', cmd='pid')
             
     def _init_threads(self):       
                 
@@ -437,7 +441,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'start':
 
-                    self.proc_mngr.current_procs.append(hostname)
+                    self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender + ':' + hostname)
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
                     # Send command to find where stage is and what the speeds are
@@ -451,21 +455,17 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     logging.info("Server at {} confirmed shutdown".format(hostname))
 
                     # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
-                    try:
-                        self.proc_mngr.current_procs.remove(hostname)
-                    except ValueError:
-                        logging.warning("{} not in known processes. Ignore".format(hostname))
-
                     # Try to close
                     self.close()
 
             elif sender == 'interpreter':
 
+                if reply == 'pid':
+                    self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
+
                 if reply == 'shutdown':
 
                     logging.info("Interpreter confirmed shutdown")
-
-                    self.proc_mngr.current_procs.remove(hostname)
 
                     # Try to close
                     self.close()
@@ -599,6 +599,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
     def file_quit(self):
         self.close()
+        self.close_timer.start(500)  # Repeatedly check if we can close
 
     def _check_close(self):
         """Check whether we're waiting for cmd replies in order to close"""
@@ -635,28 +636,30 @@ class IrradControlWin(QtWidgets.QMainWindow):
             event.ignore()
 
         # There are subprocesses to shut down
-        elif self.proc_mngr.current_procs:
+        elif any(self.proc_mngr.active_pids[h]['active'] for h in self.proc_mngr.active_pids):
 
             # If we're here, there's no more processecs; we will launch closing workers, they should not give warning to user
             self._log_close = True
 
+            # Check
+            self.proc_mngr.check_process_status()
+
             # Loop over all started processes and send shutdown cmd
-            for host in self.proc_mngr.current_procs:
+            for host in self.proc_mngr.active_pids:
 
                 # Shutdown all the servers
                 if host in self.setup['server']:
                     logging.info("Shutting down server at {}".format(host))
                     # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
-                    self.proc_mngr.current_procs.remove(host)
                     self.send_cmd(host, 'server', 'shutdown', check_reply=False)
 
                 # Shutdown interpreter
                 if host == 'localhost':
                     logging.info("Shutting down interpreter...")
-                    self.send_cmd(host, 'interpreter', 'shutdown')
+                    self.send_cmd(host, 'interpreter', 'shutdown', check_reply=False)
 
-                # Ignore closing
-                event.ignore()
+            # Ignore closing
+            event.ignore()
 
         else:
 
