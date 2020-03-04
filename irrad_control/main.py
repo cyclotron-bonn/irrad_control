@@ -85,6 +85,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Timer starting when application should be closed
         self.close_timer = QtCore.QTimer()
         self.close_timer.timeout.connect(self.close)
+        self.close_timer.setInterval(500)
         
     def _init_ui(self):
         """
@@ -599,7 +600,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
     def file_quit(self):
         self.close()
-        self.close_timer.start(500)  # Repeatedly check if we can close
+        self.close_timer.start()  # Repeatedly check if we can close
 
     def _check_close(self):
         """Check whether we're waiting for cmd replies in order to close"""
@@ -611,6 +612,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Stop receiver threads
         self.stop_recv_data.set()
         self.stop_recv_log.set()
+        self.close_timer.stop()
 
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)
