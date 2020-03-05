@@ -51,12 +51,9 @@ class ProcessManager(object):
             # Something went wrong
             except (paramiko.BadHostKeyException, paramiko.AuthenticationException, paramiko.SSHException) as e:
                 # We need to add key, let user know
-                if type(e) is paramiko.BadHostKeyException:
-                    msg = "Server's host key could not be verified. Try creating key on host PC via" \
-                          " ssh-keygen and copy to server via ssh-copy-id!"
-                    raise e(msg)
-                else:
-                    raise e
+                msg = "Server's host key could not be verified. Try creating key on host PC via" \
+                      " ssh-keygen and copy to server via ssh-copy-id!"
+                raise e(msg)
 
             # Success
             logging.info('Successfully connected to server {}@{}!'.format(username, hostname))
