@@ -2,6 +2,7 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from irrad_control.gui.widgets import GridContainer
+from irrad_control import xy_stage_config
 
 
 class IrradControlTab(QtWidgets.QWidget):
@@ -37,6 +38,8 @@ class IrradControlTab(QtWidgets.QWidget):
         self.beam_down_timer = None
         self.info_labels = {}
         self._scan_param_units = {}
+        self._xy_stage_config = xy_stage_config.copy()
+        self.xy_stage_position_win = XYStagePositionWindow()
 
         # Layouts; split in quadrants
         self.main_layout = QtWidgets.QHBoxLayout()
@@ -82,9 +85,9 @@ class IrradControlTab(QtWidgets.QWidget):
         self._setup_scan()
         self._setup_daq()
 
-        self.control_widget.setVisible(self.stage_server is not None)
-        self.scan_widget.setVisible(self.stage_server is not None)
-        self.info_widget.setVisible(self.stage_server is not None)
+        #self.control_widget.setVisible(self.stage_server is not None)
+        #self.scan_widget.setVisible(self.stage_server is not None)
+        #self.info_widget.setVisible(self.stage_server is not None)
 
     def _setup_control(self):
 
@@ -192,22 +195,30 @@ class IrradControlTab(QtWidgets.QWidget):
                                                                   'unit': 'mm'}))
 
         # Go to predefined positions
-        xy_stage_config = {'positions': {'Home': [0.0, 0.0], 'Screen': [300.0, 300.0]}}
-        label_move_to = QtWidgets.QLabel('Move to:')
-        cbx_position = QtWidgets.QComboBox()
-        cbx_position.addItems(xy_stage_config['positions'].keys())
-        label_position = QtWidgets.QLabel('@ ({:.3f}, {:.3f}) mm'.format(*xy_stage_config['positions'][cbx_position.currentText()]))
-        label_position.setFixedWidth(200)
-        cbx_position.currentTextChanged.connect(lambda t: label_position.setText('@ ({:.3f}, {:.3f}) mm'.format(*xy_stage_config['positions'][t])))
-        btn_to_position = QtWidgets.QPushButton('Move to position')
+        self.label_positions = QtWidgets.QLabel('Handle positions:')
+        self.label_positions.setToolTip('Add, update, move to or remove (:position) named stage positions')
+        self.cbx_position = QtWidgets.QComboBox()
+        self.btn_mod_pos = QtWidgets.QPushButton()
+        edit_position = QtWidgets.QLineEdit()
+        self.cbx_position.setLineEdit(edit_position)
+        self.btn_to_position = QtWidgets.QPushButton()
+
+        # Connect
+        self.cbx_position.currentTextChanged.connect(lambda t: self._handle_position_widgets(pos=t))
+        self.btn_mod_pos.clicked.connect(self.xy_stage_position_win.show)#self._mod_positions(pos=self.cbx_position.currentText()))
+        #self.btn_mod_pos.clicked.connect(lambda _: self._handle_position_widgets(pos=self.cbx_position.currentText()))
+
+        if 'positions' in self._xy_stage_config:
+            self.cbx_position.addItems(self._xy_stage_config['positions'].keys())
+
         # Move to position by moving x and then y
         for i, axis in enumerate(['x', 'y']):
-            btn_to_position.clicked.connect(lambda _: self.send_cmd(target='stage',
-                                                                    cmd='move_abs',
-                                                                    cmd_data={'axis': axis,
-                                                                              'distance': xy_stage_config['positions'][cbx_position.currentText()][i],
-                                                                              'unit': 'mm'}))
-
+            self.btn_to_position.clicked.connect(lambda _, pos=self.cbx_position.currentText():
+                                                 self.send_cmd(target='stage',
+                                                               cmd='move_abs',
+                                                               cmd_data={'axis': axis,
+                                                                         'distance': xy_stage_config['positions'][pos][axis],
+                                                                         'unit': xy_stage_config['positions'][pos]['unit']}))
 
         # Add to layout
         self.control_widget.add_widget(widget=[label_home, btn_home])
@@ -215,12 +226,56 @@ class IrradControlTab(QtWidgets.QWidget):
         self.control_widget.add_widget(widget=[label_speed, spx_speed, cbx_axis, btn_set_speed])
         self.control_widget.add_widget(widget=[label_rel, spx_rel, cbx_axis_rel, btn_rel])
         self.control_widget.add_widget(widget=[label_abs, spx_abs, cbx_axis_abs, btn_abs])
-        #self.control_widget.add_widget(widget=[label_move_to, cbx_position, label_position, btn_to_position])  # FIXME: implement functionality
+        self.control_widget.add_widget(widget=[self.label_positions, self.cbx_position, self.btn_mod_pos, self.btn_to_position])
 
         # Add spacer layout
         spacer = QtWidgets.QVBoxLayout()
         spacer.addStretch()
         self.control_widget.add_layout(spacer)
+
+    def _mod_positions(self, pos):
+
+        current_positions = [self.cbx_position.itemText(j) for j in range(self.cbx_position.count())]
+
+        if 'positions' not in self._xy_stage_config:
+            self._xy_stage_config['positions'] = {}
+
+        if pos not in current_positions:
+            self._xy_stage_config['positions'][pos] = {}
+            self.cbx_position.addItem(pos)
+
+        self._xy_stage_config['positions'][pos]['x'], self._xy_stage_config['positions'][pos]['y'] = self.current_pos[0], self.current_pos[1]
+        self._xy_stage_config['positions'][pos]['unit'] = 'mm'
+        self._xy_stage_config['positions'][pos]['date'] = time.asctime()
+
+    def _handle_position_widgets(self, pos):
+
+        # Get list of items currently in position list
+        current_positions = [self.cbx_position.itemText(j) for j in range(self.cbx_position.count())]
+
+        # Position is known; we can move to it or update its position
+        if pos in current_positions:
+            self.btn_mod_pos.setText('Update {} position'.format(pos))
+            self.btn_mod_pos.setToolTip('Update {} position with current stage position (see setup info)'.format(pos))
+            self.btn_to_position.setText('Move to {}'.format(pos))
+            self.btn_to_position.setEnabled(True)
+            self.btn_mod_pos.setEnabled(True)
+
+        else:
+            self.btn_to_position.setEnabled(False)
+            if pos == '':
+                self.btn_mod_pos.setEnabled(False)
+                self.btn_mod_pos.setText('Add to positions')
+            else:
+                # We want to remove something from known positions
+                if pos[0] == ':':
+                    self.btn_mod_pos.setText('Remove {} position'.format(pos[1:] if pos[1:] in current_positions else ''))
+                    self.btn_mod_pos.setEnabled(pos[1:] in current_positions)
+                else:
+                    self.btn_mod_pos.setEnabled(True)
+                    self.btn_mod_pos.setText('Add {} to positions'.format(pos))
+                    self.btn_mod_pos.setToolTip('Add {} to known positions with current stage position (see setup info)'.format(pos))
+                    self.btn_to_position.setText('Move to')
 
     def _setup_scan(self):
 
@@ -469,9 +524,11 @@ class IrradControlTab(QtWidgets.QWidget):
                     # Update position label
                     if kw == 'position':
                         tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
+                        self.current_pos = info[kw]
                     # Update speed label
                     elif kw == 'speed':
                         tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
+                        self.current_speed = info[kw]
                     # Update travel range label
                     elif kw == 'range':
                         tmp_text = kw.capitalize() + ': '
@@ -523,3 +580,88 @@ class IrradControlTab(QtWidgets.QWidget):
         self.control_widget.set_read_only(read_only=status == 'started')
         self.daq_widget.set_read_only(read_only=status == 'started')
 
+
+class XYStagePositionWindow(QtWidgets.QMainWindow):
+    """Sub window for adding and editing known stage positions"""
+
+    zmqSetupChanged = QtCore.pyqtSignal(OrderedDict)
+
+    def __init__(self, parent=None):
+        super(XYStagePositionWindow, self).__init__(parent)
+
+        self._xy_stage_config = xy_stage_config.copy()
+
+        self._layouts = []
+
+        self._init_ui()
+
+    def _init_ui(self):
+
+        self.setWindowTitle('Add / edit XY-Stage positions')
+        # Make this window blocking parent window
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
+        self.resize(0.5 * self.screen.width(), 0.5 * self.screen.height())
+
+        # Main widget
+        self.main_widget = QtWidgets.QWidget()
+        self.main_widget.setLayout(QtWidgets.QVBoxLayout())
+        self.setCentralWidget(self.main_widget)
+
+        # Add containers for known positions and one for adding new ones
+        self.known_positions = GridContainer(name='Existing Positions')
+        self.new_position = GridContainer(name='Add Position')
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.known_positions)
+
+        self.main_widget.layout().addWidget(scroll)
+        self.main_widget.layout().addWidget(self.new_position)
+
+        if 'positions' in self._xy_stage_config:
+            for i in range(2):
+                for name in self._xy_stage_config['positions']:
+                    _unit = self._xy_stage_config['positions'][name]['unit']
+                    _pos = (self._xy_stage_config['positions'][name]['x'], self._xy_stage_config['positions'][name]['y'])
+                    _date = self._xy_stage_config['positions'][name]['date']
+                    self.add_position(name, _unit, _pos)
+
+
+
+    def add_position(self, name=None, unit='mm', pos=None, date=None):
+        """Method to create and return a layout containing all needed widgets for """
+
+        # Name
+        name_label = QtWidgets.QLabel(name)
+
+        # x value
+        spx_x = QtWidgets.QDoubleSpinBox()
+        spx_x.setPrefix('x: ')
+        spx_x.setDecimals(3)
+        spx_x.setMinimum(0.0)
+        spx_x.setMaximum(300.0)
+        spx_x.setValue(0 if pos is None else pos[0])
+        spx_x.setSuffix(' {}'.format(unit))
+
+        # y value
+        spx_y = QtWidgets.QDoubleSpinBox()
+        spx_y.setPrefix('y: ')
+        spx_y.setDecimals(3)
+        spx_y.setMinimum(0.0)
+        spx_y.setMaximum(300.0)
+        spx_y.setValue(0 if pos is None else pos[1])
+        spx_y.setSuffix(' {}'.format(unit))
+
+        btn_del = QtWidgets.QPushButton()
+        btn_del.setIcon(btn_del.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
+        btn_del.setIconSize(QtCore.QSize(30, 30))
+        btn_del.setToolTip('Delete position: {}'.format(name))
+
+        self.known_positions.add_widget(widget=[name_label, spx_x, spx_y, btn_del])
+
+        # Connect
+        btn_del.clicked.connect(lambda _, n=name_label: self.known_positions.remove_widget(widget=n))
+        btn_del.clicked.connect(lambda _, n=spx_x: self.known_positions.remove_widget(widget=n))
+        btn_del.clicked.connect(lambda _, n=spx_y: self.known_positions.remove_widget(widget=n))
+        btn_del.clicked.connect(lambda _, n=btn_del: self.known_positions.remove_widget(widget=n))

@@ -23,9 +23,31 @@ class GridContainer(QtWidgets.QGroupBox):
         self.grid.setHorizontalSpacing(x_space)
         self.setLayout(self.grid)
 
-        # Counter for row and column
-        self.cnt_row = 0
-        self.cnt_col = {}
+        self._allowed_items = [QtWidgets.QWidget, QtWidgets.QLayout]
+
+    def add_allowed_item(self, item):
+
+        if self._valid_item(item):
+            pass
+        else:
+            self._allowed_items.append(item)
+
+    def _valid_item(self, item):
+        """Check whether an item ca be added to the grid; only QWidgets and QLayouts default"""
+
+        def _check(x): return any(isinstance(x, allowed) for allowed in self._allowed_items)
+
+        return all(_check(x) for x in item) if isinstance(item, Iterable) else _check(item)
+
+    def _prepare_item(self, item):
+        """Generator which yields all items contained in *item*"""
+
+        # Make individual items iterable so we can yield them
+        if not isinstance(item, Iterable):
+            item = [item]
+
+        for itm in item:
+            yield itm
 
     def add_layout(self, layout):
         self.add_item(layout)
@@ -36,45 +58,14 @@ class GridContainer(QtWidgets.QGroupBox):
     def add_item(self, item):
         """Adds *widget* to container where *widget* can be any QWidget or an iterable of QWidgets."""
 
-        error = False
-        def check(x): return isinstance(x, QtWidgets.QWidget) or isinstance(x, QtWidgets.QLayout)
+        row_count = self.grid.rowCount()
 
-        if isinstance(item, Iterable):
-            if not all(check(x) for x in item):
-                error = True
-
-        elif not check(item):
-            # Only single widget is added to the current row
-            error = True
-
-        if error:
+        if not self._valid_item(item):
             raise TypeError("Only QWidgets and QLayouts can be added to layout!")
         else:
-            self._add_item(item)
-
-    def _add_item(self, item):
-        """Actually adds widgets to grid layout"""
-
-        try:
-            n_widgets = len(item)
-        except TypeError:
-            n_widgets = 1
-
-        if n_widgets == 1:
-            # Catch edge case in which we get an iterable with only one widget e.g. item=[QLabel]
-            try:
-                item = item[0]
-            except TypeError:
-                pass
-            self._add_to_grid(item, self.cnt_row, 0)
-        else:
-            # Loop over all widgets and add to layout
-            for i, itm in enumerate(item):
-                self._add_to_grid(itm, self.cnt_row, i)
-
-        # Update
-        self.cnt_col[self.cnt_row] = n_widgets
-        self.cnt_row += 1
+            # Loop over all items and add to grid
+            for i, itm in enumerate(self._prepare_item(item)):
+                self._add_to_grid(itm, row_count, i)
 
     def _add_to_grid(self, item, row, col):
 
@@ -83,16 +74,52 @@ class GridContainer(QtWidgets.QGroupBox):
         else:
             self.grid.addWidget(item, row, col)
 
-    def get_widget_count(self, row):
-        """Return number of widgets in *row*"""
-        if row in self.cnt_col:
-            return self.cnt_col[row]
-        else:
-            raise IndexError("Row {} does not exist. Existing rows: {}".format(row, self.cnt_row))
+    def remove_widget(self, widget):
+        self.remove_item(widget)
 
-    def get_row_count(self):
-        """Return number of rows"""
-        return self.cnt_row
+    def remove_layout(self, layout):
+        self.remove_item(layout)
+
+    def remove_item(self, item):
+
+        """Removes *item* from container where *item* can be any QWidget or an iterable of QWidgets or a QLayout."""
+        if not self._valid_item(item):
+            raise TypeError("Only QWidgets and QLayouts can be removed!")
+        else:
+            for itm in self._prepare_item(item):
+                self._remove_from_grid(itm)
+
+    def _remove_from_grid(self, item):
+
+        # Loop over grid and find item to remove
+        for i in range(self.grid.count()):
+
+            # Get item in grid at index i
+            grid_item = self.grid.itemAt(i)
+            print(grid_item)
+
+            if isinstance(grid_item, QtWidgets.QLayoutItem):
+
+                if grid_item.layout() == item:
+                    # Remove entire layout
+                    self._delete_layout_content(grid_item.layout())
+                    self.grid.removeItem(grid_item)
+
+            elif isinstance(grid_item, QtWidgets.QWidgetItem):
+                if grid_item.widget() == item:
+                    self.grid.removeWidget(item)
+                    item.deleteLater()
+
+    def _delete_layout_content(self, layout):
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                    widget.deleteLater()
+                else:
+                    self._delete_layout_content(item.layout())
 
     def set_read_only(self, read_only=True, omit=None):
         """Sets all widgets to read only. If they don't have a readOnly-method, they're disabled"""
@@ -100,33 +127,32 @@ class GridContainer(QtWidgets.QGroupBox):
         omit = omit if isinstance(omit, Iterable) else [omit]
 
         # Loop over entire grid
-        for row in range(self.cnt_row):
-            for col in range(self.cnt_col[row]):
-                # Get item at row, col
-                item = self.grid.itemAtPosition(row, col)
+        for idx in range(self.grid.count()):
+            # Get item at row, col
+            item = self.grid.itemAt(idx)
 
-                # Item is QSpacerItem or 0 (no item)
-                if isinstance(item, QtWidgets.QSpacerItem) or item == 0:
-                    pass
+            # Item is QSpacerItem or 0 (no item)
+            if isinstance(item, QtWidgets.QSpacerItem) or item == 0:
+                pass
 
-                # Check whether its QLayoutItem or QWidgetItem
-                elif isinstance(item, QtWidgets.QWidgetItem):
-                    # Extract widget and set read_only
-                    _widget = item.widget()
-                    if type(_widget) not in omit:
-                        self.set_widget_read_only(widget=_widget, read_only=read_only)
+            # Check whether its QLayoutItem or QWidgetItem
+            elif isinstance(item, QtWidgets.QWidgetItem):
+                # Extract widget and set read_only
+                _widget = item.widget()
+                if type(_widget) not in omit:
+                    self.set_widget_read_only(widget=_widget, read_only=read_only)
 
-                elif isinstance(item, QtWidgets.QLayoutItem):
-                    # Loop over layout and disable widgets
-                    _layout = item.layout()
-                    for i in reversed(range(_layout.count())):
-                        # Check whether its a QWidgetItem and not a Spacer etc
-                        if isinstance(_layout.itemAt(i), QtWidgets.QWidgetItem):
-                            _widget = _layout.itemAt(i).widget()
-                            if type(_widget) not in omit:
-                                self.set_widget_read_only(widget=_widget, read_only=read_only)
-                else:
-                    raise TypeError('Item must be either QWidgetItem or QLayoutItem. Found {}'.format(type(item)))
+            elif isinstance(item, QtWidgets.QLayoutItem):
+                # Loop over layout and disable widgets
+                _layout = item.layout()
+                for i in reversed(range(_layout.count())):
+                    # Check whether its a QWidgetItem and not a Spacer etc
+                    if isinstance(_layout.itemAt(i), QtWidgets.QWidgetItem):
+                        _widget = _layout.itemAt(i).widget()
+                        if type(_widget) not in omit:
+                            self.set_widget_read_only(widget=_widget, read_only=read_only)
+            else:
+                raise TypeError('Item must be either QWidgetItem or QLayoutItem. Found {}'.format(type(item)))
 
     @staticmethod
     def set_widget_read_only(widget, read_only=True):
