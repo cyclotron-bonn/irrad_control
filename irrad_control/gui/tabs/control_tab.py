@@ -1,4 +1,5 @@
 import time
+import logging
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from irrad_control.gui.widgets import GridContainer
@@ -10,6 +11,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
     sendCmd = QtCore.pyqtSignal(dict)
     stageInfo = QtCore.pyqtSignal(dict)
+    enableDAQRec = QtCore.pyqtSignal(str, bool)
 
     def __init__(self, setup, parent=None):
         super(IrradControlTab, self).__init__(parent)
@@ -48,7 +50,7 @@ class IrradControlTab(QtWidgets.QWidget):
         self.info_widget = GridContainer('Info')
         self.control_widget = GridContainer('Setup control')
         self.scan_widget = GridContainer('Scan')
-        self.daq_widget = GridContainer('DAQ')
+        self.daq_widget = GridContainer('Data acquisition')
 
         # Splitters
         self.main_splitter = QtWidgets.QSplitter()
@@ -70,8 +72,9 @@ class IrradControlTab(QtWidgets.QWidget):
         # Add splitters to main layout
         self.main_layout.addWidget(self.main_splitter)
 
-        # Add main layout to widget layout and add ok button
+        # Add main layout to widget layout and define style for icons
         self.setLayout(self.main_layout)
+        self._style = QtWidgets.qApp.style()
 
         # Appearance
         self.show()
@@ -388,37 +391,47 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def _setup_daq(self):
 
-        server_names = dict([(self.setup[s]['name'], s) for s in self.setup])
+        # DAQ control for servers from respective tabs
+        tab_widget = QtWidgets.QTabWidget()
+        record_btns = {}
 
-        label_server = QtWidgets.QLabel('Select DAQ server:')
-        cbx_servers = QtWidgets.QComboBox()
-        cbx_servers.addItems(server_names.keys())
+        self.daq_widget.widgets['tabs'] = tab_widget
+        self.daq_widget.widgets['rec_btns'] = record_btns
 
-        label_offset = QtWidgets.QLabel('Raw data offset:')
-        btn_offset = QtWidgets.QPushButton('Compensate offset')
-        btn_offset.clicked.connect(lambda _: self.send_cmd(target='interpreter',
-                                                           cmd='zero_offset',
-                                                           cmd_data=server_names[cbx_servers.currentText()]))
+        # Loop over servers and create widgets
+        for server in self.setup:
 
-        # Button for auto zero offset
-        label_record = QtWidgets.QLabel("Data recording:")
-        record_btn_states = dict([(name, 'Pause') for name in server_names])
-        btn_record = QtWidgets.QPushButton('Pause')
-        btn_record.clicked.connect(lambda _: self.send_cmd(target='interpreter', cmd='record_data', cmd_data=server_names[cbx_servers.currentText()]))
+            # Grid for server
+            grid = GridContainer(name='')
 
-        # Button appearance
-        btn_record.clicked.connect(lambda _: record_btn_states.update({cbx_servers.currentText(): 'Resume' if record_btn_states[cbx_servers.currentText()] == 'Pause' else 'Pause'}))
-        btn_record.clicked.connect(lambda _: btn_record.setText(record_btn_states[cbx_servers.currentText()]))
-        cbx_servers.currentTextChanged.connect(lambda t: btn_record.setText(record_btn_states[cbx_servers.currentText()]))
+            label_offset = QtWidgets.QLabel('Raw data offset:')
+            btn_offset = QtWidgets.QPushButton('Compensate offset')
+            btn_offset.clicked.connect(lambda _, _server=server: self.send_cmd(target='interpreter',
+                                                                               cmd='zero_offset',
+                                                                               cmd_data=_server))
 
-        self.daq_widget.add_widget(widget=[label_server, cbx_servers])
-        self.daq_widget.add_widget(widget=[label_offset, btn_offset])
-        self.daq_widget.add_widget(widget=[label_record, btn_record])
+            # Button for auto zero offset
+            label_record = QtWidgets.QLabel("Data recording:")
+            btn_record = QtWidgets.QPushButton('Pause')
+            btn_record.clicked.connect(lambda _, _server=server: self.send_cmd(target='interpreter', cmd='record_data', cmd_data=_server))
+            record_btns[server] = btn_record
 
-        # Add spacer layout
-        spacer = QtWidgets.QVBoxLayout()
-        spacer.addStretch()
-        self.daq_widget.add_layout(spacer)
+            chbx_record = QtWidgets.QCheckBox('Enable toggling recording state in DAQ dock')
+            chbx_record.stateChanged.connect(lambda state, _server=server: self.enableDAQRec.emit(_server, bool(state)))
+
+            # Add spacer layout
+            spacer = QtWidgets.QVBoxLayout()
+            spacer.addStretch()
+
+            grid.add_widget(widget=[label_offset, btn_offset])
+            grid.add_widget(widget=[label_record, btn_record])
+            grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+            grid.add_layout(spacer)
+
+            tab_widget.addTab(grid, self.setup[server]['name'])
+            self.update_rec_state(server=server, state=True)
+
+        self.daq_widget.add_widget(widget=tab_widget)
 
     def _setup_info(self):
 
@@ -579,6 +592,16 @@ class IrradControlTab(QtWidgets.QWidget):
         self.scan_widget.set_widget_read_only(self.btn_start, read_only=status == 'started')
         self.control_widget.set_read_only(read_only=status == 'started')
         self.daq_widget.set_read_only(read_only=status == 'started')
+
+    def update_rec_state(self, server, state):
+
+        icon = self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton
+        tooltip = "Recording" if state else "Data recording paused"
+        btn_text = "Pause" if state else "Resume"
+        self.daq_widget.widgets['rec_btns'][server].setText(btn_text)
+        idx = [self.daq_widget.widgets['tabs'].tabText(i) for i in range(self.daq_widget.widgets['tabs'].count())].index(self.setup[server]['name'])
+        self.daq_widget.widgets['tabs'].setTabIcon(idx, self._style.standardIcon(icon))
+        self.daq_widget.widgets['tabs'].setTabToolTip(idx, tooltip)
 
 
 class XYStagePositionWindow(QtWidgets.QMainWindow):

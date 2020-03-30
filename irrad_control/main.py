@@ -218,7 +218,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.daq_info_dock.setWidget(self.daq_info_widget)
         self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
         self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
-        self.daq_info_dock.setWindowTitle('DAQ Info')
+        self.daq_info_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
         self.sub_splitter.addWidget(self.daq_info_dock)
@@ -314,6 +314,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Connect control tab
         self.control_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))
+        self.control_tab.enableDAQRec.connect(lambda server, enable: self.daq_info_widget.record_btns[server].setVisible(enable))
+        self.control_tab.enableDAQRec.connect(
+            lambda server, enable: self.daq_info_widget.record_btns[server].clicked.connect(
+                lambda _, _server=server: self.control_tab.send_cmd(target='interpreter', cmd='record_data', cmd_data=_server))
+            if enable else self.daq_info_widget.record_btns[server].clicked.disconnect())  # Pretty crazy connection. Basically connects or disconnects a button
 
         # Make temporary dict for updated tabs
         tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
@@ -462,6 +467,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'pid':
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
+
+                if reply == 'record_data':
+                    server, state = reply_data
+                    self.daq_info_widget.update_rec_state(server=server, state=state)
+                    self.control_tab.update_rec_state(server=server, state=state)
 
                 if reply == 'shutdown':
 

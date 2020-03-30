@@ -618,7 +618,7 @@ class IrradInterpreter(multiprocessing.Process):
                     self.stop_write_data[cmd_data].clear()
                 else:
                     self.stop_write_data[cmd_data].set()
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=not self.stop_write_data[cmd_data].is_set())
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[cmd_data, not self.stop_write_data[cmd_data].is_set()])
 
         self._busy_cmd = False
 
