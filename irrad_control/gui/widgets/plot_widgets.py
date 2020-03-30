@@ -78,10 +78,15 @@ class PlotWrapperWidget(QtWidgets.QWidget):
                 checkbox.stateChanged.connect(lambda v, n=checkbox.text(): self.pw.show_data(n, bool(v)))
                 _sub_layout_2.addWidget(checkbox)
 
-        else:
-            logging.warning("{} has no 'show_data' method. Please implement it!".format(type(self.pw).__name__))
-
         _sub_layout_1.addStretch()
+
+        # Add possibility to en/disable showing curve statistics
+        if hasattr(self.pw, 'enable_stats'):
+            stats_checkbox = QtWidgets.QCheckBox('Enable statistics')
+            stats_checkbox.setChecked(self.pw._show_stats)
+            stats_checkbox.stateChanged.connect(lambda state: self.pw.enable_stats(bool(state)))
+            stats_checkbox.setToolTip("Show curve statitics while hovering / clicking curve(s)")
+            _sub_layout_1.addWidget(stats_checkbox)
 
         # Whenever x axis is time add spinbox to change time period for which data is shown
         if hasattr(self.pw, 'update_period'):
@@ -181,6 +186,9 @@ class IrradPlotWidget(pg.PlotWidget):
         # Start timer
         self.refresh_timer.start(int(1000 / refresh_rate))
 
+        # Hold buttons which are inside the plot
+        self._in_plot_btns = []
+
     def _setup_plot(self):
         raise NotImplementedError('Please implement a _setup_plot method')
 
@@ -193,9 +201,35 @@ class IrradPlotWidget(pg.PlotWidget):
     def update_refresh_rate(self, refresh_rate):
         """Update rate with which the plot is drawn"""
         if refresh_rate == 0:
+            logging.warning("{} display stopped. Data is not being buffered while not being displayed.".format(type(self).__name__))
             self.refresh_timer.stop()  # Stops QTimer
         else:
             self.refresh_timer.start(int(1000 / refresh_rate))  # Restarts QTimer with new updated interval
+
+    def add_plot_button(self, btn):
+        """Adds an in-plot button to the plotitem"""
+
+        if btn not in self._in_plot_btns:
+            self._in_plot_btns.append(btn)
+
+        self._update_button_pos()
+
+    def _update_button_pos(self, btn_spacing=20, x_offset=70, y_offset=5):
+
+        btn_pos_x = x_offset
+        btn_pos_y = y_offset
+
+        is_visible = [b.isVisible() for b in self._in_plot_btns]
+
+        for i, _btn in enumerate(self._in_plot_btns):
+
+            # The first button will always be set to upper left corner
+            # Check if the previous button was visible; if not, place at current position
+            if i != 0 and is_visible[i - 1]:
+                btn_pos_x += self._in_plot_btns[i - 1].boundingRect().width() + btn_spacing
+
+            # Place button
+            _btn.setPos(btn_pos_x, btn_pos_y)
 
     def show_data(self, curve=None, show=True):
         """Show/hide the data of curve in PlotItem. If *curve* is None, all curves are shown/hidden."""
@@ -223,15 +257,12 @@ class IrradPlotWidget(pg.PlotWidget):
 class ScrollingIrradDataPlot(IrradPlotWidget):
     """PlotWidget which displays a set of irradiation data curves over time"""
 
-    def __init__(self, channels, units=None, period=60, refresh_rate=20, name=None, parent=None):
+    def __init__(self, channels, units=None, period=60, refresh_rate=20, colors=_MPL_COLORS, name=None, parent=None):
         super(ScrollingIrradDataPlot, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         self.channels = channels
         self.units = units
         self.name = name
-
-        # Setup the main plot
-        self._setup_plot()
 
         # Attributes for data visualization
         self._time = None  # array for timestamps
@@ -243,6 +274,11 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self._period = period  # amount of time for which to display data; default, displaying last 60 seconds of data
         self._filled = False  # bool to see whether the array has been filled
         self._drate = None  # data rate
+        self._colors = colors  # Colors to plot curves in
+        self._show_stats = True  # Show statistics of curves
+
+        # Setup the main plot
+        self._setup_plot()
 
     def _setup_plot(self):
         """Setting up the plot. The Actual plot (self.plt) is the underlying PlotItem of the respective PlotWidget"""
@@ -265,12 +301,13 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.plt.setLimits(xMax=0)
 
         # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
-        self.curves = OrderedDict([(ch, pg.PlotCurveItem(pen=_MPL_COLORS[i % len(_MPL_COLORS)])) for i, ch in enumerate(self.channels)])
+        self.curves = OrderedDict([(ch, pg.PlotCurveItem(pen=self._colors[i % len(self._colors)])) for i, ch in enumerate(self.channels)])
         self.active_curves = None  # Store channel which is currently active (e.g. statistics are shown)
 
         # TextItem for showing statistic of curves; set invisible first, only show on user request
         self.stat_text = pg.TextItem(text='', border=pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine))
         self.stat_text.setParentItem(self.plt)
+        self.enable_stats()
         self.stat_text.setVisible(False)
         self._static_stat_text = False
 
@@ -283,14 +320,29 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             self.show_data(ch)
             self.curves[ch].opts['mouseWidth'] = 20  # Needed for indication of active curves
 
-        # Connect to relevant signals
-        self.plt.scene().sigMouseMoved.connect(self._set_active_curves)
-        self.plt.scene().sigMouseClicked.connect(self._set_active_curves)
-        self.plt.scene().sigMouseClicked.connect(lambda _: setattr(self, '_static_stat_text', not self._static_stat_text if self.active_curves else False))
+    def enable_stats(self, enable=True):
 
-        # TODO: Maybe use proxies to limit load
-        #self._proxy_move = pg.SignalProxy(self.plt.scene().sigMouseMoved, rateLimit=20, slot=self._indicate_active_curves)
-        #self._proxy_click = pg.SignalProxy(self.plt.scene().sigMouseClicked, rateLimit=20, slot=self._set_active_curves)
+        def _manage_signals(sig, slot, connect):
+
+            try:
+                sig.connect(slot) if connect else sig.disconnect(slot)
+            except Exception:
+                logging.error('Signal {} not {} slot {}'.format(repr(sig), '{}connected {}'.format(*('', 'to') if connect else ('dis', 'from')), repr(slot)))
+
+        # Set flag
+        self._show_stats = enable
+
+        # Signals
+        _manage_signals(sig=self.plt.scene().sigMouseMoved, slot=self._set_active_curves, connect=enable)
+        _manage_signals(sig=self.plt.scene().sigMouseClicked, slot=self._set_active_curves, connect=enable)
+        _manage_signals(sig=self.plt.scene().sigMouseClicked, slot=self._toggle_static_stat_text, connect=enable)
+
+        # Stat text visibility
+        self.stat_text.setVisible(enable)
+
+    def _toggle_static_stat_text(self, click):
+        self._static_stat_text = not self._static_stat_text if self.active_curves else False
+        self._set_active_curves(click)
 
     def _set_active_curves(self, event):
         """Method updating which curves are active; active curves statistics are shown on plot"""
@@ -408,7 +460,9 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             else:
                 self.curves[curve].setData(self._time, self._data[curve])
 
-        self._set_stats()
+        # Only calculate statistics if we look at them
+        if self._show_stats:
+            self._set_stats()
 
     def update_axis_scale(self, scale, axis='left'):
         """Update the scale of current axis"""
@@ -426,7 +480,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         new_time = np.full(shape=shape, fill_value=np.nan)
 
         # Check whether new time and data hold more or less indices
-        decreased = True if self._time.shape[0] >= shape else False
+        decreased = self._time.shape[0] >= shape
 
         if decreased:
             # Cut time axis
@@ -484,15 +538,17 @@ class RawDataPlot(ScrollingIrradDataPlot):
                                           parent=parent)
 
         # Make in-plot button to switch between units
-        self.unit_btn = PlotPushButton(plotitem=self.plt, text='Switch unit ({})'.format('A'))
-        self.unit_btn.setPos(self.plt.width()*0.1, self.plt.height()*0.01)
-        self.unit_btn.clicked.connect(self.change_unit)
+        unit_btn = PlotPushButton(plotitem=self.plt, text='Switch unit ({})'.format('A'))
+        unit_btn.clicked.connect(self.change_unit)
 
         # Connect to signal
         for con in [lambda u: self.plt.getAxis('left').setLabel(text='Signal', units=u),
-                    lambda u: self.unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V')),
+                    lambda u: unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V')),
                     lambda u: setattr(self, '_data', self.convert_to_unit(self._data, u))]:  # convert between units
             self.unitChanged.connect(con)
+
+        # Add
+        self.add_plot_button(unit_btn)
 
     def change_unit(self):
         self.use_unit = 'V' if self.use_unit == 'A' else 'A'
@@ -500,6 +556,11 @@ class RawDataPlot(ScrollingIrradDataPlot):
 
     def convert_to_unit(self, data, unit):
         """Method to convert raw data between Volt and Ampere"""
+
+        # Check whether data is not None
+        if not data:
+            logging.info('No data to convert')
+            return
 
         res = OrderedDict()
 
@@ -548,6 +609,9 @@ class PlotPushButton(pg.TextItem):
     def setPos(self, *args, **kwargs):
         super(PlotPushButton, self).setPos(*args, **kwargs)
         self.btn_area = QtCore.QRectF(self.mapToParent(self.boundingRect().topLeft()), self.mapToParent(self.boundingRect().bottomRight()))
+
+    def setFill(self, *args, **kwargs):
+        self.fill = pg.mkBrush(*args, **kwargs)
 
     def _check_hover(self, evt):
         if self.btn_area.contains(evt):
