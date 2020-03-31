@@ -679,7 +679,7 @@ class IrradInterpreter(multiprocessing.Process):
             logging.info('{} finished'.format(self.name.capitalize()))
 
 
-if __name__ == '__main__':
+def main():
     setup_yaml = sys.argv[1]
 
     if not os.path.isfile(setup_yaml):
@@ -692,3 +692,7 @@ if __name__ == '__main__':
         irrad_interpreter = IrradInterpreter(setup=_setup)
         irrad_interpreter.start()
         irrad_interpreter.join()
+
+
+if __name__ == '__main__':
+    main()

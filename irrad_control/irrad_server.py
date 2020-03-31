@@ -381,8 +381,12 @@ class IrradServer(multiprocessing.Process):
         logging.info("IrradServer with PID {} is shutting down...".format(self.ident))
 
 
-if __name__ == '__main__':
+def main():
     port = sys.argv[1]
     irrad_server = IrradServer(port)
     irrad_server.start()
     irrad_server.join()
+
+
+if __name__ == '__main__':
+    main()
