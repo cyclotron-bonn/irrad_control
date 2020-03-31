@@ -142,10 +142,6 @@ class IrradSetupTab(QtWidgets.QWidget):
         with open(self.setup['session']['outfile'] + '.yaml', 'w') as _setup:
             yaml.safe_dump(self.setup, _setup, default_flow_style=False)
 
-        # Open the network_config.yaml and overwrites it with current server_ips
-        with open(os.path.join(config_path, 'network_config.yaml'), 'w') as nc:
-            yaml.safe_dump(network_config, nc, default_flow_style=False)
-
     def update_setup(self):
         """Update the info into the setup dict"""
 
