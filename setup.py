@@ -34,7 +34,7 @@ setup_kwargs = {'name': 'irrad_control',
                 'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
                 'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
                 'platforms': 'any',
-                'entry_points': {'console_scripts': ['irrad_{0} = irrad_{0}.main:main'.format('control' if not _server else 'server')]}
+                'entry_points': {'console_scripts': [('irrad_server = {0}.irrad_server:main' if _server else '{0} = {0}.main:main').format('irrad_control')]}
                 }
 
 # Setup
