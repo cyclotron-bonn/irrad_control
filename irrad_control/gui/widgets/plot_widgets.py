@@ -1,12 +1,12 @@
 import logging
 import pyqtgraph as pg
 import numpy as np
+from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
 
-# Matplotlib first 8 default colors
-_MPL_COLORS = [(31, 119, 180), (255, 127, 14), (44, 160, 44), (214, 39, 40),
-               (148, 103, 189), (140, 86, 75), (227, 119, 194), (127, 127, 127)]
+# Matplotlib default colors
+_MPL_COLORS = [tuple(round(255 * v) for v in rgb) for rgb in [mcolors.to_rgb(def_col) for def_col in mcolors.TABLEAU_COLORS]]
 
 _BOLD_FONT = QtGui.QFont()
 _BOLD_FONT.setBold(True)
@@ -244,14 +244,15 @@ class IrradPlotWidget(pg.PlotWidget):
         _curves = [curve] if curve is not None else self.curves.keys()
 
         for _cu in _curves:
-            if show:
-                if not isinstance(self.curves[_cu], pg.InfiniteLine):
-                    self.legend.addItem(self.curves[_cu], _cu)
-                self.plt.addItem(self.curves[_cu])
+            if isinstance(self.curves[_cu], CrosshairItem):
+                self.curves[_cu].add_to_plot() if show else self.curves[_cu].remove_from_plot()
+                self.curves[_cu].add_to_legend() if show else self.curves[_cu].remove_from_legend()
             else:
-                if not isinstance(self.curves[_cu], pg.InfiniteLine):
-                    self.legend.removeItem(_cu)
-                self.plt.removeItem(self.curves[_cu])
+
+                if not any(isinstance(self.curves[_cu], x) for x in (pg.InfiniteLine, pg.ImageItem)):
+                    self.legend.addItem(self.curves[_cu], _cu) if show else self.legend.removeItem(_cu)
+
+                self.plt.addItem(self.curves[_cu]) if show else self.plt.removeItem(self.curves[_cu])
 
 
 class ScrollingIrradDataPlot(IrradPlotWidget):
@@ -659,7 +660,7 @@ class TemperatureDataPlot(ScrollingIrradDataPlot):
         self.plt.setLabel('right', text='Temperature', units='C')
 
 
-class BeamPositionItem:
+class CrosshairItem:
     """This class implements three pyqtgraph items in order to display a reticle with a circle in its intersection."""
 
     def __init__(self, color, name, intersect_symbol=None, horizontal=True, vertical=True):
@@ -777,19 +778,21 @@ class BeamPositionPlot(IrradPlotWidget):
     Plot for displaying the beam position. The position is displayed from analog and digital data if available.
     """
 
-    def __init__(self, daq_setup, daq_device=None, parent=None):
+    def __init__(self, daq_setup, position_range=None, daq_device=None, add_hist=True, parent=None):
         super(BeamPositionPlot, self).__init__(parent=parent)
 
         # Init class attributes
         self.daq_setup = daq_setup
         self.ro_types = daq_setup['devices']['adc']['types']
         self.daq_device = daq_device
-
-        # Setup the main plot
-        self._setup_plot()
+        self._plt_range = position_range if position_range else [-110, 110] * 2
+        self._add_hist = add_hist
 
         # Store data
         self._data = {}
+
+        # Setup the main plot
+        self._setup_plot()
 
     def _setup_plot(self):
 
@@ -799,12 +802,9 @@ class BeamPositionPlot(IrradPlotWidget):
         self.plt.setTitle(type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device)
         self.plt.setLabel('left', text='Vertical displacement', units='%')
         self.plt.setLabel('bottom', text='Horizontal displacement', units='%')
-        self.plt.showGrid(x=True, y=True, alpha=0.66)
-        self.plt.setRange(xRange=[-100, 100], yRange=[-100, 100])
-        self.plt.setLimits(xMax=110, xMin=-110, yMax=110, yMin=-110)
-        xyticks = dict([(v, str(abs(v))) for v in range(-120, 130, 20)])
-        self.plt.getAxis('bottom').setTicks([xyticks.items()])
-        self.plt.getAxis('left').setTicks([xyticks.items()])
+        self.plt.showGrid(x=True, y=True, alpha=0.99)
+        self.plt.setRange(xRange=self._plt_range[:2], yRange=self._plt_range[2:])
+        self.plt.setLimits(**dict([(k, self._plt_range[i]) for i, k in enumerate(('xMin', 'xMax', 'yMin', 'yMax'))]))
         self.plt.hideButtons()
         v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
         h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
@@ -819,22 +819,68 @@ class BeamPositionPlot(IrradPlotWidget):
 
         if any(x in self.ro_types for x in ('sem_h_shift', 'sem_v_shift')):
             sig = 'analog'
-            self.curves[sig] = BeamPositionItem(color=_MPL_COLORS[0], name=sig,
-                                                horizontal='sem_h_shift' in self.ro_types,
-                                                vertical='sem_v_shift' in self.ro_types)
+            self.curves[sig] = CrosshairItem(color=_MPL_COLORS[0], name=sig,
+                                             horizontal='sem_h_shift' in self.ro_types,
+                                             vertical='sem_v_shift' in self.ro_types)
+
+            # Add 2D histogram
+            if self._add_hist:
+                self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
 
         if any(all(x in self.ro_types for x in y) for y in [('sem_left', 'sem_right'), ('sem_up', 'sem_down')]):
             sig = 'digital'
-            self.curves[sig] = BeamPositionItem(color=_MPL_COLORS[1], name=sig,
-                                                horizontal='sem_left' in self.ro_types and 'sem_right' in self.ro_types,
-                                                vertical='sem_up' in self.ro_types and 'sem_down' in self.ro_types)
+            self.curves[sig] = CrosshairItem(color=_MPL_COLORS[1], name=sig,
+                                             horizontal='sem_left' in self.ro_types and 'sem_right' in self.ro_types,
+                                             vertical='sem_up' in self.ro_types and 'sem_down' in self.ro_types)
+            # Add 2D histogram
+            if self._add_hist:
+                self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
 
         # Show data and legend
         if self.curves:
             for curve in self.curves:
-                self.curves[curve].set_legend(self.legend)
-                self.curves[curve].set_plotitem(self.plt)
+                if isinstance(self.curves[curve], CrosshairItem):
+                    self.curves[curve].set_legend(self.legend)
+                    self.curves[curve].set_plotitem(self.plt)
                 self.show_data(curve)
+
+    def add_2d_hist(self, curve, cmap='hot', bins=(51, 51), **kwargs):
+
+        if curve not in self.curves:
+            logging.error("Can only add histogram to existing curve")
+            return
+
+        if len(bins) != 2:
+            raise ValueError("Bins must be iterable of integers of len 2")
+
+        hist_name = curve + '_hist'
+
+        if 'lut' not in kwargs:
+            # Create colormap and init
+            colormap = mcmaps.get_cmap(cmap)
+            colormap._init()
+
+            # Convert matplotlib colormap from 0-1 to 0 -255 for Qt
+            lut = (colormap._lut * 255).view(np.ndarray)
+            # Update kw
+            kwargs['lut'] = lut
+
+        # Add and show
+        self.curves[hist_name] = pg.ImageItem(**kwargs)
+        self.show_data(hist_name)
+
+        get_scale = lambda plt_range, n_bins: float(abs(plt_range[0] - plt_range[1])) / n_bins
+
+        # Manage position
+        self.curves[hist_name].translate(self._plt_range[0], self._plt_range[2])
+        self.curves[hist_name].scale(get_scale(self._plt_range[:2], bins[0]), get_scale(self._plt_range[2:], bins[1]))
+        self.curves[hist_name].setZValue(-10)
+
+        # Add hist data
+        self._data[hist_name] = {}
+        self._data[hist_name]['hist'] = np.zeros(shape=bins)
+        self._data[hist_name]['edges'] = (np.linspace(self._plt_range[0], self._plt_range[1], bins[0]),
+                                          np.linspace(self._plt_range[2], self._plt_range[3], bins[1]))
 
     def set_data(self, data):
 
@@ -850,29 +896,20 @@ class BeamPositionPlot(IrradPlotWidget):
             # Update data
             self._data[sig] = (h_shift, v_shift)
 
+            if sig + '_hist' in self.curves and all(x is not None for x in self._data[sig]):
+                # Get histogram indices and increment
+                idx_x, idx_y = (np.searchsorted(self._data[sig + '_hist']['edges'][i], self._data[sig][i]) for i in range(len(self._data[sig])))
+                self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
+
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
-        if self._data:
-            for sig in self.curves:
+        for sig in self.curves:
+            if sig not in self._data or not self._data[sig]:
+                continue
+            if isinstance(self.curves[sig], CrosshairItem):
                 self.curves[sig].set_position(*self._data[sig])
-
-    def show_data(self, curve=None, show=True):
-        """Show/hide the data of channel in PlotItem. If *channel* is None, all curves are shown/hidden."""
-
-        if curve is not None and curve not in self.curves:
-            logging.error('{} data not in graph. Current graphs: {}'.format(curve, ','.join(self.curves.keys())))
-            return
-
-        _curves = [curve] if curve is not None else self.curves.keys()
-
-        for _cu in _curves:
-
-            if show:
-                self.curves[_cu].add_to_plot()
-                self.curves[_cu].add_to_legend()
             else:
-                self.curves[_cu].remove_from_plot()
-                self.curves[_cu].remove_from_legend()
+                self.curves[sig].setImage(self._data[sig]['hist'])
 
 
 class FluenceHist(IrradPlotWidget):
