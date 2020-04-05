@@ -174,8 +174,15 @@ class IrradPlotWidget(pg.PlotWidget):
     def __init__(self, refresh_rate=20, parent=None):
         super(IrradPlotWidget, self).__init__(parent)
 
-        # Store curves to be displayed
+        # Actual plotitem
+        self.plt = self.getPlotItem()
+
+        # Store curves to be displayed and active
         self.curves = None
+
+        # Hold data
+        self._data = OrderedDict()
+        self._data_is_set = False
 
         # Timer for refreshing plots with a given time interval to avoid unnecessary updating / high load
         self.refresh_timer = QtCore.QTimer()
@@ -285,7 +292,6 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         """Setting up the plot. The Actual plot (self.plt) is the underlying PlotItem of the respective PlotWidget"""
 
         # Get plot item and setup
-        self.plt = self.getPlotItem()
         self.plt.setDownsampling(auto=True)
         self.plt.setLabel('left', text='Signal', units='V' if self.units is None else self.units['left'])
 
@@ -420,6 +426,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
                 shape = int(round(self._drate) * self._period + 1)
                 self._time = np.full(shape=shape, fill_value=np.nan)  # np.zeros(shape=shape)
                 self._data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for i, ch in enumerate(self.channels)])
+                self._data_is_set = True
 
         # Fill data
         else:
@@ -449,21 +456,19 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
 
-        if self._data is None or self._time is None:
-            return
+        if self._data_is_set:
+            for curve in self.curves:
 
-        for curve in self.curves:
+                # Update data of curves
+                if not self._filled:
+                    mask = ~np.isnan(self._data[curve])  # Mask all NaN values and invert bool mask
+                    self.curves[curve].setData(self._time[mask], self._data[curve][mask])
+                else:
+                    self.curves[curve].setData(self._time, self._data[curve])
 
-            # Update data of curves
-            if not self._filled:
-                mask = ~np.isnan(self._data[curve])  # Mask all NaN values and invert bool mask
-                self.curves[curve].setData(self._time[mask], self._data[curve][mask])
-            else:
-                self.curves[curve].setData(self._time, self._data[curve])
-
-        # Only calculate statistics if we look at them
-        if self._show_stats:
-            self._set_stats()
+            # Only calculate statistics if we look at them
+            if self._show_stats:
+                self._set_stats()
 
     def update_axis_scale(self, scale, axis='left'):
         """Update the scale of current axis"""
@@ -788,16 +793,12 @@ class BeamPositionPlot(IrradPlotWidget):
         self._plt_range = position_range if position_range else [-110, 110] * 2
         self._add_hist = add_hist
 
-        # Store data
-        self._data = {}
-
         # Setup the main plot
         self._setup_plot()
 
     def _setup_plot(self):
 
         # Get plot item and setup
-        self.plt = self.getPlotItem()
         self.plt.setDownsampling(auto=True)
         self.plt.setTitle(type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device)
         self.plt.setLabel('left', text='Vertical displacement', units='%')
@@ -901,15 +902,19 @@ class BeamPositionPlot(IrradPlotWidget):
                 idx_x, idx_y = (np.searchsorted(self._data[sig + '_hist']['edges'][i], self._data[sig][i]) for i in range(len(self._data[sig])))
                 self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
 
+        self._data_is_set = True
+
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
-        for sig in self.curves:
-            if sig not in self._data or not self._data[sig]:
-                continue
-            if isinstance(self.curves[sig], CrosshairItem):
-                self.curves[sig].set_position(*self._data[sig])
-            else:
-                self.curves[sig].setImage(self._data[sig]['hist'])
+
+        if self._data_is_set:
+            for sig in self.curves:
+                if sig not in self._data:
+                    continue
+                if isinstance(self.curves[sig], CrosshairItem):
+                    self.curves[sig].set_position(*self._data[sig])
+                else:
+                    self.curves[sig].setImage(self._data[sig]['hist'])
 
 
 class FluenceHist(IrradPlotWidget):
@@ -924,15 +929,14 @@ class FluenceHist(IrradPlotWidget):
         self.irrad_setup = irrad_setup
         self.daq_device = daq_device
 
+        self._data['hist_rows'] = np.arange(self.irrad_setup['n_rows'] + 1)
+
         # Setup the main plot
         self._setup_plot()
-
-        self._data = {}
 
     def _setup_plot(self):
 
         # Get plot item and setup
-        self.plt = self.getPlotItem()
         self.plt.setDownsampling(auto=True)
         self.plt.setTitle(type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device)
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
@@ -978,21 +982,104 @@ class FluenceHist(IrradPlotWidget):
         # Meta data and data
         _meta, _data = data['meta'], data['data']
 
+        # Set data
         self._data['hist'] = data['data']['hist']
         self._data['hist_err'] = data['data']['hist_err']
 
+        # Get stats
+        self._data['hist_mean'], self._data['hist_std'] = (f(self._data['hist']) for f in (np.mean, np.std))
+
+        self._data_is_set = True
+
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
-        if self._data:
-            x = np.arange(len(self._data['hist']) + 1)
+        if self._data_is_set:
             for curve in self.curves:
                 if curve == 'hist':
-                    self.curves[curve].setData(x=x, y=self._data['hist'], stepMode=True)
-                    mean, std = (f(self._data['hist']) for f in (np.mean, np.std))
-                    self.curves['mean'].setValue(mean)
-                    self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(mean, std))
-                    self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (mean, std)]))
+                    self.curves[curve].setData(x=self._data['hist_rows'], y=self._data['hist'], stepMode=True)
+                    self.curves['mean'].setValue(self._data['hist_mean'])
+                    self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'], self._data['hist_std']))
+                    self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (self._data['hist_mean'],
+                                                                                                                                  self._data['hist_std'])]))
+
                 elif curve == 'hist_points':
-                    self.curves[curve].setData(x=x[:-1] + 0.5, y=self._data['hist'])
+                    self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'])
                 elif curve == 'hist_errors':
-                    self.curves[curve].setData(x=x[:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
+                    self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
+
+
+class FractionHist(IrradPlotWidget):
+    """This implements a histogram of the fraction of one signal to another"""
+
+    def __init__(self, rel_sig, norm_sig, bins=100, colors=_MPL_COLORS, refresh_rate=10, parent=None):
+        super(FractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+
+        # Signal names; relative signal versus the signal it's normalized to
+        self.rel_sig = rel_sig
+        self.norm_sig = norm_sig
+
+        # Get colors
+        self.colors = colors
+
+        # Hold data
+        self._data['hist'], self._data['hist_edges'] = np.zeros(shape=bins), np.linspace(0, 100, bins + 1)
+
+        self._setup_plot()
+
+    def _setup_plot(self):
+
+        # Get plot item and setup
+        self.plt.setDownsampling(auto=True)
+        self.plt.setTitle(type(self).__name__ + ' ' + self.rel_sig)
+        self.plt.setLabel('left', text='#')
+        self.plt.setLabel('bottom', text='Fraction {} / {}'.format(self.rel_sig, self.norm_sig))
+        self.plt.getAxis('left').enableAutoSIPrefix(False)
+        self.plt.showGrid(x=True, y=True)
+        self.plt.setLimits(xMin=0, xMax=self._data['hist_edges'].shape[0], yMin=0)
+        self.legend = pg.LegendItem(offset=(80, 80))
+        self.legend.setParentItem(self.plt)
+
+        # Histogram of fraction
+        hist_curve = pg.PlotCurveItem(name='{} / {} histogram'.format(self.rel_sig, self.norm_sig))
+        hist_curve.setFillLevel(0.33)
+        hist_curve.setBrush(pg.mkBrush(color=self.colors[0]))
+
+        # Init items needed
+        current_fraction_curve = CrosshairItem(color=self.colors[1], name='Current bin')
+        current_fraction_curve.v_shift_line.setValue(5)  # Make crosshair point visible above 0
+        current_fraction_curve.v_shift_line.setVisible(False)  # We need x and y for the dot in the middle but we don't want horizontal line to be visible
+        current_fraction_curve.set_legend(self.legend)
+        current_fraction_curve.set_plotitem(self.plt)
+
+        # Make curves
+        self.curves = OrderedDict([('hist', hist_curve), ('current_frac', current_fraction_curve)])
+
+        # Show data and legend
+        for curve in self.curves:
+            self.show_data(curve)
+
+    def set_data(self, data):
+
+        # Meta data and data
+        _meta, _data = data['meta'], data['data']
+
+        # Store currrent fraction
+        self._data['fraction'] = _data
+
+        # Histogram fraction
+        self._data['hist_idx'] = np.searchsorted(self._data['hist_edges'], _data)
+        self._data['hist'][self._data['hist_idx']] += 1
+
+        self._data_is_set = True
+
+    def refresh_plot(self):
+        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+
+        # test if 'set_data' has been called
+        if self._data_is_set:
+            for curve in self.curves:
+
+                if curve == 'hist':
+                    self.curves[curve].setData(x=self._data['hist_edges'], y=self._data['hist'], stepMode=True)
+                if curve == 'current_frac':
+                    self.curves[curve].set_position(x=self._data['hist_idx'] + 0.5, y=self._data['hist'][self._data['hist_idx']])
