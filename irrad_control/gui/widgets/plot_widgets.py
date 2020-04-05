@@ -182,7 +182,8 @@ class IrradPlotWidget(pg.PlotWidget):
         self.plt = self.getPlotItem()
 
         # Store curves to be displayed and active
-        self.curves = None
+        self.curves = OrderedDict()
+        self.active_curves = OrderedDict()  # Store channel which is currently active (e.g. statistics are shown)
 
         # Hold data
         self._data = OrderedDict()
@@ -311,10 +312,6 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.plt.showGrid(x=True, y=True, alpha=0.66)
         self.plt.setLimits(xMax=0)
 
-        # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
-        self.curves = OrderedDict([(ch, pg.PlotCurveItem(pen=self._colors[i % len(self._colors)])) for i, ch in enumerate(self.channels)])
-        self.active_curves = None  # Store channel which is currently active (e.g. statistics are shown)
-
         # TextItem for showing statistic of curves; set invisible first, only show on user request
         self.stat_text = pg.TextItem(text='', border=pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine))
         self.stat_text.setParentItem(self.plt)
@@ -326,10 +323,11 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        # Show data and legend
-        for ch in self.channels:
-            self.show_data(ch)
+        # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
+        for i, ch in enumerate(self.channels):
+            self.curves[ch] = pg.PlotCurveItem(pen=self._colors[i % len(self._colors)])
             self.curves[ch].opts['mouseWidth'] = 20  # Needed for indication of active curves
+            self.show_data(ch)  # Show data and legend
 
     def enable_stats(self, enable=True):
 
@@ -820,8 +818,6 @@ class BeamPositionPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        self.curves = OrderedDict()
-
         if any(x in self.ro_types for x in ('sem_h_shift', 'sem_v_shift')):
             sig = 'analog'
             self.curves[sig] = CrosshairItem(color=_MPL_COLORS[0], name=sig,
@@ -954,28 +950,25 @@ class FluenceHist(IrradPlotWidget):
         self.legend.setParentItem(self.plt)
 
         # Histogram of fluence per row
-        hist_curve = pg.PlotCurveItem()
-        hist_curve.setFillLevel(0.33)
-        hist_curve.setBrush(pg.mkBrush(color=_MPL_COLORS[0]))
+        self.curves['hist'] = pg.PlotCurveItem()
+        self.curves['hist'].setFillLevel(0.33)
+        self.curves['hist'].setBrush(pg.mkBrush(color=_MPL_COLORS[0]))
 
         # Points at respective row positions
-        hist_points = pg.ScatterPlotItem()
-        hist_points.setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.SolidLine)
-        hist_points.setBrush(color=_MPL_COLORS[2])
-        hist_points.setSymbol('o')
-        hist_points.setSize(10)
+        self.curves['hist_points'] = pg.ScatterPlotItem()
+        self.curves['hist_points'].setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.SolidLine)
+        self.curves['hist_points'].setBrush(color=_MPL_COLORS[2])
+        self.curves['hist_points'].setSymbol('o')
+        self.curves['hist_points'].setSize(10)
 
         # Errorbars for points; needs to initialized with x, y args, otherwise cnnot be added to PlotItem
-        hist_errors = pg.ErrorBarItem(x=np.arange(1), y=np.arange(1), beam=0.25)
+        self.curves['hist_errors'] = pg.ErrorBarItem(x=np.arange(1), y=np.arange(1), beam=0.25)
 
         # Horizontal line indication the mean fluence over all rows
-        mean_curve = pg.InfiniteLine(angle=0)
-        mean_curve.setPen(color=_MPL_COLORS[1], width=2)
-        self.p_label = pg.InfLineLabel(mean_curve, position=0.2)
-        self.n_label = pg.InfLineLabel(mean_curve, position=0.8)
-
-        self.curves = OrderedDict([('hist', hist_curve), ('hist_points', hist_points),
-                                   ('hist_errors', hist_errors), ('mean', mean_curve)])
+        self.curves['mean'] = pg.InfiniteLine(angle=0)
+        self.curves['mean'].setPen(color=_MPL_COLORS[1], width=2)
+        self.p_label = pg.InfLineLabel(self.curves['mean'], position=0.2)
+        self.n_label = pg.InfLineLabel(self.curves['mean'], position=0.8)
 
         # Show data and legend
         for curve in self.curves:
@@ -1044,19 +1037,16 @@ class FractionHist(IrradPlotWidget):
         self.legend.setParentItem(self.plt)
 
         # Histogram of fraction
-        hist_curve = pg.PlotCurveItem(name='{} / {} histogram'.format(self.rel_sig, self.norm_sig))
-        hist_curve.setFillLevel(0.33)
-        hist_curve.setBrush(pg.mkBrush(color=self.colors[0]))
+        self.curves['hist'] = pg.PlotCurveItem(name='{} / {} histogram'.format(self.rel_sig, self.norm_sig))
+        self.curves['hist'].setFillLevel(0.33)
+        self.curves['hist'].setBrush(pg.mkBrush(color=self.colors[0]))
 
         # Init items needed
-        current_fraction_curve = CrosshairItem(color=self.colors[1], name='Current bin')
-        current_fraction_curve.v_shift_line.setValue(5)  # Make crosshair point visible above 0
-        current_fraction_curve.v_shift_line.setVisible(False)  # We need x and y for the dot in the middle but we don't want horizontal line to be visible
-        current_fraction_curve.set_legend(self.legend)
-        current_fraction_curve.set_plotitem(self.plt)
-
-        # Make curves
-        self.curves = OrderedDict([('hist', hist_curve), ('current_frac', current_fraction_curve)])
+        self.curves['current_frac'] = CrosshairItem(color=self.colors[1], name='Current bin')
+        self.curves['current_frac'].v_shift_line.setValue(5)  # Make crosshair point visible above 0
+        self.curves['current_frac'].v_shift_line.setVisible(False)  # We need x and y for the dot in the middle but we don't want horizontal line to be visible
+        self.curves['current_frac'].set_legend(self.legend)
+        self.curves['current_frac'].set_plotitem(self.plt)
 
         # Show data and legend
         for curve in self.curves:
@@ -1078,6 +1068,8 @@ class FractionHist(IrradPlotWidget):
 
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+
+        self.set_data({'meta':None,'data':np.random.normal(loc=50)})
 
         # test if 'set_data' has been called
         if self._data_is_set:
