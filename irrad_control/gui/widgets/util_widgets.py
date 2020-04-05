@@ -96,7 +96,6 @@ class GridContainer(QtWidgets.QGroupBox):
 
             # Get item in grid at index i
             grid_item = self.grid.itemAt(i)
-            print(grid_item)
 
             if isinstance(grid_item, QtWidgets.QLayoutItem):
 
