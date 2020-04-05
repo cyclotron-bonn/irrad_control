@@ -166,6 +166,7 @@ class DaqInfoWidget(QtWidgets.QWidget):
             table_layout.addWidget(all_tables)
 
             scroll_area = QtWidgets.QScrollArea()
+            scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
             scroll_area.setWidgetResizable(True)
             scroll_area.setWidget(table_widget)
 
