@@ -114,6 +114,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Right side
         scroll_server = QtWidgets.QScrollArea()
+        scroll_server.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll_server.setWidgetResizable(True)
         scroll_server.setWidget(self.server_setup)
         # self.server_setup.setMinimumSize(800, 780)
@@ -514,6 +515,9 @@ class ServerSetupWidget(QtWidgets.QWidget):
 
         # The main layout for this widget
         self.setLayout(QtWidgets.QVBoxLayout())
+
+        # No margins
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Tabs for each available server
         self.tabs = QtWidgets.QTabWidget()
