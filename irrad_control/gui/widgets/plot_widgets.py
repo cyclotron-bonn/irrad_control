@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
+from irrad_control.gui.widgets.util_widgets import GridContainer
 
 # Matplotlib default colors
 _MPL_COLORS = [tuple(round(255 * v) for v in rgb) for rgb in [mcolors.to_rgb(def_col) for def_col in mcolors.TABLEAU_COLORS]]
@@ -52,7 +53,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.sub_layout = QtWidgets.QVBoxLayout()
+        self.plot_options = GridContainer(name='Plot options')
         
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
@@ -62,11 +63,13 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         """Setup of the additional widgets to control the appearance and content of the PlotWidget"""
 
         _sub_layout_1 = QtWidgets.QHBoxLayout()
+        _sub_layout_1.setSpacing(self.plot_options.grid.verticalSpacing())
         _sub_layout_2 = QtWidgets.QHBoxLayout()
+        _sub_layout_2.setSpacing(self.plot_options.grid.verticalSpacing())
 
         # Create checkboxes in order to show/hide curves in plots
         if hasattr(self.pw, 'show_data') and hasattr(self.pw, 'curves'):
-            _sub_layout_1.addWidget(QtWidgets.QLabel('Show curve(s):'))
+            _sub_layout_2.addWidget(QtWidgets.QLabel('Toggle curve{}:'.format('s' if len(self.pw.curves) > 1 else '')))
             all_checkbox = QtWidgets.QCheckBox('All')
             all_checkbox.setFont(_BOLD_FONT)
             all_checkbox.setChecked(True)
@@ -78,6 +81,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
                 checkbox.stateChanged.connect(lambda v, n=checkbox.text(): self.pw.show_data(n, bool(v)))
                 _sub_layout_2.addWidget(checkbox)
 
+        _sub_layout_1.addWidget(QtWidgets.QLabel('Features:'))
         _sub_layout_1.addStretch()
 
         # Add possibility to en/disable showing curve statistics
@@ -85,7 +89,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             stats_checkbox = QtWidgets.QCheckBox('Enable statistics')
             stats_checkbox.setChecked(self.pw._show_stats)
             stats_checkbox.stateChanged.connect(lambda state: self.pw.enable_stats(bool(state)))
-            stats_checkbox.setToolTip("Show curve statitics while hovering / clicking curve(s)")
+            stats_checkbox.setToolTip("Show curve statistics while hovering / clicking curve(s)")
             _sub_layout_1.addWidget(stats_checkbox)
 
         # Whenever x axis is time add spinbox to change time period for which data is shown
@@ -147,11 +151,11 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         _sub_layout_1.addWidget(self.btn_open)
         _sub_layout_1.addWidget(self.btn_close)
 
-        self.sub_layout.addLayout(_sub_layout_1)
-        self.sub_layout.addLayout(_sub_layout_2)
+        self.plot_options.add_layout(_sub_layout_1)
+        self.plot_options.add_layout(_sub_layout_2)
         
         # Insert everything into main layout
-        self.layout().insertLayout(0, self.sub_layout)
+        self.layout().insertWidget(0, self.plot_options)
         self.layout().insertWidget(1, self.pw)
 
     def set_plot(self, plot):
