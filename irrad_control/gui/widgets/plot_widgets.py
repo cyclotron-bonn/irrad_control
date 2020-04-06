@@ -279,7 +279,6 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Attributes for data visualization
         self._time = None  # array for timestamps
-        self._data = None
         self._start = 0  # starting timestamp of each cycle
         self._timestamp = 0  # timestamp of each incoming data
         self._offset = 0  # offset for increasing cycle time
@@ -426,8 +425,9 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             if 'data_rate' in _meta:
                 self._drate = _meta['data_rate']
                 shape = int(round(self._drate) * self._period + 1)
-                self._time = np.full(shape=shape, fill_value=np.nan)  # np.zeros(shape=shape)
-                self._data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for i, ch in enumerate(self.channels)])
+                self._time = np.full(shape=shape, fill_value=np.nan)
+                for ch in self.channels:
+                    self._data[ch] = np.full(shape=shape, fill_value=np.nan)
                 self._data_is_set = True
 
         # Fill data
@@ -484,7 +484,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Create new data and time
         shape = int(round(self._drate) * self._period + 1)
-        new_data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for i, ch in enumerate(self.channels)])
+        new_data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for ch in self.channels])
         new_time = np.full(shape=shape, fill_value=np.nan)
 
         # Check whether new time and data hold more or less indices
