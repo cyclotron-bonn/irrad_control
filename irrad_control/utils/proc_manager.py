@@ -159,7 +159,7 @@ class ProcessManager(object):
         """Register a *PID* on a *hostname* for monitoring its 'is_alive' status"""
         self.active_pids[hostname][pid] = {'name': name, 'active': True}
 
-    def check_process_status(self, hostname, pid=None, name=None):
+    def _check_ps_interaction(self, pid, name):
 
         if pid is None and name is None:
             raise ValueError("Either a PID or a process name has to be given")
@@ -171,8 +171,15 @@ class ProcessManager(object):
             raise ValueError("Name has to be string or list/tuple of strings")
 
         # If we're here, everything should be fine
-        pid = [pid] if isinstance(pid, int) or pid is None else pid
-        name = [name] if isinstance(name, str) or name is None else name
+        pid = [pid] if isinstance(pid, int) else [] if pid is None else pid
+        name = [name] if isinstance(name, str) else [] if name is None else name
+
+        return pid, name
+
+    def check_process_status(self, hostname, pid=None, name=None):
+
+        # Check if pid / name are valid
+        pid, name = self._check_ps_interaction(pid, name)
 
         # Bash command outputting all running PIDs / names, separated by a whitespace
         cmd = "ps -e | awk '{print $1,$4}' | grep " + "'{}'".format(("\|").join(str(x) for x in name + pid if x is not None))
@@ -220,18 +227,23 @@ class ProcessManager(object):
 
     def kill_proc(self, hostname, pid=None, name=None):
 
-        # We're killing a process on a server
-        if hostname in self.client:
-            logging.info('Killing server PC process with PID {}...'.format(pid))
+        # Check if pid / name are valid
+        pid, name = self._check_ps_interaction(pid, name)
 
-            if pid is not None:
-                self._exec_cmd(hostname, 'kill {}'.format(pid))
+        if pid:
 
-            if name is not None:
-                self._exec_cmd(hostname, 'killall {}'.format(name))
+            logging.info('Killing {} process with PID{} {}...'.format('server' if hostname in self.client else 'host',
+                                                                      '' if len(pid) == 1 else 's', ' '.join(pid)))
+            if hostname in self.client:
+                self._exec_cmd(hostname, 'kill {}'.format(' '.join(pid)))
+            else:
+                subprocess.Popen(['kill'] + pid)
 
-        else:
+        if name:
 
-            logging.info('Killing host PC process with PID {}...'.format(pid))
-
-            subprocess.Popen(['kill', pid])
+            logging.info('Killing all {} processes with name{} {}...'.format('server' if hostname in self.client else 'host',
+                                                                             '' if len(name) == 1 else 's', ' '.join(name)))
+            if hostname in self.client:
+                self._exec_cmd(hostname, 'killall {}'.format(' '.join(name)))
+            else:
+                subprocess.Popen(['killall'] + name)

@@ -262,13 +262,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='master', git_pull=True)
+            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
 
             # Connect workers finish signal to starting process on server
-            for con in [lambda _server=server: self.proc_mngr.start_server_process(_server, self.setup['port']['cmd']),
-                        lambda _server=server: self.send_cmd(hostname=_server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': _server})
-                        ]:
-                server_config_workers[server].signals.finished.connect(con)
+            server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server, self.setup['port']['cmd']))
 
             # Connect workers exception to log
             self._connect_worker_exception(worker=server_config_workers[server])
@@ -278,9 +275,36 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.threadpool.start(server_config_workers[server])
 
         # Launch interpreter process
-        self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile']+'.yaml')
+        self.start_interpreter()
+
+    def start_server(self, server, port):
+
+        # Launch server process
+        complaint = self.proc_mngr.start_server_process(server, port)
+
+        # Start was successful
+        if complaint is None:
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+        else:
+
+            host_user = self.proc_mngr.server[server] + '@' + server
+
+            msg = "A server process is already running on {}. Only one server process at a time can be run on a host. " \
+                  "Do you want to terminate the server process and relaunch a new one?" \
+                  " Proceeding without terminating the currently running server process may lead to faulty behavior".format(host_user)
+
+            reply = QtWidgets.QMessageBox.question(self, 'Terminate running server process and relaunch?',
+                                                   msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+
+            if reply == QtWidgets.QMessageBox.Yes:
+                self.proc_mngr.kill_proc(hostname=server, name='irrad_server')
+                self.start_server(server, port)  # Try again
+
+    def start_interpreter(self):
+        """TODO: check like server"""
+        self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile'] + '.yaml')
         self.send_cmd(hostname='localhost', target='interpreter', cmd='pid')
-            
+
     def _init_threads(self):       
                 
         # Fancy QThreadPool and QRunnable approach
@@ -445,7 +469,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if sender == 'server':
 
                 if reply == 'start':
-
+                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender + ':' + hostname)
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
@@ -466,6 +490,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             elif sender == 'interpreter':
 
                 if reply == 'pid':
+                    logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
 
                 if reply == 'record_data':
@@ -649,13 +674,13 @@ class IrradControlWin(QtWidgets.QMainWindow):
             event.ignore()
 
         # There are subprocesses to shut down
-        elif any(self.proc_mngr.active_pids[h]['active'] for h in self.proc_mngr.active_pids):
+        elif any(self.proc_mngr.active_pids[h][pid]['active'] for h in self.proc_mngr.active_pids for pid in self.proc_mngr.active_pids[h]):
 
             # If we're here, there's no more processecs; we will launch closing workers, they should not give warning to user
             self._log_close = True
 
             # Check
-            self.proc_mngr.check_process_status()
+            self.proc_mngr.check_active_processes()
 
             # Loop over all started processes and send shutdown cmd
             for host in self.proc_mngr.active_pids:
