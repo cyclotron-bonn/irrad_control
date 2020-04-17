@@ -185,11 +185,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init daq info widget
         self._init_daq_dock()
 
-        # Start receiving data and log
-        self._init_threads()
+        # Start receiving log messages from other processes
+        self.threadpool.start(Worker(func=self.recv_log))
 
-        # Init subprocesses
-        self._init_subprocesses()
+        # Init servers
+        self._init_servers()
 
     def _init_log_dock(self):
         """Initializes corresponding log dock"""
@@ -253,7 +253,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif 'log' in log_dict:
             logging.log(level=self._remote_loglevel, msg=log_dict['log'])
 
-    def _init_subprocesses(self):
+    def _init_servers(self):
 
         # Loop over all server(s), connect to the server(s) and launch worker for configuration
         server_config_workers = {}
@@ -273,9 +273,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             # Launch worker on QThread
             self.threadpool.start(server_config_workers[server])
-
-        # Launch interpreter process
-        self.start_interpreter()
 
     def start_server(self, server, port):
 
@@ -473,6 +470,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender + ':' + hostname)
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
+                    # Start interpreter on successful launch of at least one server
+                    if self.proc_mngr.interpreter_proc is None:
+                        self.start_interpreter()
+
                     # Send command to find where stage is and what the speeds are
                     if 'stage' in self.setup['server'][hostname]['devices']:
                         self.send_cmd(hostname, 'stage', 'pos')
@@ -492,6 +493,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 if reply == 'pid':
                     logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
+
+                    # Start receiving data from interpreter and server
+                    self.threadpool.start(Worker(func=self.recv_data))
 
                 if reply == 'record_data':
                     server, state = reply_data
