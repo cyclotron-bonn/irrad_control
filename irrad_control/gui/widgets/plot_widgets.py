@@ -839,7 +839,7 @@ class BeamPositionPlot(IrradPlotWidget):
                                              vertical='sem_v_shift' in self.ro_types)
 
             # Add 2D histogram
-            if self._add_hist:
+            if self._add_hist and self.curves[sig].horizontal and self.curves[sig].vertical:
                 self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
 
         if any(all(x in self.ro_types for x in y) for y in [('sem_left', 'sem_right'), ('sem_up', 'sem_down')]):
@@ -848,7 +848,7 @@ class BeamPositionPlot(IrradPlotWidget):
                                              horizontal='sem_left' in self.ro_types and 'sem_right' in self.ro_types,
                                              vertical='sem_up' in self.ro_types and 'sem_down' in self.ro_types)
             # Add 2D histogram
-            if self._add_hist:
+            if self._add_hist and self.curves[sig].horizontal and self.curves[sig].vertical:
                 self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
 
         # Show data and legend
@@ -913,7 +913,10 @@ class BeamPositionPlot(IrradPlotWidget):
             if sig + '_hist' in self.curves and all(x is not None for x in self._data[sig]):
                 # Get histogram indices and increment
                 idx_x, idx_y = (np.searchsorted(self._data[sig + '_hist']['edges'][i], self._data[sig][i]) for i in range(len(self._data[sig])))
-                self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
+                try:
+                    self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
+                except IndexError:
+                    logging.debug("Histogram indices ({},{}) out of bounds for shape ({},{})".format(idx_x, idx_y, *self._data[sig + '_hist']['hist'].shape))
         self._data_is_set = True
 
     def _set_stats(self):
@@ -938,10 +941,13 @@ class BeamPositionPlot(IrradPlotWidget):
             if 'hist' in curve:
                 v = np.sum(self._data[curve]['hist'], axis=0)
                 h = np.sum(self._data[curve]['hist'], axis=1)
-                mean_h = np.average(self._data[curve]['centers'][0], weights=h)
-                std_h = np.sqrt(np.average((self._data[curve]['centers'][0] - mean_h)**2, weights=h))
-                mean_v = np.average(self._data[curve]['centers'][0], weights=v)
-                std_v = np.sqrt(np.average((self._data[curve]['centers'][1] - mean_v) ** 2, weights=v))
+                try:  # Weights are fine
+                    mean_h = np.average(self._data[curve]['centers'][0], weights=h)
+                    std_h = np.sqrt(np.average((self._data[curve]['centers'][0] - mean_h)**2, weights=h))
+                    mean_v = np.average(self._data[curve]['centers'][0], weights=v)
+                    std_v = np.sqrt(np.average((self._data[curve]['centers'][1] - mean_v) ** 2, weights=v))
+                except ZeroDivisionError:  # Weights sum up to 0; no histogram entries
+                    mean_h = std_h = mean_v = std_v = np.nan
 
                 current_stat_text += curve + ':\n    '
                 current_stat_text += u'Horizontal: ({:.2f} \u00B1 {:.2f}) {}'.format(mean_h, std_h, self.plt.getAxis('bottom').labelUnits) + '\n    '
@@ -1122,10 +1128,13 @@ class FractionHist(IrradPlotWidget):
         self._data['fraction'] = _data
 
         # Histogram fraction
-        self._data['hist_idx'] = np.searchsorted(self._data['edges'], _data)
-        self._data['hist'][self._data['hist_idx']] += 1
-
-        self._data_is_set = True
+        hist_idx = np.searchsorted(self._data['edges'], _data)
+        try:
+            self._data['hist'][hist_idx] += 1
+            self._data['hist_idx'] = hist_idx
+            self._data_is_set = True
+        except IndexError:
+            logging.debug("Histogram index {} out of bounds for shape {}".format(hist_idx, *self._data['hist'].shape))
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
@@ -1147,8 +1156,11 @@ class FractionHist(IrradPlotWidget):
 
             # Histogram stats
             if 'hist' in curve:
-                mean = np.average(self._data['centers'], weights=self._data['hist'])
-                std = np.sqrt(np.average((self._data['centers'] - mean)**2, weights=self._data['hist']))
+                try:
+                    mean = np.average(self._data['centers'], weights=self._data['hist'])
+                    std = np.sqrt(np.average((self._data['centers'] - mean)**2, weights=self._data['hist']))
+                except ZeroDivisionError:  # Weights sum up to 0; no histogram entries
+                    mean = std = np.nan
                 current_stat_text += curve + u': ({:.2f} \u00B1 {:.2f}) {}'.format(mean, std, self.plt.getAxis('bottom').labelUnits)
 
             else:
