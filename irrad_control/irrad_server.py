@@ -4,6 +4,7 @@ import time
 import multiprocessing
 import threading
 import logging
+from serial import SerialException
 from zmq.log import handlers
 from irrad_control.devices.adc.ADS1256_definitions import *
 from irrad_control.devices.adc.ADS1256_drates import ads1256_drates
@@ -116,12 +117,16 @@ class IrradServer(multiprocessing.Process):
 
             self.adc_setup = self.setup['server']['devices']['adc']
 
-            # Setup adc
-            self._setup_adc()
-
-            # Start data sending thread
-            data_thread = threading.Thread(target=self.send_data)
-            data_thread.start()
+            try:
+                # Setup adc
+                self._setup_adc()
+                # Start data sending thread
+                data_thread = threading.Thread(target=self.send_data)
+                data_thread.start()
+            except IOError:
+                logging.error("Could not access SPI device file. Enable SPI interface!")
+                logging.warning("ADC removed from server devices")
+                del self.commands['adc']
 
         # Otherwise remove from command list
         else:
@@ -132,12 +137,16 @@ class IrradServer(multiprocessing.Process):
 
             self.temp_setup = self.setup['server']['devices']['temp']
 
-            # Init temp sens
-            self.temp_sens = ArduinoTempSens(port="/dev/ttyUSB1")  #TODO: pass port as arg in device setup
-
-            # Start data sending thread
-            temp_thread = threading.Thread(target=self.send_temp)
-            temp_thread.start()
+            try:
+                # Init temp sens
+                self.temp_sens = ArduinoTempSens(port="/dev/ttyUSB1")  #TODO: pass port as arg in device setup
+                # Start data sending thread
+                temp_thread = threading.Thread(target=self.send_temp)
+                temp_thread.start()
+            except SerialException:
+                logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB1"))
+                logging.warning("Temperature sensor removed from server devices")
+                del self.commands['temp']
 
         # Otherwise remove from command list
         else:
@@ -146,8 +155,13 @@ class IrradServer(multiprocessing.Process):
         # If this server has stage
         if 'stage' in self.setup['server']['devices']:
 
-            # Init stage
-            self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0') #TODO: pass port as arg in device setup
+            try:
+                # Init stage
+                self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0') #TODO: pass port as arg in device setup
+            except SerialException:
+                logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB0"))
+                logging.warning("XYStage removed from server devices")
+                del self.commands['stage']
 
         # Otherwise remove from command list
         else:
