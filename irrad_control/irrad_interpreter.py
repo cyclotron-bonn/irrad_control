@@ -44,7 +44,7 @@ class IrradInterpreter(multiprocessing.Process):
         self.zero_offset = dict((server, multiprocessing.Event()) for server in setup['server'].keys())
 
         # Dict of known commands; flag to indicate when cmd is busy
-        self.commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'pid']}
+        self.commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
         self._busy_cmd = False
 
         # General setup
@@ -603,7 +603,7 @@ class IrradInterpreter(multiprocessing.Process):
         # Handle server commands
         if target == 'interpreter':
 
-            if cmd == 'pid':
+            if cmd == 'start':
                 self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=self.pid)
             elif cmd == 'shutdown':
                 self.shutdown()

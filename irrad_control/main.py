@@ -300,17 +300,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
     def start_interpreter(self):
         """TODO: check like server"""
         self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile'] + '.yaml')
-        self.send_cmd(hostname='localhost', target='interpreter', cmd='pid')
-
-    def _init_threads(self):       
-                
-        # Fancy QThreadPool and QRunnable approach
-        recv_workers = {'recv_data': Worker(func=self.recv_data),
-                        'recv_log': Worker(func=self.recv_log)}
-        
-        for _worker in recv_workers:
-            self._connect_worker_exception(worker=recv_workers[_worker])
-            self.threadpool.start(recv_workers[_worker])
+        self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
 
     def _connect_worker_exception(self, worker):
         worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
@@ -490,7 +480,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             elif sender == 'interpreter':
 
-                if reply == 'pid':
+                if reply == 'start':
                     logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
                     self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
 
