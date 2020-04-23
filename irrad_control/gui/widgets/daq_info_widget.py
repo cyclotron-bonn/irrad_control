@@ -168,10 +168,12 @@ class DaqInfoWidget(QtWidgets.QWidget):
             scroll_area = QtWidgets.QScrollArea()
             scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
             scroll_area.setWidgetResizable(True)
-            scroll_area.setStyleSheet("background: transparent")  # Needed, otherwise background color is weird
-            scroll_area.horizontalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
-            scroll_area.verticalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
-            table_widget.setStyleSheet("background: {}".format(table_widget.palette().color(QtGui.QPalette.AlternateBase).name()))  # Needed, see above
+            # Colors
+            p, r = scroll_area.palette(), scroll_area.backgroundRole()
+            p.setColor(r, table_widget.palette().color(QtGui.QPalette.AlternateBase))
+            scroll_area.setPalette(p)
+            scroll_area.setAutoFillBackground(True)
+            # Set widget
             scroll_area.setWidget(table_widget)
 
             self.tabs.addTab(scroll_area, self.setup[server]['name'])

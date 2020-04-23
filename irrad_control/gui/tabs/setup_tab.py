@@ -594,10 +594,12 @@ class ServerSetupWidget(QtWidgets.QWidget):
         scroll_server = QtWidgets.QScrollArea()
         scroll_server.setFrameShape(QtWidgets.QFrame.NoFrame)
         scroll_server.setWidgetResizable(True)
-        scroll_server.setStyleSheet("background: transparent")  # Needed, otherwise background color is weird
-        scroll_server.horizontalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
-        scroll_server.verticalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
-        _widget.setStyleSheet("background: {}".format(_widget.palette().color(QtGui.QPalette.AlternateBase).name()))  # Needed, see above
+        # Colors
+        p, r = scroll_server.palette(), scroll_server.backgroundRole()
+        p.setColor(r, _widget.palette().color(QtGui.QPalette.AlternateBase))
+        scroll_server.setPalette(p)
+        scroll_server.setAutoFillBackground(True)
+        # Set widget
         scroll_server.setWidget(_widget)
 
         # Finally, add to tab bar

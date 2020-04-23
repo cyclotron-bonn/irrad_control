@@ -56,7 +56,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.plot_options = GridContainer(name='Plot options')
+        self.plot_options = GridContainer(name='Plot options' if not hasattr(self.pw, 'name') else '{} options'.format(self.pw.name))
         
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
@@ -186,15 +186,17 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.setStyleSheet("background: transparent")  # Needed, otherwise background color is weird
-        self.horizontalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
-        self.verticalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
 
         # Main widget is a vertical splitter
         self.main_splitter = QtWidgets.QSplitter()
         self.main_splitter.setOrientation(QtCore.Qt.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
-        self.main_splitter.setStyleSheet("background: {}".format(self.main_splitter.palette().color(QtGui.QPalette.AlternateBase).name()))  # Needed, see above
+
+        # Colors
+        p, r = self.palette(), self.backgroundRole()
+        p.setColor(r, self.main_splitter.palette().color(QtGui.QPalette.AlternateBase))
+        self.setPalette(p)
+        self.setAutoFillBackground(True)
 
         # Set main widget
         self.setWidget(self.main_splitter)
@@ -221,6 +223,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
             for sub_plot in plots:
                 splitter.addWidget(sub_plot)
             self.main_splitter.addWidget(splitter)  # Add to main layout
+            splitter.setSizes([self.width() / len(plots)] * len(plots))  # Same width
         else:
             raise TypeError("*plot* must be individual or iterable of plot widgets")
 
@@ -862,7 +865,7 @@ class BeamPositionPlot(IrradPlotWidget):
     Plot for displaying the beam position. The position is displayed from analog and digital data if available.
     """
 
-    def __init__(self, daq_setup, position_range=None, daq_device=None, add_hist=True, parent=None):
+    def __init__(self, daq_setup, position_range=None, daq_device=None, name=None, add_hist=True, parent=None):
         super(BeamPositionPlot, self).__init__(parent=parent)
 
         # Init class attributes
@@ -871,6 +874,7 @@ class BeamPositionPlot(IrradPlotWidget):
         self.daq_device = daq_device
         self._plt_range = position_range if position_range else [-110, 110] * 2
         self._add_hist = add_hist
+        self.name = name if name is not None else type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device
 
         # Setup the main plot
         self._setup_plot()
@@ -879,7 +883,7 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Get plot item and setup
         self.plt.setDownsampling(auto=True)
-        self.plt.setTitle(type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device)
+        self.plt.setTitle(self.name)
         self.plt.setLabel('left', text='Vertical displacement', units='%')
         self.plt.setLabel('bottom', text='Horizontal displacement', units='%')
         self.plt.showGrid(x=True, y=True, alpha=0.99)
