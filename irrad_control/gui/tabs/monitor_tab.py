@@ -1,7 +1,7 @@
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtWidgets
 from collections import OrderedDict
-from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, PlotWrapperWidget, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, FractionHist
-
+from irrad_control.gui.widgets import PlotWrapperWidget, MultiPlotWidget  # Wrapper widgets
+from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, FractionHist  # Actual plots
 
 class IrradMonitorTab(QtWidgets.QWidget):
     """Widget which implements a data monitor"""
@@ -46,18 +46,13 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                     elif monitor == 'Beam':
 
-                        monitor_widget = QtWidgets.QSplitter()
-                        monitor_widget.setOrientation(QtCore.Qt.Horizontal)
-                        monitor_widget.setChildrenCollapsible(False)
-
                         self.plots[server]['current_plot'] = BeamCurrentPlot(daq_device=self.setup[server]['devices']['daq']['sem'])
                         self.plots[server]['pos_plot'] = BeamPositionPlot(self.setup[server], daq_device=self.setup[server]['devices']['daq']['sem'])
 
                         beam_current_wrapper = PlotWrapperWidget(self.plots[server]['current_plot'])
                         beam_pos_wrapper = PlotWrapperWidget(self.plots[server]['pos_plot'])
 
-                        monitor_widget.addWidget(beam_current_wrapper)
-                        monitor_widget.addWidget(beam_pos_wrapper)
+                        monitor_widget = MultiPlotWidget(plots=[beam_current_wrapper, beam_pos_wrapper])
 
                     elif monitor == 'SEM':
                         plot_wrappers = []
@@ -72,12 +67,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         if len(plot_wrappers) == 1:
                             monitor_widget = plot_wrappers[0]
                         elif plot_wrappers:
-                            monitor_widget = QtWidgets.QSplitter()
-                            monitor_widget.setOrientation(QtCore.Qt.Horizontal)
-                            monitor_widget.setChildrenCollapsible(False)
-
-                            for pw in plot_wrappers:
-                                monitor_widget.addWidget(pw)
+                            monitor_widget = MultiPlotWidget(plots=plot_wrappers)
 
                 if 'temp' in self.setup[server]['devices']:
 

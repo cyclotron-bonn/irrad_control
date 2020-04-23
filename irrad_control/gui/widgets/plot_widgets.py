@@ -46,6 +46,9 @@ class PlotWrapperWidget(QtWidgets.QWidget):
     def __init__(self, plot=None, parent=None):
         super(PlotWrapperWidget, self).__init__(parent=parent)
 
+        # Set a reasonable minimum size
+        self.setMinimumSize(300, 300)
+
         # PlotWidget to display; set size policy 
         self.pw = plot
         self.pw.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -170,6 +173,69 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         self.external_win.closeWin.connect(lambda: self.layout().insertWidget(1, self.pw))
         self.external_win.closeWin.connect(lambda: self.btn_open.setEnabled(True))
         self.external_win.show()
+
+
+class MultiPlotWidget(QtWidgets.QScrollArea):
+    """Widget to display multiple plot in a matrix"""
+
+    def __init__(self, plots=None, parent=None):
+        super(MultiPlotWidget, self).__init__(parent)
+
+        # Some basic settings
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setWidgetResizable(True)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setStyleSheet("background: transparent")  # Needed, otherwise background color is weird
+        self.horizontalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
+        self.verticalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
+
+        # Main widget is a vertical splitter
+        self.main_splitter = QtWidgets.QSplitter()
+        self.main_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.setStyleSheet("background: {}".format(self.main_splitter.palette().color(QtGui.QPalette.AlternateBase).name()))  # Needed, see above
+
+        # Set main widget
+        self.setWidget(self.main_splitter)
+
+        # Add initial plots
+        if plots is not None:
+            if any(isinstance(x, (list, tuple)) for x in plots):
+                self.add_plot_matrix(plots)
+            else:
+                self.add_plots(plots)
+
+    def add_plots(self, plots):
+
+        # If we only add one plot; just add to layout
+        if isinstance(plots, QtWidgets.QWidget):
+            self.main_splitter.addWidget(plots)
+        # *plots* is an iterable of plots
+        elif isinstance(plots, (list, tuple)):
+            # Create a horizontal splitter
+            splitter = QtWidgets.QSplitter()
+            splitter.setOrientation(QtCore.Qt.Horizontal)
+            splitter.setChildrenCollapsible(False)
+            # Loop over individual plots and add them
+            for sub_plot in plots:
+                splitter.addWidget(sub_plot)
+            self.main_splitter.addWidget(splitter)  # Add to main layout
+        else:
+            raise TypeError("*plot* must be individual or iterable of plot widgets")
+
+    def add_plot_matrix(self, plot_matrix):
+
+        if not isinstance(plot_matrix, (list, tuple)):
+            raise ValueError("*plot* needs to be 2-dimensional iterable containing plots / QWidgets")
+
+        for sub_plots in plot_matrix:
+            self.add_plots(sub_plots)
+
+    def wheelEvent(self, ev):
+        """Override mousewheel; plots use mouse wheel event for zoom"""
+        if ev.type() == QtCore.QEvent.Wheel:
+            ev.ignore()
 
 
 class IrradPlotWidget(pg.PlotWidget):
