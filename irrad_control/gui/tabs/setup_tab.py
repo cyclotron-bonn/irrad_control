@@ -24,8 +24,10 @@ def _fill_combobox_items(cbx, fill_dict):
     for i, k in enumerate(sorted(_all.keys())):
         if 'hv_sem' in _all[k]:
             cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
-        else:
+        elif 'nominal' in _all[k]:
             cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
+        else:
+            cbx.insertItem(i, k)
         tool_tip = ''
         for l in _all[k]:
             tool_tip += '{}: {}\n'.format(l, _all[k][l])
