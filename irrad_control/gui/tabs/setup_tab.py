@@ -3,7 +3,7 @@ import os
 import time
 import logging
 import subprocess
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from irrad_control import network_config, daq_config, config_path
 from irrad_control.devices.adc import ads1256
 from irrad_control.utils import Worker, log_levels
@@ -111,16 +111,8 @@ class IrradSetupTab(QtWidgets.QWidget):
         self.btn_ok.setEnabled(False)
 
         self.left_widget.layout().addWidget(self.btn_ok)
-
-        # Right side
-        scroll_server = QtWidgets.QScrollArea()
-        scroll_server.setFrameShape(QtWidgets.QFrame.NoFrame)
-        scroll_server.setWidgetResizable(True)
-        scroll_server.setWidget(self.server_setup)
-        # self.server_setup.setMinimumSize(800, 780)
-
         self.right_widget.layout().addWidget(QtWidgets.QLabel('Selected server(s)'))
-        self.right_widget.layout().addWidget(scroll_server)
+        self.right_widget.layout().addWidget(self.server_setup)
 
         # Connect
         self.irrad_setup.setupValid.connect(self._check_setup)
@@ -598,9 +590,19 @@ class ServerSetupWidget(QtWidgets.QWidget):
         # Store widgets
         self.setup_widgets[ip] = {'device': device_setup, 'temp': temp_setup, 'daq': daq_setup, 'adc': adc_setup}
 
+        # Make contents scrollable
+        scroll_server = QtWidgets.QScrollArea()
+        scroll_server.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll_server.setWidgetResizable(True)
+        scroll_server.setStyleSheet("background: transparent")  # Needed, otherwise background color is weird
+        scroll_server.horizontalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
+        scroll_server.verticalScrollBar().setStyleSheet("background: base")  # Needed, otherwise background color is weird
+        _widget.setStyleSheet("background: {}".format(_widget.palette().color(QtGui.QPalette.AlternateBase).name()))  # Needed, see above
+        scroll_server.setWidget(_widget)
+
         # Finally, add to tab bar
         self.tab_widgets[ip] = _widget
-        self.tabs.addTab(_widget, name)
+        self.tabs.addTab(scroll_server, name)
 
     def _validate_setup(self):
         """Check if all necessary input is ready to continue"""
