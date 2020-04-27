@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from irrad_control import network_config, daq_config, config_path
 from irrad_control.devices.adc import ads1256
 from irrad_control.utils import Worker, log_levels
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from collections import OrderedDict
 
 _ro_scales = OrderedDict([('1 %sA' % u'\u03bc', 1000.0), ('0.33 %sA' % u'\u03bc', 330.0),
@@ -592,16 +592,8 @@ class ServerSetupWidget(QtWidgets.QWidget):
         # Store widgets
         self.setup_widgets[ip] = {'device': device_setup, 'temp': temp_setup, 'daq': daq_setup, 'adc': adc_setup}
 
-        # Make contents scrollable
-        scroll_server = QtWidgets.QScrollArea()
-        scroll_server.setFrameShape(QtWidgets.QFrame.NoFrame)
-        scroll_server.setWidgetResizable(True)
-        # Colors
-        p, r = scroll_server.palette(), scroll_server.backgroundRole()
-        p.setColor(r, _widget.palette().color(QtGui.QPalette.AlternateBase))
-        scroll_server.setPalette(p)
-        scroll_server.setAutoFillBackground(True)
-        # Set widget
+        # Make scroll widget and set widget
+        scroll_server = NoBackgroundScrollArea()
         scroll_server.setWidget(_widget)
 
         # Finally, add to tab bar

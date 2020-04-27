@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 from irrad_control.devices.adc import ads1256
-from irrad_control.gui.widgets.util_widgets import GridContainer
+from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from collections import OrderedDict
 
 _ro_scales = OrderedDict([(1000.0, '1 %sA' % u'\u03bc'), (330.0, '0.33 %sA' % u'\u03bc'),
@@ -165,15 +165,8 @@ class DaqInfoWidget(QtWidgets.QWidget):
             table_layout.addWidget(info_widget)
             table_layout.addWidget(all_tables)
 
-            scroll_area = QtWidgets.QScrollArea()
-            scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
-            scroll_area.setWidgetResizable(True)
-            # Colors
-            p, r = scroll_area.palette(), scroll_area.backgroundRole()
-            p.setColor(r, table_widget.palette().color(QtGui.QPalette.AlternateBase))
-            scroll_area.setPalette(p)
-            scroll_area.setAutoFillBackground(True)
-            # Set widget
+            # Make scroll widget and set widget
+            scroll_area = NoBackgroundScrollArea()
             scroll_area.setWidget(table_widget)
 
             self.tabs.addTab(scroll_area, self.setup[server]['name'])
