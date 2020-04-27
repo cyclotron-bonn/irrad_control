@@ -97,14 +97,20 @@ class GridContainer(QtWidgets.QGroupBox):
             # Get item in grid at index i
             grid_item = self.grid.itemAt(i)
 
-            if isinstance(grid_item, QtWidgets.QLayoutItem):
+            # If grid_item is None, continue
+            if isinstance(grid_item, type(None)):
+                continue
+
+            # We're trying to remove a QLayout from the grid
+            elif isinstance(item, QtWidgets.QLayout):
 
                 if grid_item.layout() == item:
                     # Remove entire layout
                     self._delete_layout_content(grid_item.layout())
                     self.grid.removeItem(grid_item)
 
-            elif isinstance(grid_item, QtWidgets.QWidgetItem):
+            # We're trying to remove a QWidget from the grid
+            elif isinstance(item, QtWidgets.QWidget):
                 if grid_item.widget() == item:
                     self.grid.removeWidget(item)
                     item.deleteLater()
