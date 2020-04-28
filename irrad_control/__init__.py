@@ -10,18 +10,18 @@ try:
 except ModuleNotFoundError:
     _YAML = False  # irrad_control on server
 
+# Imports
+import os
+
+# Paths
+package_path = os.path.dirname(__file__)
+config_path = os.path.join(package_path, 'config')
+xy_stage_config_yaml = os.path.join(package_path, 'devices/stage/xy_stage_config.yaml')
+
+# Shell script to config server
+config_server_script = os.path.join(package_path, 'configure_server.sh')
+
 if _YAML:
-
-    # Imports
-    import os
-    from collections import OrderedDict
-
-    # Paths
-    package_path = os.path.dirname(__file__)
-    config_path = os.path.join(package_path, 'config')
-
-    # Shell script to config server
-    config_server_script = os.path.join(package_path, 'configure_server.sh')
 
     # Load network and data acquisition config
     with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:
@@ -31,12 +31,12 @@ if _YAML:
         daq_config = yaml.safe_load(_dc)
 
     # Keep track of xy stage travel and known positions
-    if not os.path.isfile(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml')):
+    if not os.path.isfile(xy_stage_config_yaml):
         # Open xy stats template and safe a copy
         with open(os.path.join(config_path, 'xy_stage_config.yaml'), 'r') as _xys_l:
             _xy_stage_config_tmp = yaml.safe_load(_xys_l)
 
-        with open(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml'), 'w') as _xys_s:
+        with open(xy_stage_config_yaml, 'w') as _xys_s:
             yaml.safe_dump(_xy_stage_config_tmp, _xys_s)
 
     with open(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml'), 'r') as _xys:

@@ -20,6 +20,9 @@ def _fill_combobox_items(cbx, fill_dict):
     default_idx = 0
     _all = fill_dict['all']
 
+    # Clear initially
+    cbx.clear()
+
     # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
     for i, k in enumerate(sorted(_all.keys())):
         if 'hv_sem' in _all[k]:

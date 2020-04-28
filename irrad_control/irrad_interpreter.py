@@ -9,8 +9,9 @@ import yaml
 import numpy as np
 import tables as tb
 from zmq.log import handlers
-from irrad_control import daq_config, xy_stage_config, package_path
+from irrad_control import daq_config, xy_stage_config, xy_stage_config_yaml
 from collections import defaultdict
+from copy import deepcopy
 
 
 class IrradInterpreter(multiprocessing.Process):
@@ -32,7 +33,7 @@ class IrradInterpreter(multiprocessing.Process):
         self._data_flush_interval = 1.0
         self._last_data_flush = None
 
-        self.stage_config = xy_stage_config.copy()
+        self.stage_config = deepcopy(xy_stage_config)
 
         # Attributes to interact with the actual process stuff running within run()
         self.stop_recv_data = multiprocessing.Event()
@@ -671,9 +672,20 @@ class IrradInterpreter(multiprocessing.Process):
             # Close opened data files
             self._close_tables()
 
-            # Overwrite xy stage stats
-            with open(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml'), 'w') as _xys:
-                yaml.safe_dump(self.stage_config, _xys, default_flow_style=False)
+            try:
+                # Open xy config an update info
+                with open(xy_stage_config_yaml, 'r') as _xys_r:
+                    _xy_stage_config_tmp = yaml.safe_load(_xys_r)
+
+                # Positions could have changed during session
+                self.stage_config['positions'].update(_xy_stage_config_tmp['positions'])
+
+                # Overwrite xy stage stats
+                with open(xy_stage_config_yaml, 'w') as _xys_w:
+                    yaml.safe_dump(self.stage_config, _xys_w, default_flow_style=False)
+
+            except (OSError, IOError):
+                logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(xy_stage_config_yaml))
 
             # User info
             logging.info('{} finished'.format(self.name.capitalize()))
