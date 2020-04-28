@@ -518,9 +518,6 @@ class IrradInterpreter(multiprocessing.Process):
             if 'stage' in self.setup['server'][server]['devices']:
                 data_sub.connect(self._tcp_addr(self.setup['port']['stage'], ip=server))
 
-            # Connect to servers command
-            data_sub.connect(self._tcp_addr(self.setup['port']['cmd'], ip=server))
-
         data_sub.setsockopt(zmq.SUBSCRIBE, '')
 
         # While event not set receive data with 1 ms wait
