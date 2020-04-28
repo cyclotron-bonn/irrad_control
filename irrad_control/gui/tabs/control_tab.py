@@ -90,9 +90,9 @@ class IrradControlTab(QtWidgets.QWidget):
         self._setup_scan()
         self._setup_daq()
 
-        #self.control_widget.setVisible(self.stage_server is not None)
-        #self.scan_widget.setVisible(self.stage_server is not None)
-        #self.info_widget.setVisible(self.stage_server is not None)
+        self.control_widget.setVisible(self.stage_server is not None)
+        self.scan_widget.setVisible(self.stage_server is not None)
+        self.info_widget.setVisible(self.stage_server is not None)
 
     def _setup_control(self):
 
