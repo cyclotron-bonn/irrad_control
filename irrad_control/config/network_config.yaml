@@ -1,14 +1,9 @@
-ports:
-  cmd: 8502
-  data: 8501
-  log: 8500
-  stage: 8503
-  temp: 8504
 server:
   all:
     131.220.162.129: TestServer2
     131.220.162.252: TestServer1
+    131.220.163.208: Server_2
     131.220.221.84: free_ip_1
     131.220.221.98: Hochstromraum
     131.220.221.99: Replacement2
-  default: 131.220.221.84
+  default: 131.220.162.129

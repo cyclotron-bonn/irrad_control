@@ -185,9 +185,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init daq info widget
         self._init_daq_dock()
 
-        # Start receiving log messages from other processes
-        self.threadpool.start(Worker(func=self.recv_log))
-
         # Init servers
         self._init_servers()
 
@@ -253,6 +250,14 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif 'log' in log_dict:
             logging.log(level=self._remote_loglevel, msg=log_dict['log'])
 
+    def _init_recv_threads(self):
+
+        # Start receiving log messages from other processes
+        self.threadpool.start(Worker(func=self.recv_log))
+
+        # Start receiving data from other processes
+        self.threadpool.start(Worker(func=self.recv_data))
+
     def _init_servers(self):
 
         # Loop over all server(s), connect to the server(s) and launch worker for configuration
@@ -299,8 +304,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
     def start_interpreter(self):
         """TODO: check like server"""
-        self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile'] + '.yaml')
-        self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
+        self.proc_mngr.start_interpreter_process()#setup_yaml=self.setup['session']['outfile'] + '.yaml')
+
+        def get_pid_file_info
+        #self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
 
     def _connect_worker_exception(self, worker):
         worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))

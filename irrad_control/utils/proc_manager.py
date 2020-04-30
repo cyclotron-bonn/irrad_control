@@ -104,16 +104,16 @@ class ProcessManager(object):
 
         self._exec_cmd(hostname, 'nohup bash /home/{}/start_irrad_server.sh {} &'.format(self.server[hostname], port))
 
-    def start_interpreter_process(self, setup_yaml):
+    def start_interpreter_process(self):
 
         logging.info('Starting interpreter process...')
 
-        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'irrad_interpreter.py'), args=setup_yaml)
+        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'new_interpreter.py'))
 
-    def _call_script(self, script, args, cmd=None):
+    def _call_script(self, script, args=None, cmd=None):
 
         # Call the interpreter subprocess with the same python executable that runs irrad_control
-        return subprocess.Popen('{} {} {}'.format(sys.executable if not cmd else cmd, script, args),
+        return subprocess.Popen('{} {} {}'.format(sys.executable if not cmd else cmd, script, args if args is not None else ''),
                                 shell=True,
                                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
 
