@@ -25,7 +25,8 @@ class IrradProcess(multiprocessing.Process):
         self.max_buffer_size = 0 if (max_buffer_size is None or not isinstance(max_buffer_size, int)) else max_buffer_size
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, threading.Event()) for x in ('send', 'recv', 'proc', 'busy')])
+        self.stop_flags = dict([(x, threading.Event()) for x in ('send', 'recv', 'proc')])
+        self.state_flags = dict([(x, threading.Event()) for x in ('busy', 'converter')])
 
         # Outgoing and incoming data queue
         self.io_q = dict([(x, Queue(maxsize=self.max_buffer_size)) for x in ('in', 'out')])
@@ -55,6 +56,14 @@ class IrradProcess(multiprocessing.Process):
 
         # If the process is a converter, the 'data' socket will send out data as well as receive data
         self.is_converter = len(self.daq_streams) > 0
+
+    @property
+    def is_converter(self):
+        return self.state_flags['converter'].is_set()
+
+    @is_converter.setter
+    def is_converter(self, state):
+        self.state_flags['converter'].set() if bool(state) else self.state_flags['converter'].clear()
 
     def _check_addr(self, addr):
         """Check address format"""
@@ -241,15 +250,19 @@ class IrradProcess(multiprocessing.Process):
         while not self.stop_flags['recv'].is_set():
 
             # Check if were working on a command. We have to work sequentially
-            if not self.stop_flags['busy'].wait(1e-3):
+            if not self.state_flags['busy'].is_set():
 
                 logging.debug('Receiving command ready')
 
                 # Cmd must be dict with command as 'cmd' key and 'args', 'kwargs' keys
                 cmd_dict = self.sockets['cmd'].recv_json()
 
+                # Command data
+                if 'data' not in cmd_dict:
+                    cmd_dict['data'] = None
+
                 # Set cmd to busy; other commands send will be queued and received later
-                self.stop_flags['busy'].set()
+                self.state_flags['busy'].set()
 
                 logging.debug('Receiving command busy')
 
@@ -260,6 +273,11 @@ class IrradProcess(multiprocessing.Process):
                     self._send_reply(reply=error_reply, sender=self.pname, _type='ERROR', data=None)
                 else:
                     self.handle_cmd(**cmd_dict)
+
+                # Check if a reply has been sent while handling the command. If not send generic reply which resets flag
+                if self.state_flags['busy'].is_set():
+                    self._send_reply(reply=cmd_dict['cmd'], sender=cmd_dict['target'], _type='STANDARD')
+                    # Now flag is cleared
 
     def _check_cmd(self, cmd_dict):
         """
@@ -287,10 +305,6 @@ class IrradProcess(multiprocessing.Process):
             error_reply += "Command dict incomplete. Missing 'cmd' or 'target' field!\n"
             logging.error("Incomplete command dict. Missing field(s): {}".format(', '.join(x for x in ('target', 'cmd') if x not in cmd_dict)))
 
-        # Command data
-        if 'data' not in cmd_dict:
-            cmd_dict['data'] = None
-
         # Command sanity checks
         # Log message for sanity checks
         error_log = "Target '{}' unknown. Known {} are: {}!"
@@ -308,7 +322,7 @@ class IrradProcess(multiprocessing.Process):
     def _send_reply(self, reply, _type, sender, data=None):
         """
         Method to reply to a received command via the *self.sockets['cmd']* socket. After replying, the
-        *self.stop_flags['busy']* is cleared in order to able to receive new commands
+        *self.state_flags['busy']* is cleared in order to able to receive new commands
 
         Parameters
         ----------
@@ -331,7 +345,7 @@ class IrradProcess(multiprocessing.Process):
 
         # Send away and clear busy signal
         self.sockets['cmd'].send_json(reply_dict)
-        self.stop_flags['busy'].clear()
+        self.state_flags['busy'].clear()
 
     def publish_data(self, data):
         """
@@ -358,6 +372,9 @@ class IrradProcess(multiprocessing.Process):
                 self.daq_streams.append(ds)
 
     def start_converter(self, daq_stream=None):
+
+        # Set flag is this method is called after initializing the process
+        self.is_converter = True
 
         if daq_stream is not None:
             self.add_daq_stream(daq_stream=daq_stream)
@@ -431,13 +448,19 @@ class IrradProcess(multiprocessing.Process):
         self._setup_process()
 
         # The main loop polls for data on the I/O queues
-        while not self.stop_flags['proc'].wait(1e-3):
+        while not self.stop_flags['proc'].is_set():
 
             try:
 
-                # Check if there is data in the queue which needs to be converted; convert everything in the queue
-                while not self.io_q['in'].empty():
-                    self.convert_data(raw_data=self.io_q['in'].get_nowait())
+                # TODO: maybe here it's advisable to limit the amount of data which is converted at once
+                #  due to possible locked loop if data is fed into the input queue faster than main loop
+
+                # If we're also converting data
+                if self.is_converter:
+
+                    # Check if there is data in the queue which needs to be converted; convert everything in the queue
+                    while not self.io_q['in'].empty():
+                        self.interpret_data(raw_data=self.io_q['in'].get_nowait())
 
                 # Check if there is data in the queue which needs to be published; publish everything in the queue
                 while not self.io_q['out'].empty():
@@ -462,9 +485,9 @@ class IrradProcess(multiprocessing.Process):
         # Close all zmq-related objects
         self._close_zmq()
 
-    def convert_data(self, raw_data):
+    def interpret_data(self, raw_data):
         if self.is_converter:
-            raise NotImplementedError("Implement a *convert_data* method for converter processes")
+            raise NotImplementedError("Implement a *interpret_data* method for converter processes")
 
     def handle_cmd(self, target, cmd, cmd_data=None):
         raise NotImplementedError("Implement a *handle_cmd* method")

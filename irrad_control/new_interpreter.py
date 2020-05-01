@@ -10,7 +10,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 
-class IrradInterpreterNew(IrradProcess):
+class IrradConverter(IrradProcess):
     """Interpreter process for irradiation site data"""
 
     def __init__(self, name=None):
@@ -22,12 +22,12 @@ class IrradInterpreterNew(IrradProcess):
         commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
 
         # Call init of super class
-        super(IrradInterpreterNew, self).__init__(name=name, commands=commands)
+        super(IrradConverter, self).__init__(name=name, commands=commands)
 
         self.stage_config = deepcopy(xy_stage_config)
 
         # Event set if stage needs maintenance
-        self.xy_stage_maintenance = threading.Event()
+        self.state_flags['xy_stage_maintenance'] = threading.Event()
 
     def _setup_daq(self):
 
@@ -57,7 +57,7 @@ class IrradInterpreterNew(IrradProcess):
 
             # Per server interactions
             self.stop_flags['write_{}'.format(server)] = threading.Event()
-            self.stop_flags['offset_{}'.format(server)] = threading.Event()
+            self.state_flags['offset_{}'.format(server)] = threading.Event()
 
         # Data writing
         # Open only one output file and organize its data in groups
@@ -180,7 +180,7 @@ class IrradInterpreterNew(IrradProcess):
                                                                          description=self.temp_data[server].dtype,
                                                                          name='Temperature')
 
-    def convert_data(self, raw_data):
+    def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
         # Retrieve server IP , meta data and actual data from raw data dict
@@ -200,7 +200,7 @@ class IrradInterpreterNew(IrradProcess):
                 data[ch] -= self.zero_offset_data[server][ch][0]
 
             # Get offsets
-            if self.stop_flags['offset_{}'.format(server)].is_set():
+            if self.state_flags['offset_{}'.format(server)].is_set():
                 # Loop over data until sufficient data for mean is collected
                 for ch in data:
                     self._zero_offset_vals[server][ch].append(self.raw_data[server][ch][0])
@@ -208,7 +208,7 @@ class IrradInterpreterNew(IrradProcess):
                         self.zero_offset_data[server][ch] = np.mean(self._zero_offset_vals[server][ch])
                 # If all offsets have been found, clear signal and reset list
                 if all(len(self._zero_offset_vals[server][ch]) >= 40 for ch in data):
-                    self.stop_flags['offset_{}'.format(server)].clear()
+                    self.state_flags['offset_{}'.format(server)].clear()
                     self._zero_offset_vals[server] = defaultdict(list)
                     self.zero_offset_data[server]['timestamp'] = time.time()
                     self.offset_table[server].append(self.zero_offset_data[server])
@@ -399,7 +399,7 @@ class IrradInterpreterNew(IrradProcess):
         for axis in ('x', 'y'):
             if self.stage_config['interval_travel'][axis] > self.stage_config['maintenance_interval']:
                 self.stage_config['interval_travel'][axis] = 0.0
-                self.xy_stage_maintenance.set()
+                self.state_flags['xy_stage_maintenance'].set()
                 logging.warning("{}-axis of XY-stage reached service interval travel! "
                                 "See https://www.zaber.com/wiki/Manuals/X-LRQ-E#Precautions".format(axis))
 
@@ -472,19 +472,13 @@ class IrradInterpreterNew(IrradProcess):
         if target == 'interpreter':
 
             if cmd == 'start':
-
                 self._start_interpreter(cmd_data)
 
-                logging.info('Started')
-
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=self.pid)
             elif cmd == 'shutdown':
                 self.shutdown()
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD')
 
             elif cmd == 'zero_offset':
-                self.stop_flags['offset_{}'.format(cmd_data)].set()
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD')
+                self.state_flags['offset_{}'.format(cmd_data)].set()
 
             elif cmd == 'record_data':
                 if self.stop_flags['write_{}'.format(cmd_data)].is_set():
@@ -524,9 +518,9 @@ class IrradInterpreterNew(IrradProcess):
 
 def main():
 
-    irrad_interpreter = IrradInterpreterNew()
-    irrad_interpreter.start()
-    irrad_interpreter.join()
+    irrad_converter = IrradConverter()
+    irrad_converter.start()
+    irrad_converter.join()
 
 
 if __name__ == '__main__':
