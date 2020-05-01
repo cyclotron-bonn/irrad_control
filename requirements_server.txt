@@ -1,3 +1,4 @@
 pyzmq  # 0MQ
+pyyaml # yaml package
 wiringpi  # Raspberry Pi library
 zaber.serial  # Zaber Stages serial communictaion
