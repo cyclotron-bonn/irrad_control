@@ -153,7 +153,6 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Network
         self.setup['host'] = self.irrad_setup.setup_widgets['network'].widgets['host_edit'].text()
-        self.setup['port'] = network_config['ports']
 
         # Server
         self.setup['server'] = {}
