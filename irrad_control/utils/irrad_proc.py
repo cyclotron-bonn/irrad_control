@@ -3,15 +3,15 @@ import yaml
 import zmq
 import logging
 import signal
-import time
-import multiprocessing
-import threading
+from time import sleep
+from multiprocessing import Process
+from threading import Thread, Event
 from queue import Queue, Empty
 from zmq.log.handlers import PUBHandler
 from irrad_control import config_path
 
 
-class IrradProcess(multiprocessing.Process):
+class IrradProcess(Process):
     """Base-class of processes used in irrad_control"""
 
     def __init__(self, name, commands, daq_streams=None, max_buffer_size=None):
@@ -25,8 +25,8 @@ class IrradProcess(multiprocessing.Process):
         self.max_buffer_size = 0 if (max_buffer_size is None or not isinstance(max_buffer_size, int)) else max_buffer_size
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, threading.Event()) for x in ('send', 'recv', 'proc')])
-        self.state_flags = dict([(x, threading.Event()) for x in ('busy', 'converter')])
+        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
+        self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
         # Outgoing and incoming data queue
         self.io_q = dict([(x, Queue(maxsize=self.max_buffer_size)) for x in ('in', 'out')])
@@ -186,7 +186,7 @@ class IrradProcess(multiprocessing.Process):
         self._write_pid_file()
 
         # Start command receiver thread
-        recv_cmd_thread = threading.Thread(target=self.recv_cmd)
+        recv_cmd_thread = Thread(target=self.recv_cmd)
         recv_cmd_thread.start()
 
         # Add to instance threads
@@ -217,7 +217,7 @@ class IrradProcess(multiprocessing.Process):
         logging.getLogger().addHandler(handler)
 
         # Allow connections to be made
-        time.sleep(1)
+        sleep(1)
 
     @staticmethod
     def _tcp_addr(port, ip='*'):
@@ -343,7 +343,7 @@ class IrradProcess(multiprocessing.Process):
         if data is not None:
             reply_dict['data'] = data
 
-        # Send away and clear busy signal
+        # Send away and clear busy flag
         self.sockets['cmd'].send_json(reply_dict)
         self.state_flags['busy'].clear()
 
@@ -380,7 +380,7 @@ class IrradProcess(multiprocessing.Process):
             self.add_daq_stream(daq_stream=daq_stream)
 
         # Start data receiver thread
-        recv_data_thread = threading.Thread(target=self.recv_data)
+        recv_data_thread = Thread(target=self.recv_data)
         recv_data_thread.start()
 
         # Add to instance threads

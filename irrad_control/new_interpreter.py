@@ -1,9 +1,9 @@
-import time
-import threading
 import logging
 import yaml
 import numpy as np
 import tables as tb
+from time import time, asctime
+from threading import Event
 from irrad_control import daq_config, xy_stage_config, xy_stage_config_yaml
 from irrad_control.utils import IrradProcess
 from collections import defaultdict
@@ -21,19 +21,19 @@ class IrradConverter(IrradProcess):
         # Dict of known commands; flag to indicate when cmd is busy
         commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
 
-        # Call init of super class
-        super(IrradConverter, self).__init__(name=name, commands=commands)
-
         self.stage_config = deepcopy(xy_stage_config)
 
-        # Event set if stage needs maintenance
-        self.state_flags['xy_stage_maintenance'] = threading.Event()
+        # Call init of super class
+        super(IrradConverter, self).__init__(name=name, commands=commands)
 
     def _setup_daq(self):
 
         # Flush data to hard drive every second
         self._data_flush_interval = 1.0
         self._last_data_flush = None
+
+        # Event set if stage needs maintenance
+        self.state_flags['xy_stage_maintenance'] = Event()
 
         # General setup
         self.server = list(self.setup['server'].keys())
@@ -56,8 +56,8 @@ class IrradConverter(IrradProcess):
                 self.temp_setup[server] = self.setup['server'][server]['devices']['temp']
 
             # Per server interactions
-            self.stop_flags['write_{}'.format(server)] = threading.Event()
-            self.state_flags['offset_{}'.format(server)] = threading.Event()
+            self.stop_flags['write_{}'.format(server)] = Event()
+            self.state_flags['offset_{}'.format(server)] = Event()
 
         # Data writing
         # Open only one output file and organize its data in groups
@@ -210,7 +210,7 @@ class IrradConverter(IrradProcess):
                 if all(len(self._zero_offset_vals[server][ch]) >= 40 for ch in data):
                     self.state_flags['offset_{}'.format(server)].clear()
                     self._zero_offset_vals[server] = defaultdict(list)
-                    self.zero_offset_data[server]['timestamp'] = time.time()
+                    self.zero_offset_data[server]['timestamp'] = time()
                     self.offset_table[server].append(self.zero_offset_data[server])
 
             ### Interpretation of data ###
@@ -403,7 +403,7 @@ class IrradConverter(IrradProcess):
                 logging.warning("{}-axis of XY-stage reached service interval travel! "
                                 "See https://www.zaber.com/wiki/Manuals/X-LRQ-E#Precautions".format(axis))
 
-        self.stage_config['last_update'] = time.asctime()
+        self.stage_config['last_update'] = asctime()
 
     def _calc_digital_shift(self, data, server, ch_types, m='h'):
         """Calculate the beam displacement on the secondary electron monitor from the digitized foil signals"""
@@ -445,8 +445,8 @@ class IrradConverter(IrradProcess):
             self._store_temp_data = False
 
         # Flush data to hard drive in fixed interval
-        if self._last_data_flush is None or time.time() - self._last_data_flush >= self._data_flush_interval:
-            self._last_data_flush = time.time()
+        if self._last_data_flush is None or time() - self._last_data_flush >= self._data_flush_interval:
+            self._last_data_flush = time()
             logging.debug("Flushing data to hard disk...")
             self.output_table.flush()
 
