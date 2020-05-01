@@ -243,9 +243,7 @@ class IrradServer(IrradProcess):
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'prepare':
-                self.xy_stage.prepare_scan(tcp_address=self._tcp_addr(port=self.setup['port']['stage']),
-                                           server=self.server,
-                                           **cmd_data)
+                self.xy_stage.prepare_scan(data_out=self.io_q['out'], server=self.server, **cmd_data)
                 _data = {'n_rows': self.xy_stage.scan_params['n_rows'], 'rows': self.xy_stage.scan_params['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
