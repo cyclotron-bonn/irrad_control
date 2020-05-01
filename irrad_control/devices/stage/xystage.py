@@ -1,7 +1,7 @@
-import time
 import logging
-import threading
 import zmq
+from threading import Thread, Event
+from time import time, sleep
 from zaber.serial import *
 from collections import OrderedDict
 
@@ -50,9 +50,9 @@ class ZaberXYStage:
         # Attributes related to scanning
         self.scan_params = {}  # Dict to hold relevant scan parameters
         self.context = zmq.Context()  # ZMQ context for publishing data from self.scan_thread
-        self.stop_scan = threading.Event()  # Event to stop scan
-        self.finish_scan = threading.Event()  # Event to finish a scan after completing all rows of current iteration
-        self.no_beam = threading.Event()  # Event to wait if beam current is low of beam is shut off
+        self.stop_scan = Event()  # Event to stop scan
+        self.finish_scan = Event()  # Event to finish a scan after completing all rows of current iteration
+        self.no_beam = Event()  # Event to wait if beam current is low of beam is shut off
 
         # Units
         self.dist_units = OrderedDict([('mm', 1.0), ('cm', 1e1), ('m', 1e3)])
@@ -618,7 +618,7 @@ class ZaberXYStage:
             return
 
         # Start scan in separate thread
-        scan_thread = threading.Thread(target=self._scan_row, args=(row, speed, scan_params))
+        scan_thread = Thread(target=self._scan_row, args=(row, speed, scan_params))
         scan_thread.start()
 
     def scan_device(self, scan_params=None):
@@ -642,7 +642,7 @@ class ZaberXYStage:
             return
 
         # Start scan in separate thread
-        scan_thread = threading.Thread(target=self._scan_device, args=(scan_params, ))
+        scan_thread = Thread(target=self._scan_device, args=(scan_params, ))
         scan_thread.start()
 
     def _scan_row(self, row, scan_params, speed=None, scan=-1, stage_pub=None):
@@ -698,7 +698,7 @@ class ZaberXYStage:
             raise UnexpectedReplyError(msg)
 
         # Send start data
-        _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
+        _meta = {'timestamp': time(), 'name': scan_params['server'], 'type': 'stage'}
         _data = {'status': 'start', 'scan': scan, 'row': row,
                  'speed': self.get_speed(self.x_axis, unit='mm/s'),
                  'x_start': self.steps_to_distance(self.position[0], unit='mm'),
@@ -716,7 +716,7 @@ class ZaberXYStage:
             raise UnexpectedReplyError(msg)
 
         # Send stop data
-        _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
+        _meta = {'timestamp': time(), 'name': scan_params['server'], 'type': 'stage'}
         _data = {'status': 'stop',
                  'x_stop': self.steps_to_distance(self.position[0], unit='mm'),
                  'y_stop': self.steps_to_distance(self.position[1], unit='mm')}
@@ -755,7 +755,7 @@ class ZaberXYStage:
         self.set_speed(scan_params['speed'], self.x_axis, unit='mm/s')
 
         # Initialize scan
-        _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
+        _meta = {'timestamp': time(), 'name': scan_params['server'], 'type': 'stage'}
         _data = {'status': 'init', 'y_step': scan_params['step_size'], 'n_rows': scan_params['n_rows']}
 
         # Send init data
@@ -784,7 +784,7 @@ class ZaberXYStage:
                         msg = "Low beam current or no beam in row {} of scan {}. " \
                               "Waiting for beam current to rise.".format(row, scan)
                         logging.warning(msg)
-                        time.sleep(1)
+                        sleep(1)
 
                         # If beam does not recover and we need to stop manually
                         if self.stop_scan.wait(1e-1):
