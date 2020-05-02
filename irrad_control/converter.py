@@ -497,9 +497,11 @@ class IrradConverter(IrradProcess):
 
     def clean_up(self):
 
-        # Close opened data files
-        self._close_tables()
-
+        # Close opened data files; AttributeError if DAQ hasn't started
+        try:
+            self._close_tables()
+        except AttributeError:
+            pass
         try:
             # Open xy config an update info
             with open(xy_stage_config_yaml, 'r') as _xys_r:

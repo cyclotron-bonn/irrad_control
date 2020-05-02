@@ -256,7 +256,11 @@ class IrradProcess(Process):
             # Check if were working on a command. We have to work sequentially
             if not self.state_flags['busy'].is_set():
 
-                logging.debug('Receiving command ready')
+                # Poll the command receiver socket for 1 ms; continue if there are no commands
+                if not self.sockets['cmd'].poll(timeout=1, flags=zmq.POLLIN):
+                    continue
+
+                logging.debug("Receiving command")
 
                 # Cmd must be dict with command as 'cmd' key and 'args', 'kwargs' keys
                 cmd_dict = self.sockets['cmd'].recv_json()
@@ -265,17 +269,17 @@ class IrradProcess(Process):
                 if 'data' not in cmd_dict:
                     cmd_dict['data'] = None
 
-                # Set cmd to busy; other commands send will be queued and received later
-                self.state_flags['busy'].set()
-
-                logging.debug('Receiving command busy')
-
                 error_reply = self._check_cmd(cmd_dict=cmd_dict)
 
                 # Check for errors
                 if error_reply:
                     self._send_reply(reply=error_reply, sender=self.pname, _type='ERROR', data=None)
                 else:
+                    logging.debug('Handling command {}'.format(cmd_dict['cmd']))
+
+                    # Set cmd to busy; other commands send will be queued and received later
+                    self.state_flags['busy'].set()
+
                     self.handle_cmd(**cmd_dict)
 
                 # Check if a reply has been sent while handling the command. If not send generic reply which resets flag
