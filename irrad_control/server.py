@@ -14,7 +14,6 @@ class IrradServer(IrradProcess):
     """Implements a server process which controls the DAQ and XYStage"""
 
     def __init__(self, name=None):
-        super(IrradServer, self).__init__()
 
         # Set name of this interpreter process
         name = 'server' if name is None else name
