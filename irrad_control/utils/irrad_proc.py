@@ -6,9 +6,13 @@ import signal
 from time import sleep
 from multiprocessing import Process
 from threading import Thread, Event
-from queue import Queue, Empty
 from zmq.log.handlers import PUBHandler
 from irrad_control import config_path
+
+try:
+    from queue import Queue, Empty  # Py2
+except ImportError:
+    from Queue import Queue, Empty  # Py3
 
 
 class IrradProcess(Process):
