@@ -284,6 +284,10 @@ class IrradServer(IrradProcess):
                         self.xy_stage.no_beam.clear()
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=cmd_data)
 
+    def clean_up(self):
+        """Mandatory clean up - method"""
+        pass  # Nothing to clean up once threads have finished
+
 
 def main():
 
