@@ -2,7 +2,7 @@ import logging
 from time import time
 from threading import Thread
 from serial import SerialException
-from irrad_control.utils import IrradProcess
+from irrad_control.utils.irrad_proc import IrradProcess
 from irrad_control.devices.adc.ADS1256_definitions import *
 from irrad_control.devices.adc.ADS1256_drates import ads1256_drates
 from irrad_control.devices.adc.pipyadc import ADS1256

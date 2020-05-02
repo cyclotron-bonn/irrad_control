@@ -11,7 +11,9 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from threading import Event
 
 # Package imports
-from irrad_control.utils import CustomHandler, LoggingStream, log_levels, Worker, ProcessManager
+from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
+from irrad_control.utils.worker import Worker
+from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 
@@ -186,7 +188,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self._init_daq_dock()
 
         # Init servers
-        self._init_servers()
+        self._init_processes()
 
     def _init_log_dock(self):
         """Initializes corresponding log dock"""
@@ -258,7 +260,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Start receiving data from other processes
         self.threadpool.start(Worker(func=self.recv_data))
 
-    def _init_servers(self):
+    def _init_processes(self):
 
         # Loop over all server(s), connect to the server(s) and launch worker for configuration
         server_config_workers = {}
@@ -267,10 +269,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
+            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='new_process_structure', git_pull=True)
 
             # Connect workers finish signal to starting process on server
-            server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server, self.setup['port']['cmd']))
+            server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
 
             # Connect workers exception to log
             self._connect_worker_exception(worker=server_config_workers[server])
@@ -279,14 +281,17 @@ class IrradControlWin(QtWidgets.QMainWindow):
             # Launch worker on QThread
             self.threadpool.start(server_config_workers[server])
 
-    def start_server(self, server, port):
+        self.start_interpreter()
+
+    def start_server(self, server):
 
         # Launch server process
-        complaint = self.proc_mngr.start_server_process(server, port)
+        complaint = self.proc_mngr.start_server_process(server)
 
         # Start was successful
         if complaint is None:
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+            print('Gayyyyyyyyyyyyyy')
+            #self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
         else:
 
             host_user = self.proc_mngr.server[server] + '@' + server
@@ -304,7 +309,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
     def start_interpreter(self):
         """TODO: check like server"""
-        self.proc_mngr.start_interpreter_process()#setup_yaml=self.setup['session']['outfile'] + '.yaml')
+        self.proc_mngr.start_interpreter_process()
         #self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
 
     def _connect_worker_exception(self, worker):
