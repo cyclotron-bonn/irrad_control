@@ -305,8 +305,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
     def start_interpreter(self):
         """TODO: check like server"""
         self.proc_mngr.start_interpreter_process()#setup_yaml=self.setup['session']['outfile'] + '.yaml')
-
-        def get_pid_file_info
         #self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
 
     def _connect_worker_exception(self, worker):
