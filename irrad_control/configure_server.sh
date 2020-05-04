@@ -163,7 +163,7 @@ if [ "$MINICONDA_PATH" == false ]; then
   echo "Miniconda Python $PY_VERSION environment set up!"
 
   # Create server start script for server
-  echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+  echo "source ${MINICONDA_PATH}/bin/activate; irrad_server" > ${HOME}/start_irrad_server.sh
 
 else
   
@@ -184,7 +184,7 @@ else
     echo "Environment is set up."
 
     # Create server start script for server
-    echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; irrad_server \$PORT" > ${HOME}/start_irrad_server.sh
+    echo "source ${MINICONDA_PATH}/bin/activate; irrad_server" > ${HOME}/start_irrad_server.sh
     
   else
     # We don't have the correct version of Python; check for envs
@@ -202,7 +202,7 @@ else
       conda_env_installer
 
       # Create server start script for server
-      echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server \$PORT" > ${HOME}/start_irrad_server.sh
+      echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server" > ${HOME}/start_irrad_server.sh
 
     else
 
@@ -243,7 +243,7 @@ else
         conda_env_installer
 
         # Create server start script for server
-        echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server \$PORT" > ${HOME}/start_irrad_server.sh
+        echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server" > ${HOME}/start_irrad_server.sh
 
       else
 
@@ -254,7 +254,7 @@ else
         echo "Environment is set up."
 
         # Create server start script for server
-        echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate ${MATCH_ENV}; irrad_server \$PORT" > ${HOME}/start_irrad_server.sh
+        echo "source ${MINICONDA_PATH}/bin/activate; conda activate ${MATCH_ENV}; irrad_server" > ${HOME}/start_irrad_server.sh
       fi
     fi
   fi
