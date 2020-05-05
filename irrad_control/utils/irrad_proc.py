@@ -200,18 +200,16 @@ class IrradProcess(Process):
         if self.is_converter:
             self.start_converter()
 
-    def _setup_logging(self, loglevel=None):
+    def _setup_logging(self):
         """
         Setup the logging module for the process. A custom logging handler is created which publishes
         the log messages on the port specified in *self.ports['log']*
         """
 
-        loglevel = loglevel if loglevel is not None else self.setup['session']['loglevel']
-
         # Numeric logging level
-        numeric_level = getattr(logging, loglevel.upper(), None)
+        numeric_level = getattr(logging, self.setup['session']['loglevel'].upper(), None)
         if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level: {}'.format(loglevel.capitalize()))
+            raise ValueError('Invalid log level: {}'.format(self.setup['session']['loglevel'].capitalize()))
 
         # Set level
         logging.getLogger().setLevel(level=numeric_level)
