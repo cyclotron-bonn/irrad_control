@@ -283,34 +283,91 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         self.start_interpreter()
 
-    def start_server(self, server):
+    def collect_proc_infos(self):
+        """Run in a separate thread to collect infos of all launched processes"""
 
-        # Launch server process
-        complaint = self.proc_mngr.start_server_process(server)
+        while len(self.proc_mngr.active_pids) != len(self.proc_mngr.launched_procs):
 
-        # Start was successful
-        if complaint is None:
-            print('Gayyyyyyyyyyyyyy')
-            #self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+            for proc in self.proc_mngr.launched_procs:
+
+                proc_info = self.proc_mngr.get_irrad_proc_info(proc)
+
+                if proc_info is not None and proc not in self.proc_mngr.active_pids:
+                    self.proc_mngr.register_pid(hostname=proc, pid=proc_info['pid'], name=proc_info['name'], ports=proc_info['ports'])
+
+                    # Update setup
+                    if proc in self.setup['server']:
+                        self.setup['server'][proc]['ports'] = proc_info['ports']
+                    else:
+                        self.setup['ports'] = proc_info['ports']
+
+            time.sleep(0.1)
+
+    def send_start_cmd(self):
+        print(self.setup)
+
+        for server in self.setup['server']:
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+
+        self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
+
+    def _start_irrad_proc(self, hostname, ignore_orphaned=False):
+
+        # Check if there is an already-running irrad process instance; each IrradProcess creates/deletes a hidden pid-file on launch/shutdown
+        orphaned_proc = self.proc_mngr.get_irrad_proc_info(hostname=hostname)
+
+        # There is no indication for an orphaned process
+        if orphaned_proc is None or ignore_orphaned:
+
+            # We're launching a server
+            if hostname in self.proc_mngr.client:
+                # Launch server
+                self.proc_mngr.start_server_process(hostname=hostname)
+
+            # We're launching an interpreter
+            else:
+                # Launch interpreter
+                self.proc_mngr.start_interpreter_process()
+
+            self.proc_mngr.launched_procs.append(hostname)
+
+            # All servers have been launched; start collecting info
+            if all(server in self.proc_mngr.launched_procs for server in self.setup['server']):
+                proc_info_worker = Worker(func=self.collect_proc_infos)
+                proc_info_worker.signals.finished.connect(self._init_recv_threads)
+                proc_info_worker.signals.finished.connect(self.send_start_cmd)
+                self.threadpool.start(proc_info_worker)
+
+        # There is a pid-file
         else:
+            # Check whether a process with the PID in the pid-file is still running
+            ps_status = self.proc_mngr.check_process_status(hostname=hostname, pid=orphaned_proc['pid'])
 
-            host_user = self.proc_mngr.server[server] + '@' + server
+            # The process is running
+            if ps_status[hostname]:
 
-            msg = "A server process is already running on {}. Only one server process at a time can be run on a host. " \
-                  "Do you want to terminate the server process and relaunch a new one?" \
-                  " Proceeding without terminating the currently running server process may lead to faulty behavior".format(host_user)
+                proc_kind = 'server' if hostname in self.proc_mngr.client else 'interpreter'
+                pltfrm = 'localhost' if proc_kind == 'interpreter' else self.proc_mngr.server[hostname] + '@' + hostname
 
-            reply = QtWidgets.QMessageBox.question(self, 'Terminate running server process and relaunch?',
-                                                   msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+                msg = "A {0} process is already running on {1}. Only one {0} process at a time can be run on a host. " \
+                      "Do you want to terminate the {0} process and relaunch a new one?" \
+                      " Proceeding without terminating the currently running process may lead to faulty behavior".format(proc_kind, pltfrm)
 
-            if reply == QtWidgets.QMessageBox.Yes:
-                self.proc_mngr.kill_proc(hostname=server, name='irrad_server')
-                self.start_server(server, port)  # Try again
+                reply = QtWidgets.QMessageBox.question(self, 'Terminate running {} process and relaunch?'.format(proc_kind),
+                                                       msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+
+                if reply == QtWidgets.QMessageBox.Yes:
+                    self.proc_mngr.kill_proc(hostname=hostname, pid=orphaned_proc['pid'])
+                    self._start_irrad_proc(hostname=hostname)  # Try again
+
+            else:
+                self._start_irrad_proc(hostname=hostname, ignore_orphaned=True)  # Try again
+
+    def start_server(self, server):
+        self._start_irrad_proc(hostname=server)
 
     def start_interpreter(self):
-        """TODO: check like server"""
-        self.proc_mngr.start_interpreter_process()
-        #self.send_cmd(hostname='localhost', target='interpreter', cmd='start')
+        self._start_irrad_proc(hostname='localhost')
 
     def _connect_worker_exception(self, worker):
         worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
@@ -440,7 +497,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Spawn socket to send request to server / interpreter and connect
         req = self.context.socket(zmq.REQ)
-        req.connect(self._tcp_addr(self.setup['port']['cmd'], hostname))
+        req_port = self.setup['server'][hostname]['ports']['cmd'] if hostname in self.setup['server'] else self.setup['ports']['cmd']
+        req.connect(self._tcp_addr(req_port, hostname))
 
         # Send command dict and wait for reply
         req.send_json(cmd_dict)
@@ -467,12 +525,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'start':
                     logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
-                    self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender + ':' + hostname)
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
-
-                    # Start interpreter on successful launch of at least one server
-                    if self.proc_mngr.interpreter_proc is None:
-                        self.start_interpreter()
 
                     # Send command to find where stage is and what the speeds are
                     if 'stage' in self.setup['server'][hostname]['devices']:
@@ -492,10 +545,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'start':
                     logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
-                    self.proc_mngr.register_pid(hostname=hostname, pid=reply_data, name=sender.capitalize())
-
-                    # Start receiving data from interpreter and server
-                    self.threadpool.start(Worker(func=self.recv_data))
 
                 if reply == 'record_data':
                     server, state = reply_data
@@ -560,18 +609,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Loop over servers and connect to their data streams
         for server in self.setup['server']:
-
-            if 'adc' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['data'], ip=server))
-
-            if 'temp' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['temp'], ip=server))
-
-            if 'stage' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['stage'], ip=server))
+            data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
 
         # Connect to interpreter data stream
-        data_sub.connect(self._tcp_addr(self.setup['port']['data'], ip='localhost'))
+        data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
         data_sub.setsockopt(zmq.SUBSCRIBE, '')
         
@@ -580,7 +621,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
-            
+
             data = data_sub.recv_json()
             dtype = data['meta']['type']
             server = data['meta']['name']
@@ -604,8 +645,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         log_sub = self.context.socket(zmq.SUB)
 
         # Connect to log messages from remote server and local interpreter process
-        for ip in list(self.setup['server'].keys()) + ['localhost']:
-            log_sub.connect(self._tcp_addr(self.setup['port']['log'], ip=ip))
+        # Loop over servers and connect to their data streams
+        for server in self.setup['server']:
+            log_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['log'], ip=server))
+
+        # Connect to interpreter data stream
+        log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
 
         log_sub.setsockopt(zmq.SUBSCRIBE, '')
         
