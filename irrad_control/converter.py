@@ -473,6 +473,7 @@ class IrradConverter(IrradProcess):
 
             if cmd == 'start':
                 self._start_interpreter(data)
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.pid)
 
             elif cmd == 'shutdown':
                 self.shutdown()

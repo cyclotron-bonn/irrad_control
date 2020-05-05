@@ -189,6 +189,7 @@ class IrradServer(IrradProcess):
 
                 # Start server with setup which is cmd data
                 self._start_server(data)
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.pid)
 
             elif cmd == 'shutdown':
                 self.shutdown()
