@@ -179,7 +179,7 @@ class IrradServer(IrradProcess):
             logging.warning("XYStage removed from server devices")
             del self.commands['stage']
 
-    def handle_cmd(self, target, cmd, cmd_data=None):
+    def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
         # Handle server commands
@@ -188,7 +188,7 @@ class IrradServer(IrradProcess):
             if cmd == 'start':
 
                 # Start server with setup which is cmd data
-                self._start_server(cmd_data)
+                self._start_server(data)
 
             elif cmd == 'shutdown':
                 self.shutdown()
@@ -196,53 +196,53 @@ class IrradServer(IrradProcess):
         elif target == 'stage':
 
             if cmd == 'move_rel':
-                axis = cmd_data['axis']
+                axis = data['axis']
                 if axis == 'x':
-                    self.xy_stage.move_relative(cmd_data['distance'], self.xy_stage.x_axis, unit=cmd_data['unit'])
+                    self.xy_stage.move_relative(data['distance'], self.xy_stage.x_axis, unit=data['unit'])
                 elif axis == 'y':
-                    self.xy_stage.move_relative(cmd_data['distance'], self.xy_stage.y_axis, unit=cmd_data['unit'])
+                    self.xy_stage.move_relative(data['distance'], self.xy_stage.y_axis, unit=data['unit'])
 
                 _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'move_abs':
-                axis = cmd_data['axis']
+                axis = data['axis']
                 if axis == 'x':
-                    self.xy_stage.move_absolute(cmd_data['distance'], self.xy_stage.x_axis, unit=cmd_data['unit'])
+                    self.xy_stage.move_absolute(data['distance'], self.xy_stage.x_axis, unit=data['unit'])
                 elif axis == 'y':
-                    _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=cmd_data['unit'])
-                    d = _m_dist - cmd_data['distance']
-                    self.xy_stage.move_absolute(d, self.xy_stage.y_axis, unit=cmd_data['unit'])
+                    _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
+                    d = _m_dist - data['distance']
+                    self.xy_stage.move_absolute(d, self.xy_stage.y_axis, unit=data['unit'])
 
                 _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_speed':
-                axis = cmd_data['axis']
+                axis = data['axis']
                 if axis == 'x':
-                    self.xy_stage.set_speed(cmd_data['speed'], self.xy_stage.x_axis, unit=cmd_data['unit'])
+                    self.xy_stage.set_speed(data['speed'], self.xy_stage.x_axis, unit=data['unit'])
                 elif axis == 'y':
-                    self.xy_stage.set_speed(cmd_data['speed'], self.xy_stage.y_axis, unit=cmd_data['unit'])
+                    self.xy_stage.set_speed(data['speed'], self.xy_stage.y_axis, unit=data['unit'])
 
                 _data = [self.xy_stage.get_speed(a, unit='mm/s') for a in (self.xy_stage.x_axis, self.xy_stage.y_axis)]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_range':
-                axis = cmd_data['axis']
+                axis = data['axis']
                 if axis == 'x':
-                    self.xy_stage.set_range(cmd_data['range'], self.xy_stage.x_axis, unit=cmd_data['unit'])
+                    self.xy_stage.set_range(data['range'], self.xy_stage.x_axis, unit=data['unit'])
                 elif axis == 'y':
-                    self.xy_stage.set_range(cmd_data['range'], self.xy_stage.y_axis, unit=cmd_data['unit'])
+                    self.xy_stage.set_range(data['range'], self.xy_stage.y_axis, unit=data['unit'])
 
                 _data = [self.xy_stage.get_range(self.xy_stage.x_axis, unit='mm'), self.xy_stage.get_range(self.xy_stage.y_axis, unit='mm')]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'prepare':
-                self.xy_stage.prepare_scan(data_out=self.io_q['out'], server=self.server, **cmd_data)
+                self.xy_stage.prepare_scan(data_out=self.io_q['out'], server=self.server, **data)
                 _data = {'n_rows': self.xy_stage.scan_params['n_rows'], 'rows': self.xy_stage.scan_params['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
@@ -276,13 +276,13 @@ class IrradServer(IrradProcess):
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'no_beam':
-                if cmd_data:
+                if data:
                     if not self.xy_stage.no_beam.is_set():
                         self.xy_stage.no_beam.set()
                 else:
                     if self.xy_stage.no_beam.is_set():
                         self.xy_stage.no_beam.clear()
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=cmd_data)
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
 
     def clean_up(self):
         """Mandatory clean up - method"""

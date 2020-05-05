@@ -497,7 +497,7 @@ class IrradProcess(Process):
         if self.is_converter:
             raise NotImplementedError("Implement a *interpret_data* method for converter processes")
 
-    def handle_cmd(self, target, cmd, cmd_data=None):
+    def handle_cmd(self, target, cmd, data=None):
         raise NotImplementedError("Implement a *handle_cmd* method")
 
     def clean_up(self):

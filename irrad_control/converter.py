@@ -463,29 +463,29 @@ class IrradConverter(IrradProcess):
 
         self.is_converter = True
 
-        self.start_converter(daq_stream=[self._tcp_addr(port=self.setup['ports']['data'], ip=server) for server in self.server])
+        self.start_converter(daq_stream=[self._tcp_addr(port=self.setup['server'][server]['ports']['data'], ip=server) for server in self.server])
 
-    def handle_cmd(self, target, cmd, cmd_data=None):
+    def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
         # Handle server commands
         if target == 'interpreter':
 
             if cmd == 'start':
-                self._start_interpreter(cmd_data)
+                self._start_interpreter(data)
 
             elif cmd == 'shutdown':
                 self.shutdown()
 
             elif cmd == 'zero_offset':
-                self.state_flags['offset_{}'.format(cmd_data)].set()
+                self.state_flags['offset_{}'.format(data)].set()
 
             elif cmd == 'record_data':
-                if self.stop_flags['write_{}'.format(cmd_data)].is_set():
-                    self.stop_flags['write_{}'.format(cmd_data)].clear()
+                if self.stop_flags['write_{}'.format(data)].is_set():
+                    self.stop_flags['write_{}'.format(data)].clear()
                 else:
-                    self.stop_flags['write_{}'.format(cmd_data)].set()
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[cmd_data, not self.stop_flags['write_{}'.format(cmd_data)].is_set()])
+                    self.stop_flags['write_{}'.format(data)].set()
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[data, not self.stop_flags['write_{}'.format(data)].is_set()])
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""
