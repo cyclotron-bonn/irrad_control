@@ -6,9 +6,14 @@ import yaml
 package_path = os.path.dirname(__file__)
 config_path = os.path.join(package_path, 'config')
 xy_stage_config_yaml = os.path.join(package_path, 'devices/stage/xy_stage_config.yaml')
+tmp_dir = '/tmp/irrad_control'
 
 # Shell script to config server
 config_server_script = os.path.join(package_path, 'configure_server.sh')
+
+# Make tmp folder to store temp files in
+if not os.path.isdir(tmp_dir):
+    os.mkdir(tmp_dir)
 
 # Load network and data acquisition config
 with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:

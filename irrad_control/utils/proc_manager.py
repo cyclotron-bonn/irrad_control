@@ -3,8 +3,9 @@ import sys
 import logging
 import paramiko
 import subprocess
+import yaml
 from collections import defaultdict
-from irrad_control import package_path, config_server_script
+from irrad_control import package_path, config_server_script, config_path, tmp_dir
 
 
 class ProcessManager(object):
@@ -27,7 +28,7 @@ class ProcessManager(object):
         # Keep track of processes which have been started
         self.active_pids = defaultdict(dict)
 
-        self.n_checks = 0
+        self.launched_procs = []
 
     def connect_to_server(self, hostname, username):
 
@@ -66,8 +67,7 @@ class ProcessManager(object):
 
         # Check whether remote server already has the script in the default installation path
         remote_script = '/home/{}/irrad_control/irrad_control/configure_server.sh'.format(self.server[hostname])
-        cmd_check_script = 'if [[ -f {} ]]; then echo "1"; else echo "0"; fi'.format(remote_script, self.server[hostname])
-        remote_script_exists = int(self._exec_cmd(hostname=hostname, cmd=cmd_check_script, return_stdout=True)[0]) == 1
+        remote_script_exists = self._check_file_exits(hostname=hostname, file_path=remote_script)
 
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
@@ -88,27 +88,47 @@ class ProcessManager(object):
         if not remote_script_exists:
             self._exec_cmd(hostname, 'rm {}'.format(remote_script))
 
-    def start_server_process(self, hostname, port):
+    def get_irrad_proc_info(self, hostname):
+
+        # Check whether we're looking for a pid file on server or localhost
+        if hostname in self.client:
+            pid_file = '/home/{}/irrad_control/irrad_control/config/.irrad.pid'.format(self.server[hostname])
+            pid_file_local = os.path.join(tmp_dir, '{}_server.pid'.format(hostname))
+            if self._check_file_exits(hostname=hostname, file_path=pid_file):
+                self.get_from_server(hostname=hostname, remote_filepath=pid_file, local_filepath=pid_file_local)
+        else:
+            pid_file_local = os.path.join(config_path, '.irrad.pid')
+
+        if self._check_file_exits(hostname='localhost', file_path=pid_file_local):
+
+            with open(pid_file_local, 'r') as pid:
+                pid_info = yaml.safe_load(pid)
+
+            return pid_info
+
+    def _check_file_exits(self, hostname, file_path):
+
+        if hostname in self.client:
+            cmd_check_file_exits = 'if [[ -f {} ]]; then echo "1"; else echo "0"; fi'.format(file_path)
+            file_exists = int(self._exec_cmd(hostname=hostname, cmd=cmd_check_file_exits, return_stdout=True)[0]) == 1
+        else:
+            file_exists = os.path.isfile(file_path)
+
+        return file_exists
+
+    def start_server_process(self, hostname):
 
         host_user = self.server[hostname] + '@' + hostname
 
-        logging.info('Attempting to start server process at host {} listening to port {}...'.format(host_user, port))
+        logging.info('Attempting to start server process at host {}...'.format(host_user))
 
-        # Check if there is a server process running on hostname
-        check_server_ps = self.check_process_status(hostname=hostname, name='irrad_server')
-
-        # A server process is already running
-        if check_server_ps[hostname]:
-            logging.warning("A server process is already running on {}. Only one server process can be run on a host".format(host_user))
-            return check_server_ps
-
-        self._exec_cmd(hostname, 'nohup bash /home/{}/start_irrad_server.sh {} &'.format(self.server[hostname], port))
+        self._exec_cmd(hostname, 'nohup bash /home/{}/start_irrad_server.sh &'.format(self.server[hostname]))
 
     def start_interpreter_process(self):
 
         logging.info('Starting interpreter process...')
 
-        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'new_interpreter.py'))
+        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'converter.py'))
 
     def _call_script(self, script, args=None, cmd=None):
 
@@ -150,14 +170,24 @@ class ProcessManager(object):
 
     def copy_to_server(self, hostname, local_filepath, remote_filepath):
         """Copy local file at local_filepath to server at remote_filepath"""
+        self._sftp_server(hostname=hostname, local_filepath=local_filepath, remote_filepath=remote_filepath, put=True)
 
+    def get_from_server(self, hostname, local_filepath, remote_filepath):
+        """Copy remote file at remote_filepath to local_filepath"""
+        self._sftp_server(hostname=hostname, local_filepath=local_filepath, remote_filepath=remote_filepath, put=False)
+
+    def _sftp_server(self, hostname, put ,local_filepath, remote_filepath):
+        """SFTP channel for copying file from and to servers"""
         sftp = self.client[hostname].open_sftp()
-        sftp.put(local_filepath, remote_filepath)
+        if put:
+            sftp.put(local_filepath, remote_filepath)
+        else:
+            sftp.get(remote_filepath, local_filepath)
         sftp.close()
 
-    def register_pid(self, hostname, pid, name=None):
+    def register_pid(self, hostname, pid, name=None, ports=None):
         """Register a *PID* on a *hostname* for monitoring its 'is_alive' status"""
-        self.active_pids[hostname][pid] = {'name': name, 'active': True}
+        self.active_pids[hostname][pid] = {'name': name, 'active': True, 'ports': ports}
 
     def _check_ps_interaction(self, pid, name):
 
@@ -206,9 +236,6 @@ class ProcessManager(object):
     def check_active_processes(self):
         """Function checking whether processes are alive"""
 
-        # Increment that bad boy; maybe we want to terminate if number of checks get's too large
-        self.n_checks += 1
-
         for host in self.active_pids:
 
             host_pids = self.check_process_status(hostname=host, pid=self.active_pids[host].keys())
@@ -233,11 +260,11 @@ class ProcessManager(object):
         if pid:
 
             logging.info('Killing {} process with PID{} {}...'.format('server' if hostname in self.client else 'host',
-                                                                      '' if len(pid) == 1 else 's', ' '.join(pid)))
+                                                                      '' if len(pid) == 1 else 's', ' '.join(str(p) for p in pid)))
             if hostname in self.client:
-                self._exec_cmd(hostname, 'kill {}'.format(' '.join(pid)))
+                self._exec_cmd(hostname, 'kill {}'.format(' '.join(str(p) for p in pid)))
             else:
-                subprocess.Popen(['kill'] + pid)
+                subprocess.Popen(['kill'] + [str(p) for p in pid])
 
         if name:
 
