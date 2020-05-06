@@ -196,6 +196,13 @@ class IrradProcess(Process):
         # Add to instance threads
         self.threads.append(recv_cmd_thread)
 
+        # Start send data thread
+        send_data_thread = Thread(target=self.send_data)
+        send_data_thread.start()
+
+        # Add to instance threads
+        self.threads.append(send_data_thread)
+
         # If the process has been initialized with da streams, it's a converter
         if self.is_converter:
             self.start_converter()
@@ -305,23 +312,25 @@ class IrradProcess(Process):
 
         # Extract info from cmd_dict
         try:
+
             target = cmd_dict['target']
             cmd = cmd_dict['cmd']
+
+            # Command sanity checks
+            # Log message for sanity checks
+            error_log = "Target '{}' unknown. Known {} are: {}!"
+
+            if target not in self.commands:
+                logging.error(error_log.format(target, 'targets', ', '.join(self.commands.keys())))
+                error_reply += "No {} target named {}\n".format(self.pname, target)
+
+            if cmd not in self.commands[target]:
+                logging.error(error_log.format(cmd, 'commands', ', '.join(self.commands[target])))
+                error_reply = 'No target command named {}'.format(cmd)
+
         except KeyError:
             error_reply += "Command dict incomplete. Missing 'cmd' or 'target' field!\n"
             logging.error("Incomplete command dict. Missing field(s): {}".format(', '.join(x for x in ('target', 'cmd') if x not in cmd_dict)))
-
-        # Command sanity checks
-        # Log message for sanity checks
-        error_log = "Target '{}' unknown. Known {} are: {}!"
-
-        if target not in self.commands:
-            logging.error(error_log.format(target, 'targets', ', '.join(self.commands.keys())))
-            error_reply += "No {} target named {}\n".format(self.pname, target)
-
-        if cmd not in self.commands[target]:
-            logging.error(error_log.format(cmd, 'commands', ', '.join(self.commands[target])))
-            error_reply = 'No target command named {}'.format(cmd)
 
         return error_reply
 
@@ -353,17 +362,15 @@ class IrradProcess(Process):
         self.sockets['cmd'].send_json(reply_dict)
         self.state_flags['busy'].clear()
 
-    def publish_data(self, data):
-        """
-        Publish *data* on the corresponding socket
+    def send_data(self):
+        """Send data on the corresponding socket """
 
-        Parameters
-        ----------
-        data: dict, object
-            data which is 'jasonable' to be published
-        """
-        if not self.stop_flags['send'].is_set():
-            self.sockets['data'].send_json(data)
+        while not self.stop_flags['send'].is_set():
+            # Get outgoing data from queue
+            if not self.out_q.empty():
+                data = self.out_q.get()
+                # Send data on socket
+                self.sockets['data'].send_json(data)
 
     def add_daq_stream(self, daq_stream):
 
@@ -455,16 +462,7 @@ class IrradProcess(Process):
 
         # The main loop polls for data on the I/O queues
         while not self.stop_flags['proc'].is_set():
-
-            try:
-
-                # Check if there is data in the queue which needs to be published; publish everything in the queue
-                if not self.out_q.empty():
-                    self.publish_data(data=self.out_q.get_nowait())
-
-            # A non-true return value of empty()-method does not guarantee a non-blocking call to get_nowait()
-            except Empty:
-                pass
+            sleep(0.1)
 
         # Wait for all the threads to join
         for t in self.threads:
