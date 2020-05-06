@@ -32,8 +32,8 @@ class IrradProcess(Process):
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
-        # Outgoing and incoming data queue
-        self.io_q = dict([(x, Queue(maxsize=self.max_buffer_size)) for x in ('in', 'out')])
+        # Outgoing data queue
+        self.out_q = Queue(maxsize=self.max_buffer_size)
 
         # Ports/sockets used by this process
         self.ports = {'log': None, 'cmd': None, 'data': None}
@@ -418,7 +418,7 @@ class IrradProcess(Process):
                     data = sub.recv_json(flags=zmq.NOBLOCK)
 
                     # Put data
-                    self.io_q['in'].put(data)
+                    self.interpret_data(raw_data=data)
 
                 # No data
                 except zmq.Again:
@@ -458,19 +458,9 @@ class IrradProcess(Process):
 
             try:
 
-                # TODO: maybe here it's advisable to limit the amount of data which is converted at once
-                #  due to possible locked loop if data is fed into the input queue faster than main loop
-
-                # If we're also converting data
-                if self.is_converter:
-
-                    # Check if there is data in the queue which needs to be converted; convert everything in the queue
-                    while not self.io_q['in'].empty():
-                        self.interpret_data(raw_data=self.io_q['in'].get_nowait())
-
                 # Check if there is data in the queue which needs to be published; publish everything in the queue
-                while not self.io_q['out'].empty():
-                    self.publish_data(data=self.io_q['out'].get_nowait())
+                if not self.out_q.empty():
+                    self.publish_data(data=self.out_q.get_nowait())
 
             # A non-true return value of empty()-method does not guarantee a non-blocking call to get_nowait()
             except Empty:
