@@ -8,11 +8,7 @@ from multiprocessing import Process
 from threading import Thread, Event
 from zmq.log.handlers import PUBHandler
 from irrad_control import config_path
-
-try:
-    from queue import Queue, Empty  # Py2
-except ImportError:
-    from Queue import Queue, Empty  # Py3
+from collections import deque
 
 
 class IrradProcess(Process):
@@ -32,8 +28,8 @@ class IrradProcess(Process):
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
-        # Outgoing data queue
-        self.out_q = Queue(maxsize=self.max_buffer_size)
+        # Outgoing data queue; collection deque is much faste than Python queue
+        self.out_q = deque() #Queue(maxsize=self.max_buffer_size)
 
         # Ports/sockets used by this process
         self.ports = {'log': None, 'cmd': None, 'data': None}
@@ -367,8 +363,8 @@ class IrradProcess(Process):
 
         while not self.stop_flags['send'].is_set():
             # Get outgoing data from queue
-            if not self.out_q.empty():
-                data = self.out_q.get()
+            if len(self.out_q) > 0:
+                data = self.out_q.popleft()  # Get elements in FIFO-style
                 # Send data on socket
                 self.sockets['data'].send_json(data)
 

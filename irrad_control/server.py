@@ -129,7 +129,7 @@ class IrradServer(IrradProcess):
             _data = dict([(self.adc_setup['channels'][i], raw_data[i] * self.adc.v_per_digit) for i in range(len(raw_data))])
 
             # Put data into outgoing queue
-            self.out_q.put({'meta': _meta, 'data': _data})
+            self.out_q.append({'meta': _meta, 'data': _data})
 
     def _init_daq_temp(self):
 
@@ -167,7 +167,7 @@ class IrradServer(IrradProcess):
             _data = dict([(self.temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
 
             # Put data into outgoing queue
-            self.out_q.put({'meta': _meta, 'data': _data})
+            self.out_q.append({'meta': _meta, 'data': _data})
 
     def _init_xy_stage(self):
 
