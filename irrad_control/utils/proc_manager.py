@@ -104,6 +104,9 @@ class ProcessManager(object):
             with open(pid_file_local, 'r') as pid:
                 pid_info = yaml.safe_load(pid)
 
+            if hostname in self.client:
+                os.remove(pid_file_local)
+
             return pid_info
 
     def _check_file_exits(self, hostname, file_path):
