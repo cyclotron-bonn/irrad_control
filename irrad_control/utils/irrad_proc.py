@@ -28,9 +28,6 @@ class IrradProcess(Process):
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
-        # Outgoing data queue; collection deque is much faste than Python queue
-        self.out_q = deque() #Queue(maxsize=self.max_buffer_size)
-
         # Ports/sockets used by this process
         self.ports = {'log': None, 'cmd': None, 'data': None}
         self.sockets = {'log': None, 'cmd': None, 'data': None}
@@ -38,6 +35,9 @@ class IrradProcess(Process):
 
         # Attribute holding zmq context
         self.context = None
+
+        # Internal process communication using zmq inproc transport
+        self._internal_sub_addr = 'inproc://internal_pub'
 
         # Dict of known commands
         self.commands = commands
@@ -147,6 +147,14 @@ class IrradProcess(Process):
 
             # Bind socket to random port
             self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='tcp://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
+
+    def create_internal_data_pub(self, hwm=10):
+
+        internal_data_pub = self.context.socket(zmq.PUB)
+        internal_data_pub.setsockopt(zmq.SNDHWM, hwm)
+        internal_data_pub.bind(self._internal_sub_addr)
+
+        return internal_data_pub
 
     def _write_pid_file(self):
         """
@@ -361,12 +369,23 @@ class IrradProcess(Process):
     def send_data(self):
         """Send data on the corresponding socket """
 
+        internal_data_sub = self.context.socket(zmq.SUB)
+        internal_data_sub.connect(self._internal_sub_addr)
+        internal_data_sub.setsockopt(zmq.SUBSCRIBE, '')
+
         while not self.stop_flags['send'].is_set():
-            # Get outgoing data from queue
-            if len(self.out_q) > 0:
-                data = self.out_q.popleft()  # Get elements in FIFO-style
+
+            try:
+                # Get outgoing data from internal subscriber socket
+                data = internal_data_sub.recv_json(zmq.NOBLOCK)
+
                 # Send data on socket
                 self.sockets['data'].send_json(data)
+
+            except zmq.Again:
+                pass
+
+        internal_data_sub.close()
 
     def add_daq_stream(self, daq_stream):
 
@@ -403,14 +422,16 @@ class IrradProcess(Process):
             logging.info('Start receiving data')
 
             # Create subscriber for raw and XY-Stage data
-            sub = self.context.socket(zmq.SUB)
+            external_data_sub = self.context.socket(zmq.SUB)
 
             # Loop over all servers and connect to their respective data streams
             for stream in self.daq_streams:
-                sub.connect(stream)
+                external_data_sub.connect(stream)
 
             # Subscribe to all topics
-            sub.setsockopt(zmq.SUBSCRIBE, '')
+            external_data_sub.setsockopt(zmq.SUBSCRIBE, '')
+
+            internal_data_pub = self.create_internal_data_pub(hwm=10)
 
             # While event not set receive data
             while not self.stop_flags['recv'].is_set():
@@ -418,16 +439,19 @@ class IrradProcess(Process):
                 # Try getting data without blocking. If no data exception is raised.
                 try:
                     # Get data
-                    data = sub.recv_json(flags=zmq.NOBLOCK)
+                    data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
 
                     # Put data
-                    self.interpret_data(raw_data=data)
+                    self.interpret_data(raw_data=data, internal_data_pub=internal_data_pub)
 
                 # No data
                 except zmq.Again:
                     pass
         else:
             logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
+
+        external_data_sub.close()
+        internal_data_pub.close()
 
     def shutdown(self, signum=None, frame=None):
         """
@@ -475,7 +499,7 @@ class IrradProcess(Process):
         # Close all zmq-related objects
         self._close_zmq()
 
-    def interpret_data(self, raw_data):
+    def interpret_data(self, raw_data, internal_data_pub):
         if self.is_converter:
             raise NotImplementedError("Implement a *interpret_data* method for converter processes")
 

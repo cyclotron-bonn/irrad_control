@@ -180,7 +180,7 @@ class IrradConverter(IrradProcess):
                                                                          description=self.temp_data[server].dtype,
                                                                          name='Temperature')
 
-    def interpret_data(self, raw_data):
+    def interpret_data(self, raw_data, internal_data_pub):
         """Interpretation of the data"""
 
         # Retrieve server IP , meta data and actual data from raw data dict
@@ -279,7 +279,7 @@ class IrradConverter(IrradProcess):
                     # Write to dict to send out and to array to store
                     beam_data['data']['current'][sig_type] = self.beam_data[server][dname] = current
 
-            self.out_q.append(beam_data)
+            internal_data_pub.send_json(beam_data)
 
         elif meta_data['type'] == 'stage':
 
@@ -346,7 +346,7 @@ class IrradConverter(IrradProcess):
 
                 self._store_fluence_data = True
 
-                self.out_q.append(fluence_data)
+                internal_data_pub.send_json(fluence_data)
 
                 self._update_xy_stage_config(server)
 

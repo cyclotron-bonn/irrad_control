@@ -118,6 +118,8 @@ class IrradServer(IrradProcess):
         Does data acquisition int separate thread by reading the ADC values and putting the result into the outgoing queue
         """
 
+        internal_data_pub = self.create_internal_data_pub(hwm=10)
+
         # Acquire data if not stop signal is set
         while not self.stop_flags['send'].is_set():
 
@@ -129,7 +131,7 @@ class IrradServer(IrradProcess):
             _data = dict([(self.adc_setup['channels'][i], raw_data[i] * self.adc.v_per_digit) for i in range(len(raw_data))])
 
             # Put data into outgoing queue
-            self.out_q.append({'meta': _meta, 'data': _data})
+            internal_data_pub.send_json({'meta': _meta, 'data': _data})
 
     def _init_daq_temp(self):
 
@@ -156,6 +158,8 @@ class IrradServer(IrradProcess):
         Does data acquisition in separate thread by reading the temp values and putting the result into the outgoing queue
         """
 
+        internal_data_pub = self.create_internal_data_pub(hwm=10)
+
         # Send data als long as specified
         while not self.stop_flags['send'].is_set():
 
@@ -167,7 +171,7 @@ class IrradServer(IrradProcess):
             _data = dict([(self.temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
 
             # Put data into outgoing queue
-            self.out_q.append({'meta': _meta, 'data': _data})
+            internal_data_pub.send_json({'meta': _meta, 'data': _data})
 
     def _init_xy_stage(self):
 
@@ -243,7 +247,7 @@ class IrradServer(IrradProcess):
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'prepare':
-                self.xy_stage.prepare_scan(data_out=self.out_q, server=self.server, **data)
+                self.xy_stage.prepare_scan(data_out=None, server=self.server, **data)
                 _data = {'n_rows': self.xy_stage.scan_params['n_rows'], 'rows': self.xy_stage.scan_params['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
