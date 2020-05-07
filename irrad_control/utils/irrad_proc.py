@@ -201,11 +201,11 @@ class IrradProcess(Process):
         self.threads.append(recv_cmd_thread)
 
         # Start send data thread
-        send_data_thread = Thread(target=self.send_data)
-        send_data_thread.start()
+        #send_data_thread = Thread(target=self.send_data)
+        #send_data_thread.start()
 
         # Add to instance threads
-        self.threads.append(send_data_thread)
+        #self.threads.append(send_data_thread)
 
         # If the process has been initialized with da streams, it's a converter
         if self.is_converter:
@@ -375,15 +375,15 @@ class IrradProcess(Process):
 
         while not self.stop_flags['send'].is_set():
 
-            try:
-                # Get outgoing data from internal subscriber socket
-                data = internal_data_sub.recv_json(zmq.NOBLOCK)
+            # Poll the command receiver socket for 1 ms; continue if there are no commands
+            if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
+                continue
 
-                # Send data on socket
-                self.sockets['data'].send_json(data)
+            # Get outgoing data from internal subscriber socket
+            data = internal_data_sub.recv_json(zmq.NOBLOCK)
 
-            except zmq.Again:
-                pass
+            # Send data on socket
+            self.sockets['data'].send_json(data)
 
         internal_data_sub.close()
 
@@ -436,17 +436,16 @@ class IrradProcess(Process):
             # While event not set receive data
             while not self.stop_flags['recv'].is_set():
 
-                # Try getting data without blocking. If no data exception is raised.
-                try:
-                    # Get data
-                    data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
+                # Poll the command receiver socket for 1 ms; continue if there are no commands
+                if not external_data_sub.poll(timeout=1, flags=zmq.POLLIN):
+                    continue
 
-                    # Put data
-                    self.interpret_data(raw_data=data, internal_data_pub=internal_data_pub)
+                # Get data
+                data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
 
-                # No data
-                except zmq.Again:
-                    pass
+                # Put data
+                self.interpret_data(raw_data=data, internal_data_pub=internal_data_pub)
+
         else:
             logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
 
@@ -480,9 +479,8 @@ class IrradProcess(Process):
         # Set up the process
         self._setup_process()
 
-        # The main loop polls for data on the I/O queues
-        while not self.stop_flags['proc'].is_set():
-            sleep(0.1)
+        # This blocks until shutdown
+        self.send_data()
 
         # Wait for all the threads to join
         for t in self.threads:
