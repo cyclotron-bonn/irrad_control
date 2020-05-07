@@ -6,9 +6,8 @@ import signal
 from time import sleep
 from multiprocessing import Process
 from threading import Thread, Event
-from zmq.log.handlers import PUBHandler
+from zmq.log import handlers
 from irrad_control import config_path
-from collections import deque
 
 
 class IrradProcess(Process):
@@ -200,13 +199,6 @@ class IrradProcess(Process):
         # Add to instance threads
         self.threads.append(recv_cmd_thread)
 
-        # Start send data thread
-        #send_data_thread = Thread(target=self.send_data)
-        #send_data_thread.start()
-
-        # Add to instance threads
-        #self.threads.append(send_data_thread)
-
         # If the process has been initialized with da streams, it's a converter
         if self.is_converter:
             self.start_converter()
@@ -226,7 +218,7 @@ class IrradProcess(Process):
         logging.getLogger().setLevel(level=numeric_level)
 
         # Create logging publisher first
-        handler = PUBHandler(self.sockets['log'])
+        handler = handlers.PUBHandler(self.sockets['log'])
         logging.getLogger().addHandler(handler)
 
         # Allow connections to be made
@@ -446,11 +438,11 @@ class IrradProcess(Process):
                 # Put data
                 self.interpret_data(raw_data=data, internal_data_pub=internal_data_pub)
 
+            external_data_sub.close()
+            internal_data_pub.close()
+
         else:
             logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
-
-        external_data_sub.close()
-        internal_data_pub.close()
 
     def shutdown(self, signum=None, frame=None):
         """
