@@ -301,7 +301,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     else:
                         self.setup['ports'] = proc_info['ports']
 
-            time.sleep(0.1)
+            # Wait a second before trying to read something again
+            time.sleep(1)
 
     def send_start_cmd(self):
         print(self.setup)
