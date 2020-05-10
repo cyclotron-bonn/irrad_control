@@ -118,7 +118,7 @@ class IrradServer(DAQProcess):
         Does data acquisition int separate thread by reading the ADC values and putting the result into the outgoing queue
         """
 
-        internal_data_pub = self.create_internal_data_pub(hwm=10)
+        internal_data_pub = self.create_internal_data_pub()
 
         # Acquire data if not stop signal is set
         while not self.stop_flags['send'].is_set():
@@ -158,7 +158,7 @@ class IrradServer(DAQProcess):
         Does data acquisition in separate thread by reading the temp values and putting the result into the outgoing queue
         """
 
-        internal_data_pub = self.create_internal_data_pub(hwm=10)
+        internal_data_pub = self.create_internal_data_pub()
 
         # Send data als long as specified
         while not self.stop_flags['send'].is_set():
