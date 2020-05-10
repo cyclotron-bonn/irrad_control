@@ -13,7 +13,7 @@ from irrad_control import config_path
 class DAQProcess(Process):
     """Base-class of processes used in irrad_control"""
 
-    def __init__(self, name, commands, daq_streams=None, hwm=None):
+    def __init__(self, name, commands, daq_streams=None, hwm=None, internal_sub=None):
         super(DAQProcess, self).__init__()
 
         # Initialize a name which is connected to this process
@@ -32,8 +32,10 @@ class DAQProcess(Process):
         # Attribute holding zmq context
         self.context = None
 
-        # Internal process communication using zmq inproc transport
-        self._internal_sub_addr = 'inproc://internal_pub'
+        # Sets internal subscriber address from which data is gathered (from potentially many sources) and published (on one port);
+        # usually this is some intra-process communication protocol such as inproc/ipc. If not, this process listens to a different
+        # DAQ processes DAQ threads in an attempt to distribute the load on multiple CPU cores more evenly
+        self._internal_sub_addr = internal_sub if internal_sub is not None and self._check_addr(internal_sub) else 'inproc://internal_pub'
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
@@ -71,18 +73,32 @@ class DAQProcess(Process):
             logging.error("Address must be string")
             return False
 
-        try:
-            protocol, destination, port = addr.split(':')
-        except ValueError:
-            logging.error("Incorrect address format. Must be 'protocol://ip:port'")
-            return False
+        addr_components = addr.split(':')
 
-        try:
-            port = int(port)
-            if not 0 < port < 2**16 - 1:
-                raise ValueError
-        except ValueError:
-            logging.error("'port' must be an integer between 1 and {} (16 bit)".format(2**16 - 1))
+        # Not TCP or UDP
+        if len(addr_components) == 2:
+            protocol, endpoint = addr_components
+            if endpoint[:2] != '//':
+                logging.error("Incorrect address format. Must be 'protocol://endpoint'")
+                return False
+            elif protocol in ('tcp', 'udp'):
+                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
+                return False
+        # TCP / UDP
+        elif len(addr_components) == 3:
+            protocol, ip, port = addr_components
+            if ip[:2] != '//':
+                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
+                return False
+            try:
+                port = int(port)
+                if not 0 < port < 2 ** 16 - 1:
+                    raise ValueError
+            except ValueError:
+                logging.error("'port' must be an integer between 1 and {} (16 bit)".format(2 ** 16 - 1))
+                return False
+        else:
+            logging.error("Incorrect address format. Must be 'protocol://endpoint")
             return False
 
         return True if protocol else False
