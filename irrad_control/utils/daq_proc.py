@@ -21,7 +21,7 @@ class DAQProcess(Process):
         self.pfile = os.path.join(config_path, '.irrad.pid')  # Create hidden PID file
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
+        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
         # Ports/sockets used by this process
@@ -87,10 +87,10 @@ class DAQProcess(Process):
 
         return True if protocol else False
 
-    def _redirect_signals(self):
+    def _graceful_shutdown(self):
 
         # Enable graceful termination
-        for sig in (signal.SIGINT, signal.SIGTERM):
+        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             signal.signal(sig, self.shutdown)
 
     def _setup_zmq(self):
@@ -185,7 +185,7 @@ class DAQProcess(Process):
         self._setup_zmq()
 
         # Redirect signals for graceful termination
-        self._redirect_signals()
+        self._graceful_shutdown()
 
         # Write PID file
         self._write_pid_file()
@@ -363,7 +363,7 @@ class DAQProcess(Process):
         internal_data_sub.connect(self._internal_sub_addr)
         internal_data_sub.setsockopt(zmq.SUBSCRIBE, '')
 
-        while not self.stop_flags['send'].wait(1e-3):
+        while not self.stop_flags['send'].is_set():  # Send data out as fast as possible
 
             # Poll the command receiver socket for 1 ms; continue if there are no commands
             if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
