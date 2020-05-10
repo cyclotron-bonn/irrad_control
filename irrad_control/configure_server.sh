@@ -48,6 +48,7 @@ function conda_env_installer {
 }
 
 # Needed variables
+MINICONDA_BASE=$HOME/miniconda
 IRRAD_PATH=$HOME/irrad_control
 PY_VERSION=false
 CONDA_UPDATE=false
