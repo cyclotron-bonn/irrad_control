@@ -312,9 +312,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
-    def _start_irrad_proc(self, hostname, ignore_orphaned=False):
+    def _start_daq_proc(self, hostname, ignore_orphaned=False):
 
-        # Check if there is an already-running irrad process instance; each IrradProcess creates/deletes a hidden pid-file on launch/shutdown
+        # Check if there is an already-running irrad process instance; each DAQProcess creates/deletes a hidden pid-file on launch/shutdown
         orphaned_proc = self.proc_mngr.get_irrad_proc_info(hostname=hostname)
 
         # There is no indication for an orphaned process
@@ -359,16 +359,16 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == QtWidgets.QMessageBox.Yes:
                     self.proc_mngr.kill_proc(hostname=hostname, pid=orphaned_proc['pid'])
-                    self._start_irrad_proc(hostname=hostname)  # Try again
+                    self._start_daq_proc(hostname=hostname)  # Try again
 
             else:
-                self._start_irrad_proc(hostname=hostname, ignore_orphaned=True)  # Try again
+                self._start_daq_proc(hostname=hostname, ignore_orphaned=True)  # Try again
 
     def start_server(self, server):
-        self._start_irrad_proc(hostname=server)
+        self._start_daq_proc(hostname=server)
 
     def start_interpreter(self):
-        self._start_irrad_proc(hostname='localhost')
+        self._start_daq_proc(hostname='localhost')
 
     def _connect_worker_exception(self, worker):
         worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))

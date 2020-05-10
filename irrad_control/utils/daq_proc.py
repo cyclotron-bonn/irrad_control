@@ -10,11 +10,11 @@ from zmq.log import handlers
 from irrad_control import config_path
 
 
-class IrradProcess(Process):
+class DAQProcess(Process):
     """Base-class of processes used in irrad_control"""
 
     def __init__(self, name, commands, daq_streams=None, max_buffer_size=None):
-        super(IrradProcess, self).__init__()
+        super(DAQProcess, self).__init__()
 
         # Initialize a name which is connected to this process
         self.pname = name

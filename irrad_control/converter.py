@@ -5,12 +5,12 @@ import tables as tb
 from time import time, asctime
 from threading import Event
 from irrad_control import daq_config, xy_stage_config, xy_stage_config_yaml
-from irrad_control.utils.irrad_proc import IrradProcess
+from irrad_control.utils.daq_proc import DAQProcess
 from collections import defaultdict
 from copy import deepcopy
 
 
-class IrradConverter(IrradProcess):
+class IrradConverter(DAQProcess):
     """Interpreter process for irradiation site data"""
 
     def __init__(self, name=None):
