@@ -25,12 +25,24 @@ class ProcessManager(object):
         # Interpreter process; only one
         self.interpreter_proc = None
 
-        # Keep track of processes which have been started
+        # Keep track of processes which have actually been started
         self.active_pids = defaultdict(dict)
 
+        # Keep track of processes which have been attempted to start
         self.launched_procs = []
 
     def connect_to_server(self, hostname, username):
+        """
+        Method to open SSH connection to *username*@*hostname* using paramiko
+
+        Parameters
+        ----------
+
+        hostname: str
+            string of host address
+        username: str:
+            string of user name on *hostname*
+        """
 
         # Update if we have no server credentials
         if hostname not in self.server:

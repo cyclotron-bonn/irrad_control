@@ -180,8 +180,11 @@ class IrradConverter(DAQProcess):
                                                                          description=self.temp_data[server].dtype,
                                                                          name='Temperature')
 
-    def interpret_data(self, raw_data, internal_data_pub):
+    def interpret_data(self, raw_data):
         """Interpretation of the data"""
+
+        # Make list of interpreted result data
+        interpreted_data = []
 
         # Retrieve server IP , meta data and actual data from raw data dict
         server, meta_data, data = raw_data['meta']['name'], raw_data['meta'], raw_data['data']
@@ -279,7 +282,7 @@ class IrradConverter(DAQProcess):
                     # Write to dict to send out and to array to store
                     beam_data['data']['current'][sig_type] = self.beam_data[server][dname] = current
 
-            internal_data_pub.send_json(beam_data)
+            interpreted_data.append(beam_data)
 
         elif meta_data['type'] == 'stage':
 
@@ -346,7 +349,7 @@ class IrradConverter(DAQProcess):
 
                 self._store_fluence_data = True
 
-                internal_data_pub.send_json(fluence_data)
+                interpreted_data.append(fluence_data)
 
                 self._update_xy_stage_config(server)
 
@@ -379,6 +382,8 @@ class IrradConverter(DAQProcess):
             self.store_data(server)
         else:
             logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
+
+        return interpreted_data
 
     def _update_xy_stage_config(self, server):
 

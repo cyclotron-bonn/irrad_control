@@ -13,15 +13,12 @@ from irrad_control import config_path
 class DAQProcess(Process):
     """Base-class of processes used in irrad_control"""
 
-    def __init__(self, name, commands, daq_streams=None, max_buffer_size=None):
+    def __init__(self, name, commands, daq_streams=None, hwm=None):
         super(DAQProcess, self).__init__()
 
         # Initialize a name which is connected to this process
         self.pname = name
         self.pfile = os.path.join(config_path, '.irrad.pid')  # Create hidden PID file
-
-        # Buffer size for in and outgoing data queues in elements; if <= 0, buffer size is 'infinite'
-        self.max_buffer_size = 0 if (max_buffer_size is None or not isinstance(max_buffer_size, int)) else max_buffer_size
 
         # Events to handle sending / receiving of data and commands
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'proc')])
@@ -37,6 +34,9 @@ class DAQProcess(Process):
 
         # Internal process communication using zmq inproc transport
         self._internal_sub_addr = 'inproc://internal_pub'
+
+        # High-water mark for all ZMQ sockets
+        self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
 
         # Dict of known commands
         self.commands = commands
@@ -110,7 +110,7 @@ class DAQProcess(Process):
         # Terminate context
         self.context.term()
 
-    def _allocate_sockets(self, min_port=8000, max_port=9000, max_tries=100, data_hwm=100, rep_linger=500):
+    def _allocate_sockets(self, min_port=8000, max_port=9000, max_tries=100, rep_linger=500):
         """
         Method to acquire all needed sockets. Ports are selected by zmq's *bind_to_random_port* method which
         eliminates the need for hard-coded ports. The port configuration is stored in a PID.yaml within the
@@ -124,8 +124,6 @@ class DAQProcess(Process):
             maximum port number
         max_tries:
             maximum number of tries to bind to a port within range *min_port* to *max_port*
-        pub_hwm: int
-            high water mark for publisher sockets: determines the amount of messages buffered
         rep_linger: int
             number of milliseconds to wait before closing socket; useful for sending last reply on zmq.REP
         """
@@ -138,7 +136,7 @@ class DAQProcess(Process):
 
             # If the socket is a publisher, set a high water mark in order to protect the process from memory issues if subscribers can't receive fast enough
             if self.socket_type[sock] == zmq.PUB:
-                self.sockets[sock].setsockopt(zmq.SNDHWM, data_hwm)
+                self.sockets[sock].setsockopt(zmq.SNDHWM, self.hwm)
 
             # If the socket is a reply socket, set a linger period to avoid message loss
             elif self.socket_type[sock] == zmq.REP:
@@ -147,10 +145,10 @@ class DAQProcess(Process):
             # Bind socket to random port
             self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='tcp://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
 
-    def create_internal_data_pub(self, hwm=10):
+    def create_internal_data_pub(self):
 
         internal_data_pub = self.context.socket(zmq.PUB)
-        internal_data_pub.setsockopt(zmq.SNDHWM, hwm)
+        internal_data_pub.setsockopt(zmq.SNDHWM, self.hwm)
         internal_data_pub.bind(self._internal_sub_addr)
 
         return internal_data_pub
@@ -251,8 +249,8 @@ class DAQProcess(Process):
         for setting up.
         """
 
-        # Receive commands
-        while not self.stop_flags['recv'].is_set():
+        # Receive commands; wait 10 ms for stop flag
+        while not self.stop_flags['recv'].wait(1e-2):
 
             # Check if were working on a command. We have to work sequentially
             if not self.state_flags['busy'].is_set():
@@ -342,7 +340,7 @@ class DAQProcess(Process):
         _type: str:
             type of reply; either 'STANDARD' or 'ERROR'
         sender: str
-            command string which is handeld by *self.handle_cmd* method
+            command string which is handled by *self.handle_cmd* method
         data: object
             Python-object which can be serialized via Json
         """
@@ -365,7 +363,7 @@ class DAQProcess(Process):
         internal_data_sub.connect(self._internal_sub_addr)
         internal_data_sub.setsockopt(zmq.SUBSCRIBE, '')
 
-        while not self.stop_flags['send'].is_set():
+        while not self.stop_flags['send'].wait(1e-3):
 
             # Poll the command receiver socket for 1 ms; continue if there are no commands
             if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
@@ -423,10 +421,10 @@ class DAQProcess(Process):
             # Subscribe to all topics
             external_data_sub.setsockopt(zmq.SUBSCRIBE, '')
 
-            internal_data_pub = self.create_internal_data_pub(hwm=10)
+            internal_data_pub = self.create_internal_data_pub()
 
             # While event not set receive data
-            while not self.stop_flags['recv'].is_set():
+            while not self.stop_flags['recv'].wait(1e-3):
 
                 # Poll the command receiver socket for 1 ms; continue if there are no commands
                 if not external_data_sub.poll(timeout=1, flags=zmq.POLLIN):
@@ -435,8 +433,12 @@ class DAQProcess(Process):
                 # Get data
                 data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
 
-                # Put data
-                self.interpret_data(raw_data=data, internal_data_pub=internal_data_pub)
+                # Interpret data
+                interpreted_data = self.interpret_data(raw_data=data)
+
+                # Publish data to internal pub
+                for int_dat in interpreted_data:
+                    internal_data_pub.send_json(int_dat)
 
             external_data_sub.close()
             internal_data_pub.close()
@@ -471,8 +473,10 @@ class DAQProcess(Process):
         # Set up the process
         self._setup_process()
 
-        # This blocks until shutdown
+        # The main loop of the process sends out data
+        #############################################
         self.send_data()
+        #############################################
 
         # Wait for all the threads to join
         for t in self.threads:
@@ -489,7 +493,7 @@ class DAQProcess(Process):
         # Close all zmq-related objects
         self._close_zmq()
 
-    def interpret_data(self, raw_data, internal_data_pub):
+    def interpret_data(self, raw_data):
         if self.is_converter:
             raise NotImplementedError("Implement a *interpret_data* method for converter processes")
 
