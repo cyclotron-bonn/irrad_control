@@ -149,7 +149,7 @@ class DAQProcess(Process):
 
         internal_data_pub = self.context.socket(zmq.PUB)
         internal_data_pub.setsockopt(zmq.SNDHWM, self.hwm)
-        internal_data_pub.bind(self._internal_sub_addr)
+        internal_data_pub.connect(self._internal_sub_addr)
 
         return internal_data_pub
 
@@ -360,7 +360,7 @@ class DAQProcess(Process):
         """Send data on the corresponding socket """
 
         internal_data_sub = self.context.socket(zmq.SUB)
-        internal_data_sub.connect(self._internal_sub_addr)
+        internal_data_sub.bind(self._internal_sub_addr)
         internal_data_sub.setsockopt(zmq.SUBSCRIBE, '')
 
         while not self.stop_flags['send'].is_set():  # Send data out as fast as possible
