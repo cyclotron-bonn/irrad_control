@@ -305,7 +305,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
             time.sleep(1)
 
     def send_start_cmd(self):
-        print(self.setup)
 
         for server in self.setup['server']:
             self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
