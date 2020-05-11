@@ -269,7 +269,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='new_process_structure', git_pull=True)
+            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -597,7 +597,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif _type == 'ERROR':
             msg = '{} error occurred: {}'.format(sender.capitalize(), reply)
             logging.error(msg)
-            self.log_dock.setVisible(True)
+            if self.log_dock.isHidden():
+                self.log_dock.setVisible(True)
 
         else:
             logging.info('Received reply {} from {}'.format(reply, sender))
