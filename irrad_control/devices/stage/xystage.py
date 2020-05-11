@@ -519,8 +519,8 @@ class ZaberXYStage:
             horizontal scan speed in mm / s
         step_size : float
             stepp size of vertical steps in mm
-        data_out : Queue
-            Queue object to push data to during scan
+        data_out : zmq socket
+            Socket which published data to during scan
         server : str
             IP address of server which controls the stage
         """
@@ -657,8 +657,8 @@ class ZaberXYStage:
             Scan speed in mm/s or None. If None, current speed of x-axis is used for scanning
         scan : int
             Integer indicating the scan number during self.scan_device. *scan* for single rows is -1
-        data_out : Queue-object, None
-            Queue to which data is pushed to publish it later. If None, no data is pushed
+        data_out : zmq socket, None
+            Socket on which data is published. If None, no data is published
         """
 
         # Check whether this method is called from within self.scan_device or single row is scanned.
@@ -688,8 +688,8 @@ class ZaberXYStage:
             msg = "Y-axis did not move to row {}. Abort.".format(row)
             raise UnexpectedReplyError(msg)
 
-        # Push start data to queue
-        if data_out is not None and hasattr(data_out, 'append'):
+        # Publish data
+        if data_out is not None:
 
             _meta = {'timestamp': time(), 'name': scan_params['server'], 'type': 'stage'}
             _data = {'status': 'start', 'scan': scan, 'row': row,
@@ -697,7 +697,7 @@ class ZaberXYStage:
                      'x_start': self.steps_to_distance(self.position[0], unit='mm'),
                      'y_start': self.steps_to_distance(self.position[1], unit='mm')}
             # Put
-            data_out.append({'meta': _meta, 'data': _data})
+            data_out.send_json({'meta': _meta, 'data': _data})
 
         # Scan the current row
         x_reply = self.move_absolute(x_end if self.x_axis.get_position() == x_start else x_start, self.x_axis)
@@ -707,15 +707,15 @@ class ZaberXYStage:
             msg = "X-axis did not scan row {}. Abort.".format(row)
             raise UnexpectedReplyError(msg)
 
-        # Push stop data to queue
-        if data_out is not None and hasattr(data_out, 'append'):
+        # Publish stop data
+        if data_out is not None:
 
             _meta = {'timestamp': time(), 'name': scan_params['server'], 'type': 'stage'}
             _data = {'status': 'stop',
                      'x_stop': self.steps_to_distance(self.position[0], unit='mm'),
                      'y_stop': self.steps_to_distance(self.position[1], unit='mm')}
             # Put
-            data_out.append({'meta': _meta, 'data': _data})
+            data_out.send_json({'meta': _meta, 'data': _data})
 
         if from_origin:
             # Move back to origin; move y first in order to not scan over device
@@ -744,7 +744,7 @@ class ZaberXYStage:
         _data = {'status': 'init', 'y_step': scan_params['step_size'], 'n_rows': scan_params['n_rows']}
 
         # Put init data
-        scan_params['data_out'].append({'meta': _meta, 'data': _data})
+        scan_params['data_out'].send_json({'meta': _meta, 'data': _data})
 
         try:
 
@@ -794,7 +794,7 @@ class ZaberXYStage:
             _data = {'status': 'finished'}
 
             # Publish data
-            scan_params['data_out'].append({'meta': _meta, 'data': _data})
+            scan_params['data_out'].send_json({'meta': _meta, 'data': _data})
 
             # Reset speeds
             self.set_speed(10, self.x_axis, unit='mm/s')
