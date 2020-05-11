@@ -11,10 +11,33 @@ from irrad_control import config_path
 
 
 class DAQProcess(Process):
-    """Base-class of processes used in irrad_control"""
+    """Base-class of data acquisition processes"""
 
-    def __init__(self, name, commands, daq_streams=None, hwm=None, internal_sub=None):
-        super(DAQProcess, self).__init__()
+    def __init__(self, name, commands, daq_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
+        """
+        Init the process
+
+        Parameters
+        ----------
+
+        name: str
+            Name of the process
+        commands: dict
+            Dictionary containing command strings and targets
+        daq_streams: str, list, tuple
+            String or iterable of strings of zmq addresses of data streams to connect to
+        hwm: int
+             High-water mark of zmq sockets
+        internal_sub: str, None
+            String of zmq address to which the internal subscribe listens to, which puts data on the data publisher port.
+            If None, use internal address which is used by internally created sockets (see *create_internal_data_pub*)
+        args: list
+            Positional arguments which are passed to Process.__init__()
+        kwargs: dict
+            Keyword arguments which are passed to Process.__init__()
+        """
+        # Call super's init
+        super(DAQProcess, self).__init__(*args, **kwargs)
 
         # Initialize a name which is connected to this process
         self.pname = name
@@ -35,7 +58,7 @@ class DAQProcess(Process):
         # Sets internal subscriber address from which data is gathered (from potentially many sources) and published (on one port);
         # usually this is some intra-process communication protocol such as inproc/ipc. If not, this process listens to a different
         # DAQ processes DAQ threads in an attempt to distribute the load on multiple CPU cores more evenly
-        self._internal_sub_addr = internal_sub if internal_sub is not None and self._check_addr(internal_sub) else 'inproc://internal_pub'
+        self._internal_sub_addr = internal_sub if internal_sub is not None and self._check_addr(internal_sub) else 'inproc://internal'
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
@@ -60,14 +83,38 @@ class DAQProcess(Process):
 
     @property
     def is_converter(self):
+        """Return whether this instance is also a converter"""
         return self.state_flags['converter'].is_set()
 
     @is_converter.setter
     def is_converter(self, state):
+        """
+        Set whether this instance is a converter
+
+        Parameters
+        ----------
+
+        state: bool
+            Whether this instance should be a converter
+        """
+        # Set the flag
         self.state_flags['converter'].set() if bool(state) else self.state_flags['converter'].clear()
 
     def _check_addr(self, addr):
-        """Check address format"""
+        """
+        Check address format for zmq sockets
+
+        Parameters
+        ----------
+
+        addr: str
+            String of zmq address
+
+        Returns
+        -------
+        bool:
+            Whether the address is valid
+        """
 
         if not isinstance(addr, basestring):
             logging.error("Address must be string")
@@ -103,13 +150,15 @@ class DAQProcess(Process):
 
         return True if protocol else False
 
-    def _graceful_shutdown(self):
+    def _enable_graceful_shutdown(self):
+        """ Method that redirects systems interrupt and terminatioin signals to the instances *shutdown* method """
 
         # Enable graceful termination
         for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             signal.signal(sig, self.shutdown)
 
     def _setup_zmq(self):
+        """ Setup the zmq context instance and allocate needed sockets """
 
         # Create a context instance
         self.context = zmq.Context()
@@ -118,6 +167,7 @@ class DAQProcess(Process):
         self._allocate_sockets()
 
     def _close_zmq(self):
+        """Shutdown the zmq contexct and close sockets"""
 
         # Close the sockets and context
         for sock in self.sockets:
@@ -162,6 +212,15 @@ class DAQProcess(Process):
             self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='tcp://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
 
     def create_internal_data_pub(self):
+        """
+        Create an internal publisher socket which publishes data in a sub-thread. The main *send_data* method
+        has an internal subscriber bound to this publishers address and receives its data.
+
+        Returns
+        -------
+        zmq.context.socket(zmq.PUB):
+            A publisher socket which is used to publish data from concurrent thread
+        """
 
         internal_data_pub = self.context.socket(zmq.PUB)
         internal_data_pub.setsockopt(zmq.SNDHWM, self.hwm)
@@ -189,19 +248,18 @@ class DAQProcess(Process):
             yaml.safe_dump(proc_info, pid_file, default_flow_style=False)
 
     def _remove_pid_file(self):
-        """
-        Method that removes the PID file in the config-folder of this package on process shutdown process
-        """
+        """ Method that removes the PID file in the config-folder of this package on process shutdown process """
         if os.path.isfile(self.pfile):
             os.remove(self.pfile)
 
     def _setup_process(self):
+        """Setup this instance. Must be called within the *run* method"""
 
         # Make zmq setup
         self._setup_zmq()
 
         # Redirect signals for graceful termination
-        self._graceful_shutdown()
+        self._enable_graceful_shutdown()
 
         # Write PID file
         self._write_pid_file()
@@ -373,7 +431,10 @@ class DAQProcess(Process):
         self.state_flags['busy'].clear()
 
     def send_data(self):
-        """Send data on the corresponding socket """
+        """
+        Send out data on the corresponding self.sockets['data']. The data is mostly gathered from
+        concurrent threads or other processes which publish to this instances *_internal_sub_addr*
+        """
 
         internal_data_sub = self.context.socket(zmq.SUB)
         internal_data_sub.bind(self._internal_sub_addr)
@@ -394,6 +455,15 @@ class DAQProcess(Process):
         internal_data_sub.close()
 
     def add_daq_stream(self, daq_stream):
+        """
+        Method to add a data stream address to listen to to convert data from
+
+        Parameters
+        ----------
+
+        daq_stream: str, list, tuple
+            String or iterable of strings of zmq addresses of data streams to connect to
+        """
 
         streams_to_add = daq_stream if isinstance(daq_stream, (list, tuple)) else [daq_stream]
 
@@ -406,6 +476,16 @@ class DAQProcess(Process):
                 self.daq_streams.append(ds)
 
     def start_converter(self, daq_stream=None):
+        """
+        Method to make this instance a converter
+
+        Parameters
+        ----------
+
+        daq_stream: str, list, tuple, None
+            String or iterable of strings of zmq addresses of data streams to connect to. If None the
+            *daq_streams* attribute must not be empty
+        """
 
         # Set flag is this method is called after initializing the process
         self.is_converter = True
