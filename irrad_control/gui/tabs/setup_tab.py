@@ -3,16 +3,19 @@ import os
 import time
 import logging
 import subprocess
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore
 from irrad_control import network_config, daq_config, config_path
 from irrad_control.devices.adc import ads1256
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import Worker
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from collections import OrderedDict
+from copy import deepcopy
 
 _ro_scales = OrderedDict([('1 %sA' % u'\u03bc', 1000.0), ('0.33 %sA' % u'\u03bc', 330.0),
                           ('0.1 %sA' % u'\u03bc', 100.0), ('33 nA', 33.0), ('10 nA', 10.0), ('3.3 nA', 3.3)])
+
+initial_network_config = deepcopy(network_config)
 
 
 def _fill_combobox_items(cbx, fill_dict):
@@ -140,6 +143,13 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         with open(self.setup['session']['outfile'] + '.yaml', 'w') as _setup:
             yaml.safe_dump(self.setup, _setup, default_flow_style=False)
+
+        # Open the network_config.yaml and overwrites it with current server_ips if something changed
+        inc_all = initial_network_config['server']['all']
+        nc_all = network_config['server']['all']
+        if len(inc_all) != len(nc_all) or not all(nc_all[k] == inc_all[k] for k in inc_all):
+            with open(os.path.join(config_path, 'network_config.yaml'), 'w') as nc:
+                yaml.safe_dump(network_config, nc, default_flow_style=False)
 
     def update_setup(self):
         """Update the info into the setup dict"""
