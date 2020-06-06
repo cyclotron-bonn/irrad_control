@@ -600,7 +600,7 @@ class ServerSetupWidget(QtWidgets.QWidget):
         scroll_server.setWidget(_widget)
 
         # Finally, add to tab bar
-        self.tab_widgets[ip] = _widget
+        self.tab_widgets[ip] = scroll_server
         self.tabs.addTab(scroll_server, name)
 
     def _validate_setup(self):
