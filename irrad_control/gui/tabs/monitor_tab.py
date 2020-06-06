@@ -72,7 +72,8 @@ class IrradMonitorTab(QtWidgets.QWidget):
                 if 'temp' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
-                        self.plots[server]['temp_plot'] = TemperatureDataPlot(self.setup[server], daq_device=self.setup[server]['devices']['daq']['sem'])
+                        daq_device = 'ArduinoTempSens' if 'daq' not in self.setup[server]['devices'] else self.setup[server]['devices']['daq']['sem']
+                        self.plots[server]['temp_plot'] = TemperatureDataPlot(self.setup[server], daq_device=daq_device)
                         monitor_widget = PlotWrapperWidget(self.plots[server]['temp_plot'])
 
                 if monitor_widget is not None:

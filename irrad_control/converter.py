@@ -120,6 +120,9 @@ class IrradConverter(DAQProcess):
         # Open respective table files per server and check which data will be interpreted
         for server in self.server:
 
+            # Create new group for respective server
+            self.output_table.create_group(self.output_table.root, self.setup['server'][server]['name'])
+
             # This server has an ADC so will send raw data to interpret
             if server in self.adc_setup:
 
@@ -152,9 +155,6 @@ class IrradConverter(DAQProcess):
                 # Auto zeroing offset
                 self.zero_offset_data[server] = np.zeros(shape=1, dtype=raw_dtype)
                 self._zero_offset_vals[server] = defaultdict(list)
-
-                # Create new group for respective server
-                self.output_table.create_group(self.output_table.root, self.setup['server'][server]['name'])
 
                 # Create data tables
                 self.raw_table[server] = self.output_table.create_table('/{}'.format(self.setup['server'][server]['name']),
