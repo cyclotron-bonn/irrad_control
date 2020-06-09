@@ -514,7 +514,11 @@ class IrradConverter(DAQProcess):
                 _xy_stage_config_tmp = yaml.safe_load(_xys_r)
 
             # Positions could have changed during session
-            self.stage_config['positions'].update(_xy_stage_config_tmp['positions'])
+            try:
+                self.stage_config['positions'].update(_xy_stage_config_tmp['positions'])
+                logging.info('Updating XY-Stage positions')
+            except KeyError:
+                pass
 
             # Overwrite xy stage stats
             with open(xy_stage_config_yaml, 'w') as _xys_w:
