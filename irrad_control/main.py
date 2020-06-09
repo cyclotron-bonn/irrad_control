@@ -449,9 +449,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 elif reply == 'shutdown':
 
                     logging.info("Server at {} confirmed shutdown".format(hostname))
-
-                    self.proc_mngr.current_procs.remove(hostname)
-
+                    try:
+                        self.proc_mngr.current_procs.remove(hostname)
+                    except ValueError:
+                        pass
                     # Try to close
                     self.close()
 
