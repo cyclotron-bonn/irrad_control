@@ -9,7 +9,7 @@ from collections import OrderedDict
 class ZaberXYStage:
     """Class for interfacing the Zaber XY-stage of the irradiation setup at Bonn isochronous cyclotron"""
 
-    def __init__(self, serial_port='/dev/ttyUSB0'):
+    def __init__(self, serial_port='/dev/ttyUSB0', context=None):
         """
         Define the attributes of this Zaber stage. For information please refer to the following links:
         https://www.zaber.com/products/xy-xyz-gantry-systems/XY/details/X-XY-LRQ300BL-E01/features
@@ -49,7 +49,7 @@ class ZaberXYStage:
 
         # Attributes related to scanning
         self.scan_params = {}  # Dict to hold relevant scan parameters
-        self.context = zmq.Context()
+        self.context = context
         self.stop_scan = Event()  # Event to stop scan
         self.finish_scan = Event()  # Event to finish a scan after completing all rows of current iteration
         self.no_beam = Event()  # Event to wait if beam current is low of beam is shut off

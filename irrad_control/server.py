@@ -177,7 +177,7 @@ class IrradServer(DAQProcess):
 
         try:
             # Init stage
-            self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0')  # TODO: pass port as arg in device setup
+            self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0', context=self.context)  # TODO: pass port as arg in device setup
         except SerialException:
             logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB0"))
             logging.warning("XYStage removed from server devices")
