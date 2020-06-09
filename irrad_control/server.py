@@ -247,7 +247,7 @@ class IrradServer(DAQProcess):
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'prepare':
-                self.xy_stage.prepare_scan(data_out=self.create_internal_data_pub(), server=self.server, **data)
+                self.xy_stage.prepare_scan(data_out=self._internal_sub_addr, server=self.server, **data)
                 _data = {'n_rows': self.xy_stage.scan_params['n_rows'], 'rows': self.xy_stage.scan_params['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
