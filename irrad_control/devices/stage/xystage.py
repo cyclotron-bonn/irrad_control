@@ -616,7 +616,7 @@ class ZaberXYStage:
             return
 
         # Start scan in separate thread
-        scan_thread = Thread(target=self._scan_row, args=(row, speed, scan_params))
+        scan_thread = Thread(target=self._scan_row, args=(row, scan_params, speed))
         scan_thread.start()
 
     def scan_device(self, scan_params=None):
