@@ -12,7 +12,7 @@ from threading import Event
 
 # Package imports
 from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
-from irrad_control.utils.worker import Worker
+from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
@@ -255,10 +255,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
     def _init_recv_threads(self):
 
         # Start receiving log messages from other processes
-        self.threadpool.start(Worker(func=self.recv_log))
+        self.threadpool.start(QtWorker(func=self.recv_log))
 
         # Start receiving data from other processes
-        self.threadpool.start(Worker(func=self.recv_data))
+        self.threadpool.start(QtWorker(func=self.recv_data))
 
     def _init_processes(self):
 
@@ -269,7 +269,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -333,7 +333,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             # All servers have been launched; start collecting info
             if all(server in self.proc_mngr.launched_procs for server in self.setup['server']):
-                proc_info_worker = Worker(func=self.collect_proc_infos)
+                proc_info_worker = QtWorker(func=self.collect_proc_infos)
                 proc_info_worker.signals.finished.connect(self._init_recv_threads)
                 proc_info_worker.signals.finished.connect(self.send_start_cmd)
                 self.threadpool.start(proc_info_worker)
@@ -370,7 +370,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self._start_daq_proc(hostname='localhost')
 
     def _connect_worker_exception(self, worker):
-        worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
+        worker.signals.exception.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
 
     def _connect_worker_close(self, worker, hostname):
         self._cmd_reply[hostname].append(self._cmd_id)
@@ -479,7 +479,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             return
 
         cmd_dict = {'target': target, 'cmd': cmd, 'data': cmd_data}
-        cmd_worker = Worker(self._send_cmd_get_reply, hostname, cmd_dict)
+        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict)
 
         # Make connections
         self._connect_worker_exception(worker=cmd_worker)
