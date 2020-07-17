@@ -5,9 +5,10 @@ import logging
 import signal
 from time import sleep
 from multiprocessing import Process
-from threading import Thread, Event
+from threading import Event
 from zmq.log import handlers
 from irrad_control import config_path
+from irrad_control.utils.worker import ThreadWorker
 
 
 class DAQProcess(Process):
@@ -44,7 +45,7 @@ class DAQProcess(Process):
         self.pfile = os.path.join(config_path, '.irrad.pid')  # Create hidden PID file
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv')])
+        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
 
         # Ports/sockets used by this process
@@ -252,8 +253,8 @@ class DAQProcess(Process):
         if os.path.isfile(self.pfile):
             os.remove(self.pfile)
 
-    def _setup_process(self):
-        """Setup this instance. Must be called within the *run* method"""
+    def _setup(self):
+        """Setup everything neeeded for the instance"""
 
         # Make zmq setup
         self._setup_zmq()
@@ -264,16 +265,30 @@ class DAQProcess(Process):
         # Write PID file
         self._write_pid_file()
 
-        # Start command receiver thread
-        recv_cmd_thread = Thread(target=self.recv_cmd)
-        recv_cmd_thread.start()
+    def launch_thread(self, target):
+        """Launch a ThreadWorker instance with *target* function and append to self.threads"""
+
+        # Create and launch
+        thread = ThreadWorker(target=target)
+        thread.start()
 
         # Add to instance threads
-        self.threads.append(recv_cmd_thread)
+        self.threads.append(thread)
 
-        # If the process has been initialized with da streams, it's a converter
+    def _launch_threads(self):
+        """Launch this instances threads. Must be called within the *run* method"""
+
+        # Start command receiver thread
+        self.launch_thread(target=self.recv_cmd)
+
+        # Start command receiver thread
+        self.launch_thread(target=self.send_data)
+
+        # If the process is a converter
         if self.is_converter:
-            self.start_converter()
+
+            # Start data receiver thread
+            self.launch_thread(target=self.recv_data)
 
     def _setup_logging(self):
         """
@@ -475,31 +490,6 @@ class DAQProcess(Process):
             if self._check_addr(ds) and ds not in self.daq_streams:
                 self.daq_streams.append(ds)
 
-    def start_converter(self, daq_stream=None):
-        """
-        Method to make this instance a converter
-
-        Parameters
-        ----------
-
-        daq_stream: str, list, tuple, None
-            String or iterable of strings of zmq addresses of data streams to connect to. If None the
-            *daq_streams* attribute must not be empty
-        """
-
-        # Set flag is this method is called after initializing the process
-        self.is_converter = True
-
-        if daq_stream is not None:
-            self.add_daq_stream(daq_stream=daq_stream)
-
-        # Start data receiver thread
-        recv_data_thread = Thread(target=self.recv_data)
-        recv_data_thread.start()
-
-        # Add to instance threads
-        self.threads.append(recv_data_thread)
-
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
 
@@ -563,16 +553,33 @@ class DAQProcess(Process):
         for flag in self.stop_flags:
             self.stop_flags[flag].set()
 
-    def run(self):
-        """ Main process function"""
+    def _watch_threads(self):
+        """
+        Main function which is run: checks all the threads in which work is done and logs when an exception occurrs
+        """
 
-        # Set up the process
-        self._setup_process()
+        reported = []
 
-        # The main loop of the process sends out data
-        #############################################
-        self.send_data()
-        #############################################
+        # Check threads until stop flag is set
+        while not self.stop_flags['watch'].wait(1.0):
+
+            # Loop over all threads and check whether exceptions have occurred
+            for daq_thread in self.threads:
+
+                # If an exception occurred and has not yet been reported
+                if daq_thread.exception is not None and daq_thread not in reported:
+
+                    # Construct error message
+                    msg = "A {} exception occurred in thread executing function '{}':\n".format(type(daq_thread.exception).__name__, daq_thread.name)
+                    msg += "{}\nThread is currently {}alive ".format(daq_thread.traceback_str, '' if daq_thread.is_alive() else 'not ')
+
+                    # Log message
+                    logging.error(msg)
+
+                    # Append to list of already reported exceptions
+                    reported.append(daq_thread)
+
+    def _close(self):
 
         # Wait for all the threads to join
         for t in self.threads:
@@ -588,6 +595,23 @@ class DAQProcess(Process):
 
         # Close all zmq-related objects
         self._close_zmq()
+
+    def run(self):
+        """ Main process function"""
+
+        # Setup everything
+        self._setup()
+
+        # Launch DAQ threads of the process
+        self._launch_threads()
+
+        # The main loop of the process: watch the DAQ threads; BLOCKING
+        #############################################
+        self._watch_threads()
+        #############################################
+
+        # Close everything
+        self._close()
 
     def interpret_data(self, raw_data):
         if self.is_converter:

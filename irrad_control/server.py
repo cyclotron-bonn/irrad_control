@@ -1,6 +1,5 @@
 import logging
 from time import time
-from threading import Thread
 from serial import SerialException
 from irrad_control.utils.daq_proc import DAQProcess
 from irrad_control.devices.adc.ADS1256_definitions import *
@@ -103,10 +102,7 @@ class IrradServer(DAQProcess):
                 self.adc_channels.append(tmp_ch)
 
             # Start data sending thread
-            daq_thread = Thread(target=self._daq_adc)
-            daq_thread.start()
-
-            self.threads.append(daq_thread)
+            self.launch_thread(target=self._daq_adc)
 
         except IOError:
             logging.error("Could not access SPI device file. Enable SPI interface!")
@@ -143,10 +139,7 @@ class IrradServer(DAQProcess):
             self.temp_sens = ArduinoTempSens(port="/dev/ttyUSB1")  # TODO: pass port as arg in device setup
 
             # Start data sending thread
-            daq_thread = Thread(target=self._daq_temp)
-            daq_thread.start()
-
-            self.threads.append(daq_thread)
+            self.launch_thread(target=self._daq_temp)
 
         except SerialException:
             logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB1"))

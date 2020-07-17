@@ -468,7 +468,9 @@ class IrradConverter(DAQProcess):
 
         self.is_converter = True
 
-        self.start_converter(daq_stream=[self._tcp_addr(port=self.setup['server'][server]['ports']['data'], ip=server) for server in self.server])
+        self.add_daq_stream(daq_stream=[self._tcp_addr(port=self.setup['server'][server]['ports']['data'], ip=server) for server in self.server])
+
+        self.launch_thread(target=self.recv_data)
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
