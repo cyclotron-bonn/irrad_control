@@ -1,9 +1,7 @@
 import yaml
 import time
 import logging
-from copy import deepcopy
 from PyQt5 import QtWidgets, QtCore
-from irrad_control import xy_stage_config_yaml
 from .util_widgets import GridContainer, NoBackgroundScrollArea
 
 
@@ -12,10 +10,10 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
 
     stagePosChanged = QtCore.pyqtSignal(dict)
 
-    def __init__(self, config, parent=None):
+    def __init__(self, positions, parent=None):
         super(XYStagePositionWindow, self).__init__(parent)
 
-        self._xy_stage_config = deepcopy(config)
+        self.positions = positions
 
         self.positions_buffer = {}
 
@@ -40,10 +38,10 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
         self._init_add_position()
         self._init_buttons()
 
-        if 'positions' in self._xy_stage_config:
-            for name in self._xy_stage_config['positions']['all']:
-                tmp_pos = self._xy_stage_config['positions']['all'][name]
-                self.add_position(name=name, x_pos=tmp_pos['x'], y_pos=tmp_pos['y'], unit=tmp_pos['unit'], date=tmp_pos['date'])
+        if self.positions:
+            for name in self.positions:
+                tmp_pos = self.positions[name]
+                self.add_position(name=name, x_pos=tmp_pos['x'], y_pos=tmp_pos['y'], unit=tmp_pos['unit'], date=tmp_pos['date'], saved=True)
 
     def _init_edit_pos(self):
 
@@ -58,7 +56,7 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
         self.edit_pos.grid.setAlignment(QtCore.Qt.AlignTop)
 
         # make column names
-        cols = ('Name', 'Position', '', 'Date', 'Delete')
+        cols = ('Name', 'Position', '', 'Date', 'Status', 'Delete')
 
         self.edit_pos.add_widget(widget=[QtWidgets.QLabel(col) for col in cols])
         self.edit_pos.add_widget(widget=[get_h_line() for _ in cols])
@@ -98,7 +96,7 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
         btn_add.clicked.connect(lambda _, n=name_edit, x=spx_x, y=spx_y: self.add_position(n.text(), x.value(), y.value(), 'mm', time.asctime()))
         btn_add.clicked.connect(lambda _, n=name_edit: n.setText(""))
         btn_add.clicked.connect(lambda _, x=spx_x, y=spx_y: (x.setValue(x.minimum()), y.setValue(y.minimum())))
-        btn_add.clicked.connect(lambda _: self.btn_apply.setEnabled(self._check_edit()))
+        btn_add.clicked.connect(lambda _: self.btn_save.setEnabled(self._check_edit()))
 
         self.add_pos.add_widget((QtWidgets.QLabel('Name:'), name_edit, spx_x, spx_y, btn_add))
         self.main_widget.layout().addWidget(self.add_pos)
@@ -108,17 +106,17 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.addStretch(1)
         self.btn_cancel = QtWidgets.QPushButton('Close / Cancel')
-        self.btn_apply = QtWidgets.QPushButton('Apply')
-        self.btn_apply.clicked.connect(self._edit)
-        self.btn_apply.setEnabled(False)
-        self.btn_apply.clicked.connect(lambda _: self.btn_apply.setEnabled(self._check_edit()))
+        self.btn_save = QtWidgets.QPushButton('Apply')
+        self.btn_save.clicked.connect(self._edit)
+        self.btn_save.setEnabled(False)
+        self.btn_save.clicked.connect(lambda _: self.btn_save.setEnabled(self._check_edit()))
         self.btn_cancel.clicked.connect(self.close)
         btn_layout.addWidget(self.btn_cancel)
-        btn_layout.addWidget(self.btn_apply)
+        btn_layout.addWidget(self.btn_save)
 
         self.main_widget.layout().addLayout(btn_layout)
 
-    def add_position(self, name, x_pos, y_pos, unit, date=None):
+    def add_position(self, name, x_pos, y_pos, unit, date=None, saved=True):
         """Method to create a set of widgets to allow setting position and name """
 
         if name not in self.positions_buffer:
@@ -133,7 +131,7 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
             spx_x.setValue(x_pos)
             spx_x.setSuffix(' {}'.format(unit))
             spx_x.valueChanged.connect(lambda val: self.positions_buffer[name].update({'x': val}))
-            spx_x.valueChanged.connect(lambda _: self.btn_apply.setEnabled(self._check_edit()))
+            spx_x.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit()))
 
             # y value
             spx_y = QtWidgets.QDoubleSpinBox()
@@ -144,7 +142,12 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
             spx_y.setValue(y_pos)
             spx_y.setSuffix(' {}'.format(unit))
             spx_y.valueChanged.connect(lambda val: self.positions_buffer[name].update({'y': val}))
-            spx_y.valueChanged.connect(lambda _: self.btn_apply.setEnabled(self._check_edit()))
+            spx_y.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit()))
+
+            label_status = QtWidgets.QLabel('Saved' if saved else 'Not saved')
+
+            if not saved:
+                label_status.setStyleSheet('QLabel {color: orange;}')
 
             # Delete checkboxes
             chbx_del = QtWidgets.QCheckBox('Delete {}'.format(name))
@@ -153,10 +156,11 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
                         spx_x,
                         spx_y,
                         QtWidgets.QLabel("Last updated: {}".format(date if date is not None else time.asctime())),
+                        label_status,
                         chbx_del]
 
             chbx_del.stateChanged.connect(lambda state: self.positions_buffer[name].update({'delete': bool(state)}))
-            chbx_del.stateChanged.connect(lambda _: self.btn_apply.setEnabled(self._check_edit()))
+            chbx_del.stateChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit()))
 
             for w in _widgets[:-1]:
                 chbx_del.stateChanged.connect(lambda state, widget=w: self.add_pos.set_widget_read_only(widget, read_only=bool(state)))
@@ -172,15 +176,15 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
             return True
 
         # If we're adding stuff, there will be an edit
-        if len(self._xy_stage_config['positions']['all']) != len(self.positions_buffer):
+        if len(self.positions) != len(self.positions_buffer):
             return True
 
         # If we're changing values, there will be an edit
-        for kk in self._xy_stage_config['positions']['all']:
+        for kk in self.positions:
 
             # Check if anything in the buffer is different; if yes, we want to edit
-            for prop in self._xy_stage_config['positions']['all'][kk]:
-                if self.positions_buffer[kk][prop] != self._xy_stage_config['positions']['all'][kk][prop]:
+            for prop in self.positions[kk]:
+                if self.positions_buffer[kk][prop] != self.positions[kk][prop]:
                     return True
 
         return False
@@ -204,14 +208,12 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
                 self.statusBar().showMessage('Aborted. No changes written to file', 4000)
                 return
 
-        edit_this = self._xy_stage_config['positions']['all']
-
         remove = []
 
         for k in self.positions_buffer:
 
             # If its in the aim dict, we're editing or removing
-            if k in edit_this:
+            if k in self.positions:
 
                 # Check if we're removing
                 if self.positions_buffer[k]['delete']:
@@ -220,25 +222,30 @@ class XYStagePositionWindow(QtWidgets.QMainWindow):
                 else:
                     for kk in self.positions_buffer[k]:
                         if kk != 'delete':
-                            edit_this[k][kk] = self.positions_buffer[k][kk]
+                            self.positions[k][kk] = self.positions_buffer[k][kk]
 
             # If not, we're adding
             else:
-                edit_this[k] = dict([(kkk, self.positions_buffer[k][kkk]) for kkk in self.positions_buffer[k] if kkk != 'delete'])
+                self.positions[k] = dict([(kkk, self.positions_buffer[k][kkk]) for kkk in self.positions_buffer[k] if kkk != 'delete'])
 
         for r in remove:
             self.edit_pos.remove_widget(self.edit_pos.widgets[r])
-            del edit_this[r]
+            del self.positions[r]
             del self.positions_buffer[r]
             del self.edit_pos.widgets[r]
 
-        try:
-            with open(xy_stage_config_yaml, 'w') as _xys_s:
-                yaml.safe_dump(self._xy_stage_config, _xys_s)
-            del _xys_s
-        except (IOError, OSError):
-            logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(xy_stage_config_yaml))
+        self.stagePosChanged.emit(self.positions)
 
-        self.stagePosChanged.emit(self._xy_stage_config)
-        self.statusBar().showMessage('Changes written to file', 4000)
-        logging.info("XY-Stage positions in {} updated successfully.".format(xy_stage_config_yaml))
+    def close(self):
+
+        r = [k for k in self.positions_buffer if k not in self.positions]
+        for k in r:
+            self.edit_pos.remove_widget(self.edit_pos.widgets[k])
+            del self.positions_buffer[k]
+            del self.edit_pos.widgets[k]
+
+        # TODO: write delete position func
+        # TODO: make visible that position is not yet added if apply is not hit via color
+        # TODO add btn to get current position
+
+        super(XYStagePositionWindow, self).close()
