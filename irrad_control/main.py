@@ -532,6 +532,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                         self.send_cmd(hostname, 'stage', 'pos')
                         self.send_cmd(hostname, 'stage', 'get_speed')
                         self.send_cmd(hostname, 'stage', 'get_range')
+                        self.send_cmd(hostname, 'stage', 'get_pos')
 
                 elif reply == 'shutdown':
 
@@ -568,6 +569,15 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 elif reply in ['set_range', 'get_range']:
                     self.control_tab.update_info(range=reply_data, unit='mm')
+
+                elif reply == 'get_pos':
+                    self.control_tab.setup_xy_stage_positions(reply_data)
+
+                elif reply == 'add_pos':
+                    dd = self.control_tab.xy_stage_position_win.edit_pos.widgets
+                    for name in dd:
+                        dd[name][-2].setText('Saved')
+                        dd[name][-2].setStyleSheet('QLabel {color: black;}')
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
