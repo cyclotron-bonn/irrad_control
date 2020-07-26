@@ -22,7 +22,7 @@ def _fill_combobox_items(cbx, fill_dict):
     """Helper function to fill """
 
     default_idx = 0
-    _all = fill_dict['all']
+    _all = fill_dict if 'all' not in fill_dict else fill_dict['all']
 
     # Clear initially
     cbx.clear()
@@ -40,7 +40,7 @@ def _fill_combobox_items(cbx, fill_dict):
             tool_tip += '{}: {}\n'.format(l, _all[k][l])
         cbx.model().item(i).setToolTip(tool_tip)
 
-        default_idx = default_idx if k != fill_dict['default'] else i
+        default_idx = default_idx if 'default' not in fill_dict else default_idx if k != fill_dict['default'] else i
 
     cbx.setCurrentIndex(default_idx)
 
