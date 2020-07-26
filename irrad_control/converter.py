@@ -1,13 +1,11 @@
 import logging
-import yaml
 import numpy as np
 import tables as tb
-from time import time, asctime
+from time import time
 from threading import Event
-from irrad_control import daq_config, xy_stage_config, xy_stage_config_yaml
+from irrad_control import daq_config
 from irrad_control.utils.daq_proc import DAQProcess
 from collections import defaultdict
-from copy import deepcopy
 
 
 class IrradConverter(DAQProcess):
@@ -20,8 +18,6 @@ class IrradConverter(DAQProcess):
 
         # Dict of known commands; flag to indicate when cmd is busy
         commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
-
-        self.stage_config = deepcopy(xy_stage_config)
 
         # Call init of super class
         super(IrradConverter, self).__init__(name=name, commands=commands)
@@ -351,8 +347,6 @@ class IrradConverter(DAQProcess):
 
                 interpreted_data.append(fluence_data)
 
-                self._update_xy_stage_config(server)
-
             elif data['status'] == 'finished':
 
                 # The stage is finished; append the overall fluence to the result and get the sigma by the std dev
@@ -384,31 +378,6 @@ class IrradConverter(DAQProcess):
             logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
 
         return interpreted_data
-
-    def _update_xy_stage_config(self, server):
-
-        # Add to xy stage stats
-        # This iterations travel
-        x_travel = float(abs(self.fluence_data[server]['x_stop'][0] - self.fluence_data[server]['x_start'][0]))
-        y_travel = float(self.fluence_data[server]['step'][0] * 1e-3)
-
-        # Add to total
-        self.stage_config['total_travel']['x'] += x_travel
-        self.stage_config['total_travel']['y'] += y_travel
-
-        # Add to interval
-        self.stage_config['interval_travel']['x'] += x_travel
-        self.stage_config['interval_travel']['y'] += y_travel
-
-        # Check if any axis has reached interval travel
-        for axis in ('x', 'y'):
-            if self.stage_config['interval_travel'][axis] > self.stage_config['maintenance_interval']:
-                self.stage_config['interval_travel'][axis] = 0.0
-                self.state_flags['xy_stage_maintenance'].set()
-                logging.warning("{}-axis of XY-stage reached service interval travel! "
-                                "See https://www.zaber.com/wiki/Manuals/X-LRQ-E#Precautions".format(axis))
-
-        self.stage_config['last_update'] = asctime()
 
     def _calc_digital_shift(self, data, server, ch_types, m='h'):
         """Calculate the beam displacement on the secondary electron monitor from the digitized foil signals"""
@@ -510,24 +479,6 @@ class IrradConverter(DAQProcess):
             self._close_tables()
         except AttributeError:
             pass
-        try:
-            # Open xy config an update info
-            with open(xy_stage_config_yaml, 'r') as _xys_r:
-                _xy_stage_config_tmp = yaml.safe_load(_xys_r)
-
-            # Positions could have changed during session
-            try:
-                self.stage_config['positions'].update(_xy_stage_config_tmp['positions'])
-                logging.info('Updating XY-Stage positions')
-            except KeyError:
-                pass
-
-            # Overwrite xy stage stats
-            with open(xy_stage_config_yaml, 'w') as _xys_w:
-                yaml.safe_dump(self.stage_config, _xys_w, default_flow_style=False)
-
-        except (OSError, IOError):
-            logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(xy_stage_config_yaml))
 
 
 def main():
