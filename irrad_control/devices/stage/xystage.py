@@ -659,7 +659,7 @@ class ZaberXYStage:
         self.move_absolute(position=x, axis=self.x_axis, unit=unit)
         self.move_absolute(position=y, axis=self.y_axis, unit=unit)
 
-    def add_position(self, name, x_pos, y_pos, unit, date=None):
+    def add_position(self, name, x, y, unit, date=None):
         """
         Method which stores new XY stage position in the config. If it already exists in self.config['positions'], the entries are updated
 
@@ -667,9 +667,9 @@ class ZaberXYStage:
         ----------
         name: str
             name of the position
-        x_pos: float
+        x: float
             x position
-        y_pos: float
+        y: float
             y position
         unit: str
             string of metric unit
@@ -678,7 +678,7 @@ class ZaberXYStage:
         """
 
         # Position info dict
-        new_pos = {'x': x_pos, 'y': y_pos, 'unit': unit, 'date': time.asctime() if date is None else date}
+        new_pos = {'x': x, 'y': y, 'unit': unit, 'date': time.asctime() if date is None else date}
 
         # We're updating an existing position
         if name in self.config['positions']:
