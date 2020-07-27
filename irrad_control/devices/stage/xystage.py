@@ -78,7 +78,7 @@ def movement_tracker(movement_func):
     return movement_wrapper
 
 
-class ZaberXYStage:
+class ZaberXYStage(object):
     """Class for interfacing the Zaber XY-stage of the irradiation setup at Bonn isochronous cyclotron"""
 
     def __init__(self, serial_port='/dev/ttyUSB0'):
@@ -141,6 +141,10 @@ class ZaberXYStage:
 
         # XY Stage config
         self.config = xy_stage_config
+        
+    def __del__(self):
+        """Store the current configuration on deletion"""
+        self.save_config()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
         """
@@ -398,7 +402,7 @@ class ZaberXYStage:
 
         return _range if unit is None else [self.steps_to_distance(r, unit) for r in _range]
 
-    def accel_to_step_s2(self, accel, unit="mm/s^2"):
+    def accel_to_step_s2(self, accel, unit="mm/s2"):
         """
         Method to convert acceleration *accel* given in *unit* into micro steps per square second
 
@@ -544,7 +548,7 @@ class ZaberXYStage:
         # Check if unit is sane; if it checks out, return same unit, else returns smallest available unit
         unit = self._check_unit(unit, self.dist_units)
 
-        return float(steps * self.microstep * self.dist_units[unit] / 1e-3)
+        return float(steps * self.microstep * 1e3 / self.dist_units[unit])
 
     @movement_tracker
     def move_relative(self, distance, axis, unit=None):
@@ -656,8 +660,8 @@ class ZaberXYStage:
             x, y, unit = [self.config['positions'][k] for k in ('x', 'y', 'unit')]
 
         # Do the movement; first move x, then y axis
-        self.move_absolute(position=x, axis=self.x_axis, unit=unit)
-        self.move_absolute(position=y, axis=self.y_axis, unit=unit)
+        self.move_absolute(x, self.x_axis, unit=unit)
+        self.move_absolute(y, self.y_axis, unit=unit)
 
     def add_position(self, name, x, y, unit, date=None):
         """
