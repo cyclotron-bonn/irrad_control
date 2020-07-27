@@ -274,9 +274,6 @@ class IrradServer(DAQProcess):
                 self.xy_stage.remove_position(data)
 
             elif cmd == 'move_pos':
-                if 'name' not in data:
-                    _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
-                    data['y'] = _m_dist - data['y']
                 self.xy_stage.move_to_position(**data)
 
             elif cmd == 'get_speed':

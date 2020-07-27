@@ -659,6 +659,11 @@ class ZaberXYStage(object):
             # Update values
             x, y, unit = [self.config['positions'][name][k] for k in ('x', 'y', 'unit')]
 
+        # I'm ashamed
+        # FIXME: start using ncoder bit to invert y axis instead of coding like trhe first human
+        m_dist = self.steps_to_distance(int(300e-3 / self.microstep), unit=unit)
+        y = m_dist - y
+
         # Do the movement; first move x, then y axis
         self.move_absolute(x, self.x_axis, unit=unit)
         self.move_absolute(y, self.y_axis, unit=unit)
