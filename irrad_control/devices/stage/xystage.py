@@ -143,8 +143,11 @@ class ZaberXYStage(object):
         self.config = xy_stage_config
         
     def __del__(self):
-        """Store the current configuration on deletion"""
+        """Store the current configuration on deletion and close socket if ZMQ was set up"""
         self.save_config()
+        # Close socket
+        if self._zmq_setup:
+            self._move_pub.close()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
         """

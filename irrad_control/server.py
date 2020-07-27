@@ -301,7 +301,7 @@ class IrradServer(DAQProcess):
     def clean_up(self):
         """Mandatory clean up - method"""
         try:
-            self.xy_stage.save_config()
+            del self.xy_stage
         except NameError:
             pass
 
