@@ -222,7 +222,8 @@ class IrradControlTab(QtWidgets.QWidget):
         btn_edit_positions.clicked.connect(lambda _: self.xy_stage_position_win.show())
 
         # Move to position by moving x and then y
-        btn_mv_to_pos.clicked.connect(lambda _, pos=self.cbx_position.currentText(): self.send_cmd(target='stage', cmd='move_pos', cmd_data={'name': pos}))
+        btn_mv_to_pos.clicked.connect(lambda _: self.send_cmd(target='stage', cmd='move_pos',
+                                                              cmd_data={'name': self.cbx_position.currentText()}))
 
         self.predefined_pos_widgets = [label_positions, self.cbx_position, btn_edit_positions, btn_mv_to_pos]
         _ = [w.setVisible(False) for w in self.predefined_pos_widgets]
