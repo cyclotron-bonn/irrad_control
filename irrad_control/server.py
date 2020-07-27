@@ -173,7 +173,7 @@ class IrradServer(DAQProcess):
             self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0')  # TODO: pass port as arg in device setup
 
             # Setup zmq for the stage to publish data
-            self.xy_stage.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_pub_addr, sender=self.server)
+            self.xy_stage.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
 
         except SerialException:
             logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB0"))
@@ -274,6 +274,8 @@ class IrradServer(DAQProcess):
                 self.xy_stage.remove_position(data)
 
             elif cmd == 'move_pos':
+                _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
+                data['y'] = _m_dist - data['y']
                 self.xy_stage.move_to_position(**data)
 
             elif cmd == 'get_speed':
