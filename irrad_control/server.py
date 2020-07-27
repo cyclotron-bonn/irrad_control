@@ -274,8 +274,9 @@ class IrradServer(DAQProcess):
                 self.xy_stage.remove_position(data)
 
             elif cmd == 'move_pos':
-                _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
-                data['y'] = _m_dist - data['y']
+                if 'name' not in data:
+                    _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
+                    data['y'] = _m_dist - data['y']
                 self.xy_stage.move_to_position(**data)
 
             elif cmd == 'get_speed':
@@ -302,7 +303,10 @@ class IrradServer(DAQProcess):
 
     def clean_up(self):
         """Mandatory clean up - method"""
-        pass  # Nothing to clean up once threads have finished
+        try:
+            self.xy_stage.save_config()
+        except NameError:
+            pass
 
 
 def main():
