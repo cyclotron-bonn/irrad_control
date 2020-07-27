@@ -657,7 +657,7 @@ class ZaberXYStage(object):
                 raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['positions'])))
 
             # Update values
-            x, y, unit = [self.config['positions'][k] for k in ('x', 'y', 'unit')]
+            x, y, unit = [self.config['positions'][name][k] for k in ('x', 'y', 'unit')]
 
         # Do the movement; first move x, then y axis
         self.move_absolute(x, self.x_axis, unit=unit)
