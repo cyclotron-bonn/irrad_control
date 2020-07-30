@@ -395,7 +395,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.control_tab.enableDAQRec.connect(lambda server, enable: self.daq_info_widget.record_btns[server].setVisible(enable))
         self.control_tab.enableDAQRec.connect(
             lambda server, enable: self.daq_info_widget.record_btns[server].clicked.connect(
-                lambda _, _server=server: self.control_tab.send_cmd(target='interpreter', cmd='record_data', cmd_data=_server))
+                lambda _, _server=server: self.control_tab.send_cmd(target='interpreter',
+                                                                    cmd='record_data',
+                                                                    cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == 'Resume')))
             if enable else self.daq_info_widget.record_btns[server].clicked.disconnect())  # Pretty crazy connection. Basically connects or disconnects a button
 
         # Make temporary dict for updated tabs
@@ -452,18 +454,30 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif data['meta']['type'] == 'stage':
 
             if data['data']['status'] == 'start':
+
+                # Start data recording when scan starts, regardless whether recording was turned off
+                self.send_cmd(hostname=server, target='interpreter', cmd='record_data', cmd_data=(server, True))
+
+                # Update control
                 self.control_tab.update_info(position=[data['data']['x_start'], data['data']['y_start']], unit='mm')
                 self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
                 self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
                 self.control_tab.update_info(status='Scanning...')
+
+                # Disable all record buttons when scan starts
+                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(False)
+                self.daq_info_widget.record_btns[server].setEnabled(False)
 
             elif data['data']['status'] == 'stop':
                 self.control_tab.update_info(position=[data['data']['x_stop'], data['data']['y_stop']], unit='mm')
                 self.control_tab.update_info(status='Turning')
 
             elif data['data']['status'] == 'finished':
-
                 self.control_tab.scan_status(data['data']['status'])
+
+                # Enable all record buttons when scan is over
+                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
+                self.daq_info_widget.record_btns[server].setEnabled(True)
 
         elif data['meta']['type'] == 'temp':
 

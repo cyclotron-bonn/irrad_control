@@ -458,11 +458,14 @@ class IrradConverter(DAQProcess):
                 self.state_flags['offset_{}'.format(data)].set()
 
             elif cmd == 'record_data':
-                if self.stop_flags['write_{}'.format(data)].is_set():
-                    self.stop_flags['write_{}'.format(data)].clear()
+                server, record = data
+
+                if record:  # We want to write
+                    self.stop_flags['write_{}'.format(server)].clear()
                 else:
-                    self.stop_flags['write_{}'.format(data)].set()
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[data, not self.stop_flags['write_{}'.format(data)].is_set()])
+                    self.stop_flags['write_{}'.format(server)].set()
+
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, not self.stop_flags['write_{}'.format(server)].is_set()])
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

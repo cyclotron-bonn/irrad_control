@@ -374,7 +374,9 @@ class IrradControlTab(QtWidgets.QWidget):
             # Button for auto zero offset
             label_record = QtWidgets.QLabel("Data recording:")
             btn_record = QtWidgets.QPushButton('Pause')
-            btn_record.clicked.connect(lambda _, _server=server: self.send_cmd(target='interpreter', cmd='record_data', cmd_data=_server))
+            btn_record.clicked.connect(lambda _, _server=server, btn=btn_record: self.send_cmd(target='interpreter',
+                                                                                               cmd='record_data',
+                                                                                               cmd_data=(_server, btn.text() == 'Resume')))
             record_btns[server] = btn_record
 
             chbx_record = QtWidgets.QCheckBox('Enable toggling recording state in DAQ dock')
