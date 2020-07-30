@@ -23,7 +23,7 @@ def movement_tracker(movement_func):
         wrapped movement_func
     """
     @wraps(movement_func)
-    def movement_wrapper(self, travel, axis, unit=None):
+    def movement_wrapper(self, target, axis, unit=None):
 
         # Axis index and name
         axis_idx = 0 if axis is self.x_axis else 1
@@ -45,7 +45,7 @@ def movement_tracker(movement_func):
             self._move_pub.send_json({'meta': _meta, 'data': _data})
 
         # Execute movement
-        reply = movement_func(self, travel, axis, unit)
+        reply = movement_func(self, target, axis, unit)
 
         # Get position after movement
         stop = self.steps_to_distance(self.position[axis_idx], unit='m')
@@ -554,23 +554,23 @@ class ZaberXYStage(object):
         return float(steps * self.microstep * 1e3 / self.dist_units[unit])
 
     @movement_tracker
-    def move_relative(self, distance, axis, unit=None):
+    def move_relative(self, target, axis, unit=None):
         """
         Method to move either in vertical or horizontal direction relative to the current position.
         Does sanity check on travel destination and axis
 
         Parameters
         ----------
-        distance : float
-            distance of travel
+        target : float, int
+            distance of relative travel
         axis : zaber.serial.AsciiAxis
             either self.x_axis or self.y_axis
         unit : None, str
-            unit in which distance is given. Must be in self.dist_units. If None, interpret as steps
+            unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
         # Get distance in steps
-        dist_steps = distance if unit is None else self.distance_to_steps(distance, unit)
+        dist_steps = target if unit is None else self.distance_to_steps(target, unit)
 
         # Get current position
         curr_pos = axis.get_position()
@@ -597,22 +597,22 @@ class ZaberXYStage(object):
         return _reply
 
     @movement_tracker
-    def move_absolute(self, position, axis, unit=None):
+    def move_absolute(self, target, axis, unit=None):
         """
         Method to move along the given axis to the absolute position
 
         Parameters
         ----------
-        position : float, int
-            distance of travel in steps or float with a unit
+        target : float, int
+            position to which will be travelled in steps or float with a unit
         axis : zaber.serial.AsciiAxis
             either self.x_axis or self.y_axis
         unit : None, str
-            unit in which distance is given. Must be in self.dist_units. If None, interpret as steps
+            unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
         # Get position in steps
-        pos_steps = position if unit is None else self.distance_to_steps(position, unit)
+        pos_steps = target if unit is None else self.distance_to_steps(target, unit)
 
         # Get minimum and maximum steps of travel
         min_step, max_step = int(axis.send("get limit.min").data), int(axis.send("get limit.max").data)
