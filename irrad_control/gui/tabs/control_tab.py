@@ -2,7 +2,7 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 from irrad_control.gui.widgets import GridContainer, XYStagePositionWindow
-from .setup_tab import _fill_combobox_items
+from irrad_control.gui.utils import fill_combobox_items
 
 
 class IrradControlTab(QtWidgets.QWidget):
@@ -94,7 +94,7 @@ class IrradControlTab(QtWidgets.QWidget):
     def setup_xy_stage_positions(self, positions):
         self.xy_stage_positions = positions
         self.xy_stage_position_win = XYStagePositionWindow(self.xy_stage_positions)
-        self.xy_stage_position_win.stagePosChanged.connect(lambda p: _fill_combobox_items(self.cbx_position, p))
+        self.xy_stage_position_win.stagePosChanged.connect(lambda p: fill_combobox_items(self.cbx_position, p))
         self.xy_stage_position_win.stagePosChanged.connect(lambda p: [self.send_cmd(target='stage', cmd='add_pos',
                                                                                     cmd_data={'name': n,
                                                                                               'x': p[n]['x'],
@@ -102,7 +102,7 @@ class IrradControlTab(QtWidgets.QWidget):
                                                                                               'unit': p[n]['unit'],
                                                                                               'date': p[n]['date']}) for n in p])
 
-        _fill_combobox_items(self.cbx_position, self.xy_stage_positions)
+        fill_combobox_items(self.cbx_position, self.xy_stage_positions)
         _ = [w.setVisible(True) for w in self.predefined_pos_widgets]
 
     def _setup_control(self):

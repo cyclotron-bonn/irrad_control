@@ -9,6 +9,7 @@ from irrad_control.devices.adc import ads1256
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
+from irrad_control.gui.utils import fill_combobox_items, get_host_ip
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -16,44 +17,6 @@ _ro_scales = OrderedDict([('1 %sA' % u'\u03bc', 1000.0), ('0.33 %sA' % u'\u03bc'
                           ('0.1 %sA' % u'\u03bc', 100.0), ('33 nA', 33.0), ('10 nA', 10.0), ('3.3 nA', 3.3)])
 
 initial_network_config = deepcopy(network_config)
-
-
-def _fill_combobox_items(cbx, fill_dict):
-    """Helper function to fill """
-
-    default_idx = 0
-    _all = fill_dict if 'all' not in fill_dict else fill_dict['all']
-
-    # Clear initially
-    cbx.clear()
-
-    # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
-    for i, k in enumerate(sorted(_all.keys())):
-        if 'hv_sem' in _all[k]:
-            cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
-        elif 'nominal' in _all[k]:
-            cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
-        else:
-            cbx.insertItem(i, k)
-        tool_tip = ''
-        for l in _all[k]:
-            tool_tip += '{}: {}\n'.format(l, _all[k][l])
-        cbx.model().item(i).setToolTip(tool_tip)
-
-        default_idx = default_idx if 'default' not in fill_dict else default_idx if k != fill_dict['default'] else i
-
-    cbx.setCurrentIndex(default_idx)
-
-
-def _get_host_ip():
-    """Returns the host IP address on UNIX systems. If not UNIX, returns None"""
-
-    try:
-        host_ip = subprocess.check_output(['hostname', '-I'])
-    except (OSError, subprocess.CalledProcessError):
-        host_ip = None
-
-    return host_ip
 
 
 class IrradSetupTab(QtWidgets.QWidget):
@@ -397,9 +360,9 @@ class NetworkSetup(GridContainer):
         label_host = QtWidgets.QLabel('Host IP:')
         edit_host = QtWidgets.QLineEdit()
         edit_host.setInputMask("000.000.000.000;_")
-        host_ip = _get_host_ip()
+        host_ip = get_host_ip()
 
-        # If host can be found using _get_host_ip(), don't allow manual input and don't show
+        # If host can be found using get_host_ip(), don't allow manual input and don't show
         if host_ip is not None:
             edit_host.setText(host_ip)
             edit_host.setReadOnly(True)
@@ -775,7 +738,7 @@ class DAQSetup(GridContainer):
         # Label for readout scale combobox
         label_kappa = QtWidgets.QLabel('Proton hardness factor %s:' % u'\u03ba')
         combo_kappa = QtWidgets.QComboBox()
-        _fill_combobox_items(combo_kappa, daq_config['kappa'])
+        fill_combobox_items(combo_kappa, daq_config['kappa'])
 
         # Add to layout
         self.add_widget(widget=[label_kappa, combo_kappa])
@@ -784,7 +747,7 @@ class DAQSetup(GridContainer):
         label_prop = QtWidgets.QLabel('Proportionality constant %s [1/V]:' % u'\u03bb')
         label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
         combo_prop = QtWidgets.QComboBox()
-        _fill_combobox_items(combo_prop, daq_config['lambda'])
+        fill_combobox_items(combo_prop, daq_config['lambda'])
 
         # Add to layout
         self.add_widget(widget=[label_prop, combo_prop])
