@@ -1134,7 +1134,7 @@ class FluenceHist(IrradPlotWidget):
                         self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (self._data['hist_mean'],
                                                                                                                                       self._data['hist_std'])]))
                     except Exception as e:
-                        logging.warning('Fluence histogram exception: {}'.fomrat(e.message))
+                        logging.warning('Fluence histogram exception: {}'.format(e.message))
 
                 elif curve == 'points':
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'])
