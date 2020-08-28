@@ -9,7 +9,7 @@ from irrad_control.devices.adc import ads1256
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
-from irrad_control.gui.utils import fill_combobox_items, get_host_ip
+from irrad_control.gui.utils import fill_combobox_items, get_host_ip, check_unique_input
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -579,6 +579,11 @@ class ServerSetupWidget(QtWidgets.QWidget):
     def _validate_setup(self):
         """Check if all necessary input is ready to continue"""
 
+        # Make func to check whether edit holds text
+        def _check_has_text(_edit):
+            t = _edit.text()
+            return True if t and t != '...' else False
+
         try:
 
             if len([ip for ip in self.server_ips if self.setup_widgets[ip]['device'].widgets['stage'].isChecked()]) > 1:
@@ -600,24 +605,35 @@ class ServerSetupWidget(QtWidgets.QWidget):
                     self.isSetup = False
                     return
 
+                if self.setup_widgets[ip]['device'].widgets['temp'].isChecked():
+
+                    # Check text edits
+                    edit_widgets = [e for i, e in enumerate(self.setup_widgets[ip]['temp'].widgets['temp_edits']) if self.setup_widgets[ip]['temp'].widgets['temp_chbxs'][i].isChecked()]
+
+                    if not check_unique_input(edit_widgets):
+                        logging.warning("Temperature sensor names of server {} need to be unique.".format(ip))
+                        self.isSetup = False
+                        return
+
                 if self.setup_widgets[ip]['device'].widgets['adc'].isChecked():
 
                     # Check text edits
                     edit_widgets = [self.setup_widgets[ip]['adc'].widgets[e] for e in self.setup_widgets[ip]['adc'].widgets if 'edit' in e]
 
-                    # Make func to check whether edit holds text
-                    def _check(_edit):
-                        t = _edit.text()
-                        return True if t and t != '...' else False
-
                     # Loop over all widgets; if one has no text, stop
                     for edit in edit_widgets:
                         if isinstance(edit, list):
-                            if not any(_check(e) for e in edit):
+
+                            if not check_unique_input(edit, ignore='Not used'):
+                                logging.warning("Channel names of server {} ADC must be unique.".format(ip))
+                                self.isSetup = False
+                                return
+
+                            if not any(_check_has_text(e) for e in edit):
                                 self.isSetup = False
                                 return
                         else:
-                            if not _check(edit):
+                            if not _check_has_text(edit):
                                 self.isSetup = False
                                 return
 
@@ -635,15 +651,17 @@ class ServerSetupWidget(QtWidgets.QWidget):
         # Connect temp widgets
         _ = [chbx.stateChanged.connect(self._validate_setup) for chbx in self.setup_widgets[ip]['temp'].widgets['temp_chbxs']]
 
-        # Loop over widgets
-        for w in self.setup_widgets[ip]['adc'].widgets:
-            # Check if it's an QLineEdit by key and connect its textEdited signal
-            if 'edit' in w:
-                if isinstance(self.setup_widgets[ip]['adc'].widgets[w], list):
-                    for _w in self.setup_widgets[ip]['adc'].widgets[w]:
-                        _w.textEdited.connect(self._validate_setup)
-                else:
-                    self.setup_widgets[ip]['adc'].widgets[w].textEdited.connect(self._validate_setup)
+        # Loop over temp and adc edits
+        for d in ('temp', 'adc'):
+            # Loop over widgets
+            for w in self.setup_widgets[ip][d].widgets:
+                # Check if it's an QLineEdit by key and connect its textEdited signal
+                if 'edit' in w:
+                    if isinstance(self.setup_widgets[ip][d].widgets[w], list):
+                        for _w in self.setup_widgets[ip][d].widgets[w]:
+                            _w.textEdited.connect(self._validate_setup)
+                    else:
+                        self.setup_widgets[ip][d].widgets[w].textEdited.connect(self._validate_setup)
 
     def set_read_only(self, read_only=True):
 
@@ -841,7 +859,7 @@ class ADCSetup(GridContainer):
 
             # Channel name edit
             _edit = QtWidgets.QLineEdit()
-            _edit.setPlaceholderText('None')
+            _edit.setPlaceholderText('Not used')
             _edit.textChanged.connect(lambda text, cbx=_cbx_scale, checkbox=checkbox_scale: cbx.setEnabled(checkbox.isChecked() and (True if text else False)))
             _edit.textChanged.connect(lambda text, cbx=_cbx_type: cbx.setEnabled(True if text else False))
             _edit.textChanged.connect(lambda text, cbx=_cbx_ref: cbx.setEnabled(True if text else False))
