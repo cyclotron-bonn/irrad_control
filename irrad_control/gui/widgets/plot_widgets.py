@@ -28,7 +28,7 @@ class PlotWindow(QtWidgets.QMainWindow):
         # Window appearance settings
         self.setWindowTitle(type(plot).__name__)
         self.screen = QtWidgets.QDesktopWidget().screenGeometry()
-        self.setMinimumSize(0.75 * self.screen.width(), 0.75 * self.screen.height())
+        self.setMinimumSize(0.25 * self.screen.width(), 0.25 * self.screen.height())
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         
         # Set plot as central widget
