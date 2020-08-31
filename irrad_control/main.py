@@ -456,7 +456,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if data['data']['status'] == 'scan_init':  # Scan is being initialized
 
                 # Start data recording when scan starts, regardless whether recording was turned off
-                self.send_cmd(hostname=server, target='interpreter', cmd='record_data', cmd_data=(server, True))
+                self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(server, True))
 
                 # Disable all record buttons when scan starts
                 self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(False)

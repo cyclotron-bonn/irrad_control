@@ -407,7 +407,7 @@ class DAQProcess(Process):
                 logging.error(error_log.format(target, 'targets', ', '.join(self.commands.keys())))
                 error_reply += "No {} target named {}\n".format(self.pname, target)
 
-            if cmd not in self.commands[target]:
+            elif cmd not in self.commands[target]:
                 logging.error(error_log.format(cmd, 'commands', ', '.join(self.commands[target])))
                 error_reply = 'No target command named {}'.format(cmd)
 
