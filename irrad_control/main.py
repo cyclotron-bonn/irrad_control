@@ -471,7 +471,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 if data['data']['status'] == 'move_start':
                     for entry in ('accel', 'range', 'speed'):
                         new_entry = self.control_tab.stage_attributes[entry][:]
-                        new_entry[data['data']['axis']] = data['data'][entry] * 1e3  # Units in Si: meter to millimeter
+                        # Units in Si: meter to millimeter
+                        if entry == 'range':
+                            new_entry[data['data']['axis']] = [d*1e3 for d in data['data'][entry]]
+                        else:
+                            new_entry[data['data']['axis']] = data['data'][entry] * 1e3
                         self.control_tab.update_info(**{entry: new_entry, 'unit': 'mm' if entry == 'range' else 'mm/s' if entry == 'speed' else 'mm/s2'})
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
@@ -586,7 +590,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             elif sender == 'stage':
 
-                if reply in ['pos', 'move_rel', 'move_abs']:
+                if reply == 'pos':
                     self.control_tab.update_info(position=reply_data, unit='mm')
 
                 elif reply in ['set_speed', 'get_speed']:
