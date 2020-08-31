@@ -30,13 +30,13 @@ def movement_tracker(movement_func):
         axis_name = 'x' if axis is self.x_axis else 'y'
 
         # Get current position in meters
-        start = self.steps_to_distance(self.position[axis_idx], unit='m')
+        start = self.steps_to_distance(self.position[axis_idx], unit=unit)
 
         if self._zmq_setup:
 
             # Publish collection of data from which movement can be predicted
             _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'stage'}
-            _data = {'status': 'move_start', 'pos': start, 'axis': axis_name,
+            _data = {'status': 'move_start', 'pos': start, 'axis': axis_idx, 'unit': unit,
                      'speed': self.get_speed(axis, unit='m/s'),
                      'accel': self.get_accel(axis, unit='m/s2'),
                      'range': self.get_range(axis, unit='m')}
@@ -48,7 +48,7 @@ def movement_tracker(movement_func):
         reply = movement_func(self, target, axis, unit)
 
         # Get position after movement
-        stop = self.steps_to_distance(self.position[axis_idx], unit='m')
+        stop = self.steps_to_distance(self.position[axis_idx], unit=unit)
 
         # Calculate distance travelled
         travel = abs(stop - start)
@@ -57,7 +57,7 @@ def movement_tracker(movement_func):
 
             # Publish collection of data from which movement can be predicted
             _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'stage'}
-            _data = {'status': 'move_end', 'pos': stop, 'axis': axis_name, 'travel': travel}
+            _data = {'status': 'move_stop', 'pos': stop, 'axis': axis_idx, 'travel': travel, 'unit': unit}
 
             # Publish data
             self._move_pub.send_json({'meta': _meta, 'data': _data})

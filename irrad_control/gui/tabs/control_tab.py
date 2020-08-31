@@ -29,8 +29,7 @@ class IrradControlTab(QtWidgets.QWidget):
                 self.stage_server = None
 
         # Attributes for the stage
-        self.current_pos = [0.0, 0.0]
-        self.current_speed = [0.0, 0.0]
+        self.stage_attributes = {'position': [0.0, 0.0], 'speed': [0.0, 0.0], 'accel': [0.0, 0.0], 'range': [[0.0, 0.0], [0.0, 0.0]]}
         self.aim_fluence = None
         self.beam_current = None
         self.min_scan_current = None
@@ -408,12 +407,16 @@ class IrradControlTab(QtWidgets.QWidget):
         label_speed_info = QtWidgets.QLabel('Speed:')
 
         # Info on travel range
-        label_range_info = QtWidgets.QLabel('Travel ranges:')
+        label_range_info = QtWidgets.QLabel('Range:')
+
+        # Info on travel range
+        label_accel_info = QtWidgets.QLabel('Accel:')
 
         # Add to layout
         setup_info.add_widget(widget=label_position_info)
         setup_info.add_widget(widget=label_speed_info)
         setup_info.add_widget(widget=label_range_info)
+        setup_info.add_widget(widget=label_accel_info)
 
         scan_info = GridContainer('Scan')
 
@@ -440,9 +443,9 @@ class IrradControlTab(QtWidgets.QWidget):
         scan_info.add_widget(widget=label_scan_params)
 
         # Store labels in class attribute to change their text later
-        self.info_labels ={'setup': {'position': label_position_info, 'speed': label_speed_info, 'range': label_range_info},
-                           'fluence': {'row': label_fluence_row, 'scan': label_fluence_scan},
-                           'scan': {'status': label_stage_status, 'nscan': label_nscan_info, 'params': label_scan_params}}
+        self.info_labels = {'setup': {'position': label_position_info, 'speed': label_speed_info, 'range': label_range_info, 'accel': label_accel_info},
+                            'fluence': {'row': label_fluence_row, 'scan': label_fluence_scan},
+                            'scan': {'status': label_stage_status, 'nscan': label_nscan_info, 'params': label_scan_params}}
 
         self.info_widget.add_widget(widget=setup_info)
         self.info_widget.add_widget(widget=scan_info)
@@ -497,19 +500,16 @@ class IrradControlTab(QtWidgets.QWidget):
                     # Get text of label
                     tmp_text = entry[kw].text()
 
-                    # Update position label
-                    if kw == 'position':
+                    # Update position/speed/accel label
+                    if kw in ('position', 'speed', 'accel'):
                         tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
-                        self.current_pos = info[kw]
-                    # Update speed label
-                    elif kw == 'speed':
-                        tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
-                        self.current_speed = info[kw]
+                        self.stage_attributes[kw] = info[kw]
                     # Update travel range label
                     elif kw == 'range':
                         tmp_text = kw.capitalize() + ': '
                         tmp_text += 'x: ({:.3f}, {:.3f})'.format(*info[kw][0]) + (', ' if unit is None else ' {}, '.format(unit))
                         tmp_text += 'y: ({:.3f}, {:.3f})'.format(*info[kw][1]) + (', ' if unit is None else ' {}, '.format(unit))
+                        self.stage_attributes[kw] = info[kw]
                     # Update fluence in previous row label
                     elif kw == 'row':
                         tmp_text = 'Fluence previous row: ' + '{:.3E}'.format(info[kw]) + ('' if unit is None else ' {}'.format(unit))
