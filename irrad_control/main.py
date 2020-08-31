@@ -453,7 +453,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'stage':
 
-            if data['data']['status'] == 'init':  # Scan is being initialized
+            if data['data']['status'] == 'scan_init':  # Scan is being initialized
 
                 # Start data recording when scan starts, regardless whether recording was turned off
                 self.send_cmd(hostname=server, target='interpreter', cmd='record_data', cmd_data=(server, True))
@@ -471,20 +471,19 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 if data['data']['status'] == 'move_start':
                     for entry in ('accel', 'range', 'speed'):
                         new_entry = self.control_tab.stage_attributes[entry][:]
-                        new_entry[data['data']['axis']] = data['data'][entry]
-                        self.control_tab.update_info(**{entry: new_entry, 'unit': 'm' if entry == 'range' else 'm/s' if entry == 'speed' else 'm/s2'})
+                        new_entry[data['data']['axis']] = data['data'][entry] * 1e3  # Units in Si: meter to millimeter
+                        self.control_tab.update_info(**{entry: new_entry, 'unit': 'mm' if entry == 'range' else 'mm/s' if entry == 'speed' else 'mm/s2'})
 
-            elif data['data']['status'] == 'start':
+            elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
-                # Update control
-                self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
-                self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
-                self.control_tab.update_info(status='Scanning...')
+                self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
 
-            elif data['data']['status'] == 'stop':
-                self.control_tab.update_info(status='Turning')
+                if data['data']['status'] == 'scan_start':
+                    # Update control
+                    self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
+                    self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
 
-            elif data['data']['status'] == 'finished':
+            elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(data['data']['status'])
 
                 # Enable all record buttons when scan is over

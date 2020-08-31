@@ -933,7 +933,7 @@ class ZaberXYStage(object):
 
             # Publish data
             _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
-            _data = {'status': 'start', 'scan': scan, 'row': row,
+            _data = {'status': 'scan_start', 'scan': scan, 'row': row,
                      'speed': self.get_speed(self.x_axis, unit='mm/s'),
                      'x_start': self.steps_to_distance(self.position[0], unit='mm'),
                      'y_start': self.steps_to_distance(self.position[1], unit='mm')}
@@ -954,7 +954,7 @@ class ZaberXYStage(object):
 
             # Publish stop data
             _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
-            _data = {'status': 'stop',
+            _data = {'status': 'scan_stop',
                      'x_stop': self.steps_to_distance(self.position[0], unit='mm'),
                      'y_stop': self.steps_to_distance(self.position[1], unit='mm')}
 
@@ -993,7 +993,7 @@ class ZaberXYStage(object):
 
         # Initialize scan
         _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
-        _data = {'status': 'init', 'y_step': scan_params['step_size'], 'n_rows': scan_params['n_rows']}
+        _data = {'status': 'scan_init', 'y_step': scan_params['step_size'], 'n_rows': scan_params['n_rows']}
 
         # Put init data
         data_pub.send_json({'meta': _meta, 'data': _data})
@@ -1043,7 +1043,7 @@ class ZaberXYStage(object):
 
             # Put finished data
             _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
-            _data = {'status': 'finished'}
+            _data = {'status': 'scan_finished'}
 
             # Publish data
             data_pub.send_json({'meta': _meta, 'data': _data})

@@ -282,13 +282,13 @@ class IrradConverter(DAQProcess):
 
         elif meta_data['type'] == 'stage':
 
-            if data['status'] == 'init':
+            if data['status'] == 'scan_init':
                 self.y_step = data['y_step']
                 self.n_rows = data['n_rows']
                 self._fluence[server] = [0] * self.n_rows
                 self._fluence_err[server] = [0] * self.n_rows
 
-            elif data['status'] == 'start':
+            elif data['status'] == 'scan_start':
                 del self._beam_currents[server][:]
                 self._stage_scanning = True
                 self.fluence_data[server]['timestamp_start'] = meta_data['timestamp']
@@ -296,7 +296,7 @@ class IrradConverter(DAQProcess):
                 for prop in ('scan', 'row', 'speed', 'x_start', 'y_start'):
                     self.fluence_data[server][prop] = data[prop]
 
-            elif data['status'] == 'stop':
+            elif data['status'] == 'scan_stop':
                 self._stage_scanning = False
                 self.fluence_data[server]['timestamp_stop'] = meta_data['timestamp']
 
@@ -347,7 +347,7 @@ class IrradConverter(DAQProcess):
 
                 interpreted_data.append(fluence_data)
 
-            elif data['status'] == 'finished':
+            elif data['status'] == 'scan_finished':
 
                 # The stage is finished; append the overall fluence to the result and get the sigma by the std dev
                 self.result_data[server]['p_fluence_mean'] = np.mean(self._fluence[server])
