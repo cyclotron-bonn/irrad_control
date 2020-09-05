@@ -8,3 +8,4 @@ total_travel:
   x: 0.0
   y: 0.0
 unit: m
+positions: {}

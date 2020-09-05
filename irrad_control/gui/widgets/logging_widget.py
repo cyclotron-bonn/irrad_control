@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui
-from irrad_control.utils import log_levels
+from irrad_control.utils.logger import log_levels
 
 
 class LoggingWidget(QtWidgets.QWidget):

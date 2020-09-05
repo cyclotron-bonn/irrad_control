@@ -1,48 +1,35 @@
-# Different errrors are raised in Python2/3
-try:
-    ModuleNotFoundError  # Python >= 3.6
-except NameError:
-    ModuleNotFoundError = ImportError  # Python < 3.6
+# Imports
+import os
+import yaml
 
-try:
-    import yaml
-    _YAML = True  # irrad_control on DAQ / Host PC
-except ModuleNotFoundError:
-    _YAML = False  # irrad_control on server
+# Paths
+package_path = os.path.dirname(__file__)
+config_path = os.path.join(package_path, 'config')
+xy_stage_config_yaml = os.path.join(package_path, 'devices/stage/xy_stage_config.yaml')
+tmp_dir = '/tmp/irrad_control'
 
-if _YAML:
+# Shell script to config server
+config_server_script = os.path.join(package_path, 'configure_server.sh')
 
-    # Imports
-    import os
-    from collections import OrderedDict
+# Make tmp folder to store temp files in
+if not os.path.isdir(tmp_dir):
+    os.mkdir(tmp_dir)
 
-    # Paths
-    package_path = os.path.dirname(__file__)
-    config_path = os.path.join(package_path, 'config')
+# Load network and data acquisition config
+with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:
+    network_config = yaml.safe_load(_nc)
 
-    # Shell script to config server
-    config_server_script = os.path.join(package_path, 'configure_server.sh')
+with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as _dc:
+    daq_config = yaml.safe_load(_dc)
 
-    # Load network and data acquisition config
-    with open(os.path.join(config_path, 'network_config.yaml'), 'r') as nc:
-        network_config = yaml.safe_load(nc)
-    del nc
+# Keep track of xy stage travel and known positions
+if not os.path.isfile(xy_stage_config_yaml):
+    # Open xy stats template and safe a copy
+    with open(os.path.join(config_path, 'xy_stage_config.yaml'), 'r') as _xys_l:
+        _xy_stage_config_tmp = yaml.safe_load(_xys_l)
 
-    with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as dc:
-        daq_config = yaml.safe_load(dc)
-    del dc
+    with open(xy_stage_config_yaml, 'w') as _xys_s:
+        yaml.safe_dump(_xy_stage_config_tmp, _xys_s)
 
-    # Keep track of xy stage travel
-    if not os.path.isfile(os.path.join(package_path, 'devices/stage/xy_stage_stats.yaml')):
-        # Open xy stats template and safe a copy
-        with open(os.path.join(config_path, 'xy_stage_stats.yaml'), 'r') as xys_l:
-            xy_stage_stats_tmp = yaml.safe_load(xys_l)
-
-        with open(os.path.join(package_path, 'devices/stage/xy_stage_stats.yaml'), 'w') as xys_s:
-            yaml.safe_dump(xy_stage_stats_tmp, xys_s)
-
-        del xy_stage_stats_tmp, xys_l, xys_s
-
-    with open(os.path.join(package_path, 'devices/stage/xy_stage_stats.yaml'), 'r') as xys:
-        xy_stage_stats = yaml.safe_load(xys)
-    del xys
+with open(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml'), 'r') as _xys:
+    xy_stage_config = yaml.safe_load(_xys)

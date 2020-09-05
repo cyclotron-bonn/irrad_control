@@ -7,5 +7,7 @@
 .pydevproject
 # egg-info folder
 irrad_control.egg-info/
-# xy stats
-irrad_control/devices/stage/xy_stage_stats.yaml
+# xy config
+irrad_control/devices/stage/xy_stage_config.yaml
+# PID file
+irrad_control/config/.irrad.pid

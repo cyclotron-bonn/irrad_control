@@ -1,4 +1,0 @@
-# List of daq devices
-all:
-  - SEM_C
-default: SEM_C

@@ -6,45 +6,17 @@ import subprocess
 from PyQt5 import QtWidgets, QtCore
 from irrad_control import network_config, daq_config, config_path
 from irrad_control.devices.adc import ads1256
-from irrad_control.utils import Worker, log_levels
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.utils.logger import log_levels
+from irrad_control.utils.worker import QtWorker
+from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
+from irrad_control.gui.utils import fill_combobox_items, get_host_ip, check_unique_input
 from collections import OrderedDict
+from copy import deepcopy
 
 _ro_scales = OrderedDict([('1 %sA' % u'\u03bc', 1000.0), ('0.33 %sA' % u'\u03bc', 330.0),
                           ('0.1 %sA' % u'\u03bc', 100.0), ('33 nA', 33.0), ('10 nA', 10.0), ('3.3 nA', 3.3)])
 
-
-def _fill_combobox_items(cbx, fill_dict):
-    """Helper function to fill """
-
-    default_idx = 0
-    _all = fill_dict['all']
-
-    # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
-    for i, k in enumerate(sorted(_all.keys())):
-        if 'hv_sem' in _all[k]:
-            cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
-        else:
-            cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
-        tool_tip = ''
-        for l in _all[k]:
-            tool_tip += '{}: {}\n'.format(l, _all[k][l])
-        cbx.model().item(i).setToolTip(tool_tip)
-
-        default_idx = default_idx if k != fill_dict['default'] else i
-
-    cbx.setCurrentIndex(default_idx)
-
-
-def _get_host_ip():
-    """Returns the host IP address on UNIX systems. If not UNIX, returns None"""
-
-    try:
-        host_ip = subprocess.check_output(['hostname', '-I'])
-    except (OSError, subprocess.CalledProcessError):
-        host_ip = None
-
-    return host_ip
+initial_network_config = deepcopy(network_config)
 
 
 class IrradSetupTab(QtWidgets.QWidget):
@@ -90,7 +62,7 @@ class IrradSetupTab(QtWidgets.QWidget):
         self.isSetup = False
 
         # Connect signal
-        self.setupCompleted.connect(self.set_read_only)
+        self.setupCompleted.connect(lambda _: self.set_read_only(True))
         
         # Setup te widgets for daq, session and connect
         self._init_setup()
@@ -111,15 +83,8 @@ class IrradSetupTab(QtWidgets.QWidget):
         self.btn_ok.setEnabled(False)
 
         self.left_widget.layout().addWidget(self.btn_ok)
-
-        # Right side
-        scroll_server = QtWidgets.QScrollArea()
-        scroll_server.setWidgetResizable(True)
-        scroll_server.setWidget(self.server_setup)
-        # self.server_setup.setMinimumSize(800, 780)
-
         self.right_widget.layout().addWidget(QtWidgets.QLabel('Selected server(s)'))
-        self.right_widget.layout().addWidget(scroll_server)
+        self.right_widget.layout().addWidget(self.server_setup)
 
         # Connect
         self.irrad_setup.setupValid.connect(self._check_setup)
@@ -142,9 +107,12 @@ class IrradSetupTab(QtWidgets.QWidget):
         with open(self.setup['session']['outfile'] + '.yaml', 'w') as _setup:
             yaml.safe_dump(self.setup, _setup, default_flow_style=False)
 
-        # Open the network_config.yaml and overwrites it with current server_ips
-        with open(os.path.join(config_path, 'network_config.yaml'), 'w') as nc:
-            yaml.safe_dump(network_config, nc, default_flow_style=False)
+        # Open the network_config.yaml and overwrites it with current server_ips if something changed
+        inc_all = initial_network_config['server']['all']
+        nc_all = network_config['server']['all']
+        if len(inc_all) != len(nc_all) or not all(nc_all[k] == inc_all[k] for k in inc_all):
+            with open(os.path.join(config_path, 'network_config.yaml'), 'w') as nc:
+                yaml.safe_dump(network_config, nc, default_flow_style=False)
 
     def update_setup(self):
         """Update the info into the setup dict"""
@@ -159,7 +127,6 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Network
         self.setup['host'] = self.irrad_setup.setup_widgets['network'].widgets['host_edit'].text()
-        self.setup['port'] = network_config['ports']
 
         # Server
         self.setup['server'] = {}
@@ -176,7 +143,8 @@ class IrradSetupTab(QtWidgets.QWidget):
             # Devices
             tmp_setup['devices'] = {}
 
-            for device in [d for d in self.server_setup.setup_widgets[server]['device'] if self.server_setup.setup_widgets[server]['device'][d].isChecked()]:
+            for device in [d for d in self.server_setup.setup_widgets[server]['device'].widgets
+                           if self.server_setup.setup_widgets[server]['device'].widgets[d].isChecked()]:
 
                 # Stage takes no setup, just mark as true
                 if device == 'stage':
@@ -184,28 +152,40 @@ class IrradSetupTab(QtWidgets.QWidget):
 
                 # Temp sensor takes number of sensor and name
                 elif device == 'temp':
-                    temp_chbxs = self.server_setup.setup_widgets[server]['temp']['temp_chbxs']
+
+                    temp_chbxs = self.server_setup.setup_widgets[server]['temp'].widgets['temp_chbxs']
                     sensors = [i for i in range(len(temp_chbxs)) if temp_chbxs[i].isChecked()]
-                    names = [e.text() or e.placeholderText() for i, e in enumerate(self.server_setup.setup_widgets[server]['temp']['temp_edits']) if i in sensors]
+                    names = [e.text() or e.placeholderText()
+                             for i, e in enumerate(self.server_setup.setup_widgets[server]['temp'].widgets['temp_edits']) if i in sensors]
                     tmp_setup['devices'][device] = dict(zip(sensors, names))
 
+                # ADC and DAQ; these are some pretty dense and hard-to-understand list comprehensions... but they work
                 elif device == 'adc':
+
                     tmp_setup['devices'][device] = {}
-                    tmp_setup['devices'][device]['channels'] = [e.text() for e in self.server_setup.setup_widgets[server]['adc']['channel_edits'] if e.text()]
-                    tmp_setup['devices'][device]['types'] = [c.currentText() for i, c in enumerate(self.server_setup.setup_widgets[server]['adc']['type_combos'])
-                                                             if self.server_setup.setup_widgets[server]['adc']['channel_edits'][i].text()]
-                    tmp_setup['devices'][device]['ch_numbers'] = [i if self.server_setup.setup_widgets[server]['adc']['ref_combos'][i].currentText() == 'GND'
-                                                                  else (i, -1 + int(self.server_setup.setup_widgets[server]['adc']['ref_combos'][i].currentText()))
-                                                                  for i, w in enumerate(self.server_setup.setup_widgets[server]['adc']['channel_edits']) if w.text()]
-                    tmp_setup['devices'][device]['ro_scales'] = [_ro_scales[c.currentText()] for i, c in enumerate(self.server_setup.setup_widgets[server]['adc']['scale_combos'])
-                                                                 if self.server_setup.setup_widgets[server]['adc']['channel_edits'][i].text()]
-                    tmp_setup['devices'][device]['sampling_rate'] = float(self.server_setup.setup_widgets[server]['adc']['srate_combo'].currentText())
+                    tmp_setup['devices'][device]['channels'] = \
+                        [e.text() for e in self.server_setup.setup_widgets[server]['adc'].widgets['channel_edits'] if e.text()]
+
+                    tmp_setup['devices'][device]['types'] = \
+                        [c.currentText() for i, c in enumerate(self.server_setup.setup_widgets[server]['adc'].widgets['type_combos'])
+                         if self.server_setup.setup_widgets[server]['adc'].widgets['channel_edits'][i].text()]
+
+                    tmp_setup['devices'][device]['ch_numbers'] = \
+                        [i if self.server_setup.setup_widgets[server]['adc'].widgets['ref_combos'][i].currentText() == 'GND'
+                         else (i, -1 + int(self.server_setup.setup_widgets[server]['adc'].widgets['ref_combos'][i].currentText()))
+                         for i, w in enumerate(self.server_setup.setup_widgets[server]['adc'].widgets['channel_edits']) if w.text()]
+
+                    tmp_setup['devices'][device]['ro_scales'] = \
+                        [_ro_scales[c.currentText()] for i, c in enumerate(self.server_setup.setup_widgets[server]['adc'].widgets['scale_combos'])
+                         if self.server_setup.setup_widgets[server]['adc'].widgets['channel_edits'][i].text()]
+
+                    tmp_setup['devices'][device]['sampling_rate'] = float(self.server_setup.setup_widgets[server]['adc'].widgets['srate_combo'].currentText())
 
                     # DAQ
                     tmp_setup['devices']['daq'] = {}
-                    tmp_setup['devices']['daq']['sem'] = self.server_setup.setup_widgets[server]['daq']['sem_combo'].currentText()
-                    tmp_setup['devices']['daq']['lambda'] = float(self.server_setup.setup_widgets[server]['daq']['prop_combo'].currentText().split()[0])
-                    tmp_setup['devices']['daq']['kappa'] = float(self.server_setup.setup_widgets[server]['daq']['kappa_combo'].currentText().split()[0])
+                    tmp_setup['devices']['daq']['sem'] = self.server_setup.setup_widgets[server]['daq'].widgets['sem_combo'].currentText()
+                    tmp_setup['devices']['daq']['lambda'] = float(self.server_setup.setup_widgets[server]['daq'].widgets['prop_combo'].currentText().split()[0])
+                    tmp_setup['devices']['daq']['kappa'] = float(self.server_setup.setup_widgets[server]['daq'].widgets['kappa_combo'].currentText().split()[0])
 
             # Add
             self.setup['server'][server] = tmp_setup
@@ -213,8 +193,8 @@ class IrradSetupTab(QtWidgets.QWidget):
     def set_read_only(self, read_only=True):
 
         # Disable/enable main widgets to set to read_only
-        self.irrad_setup.setEnabled(not read_only)
-        self.server_setup.setEnabled(not read_only)
+        self.irrad_setup.set_read_only(read_only)
+        self.server_setup.set_read_only(read_only)
         self.btn_ok.setEnabled(not read_only)
 
 
@@ -248,7 +228,7 @@ class IrradSetupWidget(QtWidgets.QWidget):
 
         network_setup.serverIPsFound.connect(lambda ips: server_selection.add_selection(ips))
         network_setup.serverIPsFound.connect(
-            lambda ips:
+            lambda ips: None if len(ips) == 0 else
             server_selection.widgets[ips[0]]['checkbox'].setChecked(1)
             if (network_config['server']['default'] not in ips or len(ips) == 1)
             else server_selection.widgets[network_config['server']['default']]['checkbox'].setChecked(1)
@@ -296,6 +276,10 @@ class IrradSetupWidget(QtWidgets.QWidget):
         # Connect server selection widget
         self.setup_widgets['selection'].serverSelection.connect(self._validate_setup)
 
+    def set_read_only(self, read_only=True):
+        for widget in self.setup_widgets:
+            self.setup_widgets[widget].set_read_only(read_only=read_only)
+
 
 class SessionSetup(GridContainer):
 
@@ -323,9 +307,10 @@ class SessionSetup(GridContainer):
 
         # Label and widgets for output file
         label_out_file = QtWidgets.QLabel('Output file:')
-        label_out_file.setToolTip('Name of output file containing raw and interpreted data')
+        label_out_file.setToolTip('Name of output file containing raw and interpreted data. Cannot contain whitespaces!')
         edit_out_file = QtWidgets.QLineEdit()
         edit_out_file.setPlaceholderText('irradiation_{}'.format('_'.join(time.asctime().split())))
+        edit_out_file.textEdited.connect(lambda t, e=edit_out_file: e.setText(t.replace(' ', '_')))  # Don't allow whitespaces
 
         # Add to layout
         self.add_widget(widget=[label_out_file, edit_out_file])
@@ -375,9 +360,9 @@ class NetworkSetup(GridContainer):
         label_host = QtWidgets.QLabel('Host IP:')
         edit_host = QtWidgets.QLineEdit()
         edit_host.setInputMask("000.000.000.000;_")
-        host_ip = _get_host_ip()
+        host_ip = get_host_ip()
 
-        # If host can be found using _get_host_ip(), don't allow manual input and don't show
+        # If host can be found using get_host_ip(), don't allow manual input and don't show
         if host_ip is not None:
             edit_host.setText(host_ip)
             edit_host.setReadOnly(True)
@@ -430,7 +415,7 @@ class NetworkSetup(GridContainer):
     def find_servers(self):
 
         self.label_status.setText("Finding server(s)...")
-        self.threadpool.start(Worker(func=self._find_available_servers))
+        self.threadpool.start(QtWorker(func=self._find_available_servers))
 
     def _find_available_servers(self, timeout=10):
 
@@ -500,6 +485,9 @@ class ServerSetupWidget(QtWidgets.QWidget):
 
         # The main layout for this widget
         self.setLayout(QtWidgets.QVBoxLayout())
+
+        # No margins
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Tabs for each available server
         self.tabs = QtWidgets.QTabWidget()
@@ -578,18 +566,27 @@ class ServerSetupWidget(QtWidgets.QWidget):
         _widget.setLayout(_layout)
 
         # Store widgets
-        self.setup_widgets[ip] = {'device': device_setup.widgets, 'temp': temp_setup.widgets, 'daq': daq_setup.widgets, 'adc': adc_setup.widgets}
+        self.setup_widgets[ip] = {'device': device_setup, 'temp': temp_setup, 'daq': daq_setup, 'adc': adc_setup}
+
+        # Make scroll widget and set widget
+        scroll_server = NoBackgroundScrollArea()
+        scroll_server.setWidget(_widget)
 
         # Finally, add to tab bar
-        self.tab_widgets[ip] = _widget
-        self.tabs.addTab(_widget, name)
+        self.tab_widgets[ip] = scroll_server
+        self.tabs.addTab(scroll_server, name)
 
     def _validate_setup(self):
         """Check if all necessary input is ready to continue"""
 
+        # Make func to check whether edit holds text
+        def _check_has_text(_edit):
+            t = _edit.text()
+            return True if t and t != '...' else False
+
         try:
 
-            if len([ip for ip in self.server_ips if self.setup_widgets[ip]['device']['stage'].isChecked()]) > 1:
+            if len([ip for ip in self.server_ips if self.setup_widgets[ip]['device'].widgets['stage'].isChecked()]) > 1:
                 logging.warning("Only one XY-Stage stage is currently supported.")
                 self.isSetup = False
                 return
@@ -598,34 +595,45 @@ class ServerSetupWidget(QtWidgets.QWidget):
             for ip in self.server_ips:
 
                 # Check if server is used to control any device
-                if not any(self.setup_widgets[ip]['device'][conf].isChecked() for conf in ('stage', 'adc', 'temp')):
+                if not any(self.setup_widgets[ip]['device'].widgets[conf].isChecked() for conf in ('stage', 'adc', 'temp')):
                     logging.warning("No device selected for server {}. Please chose devices or remove server.".format(ip))
                     self.isSetup = False
                     return
 
-                if self.setup_widgets[ip]['device']['temp'].isChecked() and not any(tcb.isChecked() for tcb in self.setup_widgets[ip]['temp']['temp_chbxs']):
+                if self.setup_widgets[ip]['device'].widgets['temp'].isChecked() and not any(tcb.isChecked() for tcb in self.setup_widgets[ip]['temp'].widgets['temp_chbxs']):
                     logging.warning("Select temperature sensors for server {} or remove from devices.".format(ip))
                     self.isSetup = False
                     return
 
-                if self.setup_widgets[ip]['device']['adc'].isChecked():
+                if self.setup_widgets[ip]['device'].widgets['temp'].isChecked():
 
                     # Check text edits
-                    edit_widgets = [self.setup_widgets[ip]['adc'][e] for e in self.setup_widgets[ip]['adc'] if 'edit' in e]
+                    edit_widgets = [e for i, e in enumerate(self.setup_widgets[ip]['temp'].widgets['temp_edits']) if self.setup_widgets[ip]['temp'].widgets['temp_chbxs'][i].isChecked()]
 
-                    # Make func to check whether edit holds text
-                    def _check(_edit):
-                        t = _edit.text()
-                        return True if t and t != '...' else False
+                    if not check_unique_input(edit_widgets):
+                        logging.warning("Temperature sensor names of server {} need to be unique.".format(ip))
+                        self.isSetup = False
+                        return
+
+                if self.setup_widgets[ip]['device'].widgets['adc'].isChecked():
+
+                    # Check text edits
+                    edit_widgets = [self.setup_widgets[ip]['adc'].widgets[e] for e in self.setup_widgets[ip]['adc'].widgets if 'edit' in e]
 
                     # Loop over all widgets; if one has no text, stop
                     for edit in edit_widgets:
                         if isinstance(edit, list):
-                            if not any(_check(e) for e in edit):
+
+                            if not check_unique_input(edit, ignore='Not used'):
+                                logging.warning("Channel names of server {} ADC must be unique.".format(ip))
+                                self.isSetup = False
+                                return
+
+                            if not any(_check_has_text(e) for e in edit):
                                 self.isSetup = False
                                 return
                         else:
-                            if not _check(edit):
+                            if not _check_has_text(edit):
                                 self.isSetup = False
                                 return
 
@@ -638,20 +646,28 @@ class ServerSetupWidget(QtWidgets.QWidget):
         """Connect all input widgets to check the input each time an input is edited"""
 
         # Connect config widgets
-        _ = [self.setup_widgets[ip]['device'][c].stateChanged.connect(self._validate_setup) for c in ('adc', 'temp', 'stage')]
+        _ = [self.setup_widgets[ip]['device'].widgets[c].stateChanged.connect(self._validate_setup) for c in ('adc', 'temp', 'stage')]
 
         # Connect temp widgets
-        _ = [chbx.stateChanged.connect(self._validate_setup) for chbx in self.setup_widgets[ip]['temp']['temp_chbxs']]
+        _ = [chbx.stateChanged.connect(self._validate_setup) for chbx in self.setup_widgets[ip]['temp'].widgets['temp_chbxs']]
 
-        # Loop over widgets
-        for w in self.setup_widgets[ip]['adc']:
-            # Check if it's an QLineEdit by key and connect its textEdited signal
-            if 'edit' in w:
-                if isinstance(self.setup_widgets[ip]['adc'][w], list):
-                    for _w in self.setup_widgets[ip]['adc'][w]:
-                        _w.textEdited.connect(self._validate_setup)
-                else:
-                    self.setup_widgets[ip]['adc'][w].textEdited.connect(self._validate_setup)
+        # Loop over temp and adc edits
+        for d in ('temp', 'adc'):
+            # Loop over widgets
+            for w in self.setup_widgets[ip][d].widgets:
+                # Check if it's an QLineEdit by key and connect its textEdited signal
+                if 'edit' in w:
+                    if isinstance(self.setup_widgets[ip][d].widgets[w], list):
+                        for _w in self.setup_widgets[ip][d].widgets[w]:
+                            _w.textEdited.connect(self._validate_setup)
+                    else:
+                        self.setup_widgets[ip][d].widgets[w].textEdited.connect(self._validate_setup)
+
+    def set_read_only(self, read_only=True):
+
+        for ip in self.setup_widgets:
+            for k in self.setup_widgets[ip]:
+                self.setup_widgets[ip][k].set_read_only(read_only=read_only)
 
 
 class DeviceSetup(GridContainer):
@@ -740,7 +756,7 @@ class DAQSetup(GridContainer):
         # Label for readout scale combobox
         label_kappa = QtWidgets.QLabel('Proton hardness factor %s:' % u'\u03ba')
         combo_kappa = QtWidgets.QComboBox()
-        _fill_combobox_items(combo_kappa, daq_config['kappa'])
+        fill_combobox_items(combo_kappa, daq_config['kappa'])
 
         # Add to layout
         self.add_widget(widget=[label_kappa, combo_kappa])
@@ -749,7 +765,7 @@ class DAQSetup(GridContainer):
         label_prop = QtWidgets.QLabel('Proportionality constant %s [1/V]:' % u'\u03bb')
         label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
         combo_prop = QtWidgets.QComboBox()
-        _fill_combobox_items(combo_prop, daq_config['lambda'])
+        fill_combobox_items(combo_prop, daq_config['lambda'])
 
         # Add to layout
         self.add_widget(widget=[label_prop, combo_prop])
@@ -843,7 +859,7 @@ class ADCSetup(GridContainer):
 
             # Channel name edit
             _edit = QtWidgets.QLineEdit()
-            _edit.setPlaceholderText('None')
+            _edit.setPlaceholderText('Not used')
             _edit.textChanged.connect(lambda text, cbx=_cbx_scale, checkbox=checkbox_scale: cbx.setEnabled(checkbox.isChecked() and (True if text else False)))
             _edit.textChanged.connect(lambda text, cbx=_cbx_type: cbx.setEnabled(True if text else False))
             _edit.textChanged.connect(lambda text, cbx=_cbx_ref: cbx.setEnabled(True if text else False))

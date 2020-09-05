@@ -27,7 +27,7 @@ function conda_env_installer {
 
       # Install python packages
       conda config --set always_yes yes
-      conda install pyzmq pip
+      conda install pyzmq pip pyyaml
       
       # Upgrade pip and install needed packages from pip
       pip install --upgrade pip
@@ -56,7 +56,7 @@ IRRAD_URL="https://github.com/SiLab-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
 IRRAD_INSTALL=false
-REQ_PKGS=(pyzmq pip wiringpi zaber.serial)
+REQ_PKGS=(pyzmq pyyaml pip wiringpi zaber.serial)
 
 # Parse command line arguments
 for CMD in "$@"; do
@@ -163,11 +163,11 @@ if [ "$MINICONDA_PATH" == false ]; then
   echo "Miniconda Python $PY_VERSION environment set up!"
 
   # Create server start script for server
-  echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+  echo "source ${MINICONDA_PATH}/bin/activate; irrad_server" > ${HOME}/start_irrad_server.sh
 
 else
   
-  # Source that motherfucker
+  # Source that bad boy
   source $MINICONDA_PATH/bin/activate
   
   # Check if we got the correct Python version
@@ -184,7 +184,7 @@ else
     echo "Environment is set up."
 
     # Create server start script for server
-    echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+    echo "source ${MINICONDA_PATH}/bin/activate; irrad_server" > ${HOME}/start_irrad_server.sh
     
   else
     # We don't have the correct version of Python; check for envs
@@ -202,7 +202,7 @@ else
       conda_env_installer
 
       # Create server start script for server
-      echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+      echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server" > ${HOME}/start_irrad_server.sh
 
     else
 
@@ -243,7 +243,7 @@ else
         conda_env_installer
 
         # Create server start script for server
-        echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+        echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_server" > ${HOME}/start_irrad_server.sh
 
       else
 
@@ -254,7 +254,7 @@ else
         echo "Environment is set up."
 
         # Create server start script for server
-        echo "PORT=\$1; shift; source ${MINICONDA_PATH}/bin/activate; conda activate ${MATCH_ENV}; python ${IRRAD_PATH}/irrad_control/irrad_server.py \$PORT" > ${HOME}/start_irrad_server.sh
+        echo "source ${MINICONDA_PATH}/bin/activate; conda activate ${MATCH_ENV}; irrad_server" > ${HOME}/start_irrad_server.sh
       fi
     fi
   fi
@@ -263,6 +263,5 @@ fi
 # Install irrad_control if necessarry
 if [ "$IRRAD_INSTALL" != false ]; then
   echo "Installing irrad_control for Python $PY_VERSION environment..."
-  cd $IRRAD_PATH && python setup.py server develop
+  cd $IRRAD_PATH && python setup.py develop server
 fi
-

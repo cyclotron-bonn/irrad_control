@@ -1,8 +1,0 @@
-# Proton hardness factors
-all:
-  kappa_1:
-    nominal: 3.0
-    sigma: 0
-    energy: 12.26
-    ascitime: Thu Jan 23 00:00:00 2019
-default: kappa_1

@@ -11,7 +11,9 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from threading import Event
 
 # Package imports
-from irrad_control.utils import CustomHandler, LoggingStream, log_levels, Worker, ProcessManager
+from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
+from irrad_control.utils.worker import QtWorker
+from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 
@@ -81,6 +83,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init user interface
         self._init_ui()
         self._init_logging()
+
+        # Timer starting when application should be closed
+        self.close_timer = QtCore.QTimer()
+        self.close_timer.timeout.connect(self.close)
         
     def _init_ui(self):
         """
@@ -181,11 +187,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init daq info widget
         self._init_daq_dock()
 
-        # Start receiving data and log
-        self._init_threads()
-
-        # Init subprocesses
-        self._init_subprocesses()
+        # Init servers
+        self._init_processes()
 
     def _init_log_dock(self):
         """Initializes corresponding log dock"""
@@ -214,7 +217,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.daq_info_dock.setWidget(self.daq_info_widget)
         self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
         self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
-        self.daq_info_dock.setWindowTitle('DAQ Info')
+        self.daq_info_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
         self.sub_splitter.addWidget(self.daq_info_dock)
@@ -249,7 +252,15 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif 'log' in log_dict:
             logging.log(level=self._remote_loglevel, msg=log_dict['log'])
 
-    def _init_subprocesses(self):
+    def _init_recv_threads(self):
+
+        # Start receiving log messages from other processes
+        self.threadpool.start(QtWorker(func=self.recv_log))
+
+        # Start receiving data from other processes
+        self.threadpool.start(QtWorker(func=self.recv_data))
+
+    def _init_processes(self):
 
         # Loop over all server(s), connect to the server(s) and launch worker for configuration
         server_config_workers = {}
@@ -258,13 +269,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = Worker(func=self.proc_mngr.configure_server, hostname=server, branch='development')
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='master', git_pull=True)
 
             # Connect workers finish signal to starting process on server
-            for con in [lambda _server=server: self.proc_mngr.start_server_process(_server, self.setup['port']['cmd']),
-                        lambda _server=server: self.send_cmd(hostname=_server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': _server})
-                        ]:
-                server_config_workers[server].signals.finished.connect(con)
+            server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
 
             # Connect workers exception to log
             self._connect_worker_exception(worker=server_config_workers[server])
@@ -273,22 +281,96 @@ class IrradControlWin(QtWidgets.QMainWindow):
             # Launch worker on QThread
             self.threadpool.start(server_config_workers[server])
 
-        # Launch interpreter process
-        self.proc_mngr.start_interpreter_process(setup_yaml=self.setup['session']['outfile']+'.yaml')
-        self.proc_mngr.current_procs.append('localhost')
-            
-    def _init_threads(self):       
-                
-        # Fancy QThreadPool and QRunnable approach
-        recv_workers = {'recv_data': Worker(func=self.recv_data),
-                        'recv_log': Worker(func=self.recv_log)}
-        
-        for _worker in recv_workers:
-            self._connect_worker_exception(worker=recv_workers[_worker])
-            self.threadpool.start(recv_workers[_worker])
+        self.start_interpreter()
+
+    def collect_proc_infos(self):
+        """Run in a separate thread to collect infos of all launched processes"""
+
+        while len(self.proc_mngr.active_pids) != len(self.proc_mngr.launched_procs):
+
+            for proc in self.proc_mngr.launched_procs:
+
+                proc_info = self.proc_mngr.get_irrad_proc_info(proc)
+
+                if proc_info is not None and proc not in self.proc_mngr.active_pids:
+                    self.proc_mngr.register_pid(hostname=proc, pid=proc_info['pid'], name=proc_info['name'], ports=proc_info['ports'])
+
+                    # Update setup
+                    if proc in self.setup['server']:
+                        self.setup['server'][proc]['ports'] = proc_info['ports']
+                    else:
+                        self.setup['ports'] = proc_info['ports']
+
+            # Wait a second before trying to read something again
+            time.sleep(1)
+
+    def send_start_cmd(self):
+
+        for server in self.setup['server']:
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+
+        self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
+
+    def _start_daq_proc(self, hostname, ignore_orphaned=False):
+
+        # Check if there is an already-running irrad process instance; each DAQProcess creates/deletes a hidden pid-file on launch/shutdown
+        orphaned_proc = self.proc_mngr.get_irrad_proc_info(hostname=hostname)
+
+        # There is no indication for an orphaned process
+        if orphaned_proc is None or ignore_orphaned:
+
+            # We're launching a server
+            if hostname in self.proc_mngr.client:
+                # Launch server
+                self.proc_mngr.start_server_process(hostname=hostname)
+
+            # We're launching an interpreter
+            else:
+                # Launch interpreter
+                self.proc_mngr.start_interpreter_process()
+
+            self.proc_mngr.launched_procs.append(hostname)
+
+            # All servers have been launched; start collecting info
+            if all(server in self.proc_mngr.launched_procs for server in self.setup['server']):
+                proc_info_worker = QtWorker(func=self.collect_proc_infos)
+                proc_info_worker.signals.finished.connect(self._init_recv_threads)
+                proc_info_worker.signals.finished.connect(self.send_start_cmd)
+                self.threadpool.start(proc_info_worker)
+
+        # There is a pid-file
+        else:
+            # Check whether a process with the PID in the pid-file is still running
+            ps_status = self.proc_mngr.check_process_status(hostname=hostname, pid=orphaned_proc['pid'])
+
+            # The process is running
+            if ps_status[hostname]:
+
+                proc_kind = 'server' if hostname in self.proc_mngr.client else 'interpreter'
+                pltfrm = 'localhost' if proc_kind == 'interpreter' else self.proc_mngr.server[hostname] + '@' + hostname
+
+                msg = "A {0} process is already running on {1}. Only one {0} process at a time can be run on a host. " \
+                      "Do you want to terminate the {0} process and relaunch a new one?" \
+                      " Proceeding without terminating the currently running process may lead to faulty behavior".format(proc_kind, pltfrm)
+
+                reply = QtWidgets.QMessageBox.question(self, 'Terminate running {} process and relaunch?'.format(proc_kind),
+                                                       msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+
+                if reply == QtWidgets.QMessageBox.Yes:
+                    self.proc_mngr.kill_proc(hostname=hostname, pid=orphaned_proc['pid'])
+                    self._start_daq_proc(hostname=hostname)  # Try again
+
+            else:
+                self._start_daq_proc(hostname=hostname, ignore_orphaned=True)  # Try again
+
+    def start_server(self, server):
+        self._start_daq_proc(hostname=server)
+
+    def start_interpreter(self):
+        self._start_daq_proc(hostname='localhost')
 
     def _connect_worker_exception(self, worker):
-        worker.signals.exceptionSignal.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
+        worker.signals.exception.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
 
     def _connect_worker_close(self, worker, hostname):
         self._cmd_reply[hostname].append(self._cmd_id)
@@ -310,6 +392,13 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Connect control tab
         self.control_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))
+        self.control_tab.enableDAQRec.connect(lambda server, enable: self.daq_info_widget.record_btns[server].setVisible(enable))
+        self.control_tab.enableDAQRec.connect(
+            lambda server, enable: self.daq_info_widget.record_btns[server].clicked.connect(
+                lambda _, _server=server: self.control_tab.send_cmd(target='interpreter',
+                                                                    cmd='record_data',
+                                                                    cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == 'Resume')))
+            if enable else self.daq_info_widget.record_btns[server].clicked.disconnect())  # Pretty crazy connection. Basically connects or disconnects a button
 
         # Make temporary dict for updated tabs
         tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
@@ -354,28 +443,60 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if lower_mean_f >= self.control_tab.aim_fluence:
                 self.send_cmd(server, 'stage', 'finish')
 
-            self.control_tab.update_fluence(hist[self.control_tab.scan_params['row']],  type_='row')
+            self.control_tab.update_info(row=hist[self.control_tab.scan_params['row']], unit='p/cm^2')
 
             if self.control_tab.scan_params['row'] in (0, self.control_tab.scan_params['n_rows'] - 1):
                 mean_fluence = sum(hist) / len(hist)
-                self.control_tab.update_fluence(mean_fluence, type_='scan')
+                self.control_tab.update_info(scan=mean_fluence, unit='p/cm^2')
                 est_n_scans = (self.control_tab.aim_fluence - mean_fluence) / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                self.control_tab.update_n_scans(int(est_n_scans))
+                self.control_tab.update_info(nscan=int(est_n_scans))
 
         elif data['meta']['type'] == 'stage':
 
-            if data['data']['status'] == 'start':
-                self.control_tab.update_position([data['data']['x_start'], data['data']['y_start']])
-                self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'], scan_speed=data['data']['speed'])
-                self.control_tab.update_stage_status('Scanning...')
+            if data['data']['status'] == 'scan_init':  # Scan is being initialized
 
-            elif data['data']['status'] == 'stop':
-                self.control_tab.update_position([data['data']['x_stop'], data['data']['y_stop']])
-                self.control_tab.update_stage_status('Turning')
+                # Start data recording when scan starts, regardless whether recording was turned off
+                self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(server, True))
 
-            elif data['data']['status'] == 'finished':
+                # Disable all record buttons when scan starts
+                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(False)
+                self.daq_info_widget.record_btns[server].setEnabled(False)
 
-                self.control_tab.scan_actions(data['data']['status'])
+            elif data['data']['status'] in ('move_start', 'move_stop'):  # Stage started / stopped movement
+
+                new_pos = self.control_tab.stage_attributes['position'][:]
+                new_pos[data['data']['axis']] = data['data']['pos'] * 1e3
+                self.control_tab.update_info(position=new_pos, unit='mm')
+
+                if data['data']['status'] == 'move_start':
+                    for entry in ('accel', 'range', 'speed'):
+                        new_entry = self.control_tab.stage_attributes[entry][:]
+                        # Units in Si: meter to millimeter
+                        if entry == 'range':
+                            new_entry[data['data']['axis']] = [d*1e3 for d in data['data'][entry]]
+                        else:
+                            new_entry[data['data']['axis']] = data['data'][entry] * 1e3
+                        self.control_tab.update_info(**{entry: new_entry, 'unit': 'mm' if entry == 'range' else 'mm/s' if entry == 'speed' else 'mm/s2'})
+
+            elif data['data']['status'] in ('scan_start', 'scan_stop'):
+
+                self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
+
+                if data['data']['status'] == 'scan_start':
+                    # Update control
+                    self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
+                    self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
+
+            elif data['data']['status'] == 'scan_finished':
+                self.control_tab.scan_status(data['data']['status'])
+
+                # Enable all record buttons when scan is over
+                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
+                self.daq_info_widget.record_btns[server].setEnabled(True)
+
+        elif data['meta']['type'] == 'temp':
+
+            self.monitor_tab.plots[server]['temp_plot'].set_data(data)
             
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
@@ -387,7 +508,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             return
 
         cmd_dict = {'target': target, 'cmd': cmd, 'data': cmd_data}
-        cmd_worker = Worker(self._send_cmd_get_reply, hostname, cmd_dict)
+        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict)
 
         # Make connections
         self._connect_worker_exception(worker=cmd_worker)
@@ -405,7 +526,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Spawn socket to send request to server / interpreter and connect
         req = self.context.socket(zmq.REQ)
-        req.connect(self._tcp_addr(self.setup['port']['cmd'], hostname))
+        req_port = self.setup['server'][hostname]['ports']['cmd'] if hostname in self.setup['server'] else self.setup['ports']['cmd']
+        req.connect(self._tcp_addr(req_port, hostname))
 
         # Send command dict and wait for reply
         req.send_json(cmd_dict)
@@ -430,32 +552,38 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             if sender == 'server':
 
-                if reply == 'pid':
-
-                    self.proc_mngr.current_procs.append(hostname)
+                if reply == 'start':
+                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
                     # Send command to find where stage is and what the speeds are
                     if 'stage' in self.setup['server'][hostname]['devices']:
                         self.send_cmd(hostname, 'stage', 'pos')
                         self.send_cmd(hostname, 'stage', 'get_speed')
+                        self.send_cmd(hostname, 'stage', 'get_range')
+                        self.send_cmd(hostname, 'stage', 'get_pos')
 
                 elif reply == 'shutdown':
 
                     logging.info("Server at {} confirmed shutdown".format(hostname))
 
-                    self.proc_mngr.current_procs.remove(hostname)
-
+                    # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
                     # Try to close
                     self.close()
 
             elif sender == 'interpreter':
 
+                if reply == 'start':
+                    logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
+
+                if reply == 'record_data':
+                    server, state = reply_data
+                    self.daq_info_widget.update_rec_state(server=server, state=state)
+                    self.control_tab.update_rec_state(server=server, state=state)
+
                 if reply == 'shutdown':
 
                     logging.info("Interpreter confirmed shutdown")
-
-                    self.proc_mngr.current_procs.remove(hostname)
 
                     # Try to close
                     self.close()
@@ -463,20 +591,32 @@ class IrradControlWin(QtWidgets.QMainWindow):
             elif sender == 'stage':
 
                 if reply == 'pos':
-                    self.control_tab.update_position(reply_data)
+                    self.control_tab.update_info(position=reply_data, unit='mm')
 
-                elif reply == 'get_speed':
-                    self.control_tab.update_speed(reply_data)
+                elif reply in ['set_speed', 'get_speed']:
+                    self.control_tab.update_info(speed=reply_data, unit='mm/s')
+
+                elif reply in ['set_range', 'get_range']:
+                    self.control_tab.update_info(range=reply_data, unit='mm')
+
+                elif reply == 'get_pos':
+                    self.control_tab.setup_xy_stage_positions(reply_data)
+
+                elif reply == 'add_pos':
+                    dd = self.control_tab.xy_stage_position_win.edit_pos.widgets
+                    for name in dd:
+                        dd[name][-2].setText('Saved')
+                        dd[name][-2].setStyleSheet('QLabel {color: black;}')
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
                     self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['devices']['daq']['kappa'],
                                                          'n_rows': reply_data['n_rows']})
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
-                    self.control_tab.scan_actions('started')
+                    self.control_tab.scan_status('started')
 
                     est_n_scans = self.control_tab.aim_fluence / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                    self.control_tab.update_n_scans(int(est_n_scans))
+                    self.control_tab.update_info(nscan=int(est_n_scans))
 
                 elif reply == 'finish':
 
@@ -489,10 +629,15 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     else:
                         logging.debug("No beam event cleared")
 
+            # Debug
+            msg = 'Standard {} reply received: {}'.format(sender.capitalize(), reply)
+            logging.debug(msg)
+
         elif _type == 'ERROR':
-            msg = '{} error occured: {}'.format(sender.capitalize(), reply)
+            msg = '{} error occurred: {}'.format(sender.capitalize(), reply)
             logging.error(msg)
-            self.log_dock.setVisible(True)
+            if self.log_dock.isHidden():
+                self.log_dock.setVisible(True)
 
         else:
             logging.info('Received reply {} from {}'.format(reply, sender))
@@ -504,18 +649,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Loop over servers and connect to their data streams
         for server in self.setup['server']:
-
-            if 'adc' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['data'], ip=server))
-
-            if 'temp' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['temp'], ip=server))
-
-            if 'stage' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['stage'], ip=server))
+            data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
 
         # Connect to interpreter data stream
-        data_sub.connect(self._tcp_addr(self.setup['port']['data'], ip='localhost'))
+        data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
         data_sub.setsockopt(zmq.SUBSCRIBE, '')
         
@@ -524,7 +661,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
-            
+
             data = data_sub.recv_json()
             dtype = data['meta']['type']
             server = data['meta']['name']
@@ -548,8 +685,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         log_sub = self.context.socket(zmq.SUB)
 
         # Connect to log messages from remote server and local interpreter process
-        for ip in list(self.setup['server'].keys()) + ['localhost']:
-            log_sub.connect(self._tcp_addr(self.setup['port']['log'], ip=ip))
+        # Loop over servers and connect to their data streams
+        for server in self.setup['server']:
+            log_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['log'], ip=server))
+
+        # Connect to interpreter data stream
+        log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
 
         log_sub.setsockopt(zmq.SUBSCRIBE, '')
         
@@ -593,12 +734,16 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Stop receiver threads
         self.stop_recv_data.set()
         self.stop_recv_log.set()
+        self.close_timer.stop()
 
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)
 
     def closeEvent(self, event):
         """Catches closing event and invokes customized closing routine"""
+
+        # Repeatedly check if we can close with 0.5 sec interval
+        self.close_timer.start(500)
 
         # Indicate that we want to close
         self._try_close = True
@@ -618,26 +763,30 @@ class IrradControlWin(QtWidgets.QMainWindow):
             event.ignore()
 
         # There are subprocesses to shut down
-        elif self.proc_mngr.current_procs:
+        elif any(self.proc_mngr.active_pids[h][pid]['active'] for h in self.proc_mngr.active_pids for pid in self.proc_mngr.active_pids[h]):
 
             # If we're here, there's no more processecs; we will launch closing workers, they should not give warning to user
             self._log_close = True
 
+            # Check
+            self.proc_mngr.check_active_processes()
+
             # Loop over all started processes and send shutdown cmd
-            for host in self.proc_mngr.current_procs:
+            for host in self.proc_mngr.active_pids:
 
                 # Shutdown all the servers
                 if host in self.setup['server']:
                     logging.info("Shutting down server at {}".format(host))
-                    self.send_cmd(host, 'server', 'shutdown')
+                    # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
+                    self.send_cmd(host, 'server', 'shutdown', check_reply=False)
 
                 # Shutdown interpreter
                 if host == 'localhost':
                     logging.info("Shutting down interpreter...")
-                    self.send_cmd(host, 'interpreter', 'shutdown')
+                    self.send_cmd(host, 'interpreter', 'shutdown', check_reply=False)
 
-                # Ignore closing
-                event.ignore()
+            # Ignore closing
+            event.ignore()
 
         else:
 

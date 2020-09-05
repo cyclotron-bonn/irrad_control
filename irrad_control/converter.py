@@ -1,51 +1,37 @@
-import os
-import sys
-import zmq
-import time
-import multiprocessing
-import threading
 import logging
-import yaml
 import numpy as np
 import tables as tb
-from zmq.log import handlers
-from irrad_control import daq_config, xy_stage_stats, config_path
+from time import time
+from threading import Event
+from irrad_control import daq_config
+from irrad_control.utils.daq_proc import DAQProcess
 from collections import defaultdict
 
 
-class IrradInterpreter(multiprocessing.Process):
-    """Implements an interpreter process"""
+class IrradConverter(DAQProcess):
+    """Interpreter process for irradiation site data"""
 
-    def __init__(self, setup, name=None):
-        super(IrradInterpreter, self).__init__()
-
-        """
-        IMPORTANT:
-        The attributes initialized in here are only available as COPIES in the run()-method.
-        In order to change attributes during runtime use multiprocessing.Event objects or queues. 
-        """
+    def __init__(self, name=None):
 
         # Set name of this interpreter process
-        self.name = 'interpreter' if name is None else name
+        name = 'interpreter' if name is None else name
 
-        # Set the maximum table length before flushing data to hard drive
-        self._max_buf_len = 1e2
+        # Dict of known commands; flag to indicate when cmd is busy
+        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
 
-        self.stage_stats = xy_stage_stats.copy()
+        # Call init of super class
+        super(IrradConverter, self).__init__(name=name, commands=commands)
 
-        # Attributes to interact with the actual process stuff running within run()
-        self.stop_recv_data = multiprocessing.Event()
-        self.stop_write_data = multiprocessing.Event()
-        self.stop_recv_cmd = threading.Event()
-        self.xy_stage_maintenance = multiprocessing.Event()
-        self.auto_zero = dict((server, multiprocessing.Event()) for server in setup['server'].keys())
-        self._busy_cmd = False
+    def _setup_daq(self):
 
-        # Dict of known commands
-        self.commands = {'interpreter': ['shutdown', 'autozero']}
+        # Flush data to hard drive every second
+        self._data_flush_interval = 1.0
+        self._last_data_flush = None
+
+        # Event set if stage needs maintenance
+        self.state_flags['xy_stage_maintenance'] = Event()
 
         # General setup
-        self.setup = setup
         self.server = list(self.setup['server'].keys())
 
         # ADC/temp setup per server
@@ -65,51 +51,9 @@ class IrradInterpreter(multiprocessing.Process):
             if 'temp' in self.setup['server'][server]['devices']:
                 self.temp_setup[server] = self.setup['server'][server]['devices']['temp']
 
-    def _tcp_addr(self, port, ip='*'):
-        """Creates string of complete tcp address which sockets can bind to"""
-        return 'tcp://{}:{}'.format(ip, port)
-
-    def _setup_interpreter(self):
-        """Sets up the main zmq context and the sockets which are accessed within this process.
-        This needs to be called within the run-method"""
-
-        # Create main context for this process; sockets need to be created on their respective threads!
-        self.context = zmq.Context()
-
-        # Create PUB socket in order to send interpreted data
-        self.data_pub = self.context.socket(zmq.PUB)
-        self.data_pub.set_hwm(10)  # drop data if too slow
-        self.data_pub.bind(self._tcp_addr(self.setup['port']['data']))
-
-        # Start logging
-        self._setup_logging()
-
-        # Start daq
-        self._setup_daq()
-
-    def _setup_logging(self):
-        """Setup logging"""
-
-        # Numeric logging level
-        numeric_level = getattr(logging, self.setup['session']['loglevel'].upper(), None)
-        if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level: {}'.format(self.setup['session']['loglevel']))
-
-        # Set level
-        logging.getLogger().setLevel(level=numeric_level)
-
-        # Publish log
-        log_pub = self.context.socket(zmq.PUB)
-        log_pub.bind(self._tcp_addr(self.setup['port']['log']))
-
-        # Create logging publisher first
-        handler = handlers.PUBHandler(log_pub)
-        logging.getLogger().addHandler(handler)
-
-        # Allow connections to be made
-        time.sleep(1)
-
-    def _setup_daq(self):
+            # Per server interactions
+            self.stop_flags['write_{}'.format(server)] = Event()
+            self.state_flags['offset_{}'.format(server)] = Event()
 
         # Data writing
         # Open only one output file and organize its data in groups
@@ -128,8 +72,8 @@ class IrradInterpreter(multiprocessing.Process):
         self.beam_data = {}
         self.fluence_data = {}
         self.result_data = {}
-        self.auto_zero_offset = {}
-        self._auto_zero_vals = {}
+        self.zero_offset_data = {}
+        self._zero_offset_vals = {}
         self.temp_data = {}
 
         # Possible channels from which to get the beam positions
@@ -145,7 +89,7 @@ class IrradInterpreter(multiprocessing.Process):
                          ('p_fluence_err', '<f8'), ('timestamp_start', '<f8'), ('x_start', '<f4'), ('y_start', '<f4'),
                          ('timestamp_stop', '<f8'), ('x_stop', '<f4'), ('y_stop', '<f4')]
 
-        result_dtype =  [('p_fluence_mean', '<f8'), ('p_fluence_err', '<f8'), ('p_fluence_std', '<f8')]
+        result_dtype = [('p_fluence_mean', '<f8'), ('p_fluence_err', '<f8'), ('p_fluence_std', '<f8')]
 
         # Dict with lists to append beam current values to during scanning
         self._beam_currents = defaultdict(list)
@@ -171,6 +115,9 @@ class IrradInterpreter(multiprocessing.Process):
 
         # Open respective table files per server and check which data will be interpreted
         for server in self.server:
+
+            # Create new group for respective server
+            self.output_table.create_group(self.output_table.root, self.setup['server'][server]['name'])
 
             # This server has an ADC so will send raw data to interpret
             if server in self.adc_setup:
@@ -202,11 +149,8 @@ class IrradInterpreter(multiprocessing.Process):
                 self.result_data[server] = np.zeros(shape=1, dtype=result_dtype)
 
                 # Auto zeroing offset
-                self.auto_zero_offset[server] = np.zeros(shape=1, dtype=raw_dtype)
-                self._auto_zero_vals[server] = defaultdict(list)
-
-                # Create new group for respective server
-                self.output_table.create_group(self.output_table.root, self.setup['server'][server]['name'])
+                self.zero_offset_data[server] = np.zeros(shape=1, dtype=raw_dtype)
+                self._zero_offset_vals[server] = defaultdict(list)
 
                 # Create data tables
                 self.raw_table[server] = self.output_table.create_table('/{}'.format(self.setup['server'][server]['name']),
@@ -222,11 +166,10 @@ class IrradInterpreter(multiprocessing.Process):
                                                                            description=self.result_data[server].dtype,
                                                                            name='Result')
                 self.offset_table[server] = self.output_table.create_table('/{}'.format(self.setup['server'][server]['name']),
-                                                                           description=self.auto_zero_offset[server].dtype,
+                                                                           description=self.zero_offset_data[server].dtype,
                                                                            name='RawOffset')
 
             if server in self.temp_setup:
-
                 temp_dtype = [('timestamp', '<f8')] + [(temp, '<f2') for temp in self.temp_setup[server].values()]
                 self.temp_data[server] = np.zeros(shape=1, dtype=temp_dtype)
                 self.temp_table[server] = self.output_table.create_table('/{}'.format(self.setup['server'][server]['name']),
@@ -235,6 +178,9 @@ class IrradInterpreter(multiprocessing.Process):
 
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
+
+        # Make list of interpreted result data
+        interpreted_data = []
 
         # Retrieve server IP , meta data and actual data from raw data dict
         server, meta_data, data = raw_data['meta']['name'], raw_data['meta'], raw_data['data']
@@ -250,21 +196,21 @@ class IrradInterpreter(multiprocessing.Process):
             for ch in data:
                 self.raw_data[server][ch] = data[ch]
                 # Subtract offset from data; initially offset is 0 for all ch
-                data[ch] -= self.auto_zero_offset[server][ch][0]
+                data[ch] -= self.zero_offset_data[server][ch][0]
 
             # Get offsets
-            if self.auto_zero[server].is_set():
+            if self.state_flags['offset_{}'.format(server)].is_set():
                 # Loop over data until sufficient data for mean is collected
                 for ch in data:
-                    self._auto_zero_vals[server][ch].append(self.raw_data[server][ch][0])
-                    if len(self._auto_zero_vals[server][ch]) == 40:
-                        self.auto_zero_offset[server][ch] = np.mean(self._auto_zero_vals[server][ch])
+                    self._zero_offset_vals[server][ch].append(self.raw_data[server][ch][0])
+                    if len(self._zero_offset_vals[server][ch]) == 40:
+                        self.zero_offset_data[server][ch] = np.mean(self._zero_offset_vals[server][ch])
                 # If all offsets have been found, clear signal and reset list
-                if all(len(self._auto_zero_vals[server][ch]) >= 40 for ch in data):
-                    self.auto_zero[server].clear()
-                    self._auto_zero_vals[server] = defaultdict(list)
-                    self.auto_zero_offset[server]['timestamp'] = time.time()
-                    self.offset_table[server].append(self.auto_zero_offset[server])
+                if all(len(self._zero_offset_vals[server][ch]) >= 40 for ch in data):
+                    self.state_flags['offset_{}'.format(server)].clear()
+                    self._zero_offset_vals[server] = defaultdict(list)
+                    self.zero_offset_data[server]['timestamp'] = time()
+                    self.offset_table[server].append(self.zero_offset_data[server])
 
             ### Interpretation of data ###
 
@@ -317,7 +263,8 @@ class IrradInterpreter(multiprocessing.Process):
                             logging.warning(msg)
 
                         # Sum and divide by amount of foils
-                        current = sum([data[self.adc_setup[server]['channels'][self.ch_type_idx[server][c]]] * self.adc_setup[server]['ro_scales'][self.ch_type_idx[server][c]] for c in dig_chs])
+                        current = sum([data[self.adc_setup[server]['channels'][self.ch_type_idx[server][c]]] * self.adc_setup[server]['ro_scales'][
+                            self.ch_type_idx[server][c]] for c in dig_chs])
                         current /= n_foils
 
                     # Get current from analog signal
@@ -331,17 +278,17 @@ class IrradInterpreter(multiprocessing.Process):
                     # Write to dict to send out and to array to store
                     beam_data['data']['current'][sig_type] = self.beam_data[server][dname] = current
 
-            self.data_pub.send_json(beam_data)
+            interpreted_data.append(beam_data)
 
         elif meta_data['type'] == 'stage':
 
-            if data['status'] == 'init':
+            if data['status'] == 'scan_init':
                 self.y_step = data['y_step']
                 self.n_rows = data['n_rows']
                 self._fluence[server] = [0] * self.n_rows
                 self._fluence_err[server] = [0] * self.n_rows
 
-            elif data['status'] == 'start':
+            elif data['status'] == 'scan_start':
                 del self._beam_currents[server][:]
                 self._stage_scanning = True
                 self.fluence_data[server]['timestamp_start'] = meta_data['timestamp']
@@ -349,7 +296,7 @@ class IrradInterpreter(multiprocessing.Process):
                 for prop in ('scan', 'row', 'speed', 'x_start', 'y_start'):
                     self.fluence_data[server][prop] = data[prop]
 
-            elif data['status'] == 'stop':
+            elif data['status'] == 'scan_stop':
                 self._stage_scanning = False
                 self.fluence_data[server]['timestamp_stop'] = meta_data['timestamp']
 
@@ -365,7 +312,7 @@ class IrradInterpreter(multiprocessing.Process):
                 actual_current_error = 0.033 * mean_current + 0.01 * current_ro_scale * self.nA
 
                 # Quadratically add the measurement error and beam current fluctuation
-                p_f_err = np.sqrt(std_current**2. + actual_current_error**2.)
+                p_f_err = np.sqrt(std_current ** 2. + actual_current_error ** 2.)
 
                 # Fluence and its error; speed and step_size are in mm; factor 1e-2 to convert to cm^2
                 p_fluence = mean_current / (self.y_step * self.fluence_data[server]['speed'][0] * self.qe * 1e-2)
@@ -388,7 +335,7 @@ class IrradInterpreter(multiprocessing.Process):
                 # Update the error a la Gaussian error propagation
                 old_fluence_err = self._fluence_err[server][self.fluence_data[server]['row'][0]]
                 current_fluence_err = self.fluence_data[server]['p_fluence_err'][0]
-                new_fluence_err = np.sqrt(old_fluence_err**2.0 + current_fluence_err**2.0)
+                new_fluence_err = np.sqrt(old_fluence_err ** 2.0 + current_fluence_err ** 2.0)
 
                 # Update
                 self._fluence_err[server][self.fluence_data[server]['row'][0]] = new_fluence_err
@@ -398,11 +345,9 @@ class IrradInterpreter(multiprocessing.Process):
 
                 self._store_fluence_data = True
 
-                self.data_pub.send_json(fluence_data)
+                interpreted_data.append(fluence_data)
 
-                self._update_xy_stage_stats(server)
-
-            elif data['status'] == 'finished':
+            elif data['status'] == 'scan_finished':
 
                 # The stage is finished; append the overall fluence to the result and get the sigma by the std dev
                 self.result_data[server]['p_fluence_mean'] = np.mean(self._fluence[server])
@@ -426,30 +371,13 @@ class IrradInterpreter(multiprocessing.Process):
         if self._stage_scanning:
             self._beam_currents[server].append(self.beam_data[server]['current_analog'][0])
 
-    def _update_xy_stage_stats(self, server):
+        # If event is not set, store data to hdf5 file
+        if not self.stop_flags['write_{}'.format(server)].is_set():
+            self.store_data(server)
+        else:
+            logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
 
-        # Add to xy stage stats
-        # This iterations travel
-        x_travel = float(abs(self.fluence_data[server]['x_stop'][0] - self.fluence_data[server]['x_start'][0]))
-        y_travel = float(self.fluence_data[server]['step'][0] * 1e-3)
-
-        # Add to total
-        self.stage_stats['total_travel']['x'] += x_travel
-        self.stage_stats['total_travel']['y'] += y_travel
-
-        # Add to interval
-        self.stage_stats['interval_travel']['x'] += x_travel
-        self.stage_stats['interval_travel']['y'] += y_travel
-
-        # Check if any axis has reached interval travel
-        for axis in ('x', 'y'):
-            if self.stage_stats['interval_travel'][axis] > self.stage_stats['maintenance_interval']:
-                self.stage_stats['interval_travel'][axis] = 0.0
-                self.xy_stage_maintenance.set()
-                logging.warning("{}-axis of XY-stage reached service interval travel! "
-                                "See https://www.zaber.com/wiki/Manuals/X-LRQ-E#Precautions".format(axis))
-
-        self.stage_stats['last_update'] = time.asctime()
+        return interpreted_data
 
     def _calc_digital_shift(self, data, server, ch_types, m='h'):
         """Calculate the beam displacement on the secondary electron monitor from the digitized foil signals"""
@@ -474,153 +402,70 @@ class IrradInterpreter(multiprocessing.Process):
         # Horizontally, if we are shifted to the left the graph should move to the left, therefore * -1
         return -1 * res if m == 'h' else res
 
-    def store_data(self):
+    def store_data(self, server):
         """Method which appends current data to table files. If tables are longer then self._max_buf_len,
         flush the buffer to hard drive"""
 
-        # Loop over tables and append the data
-        for server in self.server:
-            self.raw_table[server].append(self.raw_data[server])
-            self.beam_table[server].append(self.beam_data[server])
+        self.raw_table[server].append(self.raw_data[server])
+        self.beam_table[server].append(self.beam_data[server])
 
-            # If the stage scanned, append data
-            if self._store_fluence_data:
-                self.fluence_table[server].append(self.fluence_data[server])
-                self._store_fluence_data = False
+        # If the stage scanned, append data
+        if self._store_fluence_data:
+            self.fluence_table[server].append(self.fluence_data[server])
+            self._store_fluence_data = False
 
-            if self._store_temp_data:
-                self.temp_table[server].append(self.temp_data[server])
-                self._store_temp_data = False
+        if self._store_temp_data:
+            self.temp_table[server].append(self.temp_data[server])
+            self._store_temp_data = False
 
-            # If tables are getting too large, flush buffer to hard drive
-            if any(t[server].nrows % self._max_buf_len == 0 and t[server].nrows != 0 for t in (self.raw_table,
-                                                                                               self.beam_table,
-                                                                                               self.fluence_table)):
-                logging.debug("Flushing data to hard disk...")
-                self.output_table.flush()
+        # Flush data to hard drive in fixed interval
+        if self._last_data_flush is None or time() - self._last_data_flush >= self._data_flush_interval:
+            self._last_data_flush = time()
+            logging.debug("Flushing data to hard disk...")
+            self.output_table.flush()
 
-    def recv_data(self):
-        """Main method which receives raw data and calls interpretation and data storage methods"""
+    def _start_interpreter(self, setup):
+        """Sets up the interpreter process"""
 
-        # Create subscriber for raw and XY-Stage data
-        data_sub = self.context.socket(zmq.SUB)
+        # Update setup
+        self.setup = setup
 
-        # Loop over all servers and connect to their respective data streams
-        for server in self.server:
+        # Setup logging
+        self._setup_logging()
 
-            if 'adc' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['data'], ip=server))
+        self._setup_daq()
 
-            if 'temp' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['temp'], ip=server))
+        self.is_converter = True
 
-            if 'stage' in self.setup['server'][server]['devices']:
-                data_sub.connect(self._tcp_addr(self.setup['port']['stage'], ip=server))
+        self.add_daq_stream(daq_stream=[self._tcp_addr(port=self.setup['server'][server]['ports']['data'], ip=server) for server in self.server])
 
-            # Connect to servers command
-            data_sub.connect(self._tcp_addr(self.setup['port']['cmd'], ip=server))
+        self.launch_thread(target=self.recv_data)
 
-        data_sub.setsockopt(zmq.SUBSCRIBE, '')
-
-        # While event not set receive data with 1 ms wait
-        while not self.stop_recv_data.wait(1e-3):
-
-            # Try getting data without blocking. If no data exception is raised.
-            try:
-                # Get data
-                data = data_sub.recv_json(flags=zmq.NOBLOCK)
-
-                # Interpret data
-                self.interpret_data(data)
-
-                # If event is not set, store data to hdf5 file
-                if not self.stop_write_data.wait(1e-3):
-                    self.store_data()
-
-            # No data
-            except zmq.Again:
-                pass
-
-    def recv_cmd(self):
-        """Method which is run in separate thread to receive some basic commands"""
-
-        interpreter_rep = self.context.socket(zmq.REP)
-        interpreter_rep.bind(self._tcp_addr(self.setup['port']['cmd']))
-
-        while not self.stop_recv_cmd.is_set():
-
-            # Check if were working on a command. We have to work sequentially
-            if not self._busy_cmd:
-
-                # Cmd must be dict with command as 'cmd' key and 'args', 'kwargs' keys
-                cmd_dict = interpreter_rep.recv_json()
-
-                # Set cmd to busy; other commands send will be queued and received later
-                self._busy_cmd = True
-
-                # Extract info from cmd_dict
-                target = cmd_dict['target']
-                cmd = cmd_dict['cmd']
-                cmd_data = None if 'data' not in cmd_dict else cmd_dict['data']
-
-                # Containers for errors
-                error_reply = False
-
-                # Command sanity checks
-                if target not in self.commands:
-                    msg = "Target '{}' unknown. Known targets are {}!".format(target, ', '.join(self.commands.keys()))
-                    logging.error(msg)
-                    error_reply = 'No interpreter target named {}'.format(target)
-
-                elif cmd not in self.commands[target]:
-                    msg = "Target command '{}' unknown. Known commands are {}!".format(cmd, ', '.join(self.commands[target]))
-                    logging.error(msg)
-                    error_reply = 'No target command named {}'.format(cmd)
-
-                # Check for errors
-                if error_reply:
-                    self._send_reply(rep=interpreter_rep, reply=error_reply, sender='interpreter', _type='ERROR', data=None)
-                    self._busy_cmd = False
-                else:
-                    reply = self.handle_cmd(target=target, cmd=cmd, cmd_data=cmd_data)
-                    self._send_reply(rep=interpreter_rep, reply=reply, sender='interpreter', _type='STANDARD', data=None)
-                    self._busy_cmd = False
-
-    @staticmethod
-    def _send_reply(rep, reply, _type, sender, data=None):
-
-        reply_dict = {'reply': reply, 'type': _type, 'sender': sender}
-
-        if data is not None:
-            reply_dict['data'] = data
-
-        rep.send_json(reply_dict)
-
-    def handle_cmd(self, target, cmd, cmd_data):
+    def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
         # Handle server commands
         if target == 'interpreter':
 
-            if cmd == 'shutdown':
+            if cmd == 'start':
+                self._start_interpreter(data)
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.pid)
+
+            elif cmd == 'shutdown':
                 self.shutdown()
-                return cmd
-            elif cmd == 'autozero':
-                # server = cmd_data  # FIXME: pass server as cmd_data
-                for server in self.server:
-                    self.auto_zero[server].set()
-                return cmd
 
-    def shutdown(self):
-        """Set events in order to leave receiver loop and end process"""
+            elif cmd == 'zero_offset':
+                self.state_flags['offset_{}'.format(data)].set()
 
-        # User info
-        logging.info('Shutting down {}...'.format(self.name.capitalize()))
+            elif cmd == 'record_data':
+                server, record = data
 
-        # Setting signals to stop
-        self.stop_write_data.set()
-        self.stop_recv_data.set()
-        self.stop_recv_cmd.set()
+                if record:  # We want to write
+                    self.stop_flags['write_{}'.format(server)].clear()
+                else:
+                    self.stop_flags['write_{}'.format(server)].set()
+
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, not self.stop_flags['write_{}'.format(server)].is_set()])
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""
@@ -630,54 +475,21 @@ class IrradInterpreter(multiprocessing.Process):
 
         self.output_table.close()
 
-    def run(self):
-        """This will be run in a dedicated process on calling the Process.start() method"""
+    def clean_up(self):
 
-        # Setup interpreters zmq connections and logging and daq
-        self._setup_interpreter()
-
-        cmd_thread = threading.Thread(target=self.recv_cmd)
-        cmd_thread.start()
-
-        # User info
-        logging.info('Starting {}'.format(self.name))
-
+        # Close opened data files; AttributeError if DAQ hasn't started
         try:
-
-            # Main process runs command receive loop
-            self.recv_data()
-
-            # Wait for cmd thread to finish
-            cmd_thread.join()
-
-        except Exception:
-            logging.exception("Unexpected exception occured.")
+            self._close_tables()
+        except AttributeError:
             pass
 
-        # Make sure we're closing the data tables
-        finally:
 
-            # Close opened data files
-            self._close_tables()
+def main():
 
-            # Overwrite xy stage stats
-            with open(os.path.join(config_path, 'xy_stage_stats.yaml'), 'w') as _xys:
-                yaml.safe_dump(self.stage_stats, _xys, default_flow_style=False)
-
-            # User info
-            logging.info('{} finished'.format(self.name.capitalize()))
+    irrad_converter = IrradConverter()
+    irrad_converter.start()
+    irrad_converter.join()
 
 
 if __name__ == '__main__':
-    setup_yaml = sys.argv[1]
-
-    if not os.path.isfile(setup_yaml):
-        logging.error("Interpreter cannot find {} for current session. Interpreter not started.".format(setup_yaml))
-    else:
-
-        with open(setup_yaml, 'r') as _s:
-            _setup = yaml.safe_load(_s)
-
-        irrad_interpreter = IrradInterpreter(setup=_setup)
-        irrad_interpreter.start()
-        irrad_interpreter.join()
+    main()
