@@ -30,7 +30,7 @@ def movement_tracker(movement_func):
         axis_name = 'x' if axis is self.x_axis else 'y'
 
         # Get current position in meters
-        start = self.position[axis_idx] if unit is None else self.steps_to_distance(self.position[axis_idx], unit=unit)
+        start = self.steps_to_distance(self.position[axis_idx], unit='m')
 
         if self._zmq_setup:
 
@@ -48,13 +48,10 @@ def movement_tracker(movement_func):
         reply = movement_func(self, target, axis, unit)
 
         # Get position after movement
-        stop = self.position[axis_idx] if unit is None else self.steps_to_distance(self.position[axis_idx], unit=unit)
+        stop = self.steps_to_distance(self.position[axis_idx], unit='m')
 
         # Calculate distance travelled in meter
-        if unit is None:
-            travel = self.steps_to_distance(abs(stop - start), unit='m')
-        else:
-            travel = abs(stop-start) * self.dist_units[unit] / self.dist_units['m']
+        travel = abs(stop - start)
 
         if self._zmq_setup:
 
