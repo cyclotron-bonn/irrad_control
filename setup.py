@@ -9,7 +9,7 @@ _server = 'server' in sys.argv
 if _server:
     sys.argv.remove('server')
 
-version = '1.0.1'
+version = '1.1.0'
 author = 'Pascal Wolf'
 author_email = 'wolf@physik.uni-bonn.de'
 
