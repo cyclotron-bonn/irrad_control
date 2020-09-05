@@ -465,8 +465,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
             elif data['data']['status'] in ('move_start', 'move_stop'):  # Stage started / stopped movement
 
                 new_pos = self.control_tab.stage_attributes['position'][:]
-                new_pos[data['data']['axis']] = data['data']['pos']
-                self.control_tab.update_info(position=new_pos, unit=data['data']['unit'])
+                new_pos[data['data']['axis']] = data['data']['pos'] * 1e3
+                self.control_tab.update_info(position=new_pos, unit='mm')
 
                 if data['data']['status'] == 'move_start':
                     for entry in ('accel', 'range', 'speed'):
