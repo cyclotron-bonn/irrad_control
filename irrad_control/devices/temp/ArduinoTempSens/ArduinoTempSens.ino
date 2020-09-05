@@ -27,7 +27,7 @@ const int THERMISTORPINS [] = {A0, A1, A2, A3, A4, A5, A6, A7};
 // Setup
 void setup(void) {
   // Initialize serial connection
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // Set 3.3V as external reference voltage instead of internal 5V reference
   analogReference(EXTERNAL);
@@ -57,7 +57,7 @@ float get_temp(int T_PIN) {
   // take N samples in a row, with a slight delay
   for (int i=0; i< NSAMPLES; i++) {
     ohm += analogRead(T_PIN);
-    delay(10);
+    delayMicroseconds(50);
   }
 
   // Do the average
@@ -97,7 +97,7 @@ void loop(void) {
 
         // Send out, two decimal places, wait
         Serial.println(temp_celsius, 2);
-        delay(10);
+        delayMicroseconds(50);
       }
       else {
         // An Oooopsie happened

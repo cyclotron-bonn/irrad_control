@@ -3,10 +3,11 @@ import sys
 from setuptools import setup, find_packages  # This setup relies on setuptools since distutils is insufficient and badly hacked code
 
 # Figure out if we're installing on control PC or on server
-try:
-    _server = True if sys.argv[1] == 'server' else False
-except IndexError:
-    _server = False
+_server = 'server' in sys.argv
+
+# Remove "server" from sys.argv
+if _server:
+    sys.argv.remove('server')
 
 version = '1.0.1'
 author = 'Pascal Wolf'
@@ -33,14 +34,8 @@ setup_kwargs = {'name': 'irrad_control',
                 'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
                 'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
                 'platforms': 'any',
-                'entry_points': {'console_scripts': ['irrad_control = irrad_control.main:main']}
+                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control')]}
                 }
-
-# Remove "server" from sys.argv and entry_points from server setup dict
-if _server:
-    del sys.argv[1]
-    del setup_kwargs['entry_points']
 
 # Setup
 setup(**setup_kwargs)
-

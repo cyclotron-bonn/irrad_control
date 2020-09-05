@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 from irrad_control.devices.adc import ads1256
-from irrad_control.gui.widgets.util_widgets import GridContainer
+from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from collections import OrderedDict
 
 _ro_scales = OrderedDict([(1000.0, '1 %sA' % u'\u03bc'), (330.0, '0.33 %sA' % u'\u03bc'),
@@ -60,6 +60,9 @@ class DaqInfoWidget(QtWidgets.QWidget):
         self.h_space = 100
         self.v_space = 50
 
+        # Style used for icons
+        self._style = QtWidgets.qApp.style()
+
         # Init user interface
         self._init_ui()
 
@@ -79,6 +82,9 @@ class DaqInfoWidget(QtWidgets.QWidget):
         self.num_avg_labels = {}
         self.full_scale_labels = {}
         self.beam_current_labels = {}
+
+        # Buttons for pausing/resuming recording of data
+        self.record_btns = {}
 
         # Loop over all servers and check whether we have an ADC
         for server in self.servers:
@@ -151,17 +157,32 @@ class DaqInfoWidget(QtWidgets.QWidget):
             for table in self.tables[server]:
                 all_tables.add_widget(table)
 
+            self.record_btns[server] = QtWidgets.QPushButton()
+            self.record_btns[server].setVisible(False)
+
             # Add to layout
+            table_layout.addWidget(self.record_btns[server])
             table_layout.addWidget(info_widget)
             table_layout.addWidget(all_tables)
 
-            scroll_area = QtWidgets.QScrollArea()
-            scroll_area.setWidgetResizable(True)
+            # Make scroll widget and set widget
+            scroll_area = NoBackgroundScrollArea()
             scroll_area.setWidget(table_widget)
 
             self.tabs.addTab(scroll_area, self.setup[server]['name'])
+            self.update_rec_state(server=server, state=True)
 
         self.main_layout.addWidget(self.tabs)
+
+    def update_rec_state(self, server, state=True):
+
+        icon = self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton
+        tooltip = "Recording" if state else "Data recording paused"
+        btn_text = "Pause" if state else "Resume"
+        self.record_btns[server].setText(btn_text)
+        idx = [self.tabs.tabText(i) for i in range(self.tabs.count())].index(self.setup[server]['name'])
+        self.tabs.setTabIcon(idx, self._style.standardIcon(icon))
+        self.tabs.setTabToolTip(idx, tooltip)
 
     def _setup_table(self, server):
         """Setup and return table widget(s) in order to display channel data of adc"""

@@ -1,7 +1,8 @@
 import time
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.gui.widgets import GridContainer, XYStagePositionWindow
+from irrad_control.gui.utils import fill_combobox_items
 
 
 class IrradControlTab(QtWidgets.QWidget):
@@ -9,6 +10,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
     sendCmd = QtCore.pyqtSignal(dict)
     stageInfo = QtCore.pyqtSignal(dict)
+    enableDAQRec = QtCore.pyqtSignal(str, bool)
 
     def __init__(self, setup, parent=None):
         super(IrradControlTab, self).__init__(parent)
@@ -27,8 +29,7 @@ class IrradControlTab(QtWidgets.QWidget):
                 self.stage_server = None
 
         # Attributes for the stage
-        self.current_pos = [0.0, 0.0]
-        self.current_speed = [0.0, 0.0]
+        self.stage_attributes = {'position': [0.0, 0.0], 'speed': [0.0, 0.0], 'accel': [0.0, 0.0], 'range': [[0.0, 0.0], [0.0, 0.0]]}
         self.aim_fluence = None
         self.beam_current = None
         self.min_scan_current = None
@@ -37,6 +38,8 @@ class IrradControlTab(QtWidgets.QWidget):
         self.beam_down_timer = None
         self.info_labels = {}
         self._scan_param_units = {}
+        self.xy_stage_positions = None
+        self.xy_stage_position_win = None
 
         # Layouts; split in quadrants
         self.main_layout = QtWidgets.QHBoxLayout()
@@ -45,7 +48,7 @@ class IrradControlTab(QtWidgets.QWidget):
         self.info_widget = GridContainer('Info')
         self.control_widget = GridContainer('Setup control')
         self.scan_widget = GridContainer('Scan')
-        self.daq_widget = GridContainer('DAQ')
+        self.daq_widget = GridContainer('Data acquisition')
 
         # Splitters
         self.main_splitter = QtWidgets.QSplitter()
@@ -67,8 +70,9 @@ class IrradControlTab(QtWidgets.QWidget):
         # Add splitters to main layout
         self.main_layout.addWidget(self.main_splitter)
 
-        # Add main layout to widget layout and add ok button
+        # Add main layout to widget layout and define style for icons
         self.setLayout(self.main_layout)
+        self._style = QtWidgets.qApp.style()
 
         # Appearance
         self.show()
@@ -85,6 +89,20 @@ class IrradControlTab(QtWidgets.QWidget):
         self.control_widget.setVisible(self.stage_server is not None)
         self.scan_widget.setVisible(self.stage_server is not None)
         self.info_widget.setVisible(self.stage_server is not None)
+
+    def setup_xy_stage_positions(self, positions):
+        self.xy_stage_positions = positions
+        self.xy_stage_position_win = XYStagePositionWindow(self.xy_stage_positions)
+        self.xy_stage_position_win.stagePosChanged.connect(lambda p: fill_combobox_items(self.cbx_position, p))
+        self.xy_stage_position_win.stagePosChanged.connect(lambda p: [self.send_cmd(target='stage', cmd='add_pos',
+                                                                                    cmd_data={'name': n,
+                                                                                              'x': p[n]['x'],
+                                                                                              'y': p[n]['y'],
+                                                                                              'unit': p[n]['unit'],
+                                                                                              'date': p[n]['date']}) for n in p])
+
+        fill_combobox_items(self.cbx_position, self.xy_stage_positions)
+        _ = [w.setVisible(True) for w in self.predefined_pos_widgets]
 
     def _setup_control(self):
 
@@ -191,23 +209,23 @@ class IrradControlTab(QtWidgets.QWidget):
                                                                   'distance': spx_abs.value(),
                                                                   'unit': 'mm'}))
 
-        # Go to predefined positions
-        xy_stage_config = {'positions': {'Home': [0.0, 0.0], 'Screen': [300.0, 300.0]}}
-        label_move_to = QtWidgets.QLabel('Move to:')
-        cbx_position = QtWidgets.QComboBox()
-        cbx_position.addItems(xy_stage_config['positions'].keys())
-        label_position = QtWidgets.QLabel('@ ({:.3f}, {:.3f}) mm'.format(*xy_stage_config['positions'][cbx_position.currentText()]))
-        label_position.setFixedWidth(200)
-        cbx_position.currentTextChanged.connect(lambda t: label_position.setText('@ ({:.3f}, {:.3f}) mm'.format(*xy_stage_config['positions'][t])))
-        btn_to_position = QtWidgets.QPushButton('Move to position')
-        # Move to position by moving x and then y
-        for i, axis in enumerate(['x', 'y']):
-            btn_to_position.clicked.connect(lambda _: self.send_cmd(target='stage',
-                                                                    cmd='move_abs',
-                                                                    cmd_data={'axis': axis,
-                                                                              'distance': xy_stage_config['positions'][cbx_position.currentText()][i],
-                                                                              'unit': 'mm'}))
+        # Predefined positions
+        label_positions = QtWidgets.QLabel('Predefined positions:')
+        label_positions.setToolTip('Move to or add/edit named stage positions')
+        self.cbx_position = QtWidgets.QComboBox()
+        btn_mv_to_pos = QtWidgets.QPushButton()
+        btn_edit_positions = QtWidgets.QPushButton('Edit positions')
 
+        # Connect
+        self.cbx_position.currentTextChanged.connect(lambda t, b=btn_mv_to_pos: b.setText("Move to {}".format(t)))
+        btn_edit_positions.clicked.connect(lambda _: self.xy_stage_position_win.show())
+
+        # Move to position by moving x and then y
+        btn_mv_to_pos.clicked.connect(lambda _: self.send_cmd(target='stage', cmd='move_pos',
+                                                              cmd_data={'name': self.cbx_position.currentText()}))
+
+        self.predefined_pos_widgets = [label_positions, self.cbx_position, btn_edit_positions, btn_mv_to_pos]
+        _ = [w.setVisible(False) for w in self.predefined_pos_widgets]
 
         # Add to layout
         self.control_widget.add_widget(widget=[label_home, btn_home])
@@ -215,7 +233,7 @@ class IrradControlTab(QtWidgets.QWidget):
         self.control_widget.add_widget(widget=[label_speed, spx_speed, cbx_axis, btn_set_speed])
         self.control_widget.add_widget(widget=[label_rel, spx_rel, cbx_axis_rel, btn_rel])
         self.control_widget.add_widget(widget=[label_abs, spx_abs, cbx_axis_abs, btn_abs])
-        #self.control_widget.add_widget(widget=[label_move_to, cbx_position, label_position, btn_to_position])  # FIXME: implement functionality
+        self.control_widget.add_widget(widget=self.predefined_pos_widgets)
 
         # Add spacer layout
         spacer = QtWidgets.QVBoxLayout()
@@ -333,37 +351,49 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def _setup_daq(self):
 
-        server_names = dict([(self.setup[s]['name'], s) for s in self.setup])
+        # DAQ control for servers from respective tabs
+        tab_widget = QtWidgets.QTabWidget()
+        record_btns = {}
 
-        label_server = QtWidgets.QLabel('Select DAQ server:')
-        cbx_servers = QtWidgets.QComboBox()
-        cbx_servers.addItems(server_names.keys())
+        self.daq_widget.widgets['tabs'] = tab_widget
+        self.daq_widget.widgets['rec_btns'] = record_btns
 
-        label_offset = QtWidgets.QLabel('Raw data offset:')
-        btn_offset = QtWidgets.QPushButton('Compensate offset')
-        btn_offset.clicked.connect(lambda _: self.send_cmd(target='interpreter',
-                                                           cmd='zero_offset',
-                                                           cmd_data=server_names[cbx_servers.currentText()]))
+        # Loop over servers and create widgets
+        for server in self.setup:
 
-        # Button for auto zero offset
-        label_record = QtWidgets.QLabel("Data recording:")
-        record_btn_states = dict([(name, 'Pause') for name in server_names])
-        btn_record = QtWidgets.QPushButton('Pause')
-        btn_record.clicked.connect(lambda _: self.send_cmd(target='interpreter', cmd='record_data', cmd_data=server_names[cbx_servers.currentText()]))
+            # Grid for server
+            grid = GridContainer(name='')
 
-        # Button appearance
-        btn_record.clicked.connect(lambda _: record_btn_states.update({cbx_servers.currentText(): 'Resume' if record_btn_states[cbx_servers.currentText()] == 'Pause' else 'Pause'}))
-        btn_record.clicked.connect(lambda _: btn_record.setText(record_btn_states[cbx_servers.currentText()]))
-        cbx_servers.currentTextChanged.connect(lambda t: btn_record.setText(record_btn_states[cbx_servers.currentText()]))
+            label_offset = QtWidgets.QLabel('Raw data offset:')
+            btn_offset = QtWidgets.QPushButton('Compensate offset')
+            btn_offset.clicked.connect(lambda _, _server=server: self.send_cmd(target='interpreter',
+                                                                               cmd='zero_offset',
+                                                                               cmd_data=_server))
 
-        self.daq_widget.add_widget(widget=[label_server, cbx_servers])
-        self.daq_widget.add_widget(widget=[label_offset, btn_offset])
-        self.daq_widget.add_widget(widget=[label_record, btn_record])
+            # Button for auto zero offset
+            label_record = QtWidgets.QLabel("Data recording:")
+            btn_record = QtWidgets.QPushButton('Pause')
+            btn_record.clicked.connect(lambda _, _server=server, btn=btn_record: self.send_cmd(target='interpreter',
+                                                                                               cmd='record_data',
+                                                                                               cmd_data=(_server, btn.text() == 'Resume')))
+            record_btns[server] = btn_record
 
-        # Add spacer layout
-        spacer = QtWidgets.QVBoxLayout()
-        spacer.addStretch()
-        self.daq_widget.add_layout(spacer)
+            chbx_record = QtWidgets.QCheckBox('Enable toggling recording state in DAQ dock')
+            chbx_record.stateChanged.connect(lambda state, _server=server: self.enableDAQRec.emit(_server, bool(state)))
+
+            # Add spacer layout
+            spacer = QtWidgets.QVBoxLayout()
+            spacer.addStretch()
+
+            grid.add_widget(widget=[label_offset, btn_offset])
+            grid.add_widget(widget=[label_record, btn_record])
+            grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+            grid.add_layout(spacer)
+
+            tab_widget.addTab(grid, self.setup[server]['name'])
+            self.update_rec_state(server=server, state=True)
+
+        self.daq_widget.add_widget(widget=tab_widget)
 
     def _setup_info(self):
 
@@ -377,12 +407,16 @@ class IrradControlTab(QtWidgets.QWidget):
         label_speed_info = QtWidgets.QLabel('Speed:')
 
         # Info on travel range
-        label_range_info = QtWidgets.QLabel('Travel ranges:')
+        label_range_info = QtWidgets.QLabel('Range:')
+
+        # Info on travel range
+        label_accel_info = QtWidgets.QLabel('Accel:')
 
         # Add to layout
         setup_info.add_widget(widget=label_position_info)
         setup_info.add_widget(widget=label_speed_info)
         setup_info.add_widget(widget=label_range_info)
+        setup_info.add_widget(widget=label_accel_info)
 
         scan_info = GridContainer('Scan')
 
@@ -409,9 +443,9 @@ class IrradControlTab(QtWidgets.QWidget):
         scan_info.add_widget(widget=label_scan_params)
 
         # Store labels in class attribute to change their text later
-        self.info_labels ={'setup': {'position': label_position_info, 'speed': label_speed_info, 'range': label_range_info},
-                           'fluence': {'row': label_fluence_row, 'scan': label_fluence_scan},
-                           'scan': {'status': label_stage_status, 'nscan': label_nscan_info, 'params': label_scan_params}}
+        self.info_labels = {'setup': {'position': label_position_info, 'speed': label_speed_info, 'range': label_range_info, 'accel': label_accel_info},
+                            'fluence': {'row': label_fluence_row, 'scan': label_fluence_scan},
+                            'scan': {'status': label_stage_status, 'nscan': label_nscan_info, 'params': label_scan_params}}
 
         self.info_widget.add_widget(widget=setup_info)
         self.info_widget.add_widget(widget=scan_info)
@@ -466,17 +500,16 @@ class IrradControlTab(QtWidgets.QWidget):
                     # Get text of label
                     tmp_text = entry[kw].text()
 
-                    # Update position label
-                    if kw == 'position':
+                    # Update position/speed/accel label
+                    if kw in ('position', 'speed', 'accel'):
                         tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
-                    # Update speed label
-                    elif kw == 'speed':
-                        tmp_text = kw.capitalize() + ': ' + '({:.3f}, {:.3f})'.format(*info[kw]) + ('' if unit is None else ' {}'.format(unit))
+                        self.stage_attributes[kw] = info[kw]
                     # Update travel range label
                     elif kw == 'range':
                         tmp_text = kw.capitalize() + ': '
                         tmp_text += 'x: ({:.3f}, {:.3f})'.format(*info[kw][0]) + (', ' if unit is None else ' {}, '.format(unit))
                         tmp_text += 'y: ({:.3f}, {:.3f})'.format(*info[kw][1]) + (', ' if unit is None else ' {}, '.format(unit))
+                        self.stage_attributes[kw] = info[kw]
                     # Update fluence in previous row label
                     elif kw == 'row':
                         tmp_text = 'Fluence previous row: ' + '{:.3E}'.format(info[kw]) + ('' if unit is None else ' {}'.format(unit))
@@ -523,3 +556,12 @@ class IrradControlTab(QtWidgets.QWidget):
         self.control_widget.set_read_only(read_only=status == 'started')
         self.daq_widget.set_read_only(read_only=status == 'started')
 
+    def update_rec_state(self, server, state):
+
+        icon = self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton
+        tooltip = "Recording" if state else "Data recording paused"
+        btn_text = "Pause" if state else "Resume"
+        self.daq_widget.widgets['rec_btns'][server].setText(btn_text)
+        idx = [self.daq_widget.widgets['tabs'].tabText(i) for i in range(self.daq_widget.widgets['tabs'].count())].index(self.setup[server]['name'])
+        self.daq_widget.widgets['tabs'].setTabIcon(idx, self._style.standardIcon(icon))
+        self.daq_widget.widgets['tabs'].setTabToolTip(idx, tooltip)
