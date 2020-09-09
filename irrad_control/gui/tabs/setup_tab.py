@@ -803,7 +803,7 @@ class ADCSetup(GridContainer):
         label_scale = QtWidgets.QLabel('R/O electronics scale I_FS:')
         label_scale.setToolTip("Current corresponding to 5V full-scale voltage")
         combo_scale = QtWidgets.QComboBox()
-        combo_scale.addItems(_ro_scales.keys())
+        combo_scale.addItems(list(_ro_scales.keys()))
         combo_scale.setCurrentIndex(1)
         checkbox_scale = QtWidgets.QCheckBox('Set scale per channel')  # Allow individual scales per channel
         checkbox_scale.stateChanged.connect(lambda state: combo_scale.setEnabled(not bool(state)))
@@ -840,7 +840,7 @@ class ADCSetup(GridContainer):
 
             # Channel RO scale combobox
             _cbx_scale = QtWidgets.QComboBox()
-            _cbx_scale.addItems(_ro_scales.keys())
+            _cbx_scale.addItems(list(_ro_scales.keys()))
             _cbx_scale.setToolTip('Select RO scale for each channel individually.')
             _cbx_scale.setCurrentIndex(combo_scale.currentIndex())
 

@@ -21,7 +21,7 @@ class DaqInfoWidget(QtWidgets.QWidget):
         self.setup = setup
 
         # Data related per server
-        self.servers = self.setup.keys()
+        self.servers = list(self.setup.keys())
         self.channels = {}
         self.ch_types = {}
         self.n_channels = {}

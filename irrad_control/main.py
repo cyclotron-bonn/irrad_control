@@ -227,7 +227,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Store loglevel of remote processes; subprocesses send log level and message separately
         self._remote_loglevel = 0
-        self._loglevel_names = [lvl for lvl in log_levels.keys() if isinstance(lvl, str)]
+        self._loglevel_names = [lvl for lvl in log_levels if isinstance(lvl, str)]
 
         # Set logging level
         logging.getLogger().setLevel(loglevel)
@@ -404,7 +404,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
 
         for tab in self.tab_order:
-            if tab in tmp_tw.keys():
+            if tab in tmp_tw:
 
                 # Remove old tab, insert updated tab at same index and set status
                 self.tabs.removeTab(self.tab_order.index(tab))

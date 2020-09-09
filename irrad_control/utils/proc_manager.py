@@ -253,7 +253,7 @@ class ProcessManager(object):
 
         for host in self.active_pids:
 
-            host_pids = self.check_process_status(hostname=host, pid=self.active_pids[host].keys())
+            host_pids = self.check_process_status(hostname=host, pid=list(self.active_pids[host].keys()))
 
             for pid in self.active_pids[host]:
 

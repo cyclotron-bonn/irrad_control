@@ -384,7 +384,7 @@ class IrradPlotWidget(pg.PlotWidget):
             logging.error('{} data not in graph. Current graphs: {}'.format(curve, ','.join(self.curves.keys())))
             return
 
-        _curves = [curve] if curve is not None else self.curves.keys()
+        _curves = [curve] if curve is not None else self.curves
 
         for _cu in _curves:
             if isinstance(self.curves[_cu], CrosshairItem):
@@ -737,7 +737,7 @@ class TemperatureDataPlot(ScrollingIrradDataPlot):
 
         self.temp_setup = temp_setup
 
-        super(TemperatureDataPlot, self).__init__(channels=temp_setup['devices']['temp'].values(), units={'right': 'C', 'left': 'C'},
+        super(TemperatureDataPlot, self).__init__(channels=list(temp_setup['devices']['temp'].values()), units={'right': 'C', 'left': 'C'},
                                                   name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                                   parent=parent)
 

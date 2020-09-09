@@ -117,7 +117,7 @@ class DAQProcess(Process):
             Whether the address is valid
         """
 
-        if not isinstance(addr, basestring):
+        if not isinstance(addr, str):
             logging.error("Address must be string")
             return False
 

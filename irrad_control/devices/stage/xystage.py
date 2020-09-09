@@ -203,11 +203,12 @@ class ZaberXYStage(object):
     def _check_unit(self, unit, target_units):
         """Checks whether *unit* is in *target_units*."""
 
+        _target_units = list(target_units.keys())
+
         # Check if unit is okay
-        if unit not in target_units.keys():
-            logging.warning("Unit of speed must be one of '{}'. Using {}!".format(', '.join(target_units.keys()),
-                                                                                  target_units.keys()[0]))
-            unit = target_units.keys()[0]
+        if unit not in _target_units:
+            logging.warning("Unit of speed must be one of '{}'. Using {}!".format(', '.join(_target_units), _target_units[0]))
+            unit = _target_units[0]
 
         return unit
 
