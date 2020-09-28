@@ -302,7 +302,7 @@ class IrradServer(DAQProcess):
         """Mandatory clean up - method"""
         try:
             del self.xy_stage
-        except NameError:
+        except AttributeError:
             pass
 
 
