@@ -654,7 +654,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
-        data_sub.setsockopt(zmq.SUBSCRIBE, '')
+        data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         data_timestamps = {}
         
@@ -692,7 +692,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
 
-        log_sub.setsockopt(zmq.SUBSCRIBE, '')
+        log_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         logging.info('Log receiver ready')
         
