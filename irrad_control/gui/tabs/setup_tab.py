@@ -794,7 +794,7 @@ class ADCSetup(GridContainer):
         label_sps = QtWidgets.QLabel('Sampling rate [sps]:')
         combo_srate = QtWidgets.QComboBox()
         combo_srate.addItems([str(drate) for drate in ads1256['drate'].values()])
-        combo_srate.setCurrentIndex(ads1256['drate'].values().index(100))
+        combo_srate.setCurrentIndex(list(ads1256['drate'].values()).index(100))
 
         # Add to layout
         self.add_widget(widget=[label_sps, combo_srate])
