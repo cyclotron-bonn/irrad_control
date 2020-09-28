@@ -81,7 +81,7 @@ class LoggingWidget(QtWidgets.QWidget):
     @staticmethod
     def _get_level_name(level):
 
-        # Check if the level we'rr changing to exists
+        # Check if the level we're changing to exists
         if level not in log_levels:
             raise KeyError("{} not a know logging level. Known levels are: {}".format(level, ', '.join([str(lvl) for lvl in log_levels])))
 
