@@ -701,6 +701,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if log:
                 log_dict = {}
 
+                # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+                # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+                # therefore this will work in Py2 and Py3
+                log = log.decode()
+
                 if log.upper() in self._loglevel_names:
                     log_dict['level'] = getattr(logging, log.upper(), None)
                 else:
