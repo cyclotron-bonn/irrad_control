@@ -5,9 +5,10 @@ Irrad_Control
 Introduction
 ============
 
-``irrad_control`` is a GUI-based control, data acquisition (DAQ) and visualization software for the proton irradiation site at the `Bonn isochronous cyclotron <https://www.zyklotron.hiskp.uni-bonn.de/zyklo_e/index.html>`_, located at the Helmholtz Institut für Strahlen- und Kernphysik (`HISKP <https://www.hiskp.uni-bonn.de/>`_), of Bonn University. It consists of software which runs on an on-site *Raspberry Pi* server controlling the setup and on the DAQ PC interpreting and visualizing data as well as controlling the server.
-
-.. image:: static/irrad_site.png
+``irrad_control`` is a *irradiation control*, *data acquisition* (DAQ) as well as *visualization* and analysis software for the proton irradiation site at the `Bonn isochronous cyclotron <https://www.zyklotron.hiskp.uni-bonn.de/zyklo_e/index.html>`_, located at the Helmholtz Institut für Strahlen- und Kernphysik (`HISKP <https://www.hiskp.uni-bonn.de/>`_), of Bonn University.
+It consists of few Python-scripts which are running on a host PC (GUI-based around `PyQt <https://riverbankcomputing.com/software/pyqt/intro>`_) and on-site *Raspberry Pi* server(s) interfacing irradiation-related hardware.
+Communication and DAQ is done via `pyZMQ <https://pyzmq.readthedocs.io/en/latest/>`_, all data is recorded and stored as binary data in `HDF5 <https://www.pytables.org/>`_.
+For more information on the irradiation site at Bonn University please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
 
 Installation
 ============
@@ -34,12 +35,13 @@ To finally install ``irrad_control`` on the DAQ PC run the setup script
 
    python setup.py develop
 
-Setup Control & DAQ
-===================
+Once you start the application the server(s) are set up automatically. To add servers, they need to be prepared as stated below and added in the setup tab of ``irrad_control``.
 
-The irradiation setup is controlled by a RaspberryPi 3 server which handles a XY-Stage as well as an extension
-`ADDA board <https://www.waveshare.com/wiki/High-Precision_AD/DA_Board>`_ which is used for beam current measurement.
-A ``ssh key`` of the host PC must be copied to the server Raspberry Pi. Create and copy a key via
+Setup Control
+=============
+
+The irradiation setup is controlled and monitored from one (or multiple) Raspberry Pi server(s). For this,
+``ssh key`` of the host PC must be copied to each server Raspberry Pi. Create and copy a key via
 
 .. code-block::
 
@@ -48,5 +50,14 @@ A ``ssh key`` of the host PC must be copied to the server Raspberry Pi. Create a
 
 where ``ip`` is the ip of the Raspberry Pi within the network. The server is then automatically set up on first use with ``irrad_control``.
 
-Data Visualization
-==================
+DAQ
+===
+
+During irradiations, the extracted beam current is measured continuously via a dedicated *s*econdary *e*lectron *m*onitor (SEM) and R/O electronics.
+A `ADDA board <https://www.waveshare.com/wiki/High-Precision_AD/DA_Board>`_ is used to digitize the beam current measurment with rates between 20 - 150 Hz.
+A 2D-motorstage is used to scan devices inside a cooling box through the beam. Scan parameters such as scan speed and start/end positions are logged for each stage axis movement.
+Furthermore, several NTCs are located inside the cooling box which is cooled via nitrogen gas. The NTCs are read out via the R/O electronics with ~ 1 Hz.
+For more information please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
+
+
+
