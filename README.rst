@@ -1,6 +1,6 @@
-==================================
-Irrad_Control
-==================================
+=============================
+Irrad_Control |travis-status|
+=============================
 
 Introduction
 ============
@@ -60,4 +60,6 @@ Furthermore, several NTCs are located inside the cooling box which is cooled via
 For more information please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
 
 
-
+.. |travis-status| image:: https://api.travis-ci.com/SiLab-Bonn/irrad_control.svg?branch=development
+    :target: https://travis-ci.com/SiLab-Bonn/irrad_control
+    :alt: Build status
