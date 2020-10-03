@@ -13,7 +13,7 @@ For more information on the irradiation site at Bonn University please visit the
 Installation
 ============
 
-You have to have Python 2/3 with the following packages installed:
+You have to have Python >= 2.7 with the following packages installed:
 
 - numpy
 - pyyaml
