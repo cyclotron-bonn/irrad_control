@@ -21,6 +21,7 @@ You have to have Python >= 2.7 with the following packages installed:
 - pytables
 - pyqt
 - `pyqtgraph <http://pyqtgraph.org/>`_
+- matplotlib
 - paramiko
 
 It's recommended to use a Python environment like `Miniconda <https://conda.io/miniconda.html>`_. After installation you can use Minicondas package manager ``conda`` to install the required packages

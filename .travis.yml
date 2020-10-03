@@ -19,7 +19,7 @@ install:
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - conda update --yes conda
-  - conda install --yes numpy pyyaml pyzmq pytables pyqt pyqtgraph paramiko nose 
+  - conda install --yes numpy pyyaml pyzmq pytables pyqt pyqtgraph matplotlib paramiko nose 
   - conda info -a
   - pip install --upgrade pip
   - pip install -r requirements.txt
