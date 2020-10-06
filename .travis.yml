@@ -27,5 +27,6 @@ install:
 
 script: nosetests
 
+# Needed to emulate Screen
 services:
   - xvfb

@@ -3,9 +3,9 @@ import logging
 import unittest
 import time
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 
-from irrad_control.gui.tabs.setup_tab import IrradSetupTab, IrradSetupWidget, ServerSetupWidget
+from irrad_control.gui.tabs import IrradSetupTab
 from irrad_control import network_config
 
 # Remove all IPs
@@ -17,44 +17,6 @@ network_config['server']['all']['8.8.8.8'] = 'Google1'
 network_config['server']['all']['8.8.4.4'] = 'Google2'
 network_config['server']['all']['8.8.4.123'] = 'ThisShouldNotBeAvailable'
 network_config['server']['default'] = '8.8.8.8'
-
-
-class TestIrradSetupTab(IrradSetupTab):
-
-    def __init__(self, parent=None):
-
-        # Layouts; split in half's
-        self.main_layout = QtWidgets.QHBoxLayout()
-
-        # Make two half's
-        self.left_widget = QtWidgets.QTabWidget()
-        self.left_widget.setLayout(QtWidgets.QVBoxLayout())
-        self.right_widget = QtWidgets.QTabWidget()
-        self.right_widget.setLayout(QtWidgets.QVBoxLayout())
-
-        # Splitters
-        self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Horizontal)
-        self.main_splitter.addWidget(self.left_widget)
-        self.main_splitter.addWidget(self.right_widget)
-        self.main_splitter.setChildrenCollapsible(False)
-
-        # Add splitters to main layout
-        self.main_layout.addWidget(self.main_splitter)
-
-        # Add main layout to widget layout and add ok button
-        self.setLayout(self.main_layout)
-
-        # Dict to store info for setup in
-        self.setup = {}
-        self.irrad_setup = IrradSetupWidget()
-        self.server_setup = ServerSetupWidget()
-
-        # State of setup tab
-        self.isSetup = False
-
-        # Setup te widgets for daq, session and connect
-        self._init_setup()
 
 
 class TestSetup(unittest.TestCase):
