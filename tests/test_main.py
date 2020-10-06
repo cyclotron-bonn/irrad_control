@@ -71,6 +71,7 @@ class TestMain(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s")
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestMain)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    pass
+    #logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s")
+    #suite = unittest.TestLoader().loadTestsFromTestCase(TestMain)
+    #unittest.TextTestRunner(verbosity=2).run(suite)
