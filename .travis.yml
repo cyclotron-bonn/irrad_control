@@ -26,3 +26,6 @@ install:
   - python setup.py develop
 
 script: nosetests
+
+services:
+  - xvfb
