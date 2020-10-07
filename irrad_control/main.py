@@ -227,7 +227,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Store loglevel of remote processes; subprocesses send log level and message separately
         self._remote_loglevel = 0
-        self._loglevel_names = [lvl for lvl in log_levels.keys() if isinstance(lvl, str)]
+        self._loglevel_names = [lvl for lvl in log_levels if isinstance(lvl, str)]
 
         # Set logging level
         logging.getLogger().setLevel(loglevel)
@@ -269,7 +269,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='master', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='py3', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -404,7 +404,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
 
         for tab in self.tab_order:
-            if tab in tmp_tw.keys():
+            if tab in tmp_tw:
 
                 # Remove old tab, insert updated tab at same index and set status
                 self.tabs.removeTab(self.tab_order.index(tab))
@@ -654,7 +654,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
-        data_sub.setsockopt(zmq.SUBSCRIBE, '')
+        data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         data_timestamps = {}
         
@@ -692,7 +692,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
 
-        log_sub.setsockopt(zmq.SUBSCRIBE, '')
+        log_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         logging.info('Log receiver ready')
         
@@ -700,6 +700,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
             log = log_sub.recv()
             if log:
                 log_dict = {}
+
+                # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+                # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+                # therefore this will work in Py2 and Py3
+                log = log.decode()
 
                 if log.upper() in self._loglevel_names:
                     log_dict['level'] = getattr(logging, log.upper(), None)

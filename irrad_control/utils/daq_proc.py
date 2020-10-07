@@ -117,7 +117,7 @@ class DAQProcess(Process):
             Whether the address is valid
         """
 
-        if not isinstance(addr, basestring):
+        if not isinstance(addr, str):
             logging.error("Address must be string")
             return False
 
@@ -453,7 +453,7 @@ class DAQProcess(Process):
 
         internal_data_sub = self.context.socket(zmq.SUB)
         internal_data_sub.bind(self._internal_sub_addr)
-        internal_data_sub.setsockopt(zmq.SUBSCRIBE, '')
+        internal_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
 
         while not self.stop_flags['send'].is_set():  # Send data out as fast as possible
 
@@ -505,7 +505,7 @@ class DAQProcess(Process):
                 external_data_sub.connect(stream)
 
             # Subscribe to all topics
-            external_data_sub.setsockopt(zmq.SUBSCRIBE, '')
+            external_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
 
             internal_data_pub = self.create_internal_data_pub()
 
