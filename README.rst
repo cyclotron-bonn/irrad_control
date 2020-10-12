@@ -28,7 +28,7 @@ It's recommended to use a Python environment like `Miniconda <https://conda.io/m
 
 .. code-block:: bash
 
-   conda install numpy pyyaml pytables pyqt pyzmq pyqtgraph paramiko
+   conda install numpy pyyaml pytables pyqt pyzmq pyqtgraph paramiko matplotlib
 
 To finally install ``irrad_control`` on the DAQ PC run the setup script
 
