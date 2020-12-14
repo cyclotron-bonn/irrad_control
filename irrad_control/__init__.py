@@ -22,6 +22,9 @@ with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:
 with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as _dc:
     daq_config = yaml.safe_load(_dc)
 
+with open(os.path.join(config_path, 'axis_config.yaml'), 'r') as _ac:
+    axis_config = yaml.safe_load(_dc)
+
 # Keep track of xy stage travel and known positions
 if not os.path.isfile(xy_stage_config_yaml):
     # Open xy stats template and safe a copy

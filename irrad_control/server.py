@@ -5,8 +5,11 @@ from irrad_control.utils.daq_proc import DAQProcess
 from irrad_control.devices.adc.ADS1256_definitions import *
 from irrad_control.devices.adc.ADS1256_drates import ads1256_drates
 from irrad_control.devices.adc.pipyadc import ADS1256
-from irrad_control.devices.stage.xystage import ZaberXYStage
+from irrad_control.devices.stage.zaber import ZaberMultiStage
+from irrad_control.devices.stage.base_axis import BaseAxisTracker
 from irrad_control.devices.temp.arduino_temp_sens import ArduinoTempSens
+from irrad_control import xy_stage_config, xy_stage_config_yaml
+from irrad_control.utils.dut_scan import DUTScan
 
 
 class IrradServer(DAQProcess):
@@ -170,10 +173,18 @@ class IrradServer(DAQProcess):
 
         try:
             # Init stage
-            self.xy_stage = ZaberXYStage(serial_port='/dev/ttyUSB0')  # TODO: pass port as arg in device setup
+            xy_config = xy_stage_config
+            xy_config['filename'] = xy_stage_config_yaml
 
-            # Setup zmq for the stage to publish data
-            self.xy_stage.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
+            self.xy_stage = ZaberMultiStage(n_axis=2, port='/dev/ttyUSB0', config=xy_config)  # TODO: pass port as arg in device setup
+            self.axis_tracker = BaseAxisTracker()
+            self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
+
+            for i, axis in enumerate(self.xy_stage.axis):
+                self.axis_tracker.track_axis(axis=axis, axis_id='ScanAxis{}'.format(i))
+
+            self.dut_scan = DUTScan(scan_stage=self.xy_stage)
+            self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
 
         except SerialException:
             logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB0"))
@@ -198,74 +209,60 @@ class IrradServer(DAQProcess):
         elif target == 'stage':
 
             if cmd == 'move_rel':
-                axis = data['axis']
-                if axis == 'x':
-                    self.xy_stage.move_relative(data['distance'], self.xy_stage.x_axis, unit=data['unit'])
-                elif axis == 'y':
-                    self.xy_stage.move_relative(data['distance'], self.xy_stage.y_axis, unit=data['unit'])
 
-                _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
+                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].move_rel(value=data['distance'], unit=data['unit'])
+
+                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'move_abs':
-                axis = data['axis']
-                if axis == 'x':
-                    self.xy_stage.move_absolute(data['distance'], self.xy_stage.x_axis, unit=data['unit'])
-                elif axis == 'y':
-                    _m_dist = self.xy_stage.steps_to_distance(int(300e-3 / self.xy_stage.microstep), unit=data['unit'])
-                    d = _m_dist - data['distance']
-                    self.xy_stage.move_absolute(d, self.xy_stage.y_axis, unit=data['unit'])
 
-                _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
+                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].move_abs(value=data['distance'], unit=data['unit'])
+
+                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_speed':
-                axis = data['axis']
-                if axis == 'x':
-                    self.xy_stage.set_speed(data['speed'], self.xy_stage.x_axis, unit=data['unit'])
-                elif axis == 'y':
-                    self.xy_stage.set_speed(data['speed'], self.xy_stage.y_axis, unit=data['unit'])
 
-                _data = [self.xy_stage.get_speed(a, unit='mm/s') for a in (self.xy_stage.x_axis, self.xy_stage.y_axis)]
+                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].set_speed(value=data['speed'], unit=data['unit'])
+
+                _data = [axis.get_speed(unit='mm/s') for axis in self.xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_range':
-                axis = data['axis']
-                if axis == 'x':
-                    self.xy_stage.set_range(data['range'], self.xy_stage.x_axis, unit=data['unit'])
-                elif axis == 'y':
-                    self.xy_stage.set_range(data['range'], self.xy_stage.y_axis, unit=data['unit'])
 
-                _data = [self.xy_stage.get_range(self.xy_stage.x_axis, unit='mm'), self.xy_stage.get_range(self.xy_stage.y_axis, unit='mm')]
+                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].set_range(value=data['range'], unit=data['unit'])
+
+                _data = [axis.get_range(unit='mm') for axis in self.xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'prepare':
-                self.xy_stage.prepare_scan(server=self.server, **data)
-                _data = {'n_rows': self.xy_stage.scan_params['n_rows'], 'rows': self.xy_stage.scan_params['rows']}
+                self.dut_scan.setup_scan(**data)
+                _data = {'n_rows': self.dut_scan.scan_config['n_rows'], 'rows': self.dut_scan.scan_config['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'scan':
-                self.xy_stage.scan_device()
+                self.dut_scan.scan_device()
 
             elif cmd == 'stop':
-                if not self.xy_stage.stop_scan.is_set():
-                    self.xy_stage.stop_scan.set()
+                if not self.dut_scan.event('stop'):
+                    self.dut_scan.event('stop', True)
 
             elif cmd == 'finish':
-                if not self.xy_stage.finish_scan.is_set():
-                    self.xy_stage.finish_scan.set()
+                if not self.dut_scan.event('finish'):
+                    self.dut_scan.event('finish', True)
 
             elif cmd == 'pos':
-                _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
+                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'get_pos':
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.xy_stage.config['positions'])
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.xy_stage.config[0]['positions'])  #FIXME!!!
 
             elif cmd == 'add_pos':
                 self.xy_stage.add_position(**data)
@@ -277,25 +274,25 @@ class IrradServer(DAQProcess):
                 self.xy_stage.move_to_position(**data)
 
             elif cmd == 'get_speed':
-                speed = [self.xy_stage.get_speed(a, unit='mm/s') for a in (self.xy_stage.x_axis, self.xy_stage.y_axis)]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=speed)
+                _data = [axis.get_speed(unit='mm/s') for axis in self.xy_stage.axis]
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'get_range':
-                _range = [self.xy_stage.get_range(self.xy_stage.x_axis, unit='mm'), self.xy_stage.get_range(self.xy_stage.y_axis, unit='mm')]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_range)
+                _data = [axis.get_range(unit='mm') for axis in self.xy_stage.axis]
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'home':
                 self.xy_stage.home_stage()
-                _data = [self.xy_stage.steps_to_distance(pos, unit='mm') for pos in self.xy_stage.position]
+                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'no_beam':
                 if data:
-                    if not self.xy_stage.pause_scan.is_set():
-                        self.xy_stage.pause_scan.set()
+                    if not self.dut_scan.event('no_beam'):
+                        self.dut_scan.event('no_beam', True)
                 else:
-                    if self.xy_stage.pause_scan.is_set():
-                        self.xy_stage.pause_scan.clear()
+                    if not self.dut_scan.event('no_beam'):
+                        self.dut_scan.event('no_beam', False)
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
 
     def clean_up(self):
