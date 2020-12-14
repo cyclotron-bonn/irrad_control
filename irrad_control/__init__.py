@@ -23,7 +23,7 @@ with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as _dc:
     daq_config = yaml.safe_load(_dc)
 
 with open(os.path.join(config_path, 'axis_config.yaml'), 'r') as _ac:
-    axis_config = yaml.safe_load(_dc)
+    axis_config = yaml.safe_load(_ac)
 
 # Keep track of xy stage travel and known positions
 if not os.path.isfile(xy_stage_config_yaml):
