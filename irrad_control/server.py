@@ -181,7 +181,7 @@ class IrradServer(DAQProcess):
             self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
 
             for i, axis in enumerate(self.xy_stage.axis):
-                self.axis_tracker.track_axis(axis=axis, axis_id='ScanAxis{}'.format(i))
+                self.axis_tracker.track_axis(axis=axis, axis_id=i)
 
             self.dut_scan = DUTScan(scan_stage=self.xy_stage)
             self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)

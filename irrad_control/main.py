@@ -494,6 +494,24 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
 
+        elif data['meta']['type'] == 'axis':
+
+            if data['data']['status'] in ('move_start', 'move_stop'):  # Stage started / stopped movement
+
+                new_pos = self.control_tab.stage_attributes['position'][:]
+                new_pos[data['data']['axis']] = data['data']['pos'] * 1e3
+                self.control_tab.update_info(position=new_pos, unit='mm')
+
+                if data['data']['status'] == 'move_start':
+                    for entry in ('accel', 'range', 'speed'):
+                        new_entry = self.control_tab.stage_attributes[entry][:]
+                        # Units in Si: meter to millimeter
+                        if entry == 'range':
+                            new_entry[data['data']['axis']] = [d*1e3 for d in data['data'][entry]]
+                        else:
+                            new_entry[data['data']['axis']] = data['data'][entry] * 1e3
+                        self.control_tab.update_info(**{entry: new_entry, 'unit': 'mm' if entry == 'range' else 'mm/s' if entry == 'speed' else 'mm/s2'})
+
         elif data['meta']['type'] == 'temp':
 
             self.monitor_tab.plots[server]['temp_plot'].set_data(data)
