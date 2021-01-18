@@ -322,7 +322,7 @@ class ZaberStepAxis(BaseAxis):
 class ZaberMultiStage(object):
     """Implements a multi-axis Zaber motorstage"""
 
-    def __init__(self, n_axis, port='/dev/ttyUSB0', config=None):
+    def __init__(self, n_axis, port='/dev/ttyUSB0', config=None, invert_axis=None):
 
         # Holding the axis objects
         self.axis = []
@@ -335,6 +335,10 @@ class ZaberMultiStage(object):
         # Initialize axes
         for a in range(n_axis):
             self.axis.append(ZaberStepAxis(port=serial, addr=a+1, config=None if config is None else self.config[a]))
+
+        if invert_axis:
+            for axis in invert_axis:
+                self.axis[axis].invert_axis()
 
     def home_stage(self):
         """Send all axis to their lower limit"""
