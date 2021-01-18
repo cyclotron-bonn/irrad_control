@@ -1,29 +1,16 @@
-#!/usr/bin/python3
 
-# Example for serial communication to iseg HV devices
-# Needs Python 3 and python3-serial
-
-import os
-import serial
-import sys
-
-
-
-class HV:
-
-    v_lim = 50
+    delay = 0
+    
+    baudrate = 9600
+    bytesize = serial.EIGHTBITS
+    parity = serial.PARITY_NONE
+    stopbits = serial.STOPBITS_ONE
+    timeout = 0.5
 
     def __init__(self, port=None):
 
         self.port = port
-        self.baudrate = 9600
-        self.bytesize = serial.EIGHTBITS
-        self.parity = serial.PARITY_NONE
-        self.stopbits = serial.STOPBITS_ONE
-        self.timeout = 0.5
 
-    # open serial port
-    def open(self):
         try:
             self.ser = serial.Serial(port = self.port,
                                      baudrate = self.baudrate,
@@ -35,78 +22,78 @@ class HV:
         except:
             raise ValueError("Serial port is already claimed or can not be found!")
 
+    
+
     # close serial port
     def close(self):
         self.ser.close()
+
+    def __del__(self):
+        self.close()
 
     # write command character-wise to device
     def write(self, command):
         for c in command + "\r\n":
             self.ser.write(bytes(c, "utf-8"))
             echo = self.ser.read(1)
+
     # read answer from device
     def read(self):
         return self.ser.readline().decode("utf-8").replace("\r\n", "")
 
     # set voltage
-    def setvoltage(self):
-        #i = HV(sys.argv[1])
-        voltage = input('Set voltage: ')
-        v_1 = int(voltage)
-        if v_1 >= self.v_lim:
-          print("your voltage is to high.")
-          self.setvoltage()
+    def set_voltage(self, voltage):
+        if voltage >= self.v_lim:
+            self.close()
+            #print("your voltage is to high.")
         else:
           self.write('D1=' + voltage)
           answer = self.read()
-          print(answer)
+          #print(answer)
           Y ='G1'
         self.write(Y)
         answer = self.read()
-        print(answer)
+        return answer
+
     def HV_on(self):
         on = '5'
         self.write('D1=' + on)
-        print('D1=' + on)
         answer = self.read()
-        print(answer)
         Y ='G1'
         self.write(Y)
         answer = self.read()
-        print(answer)
 
     def HV_off(self):
         off = '0'
         self.write('D1=' + off)
         answer = self.read()
-        print(answer)
         Y ='G1'
         self.write(Y)
         answer = self.read()
-        print(answer)
 
     #set dely time
-    def setdelay(self):
-        delay = input('Set delay: ')
-        self.write('D1=' + delay)
+    def set_delay(self, delay):
+        #sollte eher W=*** sein
+        self.write('W=' + delay)
         answer = self.read()
-        print(answer)
+
     #get delay time
-    def getdelay(self):
+    def get_delay(self, answer):
         X = 'W'
         self.write(X)
         answer = self.read()
         print(answer)
+        return answer
 
     # get voltage
-    def getvoltage(self):
+    def get_voltage(self, answer):
         Z = 'U1'
         self.write(Z)
         answer = self.read()
-        print(answer)
+        return answer
 
     # test function
-    def test(self):
+    def interactive_mode(self):
         while True:
             command = input("Enter command (q for quit): ")
 
@@ -122,12 +109,12 @@ class HV:
 def main():
 
     i = HV(sys.argv[1])
-    i.open()
-    i.setvoltage()
     #i.HV_on()
-    i.getvoltage()
-    #i.setdelay()
-    #i.getdelay()
+    #i.HV_off()
+    #i.set_voltage('20')
+    #i.get_voltage('answer')
+    #i.set_delay('10')
+    i.get_delay('answer')
     i.close()
     return 0
 
