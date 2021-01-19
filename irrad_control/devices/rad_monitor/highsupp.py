@@ -1,4 +1,6 @@
+import serial
 
+class HighSupp(object):
     delay = 0
     
     baudrate = 9600
@@ -21,8 +23,6 @@
 
         except:
             raise ValueError("Serial port is already claimed or can not be found!")
-
-    
 
     # close serial port
     def close(self):
