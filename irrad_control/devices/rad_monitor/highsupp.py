@@ -81,6 +81,7 @@ class HighSupp(object):
 
         self.write(cmd)
         reply = self.read()
+        # I still have to check the argument of reply
         if reply == 'OK':
             return reply
         else:
@@ -107,26 +108,13 @@ class HighSupp(object):
             else:
                 raise ValueError('Writing to power supply was not successful.')
 
+    #Turns the voltage to 5V
     def HV_on(self):
         self.set_voltage(5)
-        #on = '5'
-        #answer = self.write_and_check('D1=' + on)
-        # self.write('D1=' + on)
-        # answer = self.read()
-        # answer = self.write_and_check(self.cmds['confirm_cmd'])
-        # Y ='G1'
-        # self.write(Y)
-        # answer = self.read()
 
+    # Turns the voltage to zero
     def HV_off(self):
-        off = '0'
-        self.write_and_check('D1=' + off)
-        # self.write('D1=' + off)
-        # answer = self.read()
-        Y ='G1'
-        answer = self.write_and_check(self.cmds['confirm_cmd'])
-        #self.write(Y)
-        #answer = self.read()
+        self.set_voltage(0)
 
     #set dely time
     def set_delay(self, delay):
