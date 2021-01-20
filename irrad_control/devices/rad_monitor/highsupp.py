@@ -118,9 +118,8 @@ class HighSupp(object):
 
     #set dely time
     def set_delay(self, delay):
-        #sollte eher W=*** sein
-        self.write('W=' + delay)
-        answer = self.read()
+        self.write_and_check(self.cmds['set_delay'] + delay)
+
 
     #get delay time
     def get_delay(self, answer):
@@ -130,17 +129,18 @@ class HighSupp(object):
         float:
             value of current delay
         """
-        X = 'W'
-        self.write(X)
-        answer = self.read()  # answer is always a str
-        print(answer)
+        answer = self.write_and_check(self.cmds['set_delay'])  # answer is always a str
         return float(answer)  # But time is a number
 
     # get voltage
     def get_voltage(self, answer):
-        Z = 'U1'
-        self.write(Z)
-        answer = self.read()
+        """
+        Returns
+        -------
+        float:
+        value of current delay
+        """
+        answer = self.write_and_check(self.cmds['get_voltage'])
         return float(answer)
 
     def increase_voltage(self, voltage):
