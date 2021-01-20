@@ -1,5 +1,10 @@
-import serial
+"""
+This Python Class includes all functions to control the RS-232
+"""
 
+import os
+import serial
+import sys
 
 class HighSupp(object):
 
