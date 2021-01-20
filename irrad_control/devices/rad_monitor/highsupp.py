@@ -20,7 +20,7 @@ class HighSupp(object):
     v_lim = 50
 
     """
-    Every voltage change has to be set and then confirmed
+    Every voltage change has to be confirmed
     """
 
     # Command references from protocol
@@ -77,8 +77,8 @@ class HighSupp(object):
     def read(self):
         return self.ser.readline().decode("utf-8").replace("\r\n", "")
 
+    # enters the command and checks it
     def write_and_check(self, cmd):
-
         self.write(cmd)
         reply = self.read()
         # I still have to check the argument of reply
@@ -148,7 +148,7 @@ class HighSupp(object):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError()
 
-    # test function
+    # test function not necessary anymore
     def interactive_mode(self):
         while True:
             command = input("Enter command (q for quit): ")
@@ -159,7 +159,6 @@ class HighSupp(object):
             self.write(command)
             answer = self.read()
             print(answer, 'here')
-
         return True
 
 def main():
