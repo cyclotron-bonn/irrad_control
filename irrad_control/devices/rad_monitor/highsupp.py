@@ -63,7 +63,9 @@ class HighSupp(object):
     # close serial port
     def close(self):
         if self.shutdown_on_close:
-            if self.get_voltage() != 0:
+            # Question: DO I need necessary to code like this. And is the self in the brackets necessary?
+            voltage = self.get_voltage(self)
+            if voltage != 0:
                 self.set_voltage(0)
         self.ser.close()
 
@@ -143,10 +145,10 @@ class HighSupp(object):
         answer = self.write_and_check(self.cmds['get_voltage'])
         return float(answer)
 
+    # Do we really need this fuction? ANd what should the function do?
     def increase_voltage(self, voltage):
-
-        if voltage + self.get_voltage() > self.v_lim:
-            raise ValueError()
+        if voltage + self.get_voltage(self) > self.v_lim:
+            raise ValueError('Voltage is to high')
 
     # test function not necessary anymore
     def interactive_mode(self):
@@ -167,9 +169,7 @@ def main():
     i.HV_on()
     #i.HV_off()
     i.set_voltage(20)
-    #i.get_voltage('answer')
-    #i.set_delay('10')
-    i.get_delay('answer')
+    i.get_delay()
     i.close()
     return 0
 
