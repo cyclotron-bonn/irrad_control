@@ -1,5 +1,5 @@
 """
-This Python Class includes all functions to control the RS-232
+This Python Class includes all functions to control the RS-232 Interface
 """
 
 import os
@@ -19,8 +19,13 @@ class HighSupp(object):
     # Max voltage of PSU
     v_lim = 50
 
+    """
+    Every voltage change has to be set and then confirmed
+    """
+
     # Command references from protocol
-    cmds = {'set_voltage': 'D1',
+    cmds = {'set_voltage': 'D1=',
+            'set_delay': 'W=',
             'get_voltage': 'U1',
             'confirm_cmd': 'G1'}
 
@@ -95,12 +100,11 @@ class HighSupp(object):
         if voltage > self.v_lim:
             raise ValueError('Voltage is too high! Max. voltage is {} V'.format(self.v_lim))
         else:
-            self.write('D1={}'.format(voltage))
-            answer = self.read()  # answer holds a value which tells you whether or not the write was successful
+            answer = self.write_and_check(self.cmds['set_voltage'] + self.voltage)
+            # answer holds a value which tells you whether or not the write was successful
+            # I still have to check the argument of answer
             if answer == 'OK':
-                Y = 'G1'
-                self.write(Y)
-                answer = self.read()
+                answer = self.write_and_check(self.cmds['confirm_cmd'])
                 return answer
             else:
                 raise ValueError('Writing to power supply was not successful.')
