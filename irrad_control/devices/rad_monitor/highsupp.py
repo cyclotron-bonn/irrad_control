@@ -81,12 +81,10 @@ class HighSupp(object):
 
         self.write(cmd)
         reply = self.read()
-
-        # TODO: check that the reply is ok
-        # if reply == ...
-        # elif reply == fail
-
-        return reply
+        if reply == 'OK':
+            return reply
+        else:
+            raise ValueError('Your Input was wrong')
 
     # set voltage
     def set_voltage(self, voltage):
