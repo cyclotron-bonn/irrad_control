@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
-from irrad_control.devices.adc import ads1256
+from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from collections import OrderedDict
 

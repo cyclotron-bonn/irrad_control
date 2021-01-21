@@ -5,7 +5,7 @@ import logging
 import subprocess
 from PyQt5 import QtWidgets, QtCore
 from irrad_control import network_config, daq_config, config_path
-from irrad_control.devices.adc import ads1256
+from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea

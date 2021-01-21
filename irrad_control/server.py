@@ -2,9 +2,9 @@ import logging
 from time import time
 from serial import SerialException
 from irrad_control.utils.daq_proc import DAQProcess
-from irrad_control.devices.adc.ADS1256_definitions import *
-from irrad_control.devices.adc.ADS1256_drates import ads1256_drates
-from irrad_control.devices.adc.pipyadc import ADS1256
+from irrad_control.devices.ic.ADS1256.ADS1256_definitions import *
+from irrad_control.devices.ic.ADS1256.ADS1256_drates import ads1256_drates
+from irrad_control.devices.ic.ADS1256.pipyadc import ADS1256
 from irrad_control.devices.stage.xystage import ZaberXYStage
 from irrad_control.devices.temp.arduino_temp_sens import ArduinoTempSens
 
