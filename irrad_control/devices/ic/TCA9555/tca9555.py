@@ -28,26 +28,30 @@ class TCA9555(object):
         if self.device_id == -1:
             raise IOError("Failed to establish connection on I2C-bus address {}".format(hex(self.address)))
 
-        self.state = self.get_io_state()
-
         if config:
             pass  # TODO
-        else:
-            self.config = self.get_config(None)
 
-    def write_reg(self, reg, data):
+    def _write_reg(self, reg, data):
         return wp.wiringPiI2CWriteReg8(self.device_id, reg, data)
 
-    def read_reg(self, reg):
+    def _read_reg(self, reg):
         return wp.wiringPiI2CReadReg8(self.device_id, reg)
 
-    def get_io_state(self):
-
+    @property
+    def io_state(self):
         return self.get_state('input')
 
-    def set_io_state(self, state):
-
+    @io_state.setter
+    def io_state(self, state):
         self.set_state('output', state)
+
+    @property
+    def config(self):
+        return {reg: self.get_state(reg) for reg in self.regs}
+
+    @config.setter
+    def config(self, config):
+        pass
 
     def set_state(self, reg, state):
 
@@ -66,12 +70,14 @@ class TCA9555(object):
         if len(state) != self.n_gpio:
             raise ValueError('State must be 2 Bytes')
 
+        reg_config = self.get_state(reg=reg)
+
         # Read values of the two ports input state
         for i, reg_ in enumerate(self.regs[reg]):
             port_state = state[i*8:(i+1)*8]
-            if self.config[reg][i*8:(i+1)*8] != port_state:
+            if reg_config[i*8:(i+1)*8] != port_state:
                 port_state.reverse()  # Match bit order with physical pin order, increasing left to right
-                self.write_reg(reg=reg_, data=port_state.uint)
+                self._write_reg(reg=reg_, data=port_state.uint)
 
     def get_state(self, reg):
 
@@ -82,7 +88,7 @@ class TCA9555(object):
 
         # Read values of the two ports input state
         for i, reg_ in enumerate(self.regs[reg]):
-            port_state = bs.BitArray('uint:8={}'.format(self.read_reg(reg=reg_)))
+            port_state = bs.BitArray('uint:8={}'.format(self._read_reg(reg=reg_)))
             port_state.reverse()  # Match bit order with physical pin order, increasing left to right
             state[i*8:(i+1)*8] = port_state
 
@@ -107,7 +113,7 @@ class TCA9555(object):
 
     def set_bits_to_int(self, bits, val):
 
-        state = self.get_io_state()
+        state = self.io_state
 
         val_bits = bs.BitArray('uint:{}={}'.format(len(bits), val))
         val_bits.reverse()
@@ -115,16 +121,16 @@ class TCA9555(object):
         for i, bit in enumerate(bits):
             state[bit] = val_bits[i]
 
-        self.set_io_state(state)
+        self.io_state = state
 
     def get_int_from_bits(self, bits):
 
-        state = self.get_io_state()
+        state = self.io_state
 
         val_bits = bs.BitArray([state[bit] for bit in bits])
+        val_bits.reverse()
 
         return val_bits.uint
 
-    def get_config(self, representation='bin'):
-        get_repr = lambda reg: getattr(self.get_state(reg), representation)
-        return {reg: self.get_state(reg) if representation is None else get_repr(reg) for reg in self.regs}
+    def format_config(self, format_='bin'):
+        return {reg: getattr(state, format_) for reg, state in self.config.items()}
