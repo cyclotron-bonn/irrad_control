@@ -124,7 +124,7 @@ class HighSupp(object):
 
 
     #get delay time
-    def get_delay(self, answer):
+    def get_delay(self):
         """
         Returns
         -------
@@ -135,7 +135,7 @@ class HighSupp(object):
         return float(answer)  # But time is a number
 
     # get voltage
-    def get_voltage(self, answer):
+    def get_voltage(self):
         """
         Returns
         -------
