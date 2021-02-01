@@ -33,7 +33,7 @@ class HighSupp(object):
     replies = {'success': 'OK',
                'fail': '????'}
 
-    def __init__(self, port, shutdown_on_close=True):
+    def __init__(self, port, shutdown_on_close=True, hv=30):
         """
         The init initializes a serial communication with the power supply
 
@@ -42,7 +42,7 @@ class HighSupp(object):
         port: str
             Device path under which the serial communication is opened (e.g /dev/ttyUSB0)
         """
-
+        self.hv = hv
         self.port = port
         self.shutdown_on_close = shutdown_on_close
 
@@ -112,7 +112,7 @@ class HighSupp(object):
 
     #Turns the voltage to 5V
     def HV_on(self):
-        self.set_voltage(5)
+        self.set_voltage(hv)
 
     # Turns the voltage to zero
     def HV_off(self):
