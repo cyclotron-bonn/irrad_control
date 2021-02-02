@@ -42,7 +42,9 @@ class HighSupp(object):
         port: str
             Device path under which the serial communication is opened (e.g /dev/ttyUSB0)
         """
+        # hv is equal to the main working voltage and can be changed in the brackets of the __init__ function
         self.hv = hv
+        # The Port on the Pi is /dev/tty/USB0
         self.port = port
         self.shutdown_on_close = shutdown_on_close
 
@@ -110,9 +112,9 @@ class HighSupp(object):
             else:
                 raise ValueError('Writing to power supply was not successful.')
 
-    #Turns the voltage to 5V
+    #Turns the voltage to hv
     def HV_on(self):
-        self.set_voltage(hv)
+        self.set_voltage(self.hv)
 
     # Turns the voltage to zero
     def HV_off(self):
