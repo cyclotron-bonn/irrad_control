@@ -154,6 +154,8 @@ class HighSupp(object):
     def increase_voltage(self, voltage):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
+        else:
+            return float(voltage + self.get_voltage())
 
     # test function not necessary anymore
     def interactive_mode(self):
