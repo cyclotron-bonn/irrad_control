@@ -152,7 +152,7 @@ class HighSupp(object):
 
     # Do we really need this fuction? ANd what should the function do?
     def increase_voltage(self, voltage):
-        if voltage + self.get_voltage(self) > self.v_lim:
+        if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
 
     # test function not necessary anymore
