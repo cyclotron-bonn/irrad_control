@@ -69,6 +69,7 @@ class HighSupp(object):
     # close serial port
     def close(self):
         if self.shutdown_on_close:
+            #We enter the if-loop if self.shutdown_on_close == True
             voltage = self.get_voltage()
             if voltage != 0:
                 self.set_voltage(0)
