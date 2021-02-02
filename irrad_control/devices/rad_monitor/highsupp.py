@@ -44,6 +44,10 @@ class HighSupp(object):
         """
         # hv is equal to the main working voltage and can be changed in the brackets of the __init__ function
         self.hv = hv
+
+        if self.hv > self.v_lim:
+            raise ValueError("Voltage is higher then the maximum voltage. From now on the current voltage is the maximum voltage")
+            self.hv = self.v_lim
         # The Port on the Pi is /dev/tty/USB0
         self.port = port
         self.shutdown_on_close = shutdown_on_close
@@ -65,8 +69,7 @@ class HighSupp(object):
     # close serial port
     def close(self):
         if self.shutdown_on_close:
-            # Question: DO I need necessary to code like this. And is the self in the brackets necessary?
-            voltage = self.get_voltage(self)
+            voltage = self.get_voltage()
             if voltage != 0:
                 self.set_voltage(0)
         self.ser.close()
