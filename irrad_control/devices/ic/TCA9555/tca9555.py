@@ -3,6 +3,22 @@ import bitstring as bs
 from collections import Iterable
 
 
+def _check_register(func):
+
+    def wrapper(instance, **kwargs):
+
+        if kwargs['reg'] not in instance.regs:
+            # Construct error message
+            err_msg = 'write to' if 'set' in func.__name__ else 'read from'
+            err_msg = 'Cannot {} register {}, it does not exist.'.format(err_msg, kwargs['reg'])
+            err_msg = '{}. Available registers: {}'.format(err_msg, ', '.join(instance.regs.keys()))
+
+            raise ValueError(err_msg)
+
+        # Call function
+        func(instance, **kwargs)
+
+
 class TCA9555(object):
     """
     This class implements an interface to the 16-bit IO expander using the I2C-interface of a Raspberry Pi
@@ -135,59 +151,85 @@ class TCA9555(object):
         """
         return wp.wiringPiI2CReadReg8(self.device_id, reg)
 
-    def set_state(self, reg, state):
+    def _create_state(self, state, bit_length):
+        """
+        Method to create a BitArray which represents the desired *state* of *bit_length* bits
+
+        Parameters
+        ----------
+        state: BitArray, int, str, Iterable
+            state from which to create a BitArray
+        bit_length: int
+            length of the state
+        """
+        if isinstance(state, bs.BitArray):
+            pass
+
+        elif isinstance(state, int):
+            state = bs.BitArray('uint:{}={}'.format(bit_length, state))
+
+        elif isinstance(state, Iterable):
+            state = bs.BitArray(state)
+
+        else:
+            raise ValueError('State must be integer, string or BitArray representing {} bits'.format(bit_length))
+
+        if len(state) != bit_length:
+            raise ValueError('State must be {}} bits'.format(bit_length))
+
+        return state
+
+    def _check_register(self, reg):
 
         if reg not in self.regs:
             raise ValueError('Register {} does not exist. Available registers: {}'.format(reg, ', '.join(self.regs.keys())))
 
-        if isinstance(state, bs.BitArray):
-            pass
-        elif isinstance(state, int):
-            state = bs.BitArray('uint:{}={}'.format(self._n_io_bits, state))
-        elif isinstance(state, Iterable):
-            state = bs.BitArray(state)
-        else:
-            raise ValueError('State must be integer, string or BitArray representing 2 Bytes')
+    def set_state(self, reg, state):
 
-        if len(state) != self._n_io_bits:
-            raise ValueError('State must be 2 Bytes')
+        # Create empty target register state
+        target_reg_state = self._create_state(state, self._n_io_bits)
 
-        reg_config = self.get_state(reg=reg)
+        for port in range(self._n_ports):
 
-        # Read values of the two ports input state
-        for i, reg_ in enumerate(self.regs[reg]):
-            port_state = state[i*self._n_bits_per_port:(i+1)*self._n_bits_per_port]
-            if reg_config[i*self._n_bits_per_port:(i+1)*self._n_bits_per_port] != port_state:
-                port_state.reverse()  # Match bit order with physical pin order, increasing left to right
-                self._write_reg(reg=reg_, data=port_state.uint)
+            # Compare individual current port states with target port states
+            target_port_state = target_reg_state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port]
+
+            if target_port_state != self.get_port_state(reg=reg, port=port):
+                self.set_port_state(reg=reg, port=port, state=target_port_state)
 
     def get_state(self, reg):
 
-        if reg not in self.regs:
-            raise ValueError('Register {} does not exist. Available registers: {}'.format(reg, ', '.join(self.regs.keys())))
+        state = self._create_state(self._n_io_bits, self._n_io_bits)
 
-        state = bs.BitArray(self._n_io_bits)
-
-        # Read values of the two ports input state
-        for i, reg_ in enumerate(self.regs[reg]):
-            port_state = bs.BitArray('uint:{}={}'.format(self._n_bits_per_port, self._read_reg(reg=reg_)))
-            port_state.reverse()  # Match bit order with physical pin order, increasing left to right
-            state[i*self._n_bits_per_port:(i+1)*self._n_bits_per_port] = port_state
+        for port in range(self._n_ports):
+            current_port_state = self.get_port_state(reg=reg, port=port)
+            state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port] = current_port_state
 
         return state
 
     def get_port_state(self, reg, port):
 
-        if reg not in self.regs:
-            raise ValueError('Register {} does not exist. Available registers: {}'.format(reg, ', '.join(self.regs.keys())))
+        # Check if register exists
+        self._check_register(reg)
 
-        port_state = bs.BitArray('uint:{}={}'.format(self._n_bits_per_port, self._read_reg(reg=self.regs[reg][port])))
+        # Read port state
+        port_state = self._create_state(state=self._read_reg(reg=self.regs[reg][port]), bit_length=self._n_bits_per_port)
+
+        # Match bit order with physical pin order, increasing left to right
         port_state.reverse()
 
         return port_state
 
     def set_port_state(self, reg, port, state):
-        pass
+
+        # Check if register exists
+        self._check_register(reg)
+
+        target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
+
+        target_state.reverse()
+
+        self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
 
     def set_output(self, pins=None):
 
@@ -206,7 +248,7 @@ class TCA9555(object):
             # Set all pins as outputs
             self.set_state('config', [1]*self._n_io_bits)
 
-    def set_bits_to_int(self, bits, val):
+    def int_to_bits(self, bits, val):
 
         state = self.io_state
 
@@ -218,7 +260,7 @@ class TCA9555(object):
 
         self.io_state = state
 
-    def get_int_from_bits(self, bits):
+    def int_from_bits(self, bits):
 
         state = self.io_state
 
