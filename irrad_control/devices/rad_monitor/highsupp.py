@@ -48,7 +48,6 @@ class HighSupp(object):
         if hv > self.v_lim:
             msg = "Target voltage of {} is higher then the allowed maximum voltage of {}. Setting voltage to the maximum voltage".format(hv, self.v_lim)
             logging.warning(msg)
-            # raise ValueError("Voltage is higher then the maximum voltage. From now on the current voltage is the maximum voltage")
             self.hv = self.v_lim
         else:
             # hv is equal to the main working voltage and can be changed in the brackets of the __init__ function
@@ -115,7 +114,6 @@ class HighSupp(object):
         else:
             answer = self.write_and_check(self.cmds['set_voltage'] + str(voltage))
             # answer holds a value which tells you whether or not the write was successful
-            # I still have to check the argument of answer
             if answer != self.fail_cmd:
                 answer = self.write_and_check(self.cmds['confirm_cmd'])
                 return answer
