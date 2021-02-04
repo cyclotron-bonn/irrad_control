@@ -5,6 +5,8 @@ This Python Class includes all functions to control the RS-232 Interface
 import os
 import serial
 import sys
+import logging
+
 
 class HighSupp(object):
 
@@ -30,10 +32,9 @@ class HighSupp(object):
             'confirm_cmd': 'G1'}
 
     # Reply reference from protocol
-    replies = {'success': 'OK',
-               'fail': '????'}
+    fail_cmd = '????'
 
-    def __init__(self, port, shutdown_on_close=True, hv=30):
+    def __init__(self, port='/dev/ttyUSB0', shutdown_on_close=True, hv=30):
         """
         The init initializes a serial communication with the power supply
 
@@ -42,13 +43,17 @@ class HighSupp(object):
         port: str
             Device path under which the serial communication is opened (e.g /dev/ttyUSB0)
         """
-        # hv is equal to the main working voltage and can be changed in the brackets of the __init__ function
-        self.hv = hv
 
-        if self.hv > self.v_lim:
-            raise ValueError("Voltage is higher then the maximum voltage. From now on the current voltage is the maximum voltage")
+        if hv > self.v_lim:
+            msg = "Target voltage of {} is higher then the allowed maximum voltage of. Setting voltage to the maximum voltage".format(hv, self.v_lim)
+            logging.warning(msg)
+            # raise ValueError("Voltage is higher then the maximum voltage. From now on the current voltage is the maximum voltage")
             self.hv = self.v_lim
-        # The Port on the Pi is /dev/tty/USB0
+        else:
+            # hv is equal to the main working voltage and can be changed in the brackets of the __init__ function
+            self.hv = hv
+        
+        # The Port on the Pi is /dev/ttyUSB0
         self.port = port
         self.shutdown_on_close = shutdown_on_close
 
@@ -90,7 +95,7 @@ class HighSupp(object):
         self.write(cmd)
         reply = self.read()
         # I still have to check the argument of reply
-        if reply == 'OK':
+        if reply != self.fail_cmd:
             return reply
         else:
             raise ValueError('Your Input was wrong')
@@ -107,10 +112,10 @@ class HighSupp(object):
         if voltage > self.v_lim:
             raise ValueError('Voltage is too high! Max. voltage is {} V'.format(self.v_lim))
         else:
-            answer = self.write_and_check(self.cmds['set_voltage'] + self.voltage)
+            answer = self.write_and_check(self.cmds['set_voltage'] + str(voltage))
             # answer holds a value which tells you whether or not the write was successful
             # I still have to check the argument of answer
-            if answer == 'OK':
+            if answer != self.fail_cmd:
                 answer = self.write_and_check(self.cmds['confirm_cmd'])
                 return answer
             else:
@@ -118,6 +123,7 @@ class HighSupp(object):
 
     #Turns the voltage to hv
     def HV_on(self):
+        logging.debug('Hello')
         self.set_voltage(self.hv)
 
     # Turns the voltage to zero
@@ -126,7 +132,7 @@ class HighSupp(object):
 
     #set dely time
     def set_delay(self, delay):
-        self.write_and_check(self.cmds['set_delay'] + delay)
+        self.write_and_check(self.cmds['set_delay'] + str(delay))
 
 
     #get delay time
@@ -138,7 +144,7 @@ class HighSupp(object):
             value of current delay
         """
         answer = self.write_and_check(self.cmds['set_delay'])  # answer is always a str
-        return float(answer)  # But time is a number
+        return answer#float(answer)  # But time is a number
 
     # get voltage
     def get_voltage(self):
@@ -168,14 +174,13 @@ class HighSupp(object):
 
             self.write(command)
             answer = self.read()
-            print(answer, 'here')
+            logging.info(answer)
         return True
 
 def main():
 
-    i = HV(sys.argv[1])
+    i = HighSupp()
     i.HV_on()
-    #i.HV_off()
     i.set_voltage(20)
     i.get_delay()
     i.close()
