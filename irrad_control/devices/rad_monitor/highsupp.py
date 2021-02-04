@@ -46,7 +46,7 @@ class HighSupp(object):
         """
 
         if hv > self.v_lim:
-            msg = "Target voltage of {} is higher then the allowed maximum voltage of. Setting voltage to the maximum voltage".format(hv, self.v_lim)
+            msg = "Target voltage of {} is higher then the allowed maximum voltage of {}. Setting voltage to the maximum voltage".format(hv, self.v_lim)
             logging.warning(msg)
             # raise ValueError("Voltage is higher then the maximum voltage. From now on the current voltage is the maximum voltage")
             self.hv = self.v_lim
