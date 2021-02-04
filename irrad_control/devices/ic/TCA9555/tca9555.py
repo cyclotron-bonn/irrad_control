@@ -3,22 +3,6 @@ import bitstring as bs
 from collections import Iterable
 
 
-def _check_register(func):
-
-    def wrapper(instance, **kwargs):
-
-        if kwargs['reg'] not in instance.regs:
-            # Construct error message
-            err_msg = 'write to' if 'set' in func.__name__ else 'read from'
-            err_msg = 'Cannot {} register {}, it does not exist.'.format(err_msg, kwargs['reg'])
-            err_msg = '{}. Available registers: {}'.format(err_msg, ', '.join(instance.regs.keys()))
-
-            raise ValueError(err_msg)
-
-        # Call function
-        func(instance, **kwargs)
-
-
 class TCA9555(object):
     """
     This class implements an interface to the 16-bit IO expander using the I2C-interface of a Raspberry Pi
@@ -28,13 +12,13 @@ class TCA9555(object):
     Port 0 covers the IO bits P[7:0], port 1 covers bits P[15:8] (P[17:10] in datasheet convention). The bit
     representation of the bit states hardware-wise is big-endian:
 
-        port state: 128 == 0b10000000 == bit 7 high, all others low
-        port state: 1 == 0b00000001 == bit 0 high, all others low
+        128 == 0b10000000 == bit 7 high, all others low
+          1 == 0b00000001 == bit 0 high, all others low
 
     The default of representing the bit states within this class is to order by actual bit indices
 
-        port state: '10000000' ==  bit 0 high, all others low
-        port state: '00000001' == bit 7 high, all others low
+        '10000000' ==  bit 0 high, all others low
+        '00000001' == bit 7 high, all others low
     """
 
     # Internal registers of (port_0, port_1)
@@ -180,37 +164,162 @@ class TCA9555(object):
         return state
 
     def _check_register(self, reg):
+        """
+        Checks if the register *reg* exists
+
+        Parameters
+        ----------
+        reg: str
+            String of register name whose existence is checked
+        """
 
         if reg not in self.regs:
             raise ValueError('Register {} does not exist. Available registers: {}'.format(reg, ', '.join(self.regs.keys())))
 
+    def _check_bits(self, bits, val=None):
+        """
+        Checks if the an operation on the IO bits is valid
+
+        Parameters
+        ----------
+        bits: int, Iterable of ints
+            Iterable of bits on which an operation is performed
+        val: int, None
+            If not None, *val* must be an integer with bit length <= number of bits e.g. len(*bits*)
+        """
+
+        bits = bits if isinstance(bits, Iterable) else [bits]
+
+        if any(not 0 <= b < self._n_io_bits for b in bits):
+            raise IndexError("{}'s {} bits are indexed from {} to {}".format(self.__class__.__name__, self._n_io_bits, 0, self._n_io_bits - 1))
+
+        if len(set(bits)) != len(bits):
+            raise IndexError('Duplicate bit indices! *bits* must be composed of unique bit indices')
+
+        if val:
+            if val.bit_length() > len(bits):
+                raise ValueError('Too little bits. Bit length of value {} is {}, the number of bits is {}'.format(val, val.bit_length(), len(bits)))
+
+        return bits
+
+    def _set_bits(self, reg, val=1, bits=None):
+        """
+        Get the current state of an individual port of the TCA9555
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        val: int, bool
+            Either 0 or 1
+        bits: Iterable, int
+            bits to set to *val*
+        """
+
+        if val not in (0, 1, True, False):
+            raise ValueError("'val' can only be 1 or 0")
+
+        if bits is not None:
+            # Check if bit indices and values are fine
+            bits = self._check_bits(bits=bits)
+
+            # Get current io configuration state
+            state = self.get_state(reg=reg)
+
+            # Loop over state and set bits
+            for bit in bits:
+                state[bit] = val
+
+            # Set state
+            self.set_state(reg, state)
+
+        else:
+            # Set all pins to *val*
+            self.set_state(reg, [val] * self._n_io_bits)
+
     def set_state(self, reg, state):
+        """
+        Set the *state* to the register *reg*
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be set
+        state: BitString, Iterable, str
+            Value from which a BitString-representation of *state* can be created
+        """
 
         # Create empty target register state
         target_reg_state = self._create_state(state, self._n_io_bits)
 
+        # loop over individual ports
         for port in range(self._n_ports):
 
             # Compare individual current port states with target port states
             target_port_state = target_reg_state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port]
 
+            # If target and current state differ, write
             if target_port_state != self.get_port_state(reg=reg, port=port):
                 self.set_port_state(reg=reg, port=port, state=target_port_state)
 
+    def set_port_state(self, reg, port, state):
+        """
+        Get the current state of an individual port of the TCA9555
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be set
+        port: int
+            Index of the port; either 0 or 1
+        state: BitString, Iterable, str, int
+            Value from which a BitString-representation of *state* can be created
+        """
+
+        # Check if register exists
+        self._check_register(reg)
+
+        if port not in (0, 1):
+            raise IndexError('*port* must be index of physical port; either 0 or 1')
+
+        target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
+
+        # Match bit order with physical pin order, increasing left to right
+        target_state.reverse()
+
+        self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
+
     def get_state(self, reg):
+        """
+        Get the *state* to the register *reg*
 
-        state = self._create_state(self._n_io_bits, self._n_io_bits)
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        """
 
-        for port in range(self._n_ports):
-            current_port_state = self.get_port_state(reg=reg, port=port)
-            state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port] = current_port_state
+        state = sum([self.get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
 
         return state
 
     def get_port_state(self, reg, port):
+        """
+        Get the current state of an individual port of the TCA9555
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        port: int
+            Index of the port; either 0 or 1
+        """
 
         # Check if register exists
         self._check_register(reg)
+
+        if port not in (0, 1):
+            raise IndexError('*port* must be index of physical port; either 0 or 1')
 
         # Read port state
         port_state = self._create_state(state=self._read_reg(reg=self.regs[reg][port]), bit_length=self._n_bits_per_port)
@@ -220,61 +329,127 @@ class TCA9555(object):
 
         return port_state
 
-    def set_port_state(self, reg, port, state):
-
-        # Check if register exists
-        self._check_register(reg)
-
-        target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
-
-        target_state.reverse()
-
-        self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
-
-    def set_output(self, pins=None):
-
-        if pins is not None:
-            # Get current io configuration state
-            state = self.get_state(reg='config')
-        else:
-            # Set all pins as outputs
-            self.set_state('config', [0]*self._n_io_bits)
-
-    def set_input(self, pins=None):
-        if pins is not None:
-            # Get current io configuration state
-            state = self.get_state(reg='config')
-        else:
-            # Set all pins as outputs
-            self.set_state('config', [1]*self._n_io_bits)
-
     def int_to_bits(self, bits, val):
+        """
+        Method to set *bits* to state that represents *val*
 
+        Parameters
+        ----------
+        bits: Iterable, int
+            bits which represent value *val*
+        val: int
+            Integer which should be represented though *bits* binary state
+        """
+
+        # Get the actual logic levels which are applied to the pins
         state = self.io_state
 
-        val_bits = bs.BitArray('uint:{}={}'.format(len(bits), val))
+        # Create state for set of bits
+        val_bits = self._create_state(state=val, bit_length=len(bits))
+
+        # Match bit order with physical pin order, increasing left to right
         val_bits.reverse()
 
+        # Update current io state
         for i, bit in enumerate(bits):
             state[bit] = val_bits[i]
 
+        # Set the updated state
         self.io_state = state
 
     def int_from_bits(self, bits):
+        """
+        Method to get binary value from a set of *bits*
 
+        Parameters
+        ----------
+        bits: Iterable, int
+            bits from which to read the integer
+        """
+
+        # Get the actual logic levels which are applied to the pins
         state = self.io_state
 
+        # Read the respective bit values
         val_bits = bs.BitArray([state[bit] for bit in bits])
+
+        # Match bit order with physical pin order, increasing left to right
         val_bits.reverse()
 
         return val_bits.uint
 
+    def set_direction(self, direction, bits=None):
+        """
+        Convenience-method to set direction of bits: input (1) or output (0)
+
+        Parameters
+        ----------
+        direction: int
+            1 for input, 0 for output
+        bits: Iterable, int, None
+            bits for which the direction will be set
+        """
+        self._set_bits(reg='config', val=int(bool(direction)), bits=bits)
+
+    def set_polarity(self, polarity, bits=None):
+        """
+        Convenience-method to set polarity of bits: active-high (0) or active-low (1)
+
+        Parameters
+        ----------
+        polarity: int
+            1 for inversion, 0 for default
+        bits: Iterable, int, None
+            bits for which the polarity will be set
+        """
+        self._set_bits(reg='polarity', val=int(bool(polarity)), bits=bits)
+
+    def set_level(self, level, bits=None):
+        """
+        Convenience-method to set logic-level of bits
+
+        Parameters
+        ----------
+        level: int
+            1 for logical high, 0 for logic 0
+        bits: Iterable, int, None
+            bits for which the level will be set
+        """
+        self._set_bits(reg='output', val=int(bool(level)), bits=bits)
+
     def format_config(self, format_='bin'):
+        """
+        Method returning a more readable version of self.config
+
+        Parameters
+        ----------
+        format_: str
+            Any attribute of BitArray-class
+        """
         return {reg: getattr(state, format_) for reg, state in self.config.items()}
 
-    def _check_bits(self, bits, val):
+    def set_bits(self, reg, bits=None):
+        """
+        Convenience-method to set bits of a certain register
 
-        if val.bit_length() > len(bits):
-            raise ValueError
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        bits: Iterable, int, None
+            bits of *reg* which will be set (to 1)
+        """
+        self._set_bits(reg=reg, val=1, bits=bits)
 
-        pass
+    def unset_bits(self, reg, bits=None):
+        """
+        Convenience-method to unset *bits* of a certain register *reg*
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        bits: Iterable, int, None
+            bits of *reg* which will be unset (to 0)
+        """
+        self._set_bits(reg=reg, val=0, bits=bits)
