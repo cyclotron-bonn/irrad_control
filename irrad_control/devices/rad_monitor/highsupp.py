@@ -93,10 +93,9 @@ class HighSupp(object):
     # enters the command and checks it
     def write_and_check(self, cmd):
         self.write(cmd)
-        reply = self.read()
-        # I still have to check the argument of reply
-        if reply != self.fail_cmd:
-            return reply
+        answer = self.read()
+        if answer != self.fail_cmd:
+            return answer
         else:
             raise ValueError('Your Input was wrong')
 
@@ -134,7 +133,7 @@ class HighSupp(object):
 
     #Turns the voltage to hv
     def HV_on(self):
-        logging.debug('Hello')
+       # logging.debug('Hello')
         self.set_voltage(self.hv)
 
     # Turns the voltage to zero
