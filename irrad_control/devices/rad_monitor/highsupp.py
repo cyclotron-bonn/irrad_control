@@ -100,6 +100,16 @@ class HighSupp(object):
         else:
             raise ValueError('Your Input was wrong')
 
+    def _set_property(self, prop, prop_str):
+        #Set the property in the HV supply
+        answer = self.write_and_check(self.cmds['confirm_cmd'])
+
+        if answer != self.fail_cmd:
+            answer = self.write_and_check(self.cmd['confirm_cmd'])
+            return answer
+        else:
+            raise ValueError('Cannot write {} with value {}.'.format(prop_str, prop))
+
     # set voltage
     def set_voltage(self, voltage):
         """
@@ -112,13 +122,15 @@ class HighSupp(object):
         if voltage > self.v_lim:
             raise ValueError('Voltage is too high! Max. voltage is {} V'.format(self.v_lim))
         else:
-            answer = self.write_and_check(self.cmds['set_voltage'] + str(voltage))
+            self._set_property(voltage, 'set_voltage()')
+
+         #   answer = self.write_and_check(self.cmds['set_voltage'] + str(voltage))
             # answer holds a value which tells you whether or not the write was successful
-            if answer != self.fail_cmd:
-                answer = self.write_and_check(self.cmds['confirm_cmd'])
-                return answer
-            else:
-                raise ValueError('Writing to power supply was not successful.')
+         #   if answer != self.fail_cmd:
+         #       answer = self.write_and_check(self.cmds['confirm_cmd'])
+         #       return answer
+         #   else:
+         #       raise ValueError('Writing to power supply was not successful.')
 
     #Turns the voltage to hv
     def HV_on(self):
