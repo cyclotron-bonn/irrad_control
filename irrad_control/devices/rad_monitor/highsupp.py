@@ -29,6 +29,7 @@ class HighSupp(object):
     cmds = {'set_voltage': 'D1=',
             'set_delay': 'W=',
             'get_voltage': 'U1',
+            'get_delay' : 'W',
             'confirm_cmd': 'G1'}
 
     # Reply reference from protocol
@@ -143,7 +144,7 @@ class HighSupp(object):
         float:
             value of current delay
         """
-        answer = self.write_and_check(self.cmds['set_delay'])  # answer is always a str
+        answer = self.write_and_check(self.cmds['get_delay'])  # answer is always a str
         return answer#float(answer)  # But time is a number
 
     # get voltage
