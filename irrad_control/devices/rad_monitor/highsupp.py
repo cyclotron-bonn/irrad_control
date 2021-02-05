@@ -166,12 +166,14 @@ class HighSupp(object):
         answer = self.write_and_check(self.cmds['get_voltage'])
         return float(answer)
 
-    # Do we really need this fuction? ANd what should the function do?
+    # increases the voltage by the entered voltage
     def increase_voltage(self, voltage):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
         else:
-            return float(voltage + self.get_voltage())
+            voltage = int(voltage) + int(self.get_voltage())
+            self.set_voltage(voltage)
+            #return float(voltage + self.get_voltage())
 
     # test function not necessary anymore
     def interactive_mode(self):
@@ -183,7 +185,8 @@ class HighSupp(object):
 
             self.write(command)
             answer = self.read()
-            logging.info(answer)
+            print(answer)
+            #logging.info(answer)
         return True
 
 def main():
