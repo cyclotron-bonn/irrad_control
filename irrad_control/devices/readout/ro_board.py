@@ -4,7 +4,7 @@ from ..ic.TCA9555.tca9555 import TCA9555
 
 class IrradDAQBoard(object):
 
-    def __init__(self, address=0x20, version='v0.1'):
+    def __init__(self, version='v0.1', address=0x20):
 
         # Check for version support
         if version not in ro_board_config:
@@ -34,42 +34,72 @@ class IrradDAQBoard(object):
 
     @property
     def temp_channel(self):
-        return self._intf.int_from_bits(bits=self.config['pins']['temp'])
+        if 'temp_ch' not in self.config:
+            self.config['temp_ch'] = self._intf.int_from_bits(bits=self.config['pins']['temp'])
+        return self.config['temp_ch']
 
     @temp_channel.setter
     def temp_channel(self, ch):
         self._intf.int_to_bits(bits=self.config['pins']['temp'], val=ch)
+        self.config['temp_ch'] = ch
 
-    @staticmethod
-    def _check_mux_group(self, check, group):
+    @property
+    def jumper_scale(self):
+        return self.config['jumper_scale']
 
-        if check not in group:
-            raise ValueError('Multiplexer group {} does not exist. Existing groups: {}'.format(check, ', '.join(group)))
+    @jumper_scale.setter
+    def jumper_scale(self, js):
+        if js not in (1, 10):
+            raise ValueError('The input jumper scales the full-scale current range (IFS) either by 1 or 10.')
+        self.config['jumper_scale'] = js
+
+    @property
+    def gpio_value(self):
+        return self._intf.int_from_bits(bits=self.config['pins']['gpio'])
+
+    @gpio_value.setter
+    def gpio_value(self, val):
+        self._intf.int_to_bits(bits=self.config['pins']['gpio'], val=val)
 
     def set_mux_value(self, group, val):
-
-        self._check_mux_group(check=group, group=self.config['mux_groups'])
 
         self._intf.int_to_bits(self.config['pins'][group], val=val)
 
     def get_mux_value(self, group):
 
-        self._check_mux_group(check=group, group=self.config['mux_groups'])
-
         return self._intf.int_from_bits(bits=self.config['pins'][group])
 
     def set_ifs(self, group, ifs):
 
-        self._check_mux_group(check=group, group=self.config['gain_groups'])
-
-        ifs_idx = self.config['current_scales'].index(ifs / self.config['jumper_scale'])
+        ifs_idx = self.config['ifs_scales'].index(ifs / self.config['jumper_scale'])
 
         self._intf.int_to_bits(self.config['pins'][group], val=ifs_idx)
 
     def get_ifs(self, group):
 
-        self._check_mux_group(check=group, group=self.config['gain_groups'])
+        ifs_idx = self._intf.int_from_bits(bits=self.config['pins'][group])
+
+        return self.config['ifs_scales'][ifs_idx] * self.config['jumper_scale']
+
+    def get_ifs_label(self, group):
 
         ifs_idx = self._intf.int_from_bits(bits=self.config['pins'][group])
 
-        return self.config['current_scales'][ifs_idx] * self.config['jumper_scale']
+        return self.config['ifs_labels'][ifs_idx] if self.config['jumper_scale'] == 1 else self.config['ifs_labels_10'][ifs_idx]
+
+    def _check_and_map_gpio(self, pins):
+
+        pins = [pins] if isinstance(pins, int) else pins
+
+        if any(not 0 <= p < len(self.config['pins']['gpio']) for p in pins):
+            raise IndexError("GPIO pins are indexed from {} to {}".format(0, len(self.config['pins']['gpio']) - 1))
+
+        return [self.config['pins']['gpio'][p] for p in pins]
+
+    def set_gpio_pins(self, pins):
+
+        self._intf.set_bits(bits=self._check_and_map_gpio(pins=pins))
+
+    def unset_gpio_pins(self, pins):
+
+        self._intf.unset_bits(bits=self._check_and_map_gpio(pins=pins))
