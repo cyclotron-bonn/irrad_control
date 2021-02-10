@@ -378,6 +378,20 @@ class TCA9555(object):
 
         return val_bits.uint
 
+    def is_high(self, bit):
+        """
+        Method to get logical state of single bit
+
+        Parameters
+        ----------
+        bit: int
+            bit from which to read the state
+        """
+
+        self._check_bits(bits=bit)
+
+        return self.io_state[bit]
+
     def set_direction(self, direction, bits=None):
         """
         Convenience-method to set direction of bits: input (1) or output (0)
@@ -428,28 +442,24 @@ class TCA9555(object):
         """
         return {reg: getattr(state, format_) for reg, state in self.config.items()}
 
-    def set_bits(self, reg, bits=None):
+    def set_bits(self, bits=None):
         """
-        Convenience-method to set bits of a certain register
+        Convenience-method to set bits e.g. set the output level to logical 1
 
         Parameters
         ----------
-        reg: str
-            Name of register whose state will be read
         bits: Iterable, int, None
             bits of *reg* which will be set (to 1)
         """
-        self._set_bits(reg=reg, val=1, bits=bits)
+        self.set_level(level=1, bits=bits)
 
-    def unset_bits(self, reg, bits=None):
+    def unset_bits(self, bits=None):
         """
-        Convenience-method to unset *bits* of a certain register *reg*
+        Convenience-method to unset *bits* e.g. set the output level to logical 0
 
         Parameters
         ----------
-        reg: str
-            Name of register whose state will be read
         bits: Iterable, int, None
             bits of *reg* which will be unset (to 0)
         """
-        self._set_bits(reg=reg, val=0, bits=bits)
+        self.set_level(level=0, bits=bits)
