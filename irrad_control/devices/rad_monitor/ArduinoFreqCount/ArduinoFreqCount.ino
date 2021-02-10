@@ -15,7 +15,6 @@ void loop() {
   char setting = {'s'};
   char getting = {'g'};
   char samplingtime = {'t'};
-  long value = 10;
   long st;
   char cmd[6];
   int x;
