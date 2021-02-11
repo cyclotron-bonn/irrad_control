@@ -1,15 +1,9 @@
-/* FreqCount - Example with serial output
- * http://www.pjrc.com/teensy/td_libs_FreqCount.html
- *
- * This example code is in the public domain.
- */
-
 #include <FreqCount.h>
 
 
 unsigned int sample_time = 1000;  // Time window in which pulses are counted in ms
 const char operations[] = {'S', 'G', 'X'};  // Start, Get and Stop operations
-const char properties[] = {'T', 'F', 'C'};  // Properties on which at least one operation is valid; Time and Frequency
+const char properties[] = {'T', 'F', 'C'};  // Properties on which at least one operation is valid; Time ,Frequency and Raw Counts
 char current_char;  // Stores the incoming character
 unsigned int current_int; // Stores a parsed integer
 unsigned long current_count;  // Store counts
@@ -17,7 +11,7 @@ unsigned long current_freq;  // Store frequency
 
 
 unsigned long frequency(unsigned long counts, unsigned int s_time) {
-  unsigned int scale = 1000 / s_time;
+  float scale = (float)1000 / (float)s_time;  // cast to float in order to scale correctly before integer cast
   return counts * scale;
 }
 
@@ -56,7 +50,7 @@ void loop() {
         }
       }
     }
-    // We're getting somtehing
+    // We're getting something
     else if(current_char == operations[1]) {
 
       current_char = Serial.read();
@@ -71,6 +65,13 @@ void loop() {
           current_count = FreqCount.read();
           current_freq = frequency(current_count, sample_time);
           Serial.println(current_freq);
+        }
+      }
+      else if(current_char == properties[2]) {
+
+        if(FreqCount.available()){
+          current_count = FreqCount.read();
+          Serial.println(current_count);
         }
       }
     }
