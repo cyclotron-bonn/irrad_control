@@ -7,7 +7,6 @@
 #include <FreqCount.h>
 
 long samplingtime=1000;
-long value=0;
 
 void setup() {
   Serial.begin(9600);
@@ -15,11 +14,21 @@ void setup() {
   FreqCount.begin(samplingtime);  
 }
 
+long get_Impuls() {
+  unsigned long count;
+  if(FreqCount.available()){
+    FreqCount.begin(samplingtime);
+    count = FreqCount.read();
+    Serial.println(count);
+  }
+  return count;
+}
+
 void loop() {
-  long st;
   char setting = {'s'};
   char getting = {'g'};
   char time = {'t'};
+  char impuls = {'i'};
   char cmd[7];
   int k;
   int i=0;
@@ -55,12 +64,10 @@ void loop() {
         if(cmd[1] == time){
           Serial.println(samplingtime);
         }
+        else if(cmd[1] == impuls){
+          get_Impuls();
+        }
       }
-  }
-  if(FreqCount.available()){
-    FreqCount.begin(samplingtime);
-    unsigned long count = FreqCount.read();
-    Serial.println(count);
   }
 }
 
