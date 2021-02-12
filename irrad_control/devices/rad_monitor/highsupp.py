@@ -98,17 +98,16 @@ class HighSupp(object):
             return answer
         else:
             raise ValueError('Your Input was wrong')
-
+        
     def _set_property(self, prop, prop_str):
         #Set the property in the HV supply
-        answer = self.write_and_check(self.cmds['confirm_cmd'])
-
+        answer = self.write_and_check(self.cmds[prop_str] + str(prop))
         if answer != self.fail_cmd:
-            answer = self.write_and_check(self.cmd['confirm_cmd'])
+            answer = self.write_and_check(self.cmds['confirm_cmd'])
             return answer
         else:
             raise ValueError('Cannot write {} with value {}.'.format(prop_str, prop))
-
+    
     # set voltage
     def set_voltage(self, voltage):
         """
@@ -121,7 +120,7 @@ class HighSupp(object):
         if voltage > self.v_lim:
             raise ValueError('Voltage is too high! Max. voltage is {} V'.format(self.v_lim))
         else:
-            self._set_property(voltage, 'set_voltage()')
+            self._set_property(voltage, 'set_voltage')
 
          #   answer = self.write_and_check(self.cmds['set_voltage'] + str(voltage))
             # answer holds a value which tells you whether or not the write was successful
@@ -167,12 +166,14 @@ class HighSupp(object):
         answer = self.write_and_check(self.cmds['get_voltage'])
         return float(answer)
 
-    # Do we really need this fuction? ANd what should the function do?
+    # increases the voltage by the entered voltage
     def increase_voltage(self, voltage):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
         else:
-            return float(voltage + self.get_voltage())
+            voltage = int(voltage) + int(self.get_voltage())
+            self.set_voltage(voltage)
+            #return float(voltage + self.get_voltage())
 
     # test function not necessary anymore
     def interactive_mode(self):
@@ -184,7 +185,8 @@ class HighSupp(object):
 
             self.write(command)
             answer = self.read()
-            logging.info(answer)
+            print(answer)
+            #logging.info(answer)
         return True
 
 def main():
