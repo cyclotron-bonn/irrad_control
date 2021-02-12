@@ -1,9 +1,3 @@
-/* FreqCount - Example with serial output
- * http://www.pjrc.com/teensy/td_libs_FreqCount.html
- *
- * This example code is in the public domain.
- */
-
 #include <FreqCount.h>
 
 
@@ -17,7 +11,7 @@ unsigned long current_freq;  // Store frequency
 
 
 unsigned long frequency(unsigned long counts, unsigned int s_time) {
-  unsigned int scale = 1000 / s_time;
+  float scale = (float)1000 / (float)s_time;
   return counts * scale;
 }
 
