@@ -6,69 +6,81 @@
 
 #include <FreqCount.h>
 
-long samplingtime=1000;
+
+unsigned int sample_time = 1000;  // Time window in which pulses are counted in ms
+const char operations[] = {'s', 'g', 'x'};  // Start, Get and Stop operations
+const char properties[] = {'t', 'f', 'c'};  // Properties on which at least one operation is valid; Time and Frequency
+char current_char;  // Stores the incoming character
+unsigned int current_int; // Stores a parsed integer
+unsigned long current_count;  // Store counts
+unsigned long current_freq;  // Store frequency
+
+
+unsigned long frequency(unsigned long counts, unsigned int s_time) {
+  unsigned int scale = 1000 / s_time;
+  return counts * scale;
+}
+
+void failure() {
+  Serial.println(-1);
+}
+
 
 void setup() {
   Serial.begin(9600);
-  //st stands for smaplingtime and it starts with 1000
-  FreqCount.begin(samplingtime);  
-}
-
-long get_Impuls() {
-  unsigned long count;
-  if(FreqCount.available()){
-    FreqCount.begin(samplingtime);
-    count = FreqCount.read();
-    Serial.println(count);
-  }
-  return count;
+  FreqCount.begin(sample_time);
 }
 
 void loop() {
-  char setting = {'s'};
-  char getting = {'g'};
-  char time = {'t'};
-  char impuls = {'i'};
-  char cmd[7];
-  int k;
-  int i=0;
-  int l = 2;
-  int number[] = {};
-  
+
+  // Check if something is being send
   if(Serial.available()){
-      for(k=0; k<=8; k++){
-        cmd[k] = Serial.read();
-        delay(100);
-      }
-      if(cmd[0] == setting){
-        if(cmd[1] == time){
-          while(cmd[l] == '0' || cmd[l] == '1' || cmd[l] == '2' || cmd[l] == '3' || cmd[l] == '4' || cmd[l] == '5' || cmd[l] == '6' || cmd[l] == '7' || cmd[l] == '8' || cmd[l] == '9'){
-            number[i] = cmd[l] - '0';
-            i = i + 1;
-            l = l + 1;
-          }
-          Serial.println(number[0]);
-          //Serial.print(number[1]);
-          //Serial.println(number[2]);
-          //delay(4000);
-          samplingtime = 0;
-          for(int j=0; j < i; j++){
-            samplingtime = samplingtime*10;
-            samplingtime = samplingtime + number[j];
-          }
-          Serial.println(samplingtime);
-          FreqCount.begin(samplingtime);
+    // Check whether sth needs to be set or getting
+    current_char = Serial.read();
+    // delay is necessary, otherwise Serial.read() is not working correct
+    delay(100);
+    // We're setting sth
+    if(current_char == operations[0]) {
+      current_char = Serial.read();
+      // Setting the sampling time
+      if(current_char == properties[0]) {
+        // Remaining characters in queue are sampling time
+        current_int = Serial.parseInt();
+        if(current_int < 0){
+          failure();
+        }
+        else {
+          sample_time = current_int;
+          FreqCount.begin(sample_time);
         }
       }
-      else if(cmd[0] == getting){
-        if(cmd[1] == time){
-          Serial.println(samplingtime);
-        }
-        else if(cmd[1] == impuls){
-          get_Impuls();
+    }
+    // We're getting somtehing
+    else if(current_char == operations[1]) {
+
+      current_char = Serial.read();
+
+      // Getting the sampling time
+      if(current_char == properties[0]) {
+        Serial.println(sample_time);
+      }
+      // Getting the Frequency
+      else if(current_char == properties[1]) {
+
+        if(FreqCount.available()){
+          current_count = FreqCount.read();
+          current_freq = frequency(current_count, sample_time);
+          Serial.println(current_freq);
         }
       }
+    }
+    // We're stopping the frequency reading
+    else if(current_char == operations[2]) {
+      FreqCount.end();
+    }
+
+    else {
+      failure();
+    }
   }
 }
-
-
