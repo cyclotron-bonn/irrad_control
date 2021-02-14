@@ -9,7 +9,7 @@ unsigned long current_count;  // Store counts
 unsigned long current_freq;  // Store frequency
 const char newline = '\n'  // Newline to determine whether the command is complete
 String cmd_string;  // Declare command string
-String st_string;
+String st_string;  // Declare sub string
 
 
 unsigned long frequency(unsigned long counts, unsigned int s_time) {
