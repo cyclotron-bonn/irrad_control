@@ -7,9 +7,7 @@ const char properties[] = {'t', 'f', 'c'};  // Properties on which at least one 
 unsigned int current_int; // Stores a parsed integer
 unsigned long current_count;  // Store counts
 unsigned long current_freq;  // Store frequency
-const char newline = '\n'  // Newline to determine whether the command is complete
 String cmd_string;  // Declare command string
-String st_string;  // Declare sub string
 
 
 unsigned long frequency(unsigned long counts, unsigned int s_time) {
@@ -41,16 +39,15 @@ void loop() {
   // Check if something is being send
   if(Serial.available()) {
 
-    // Read entire command at once, this waits until timeout (defaults to 1000 ms)
-    cmd_string = Serial.readStringUntil(newline);
+    // Read entire command at once (until new line), this waits until timeout (defaults to 1000 ms)
+    cmd_string = Serial.readStringUntil('\n');
 
     // We're setting sth
     if(cmd_string[0] == operations[0]) {
       // Setting the sampling time
       if(cmd_string[1] == properties[0]) {
         // Remaining characters in queue are sampling time
-        st_string = cmd_string.substring(2);
-        current_int = st_string.toInt();
+        current_int = cmd_string.substring(2).toInt();
         if(current_int < 0){
           failure();
         }
