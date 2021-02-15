@@ -29,6 +29,15 @@ class ArduinoTempSens(object):
         else:
             logging.error("No reply on serial connection to Arduino temperature sensor.")
 
+    def get_samplingtime(self):
+        """Gets the samplingtime of the Arduino"""
+        cmd = 'gt'
+        samplingtime = self.interface.write(cmd)
+        print(samplingtime)
+
+        return samplingtime
+    
+
 
 
     def get_temp(self, sensor):
