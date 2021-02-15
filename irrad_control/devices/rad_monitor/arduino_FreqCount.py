@@ -17,7 +17,7 @@ class ArduinoFreqCount(object):
     def __init__(self, port="/dev/ttyACM0", baudrate=9600, timeout=5):
 
         #super() hilft bei mehrfach vererbung
-        super(ArduinoTempSens, self).__init__()
+        super(ArduinoFreqCount, self).__init__()
 
         # Make nice serial interface
         self.interface = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
@@ -28,15 +28,18 @@ class ArduinoFreqCount(object):
         self.interface.write(self.cmds['failure_cmd'].encode())
         test_res = float(self.interface.readline().strip())
 
-        if test_res == '-1':
+        if test_res == 9876543:
+            print('yes')
             logging.debug("Serial connection to Arduino temperature sensor established.")
         else:
-            logging.error("No reply on serial connection to Arduino temperature sensor.")
+            logging.error("No reply on serial connection to Arduino FreqCounter.")
 
     def get_samplingtime(self):
         """Gets the samplingtime of the Arduino"""
-        cmd = self.cmds['get_samplingitme']
-        samplingtime = self.interface.write(cmd)
+        cmd = self.cmds['get_samplingtime']
+        self.interface.write(cmd.encode())
+        samplingtime = self.interface.read()
+        
         print(samplingtime)
 
         return samplingtime
@@ -44,7 +47,8 @@ class ArduinoFreqCount(object):
     def get_frequency(self):
         """Gets the current frequency"""
         cmd = self.cmds['get_frequency']
-        frequency = self.interface.write(cmd)
+        self.interface.write(cmd.encode())
+        frequency = self.interface.read()
         print(frequency)
         return frequency
 
