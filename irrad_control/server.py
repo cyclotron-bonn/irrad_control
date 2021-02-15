@@ -176,12 +176,12 @@ class IrradServer(DAQProcess):
             xy_config = xy_stage_config
             xy_config['filename'] = xy_stage_config_yaml
 
-            self.xy_stage = ZaberMultiStage(n_axis=2, port='/dev/ttyUSB0', config=xy_config)  # TODO: pass port as arg in device setup
+            self.xy_stage = ZaberMultiStage(n_axis=2, port='/dev/ttyUSB0', config=xy_config, invert_axis=(1,))  # TODO: pass port as arg in device setup
             self.axis_tracker = BaseAxisTracker()
             self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
 
             for i, axis in enumerate(self.xy_stage.axis):
-                self.axis_tracker.track_axis(axis=axis, axis_id=i)
+                self.axis_tracker.track_axis(axis=axis, axis_id='ScanStage_{}'.format(i))
 
             self.dut_scan = DUTScan(scan_stage=self.xy_stage)
             self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)

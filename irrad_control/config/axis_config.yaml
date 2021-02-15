@@ -3,6 +3,8 @@
 meta: none
 last_updated: none
 filename: none
+# Axis is inverted
+inverted: False
 # Physical properties of axis
 speed:  # Speed with which axis moves
   value: none

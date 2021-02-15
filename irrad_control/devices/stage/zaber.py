@@ -1,7 +1,9 @@
 import logging
 import yaml
-from irrad_control.devices.stage.base_axis import BaseAxis
 from zaber.serial import AsciiDevice, AsciiSerial
+
+# Package imports
+from .base_axis import BaseAxis
 
 
 class ZaberStepAxis(BaseAxis):
@@ -21,13 +23,19 @@ class ZaberStepAxis(BaseAxis):
         # Create an axis representing the device
         self.axis = self.device.axis(1)
 
+        # Whether the axis is inverted
+        self.invert_axis = False
+
         # Model specific attributes
         self.model = 'X-XY-LRQ300BL-E01'
         self.microstep = 0.49609375e-6  # meter
         self.linear_motion_per_rev = 6.35e-3  # meter
         self.steps_per_rev = 200  # steps
+        self.travel = 300e-3  # meter
+        self.travel_microsteps = int(self.travel / self.microstep)
 
-    def _check_reply(self, reply):
+    @staticmethod
+    def _check_reply(reply):
         """Method to check the reply of a command which has been issued to one of the axes"""
 
         # Get reply data and corresponding axis
@@ -105,10 +113,6 @@ class ZaberStepAxis(BaseAxis):
         """See self._convert"""
         return self._convert(value, unit, to_native=True)
 
-    def invert_axis(self, invert=True):
-        """Method to invert axis encoder"""
-        self._send_cmd("set encoder.dir {}".format(int(invert)))
-
     def get_position(self, unit=None):
         """
         Returns the current position of the XY-stage in given unit
@@ -119,6 +123,10 @@ class ZaberStepAxis(BaseAxis):
 
         # Get position
         pos = self.axis.get_position()
+
+        # Axis is inverted
+        if self.invert_axis:
+            pos = self.travel_microsteps - pos
 
         # Convert to *unit* if needed
         return pos if unit is None else self.convert_to_unit(pos, unit)
@@ -185,6 +193,9 @@ class ZaberStepAxis(BaseAxis):
             logging.warning("Range must be 2-element iterable containing lower and upper limit. Abort")
             return
 
+        if self.invert_axis:
+            value = [self.travel_microsteps - v for v in reversed(value)]
+
         for i, lim in enumerate(('min', 'max')):
             self._send_cmd("set limit.{} {}".format(lim, value[i] if unit is None else self.convert_from_unit(value[i], unit)))
 
@@ -203,6 +214,9 @@ class ZaberStepAxis(BaseAxis):
         for i, lim in enumerate(('min', 'max')):
             _reply = self._send_cmd("get limit.{}".format(lim))
             _range.append(0 if self.error else int(_reply.data))
+
+        if self.invert_axis:
+            _range = [self.travel_microsteps - r for r in reversed(_range)]
 
         return _range if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
@@ -256,7 +270,7 @@ class ZaberStepAxis(BaseAxis):
         """Checks whether the target *value* is within the axis range"""
 
         # Get minimum and maximum steps of travel
-        min_native, max_native = (int(self._send_cmd("get limit.{}".format(m)).data) for m in ("min", "max)"))
+        min_native, max_native = self.get_range()
 
         # Check whether there's still room to move
         if not (min_native <= value <= max_native):
@@ -280,6 +294,9 @@ class ZaberStepAxis(BaseAxis):
 
         # Get target of travel in steps
         target = value if unit is None else self.convert_from_unit(value, unit)
+
+        if self.invert_axis:
+            target = self.travel_microsteps - target if absolute else target * (-1)
 
         # Do sanity check whether movement is within axis range and move
         if self._check_move(value=target if absolute else target + self.get_position()):
@@ -338,7 +355,7 @@ class ZaberMultiStage(object):
 
         if invert_axis:
             for axis in invert_axis:
-                self.axis[axis].invert_axis()
+                self.axis[axis].invert_axis = True
 
     def home_stage(self):
         """Send all axis to their lower limit"""

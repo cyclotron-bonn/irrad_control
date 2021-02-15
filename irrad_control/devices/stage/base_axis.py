@@ -30,13 +30,23 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
-        self._init_config()
+        if config is None:
+            self._read_config()
+        else:
+            self._apply_config()
 
-    def _init_config(self, base_unit='mm'):
+    def _read_config(self, base_unit='mm'):
 
         for prop in self.init_props:
             _unit = ('{}/s' if prop == 'speed' else '{}/s^2' if prop == 'accel' else '{}').format(base_unit)
             self.config[prop].update({'value': getattr(self, 'get_{}'.format(prop))(_unit), 'unit': _unit})
+
+    def _apply_config(self):
+
+        for prop in self.init_props:
+            getattr(self, 'set_'.format(prop))(value=self.config[prop]['value'], unit=self.config[prop]['unit'])
+
+        self.invert_axis = self.config['inverted']
 
     @classmethod
     def update_config(cls, axis_func, entry):
@@ -50,6 +60,8 @@ class BaseAxis(object):
             if not self.error:
                 self.config[entry].update({'value': value, 'unit': unit})
                 self.config['last_updated'] = time.asctime()
+
+            return res
 
         return wrapper
 
@@ -216,11 +228,11 @@ class BaseAxisTracker(object):
         """
 
         if not isinstance(axis, BaseAxis):
-            logging.error('Axis must be instance of BaseAxis, is {}. Not tracking axis {}'.format(type(axis). axis_id))
+            logging.error('Axis must be instance of BaseAxis, is {}. Not tracking axis {}'.format(type(axis), axis_id))
             return
 
         if axis in self._tracked_axes:
-            logging.error('Axis is already tracked. Not tracking axis {}'.format(type(axis).axis_id))
+            logging.error('Axis {} with ID {} is already tracked.'.format(type(axis), axis_id))
             return
 
         # Decorator replacing original movement funcs
@@ -289,7 +301,3 @@ class BaseAxisTracker(object):
             return reply
 
         return movement_wrapper
-
-
-
-
