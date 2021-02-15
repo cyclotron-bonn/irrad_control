@@ -1,7 +1,8 @@
 from PyQt5 import QtWidgets
 from collections import OrderedDict
 from irrad_control.gui.widgets import PlotWrapperWidget, MultiPlotWidget  # Wrapper widgets
-from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, FractionHist  # Actual plots
+from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, FractionHist, RadCounterDataPlot  # Actual plots
+
 
 class IrradMonitorTab(QtWidgets.QWidget):
     """Widget which implements a data monitor"""
@@ -81,10 +82,18 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
             self.daq_tabs.addTab(self.monitor_tabs[server], self.setup[server]['name'])
 
-    def add_fluence_hist(self, n_rows, kappa):
+    def add_fluence_hist(self, server, n_rows, kappa):
 
-        for server in self.setup:
+        if server in self.setup:
 
             self.plots[server]['fluence_plot'] = FluenceHist(irrad_setup={'n_rows': n_rows, 'kappa': kappa})
             monitor_widget = PlotWrapperWidget(self.plots[server]['fluence_plot'])
             self.monitor_tabs[server].addTab(monitor_widget, 'Fluence')
+
+    def add_rad_counter_plot(self, server):
+
+        if server in self.setup:
+
+            self.plots[server]['rad_counter_plot'] = RadCounterDataPlot()
+            monitor_widget = PlotWrapperWidget(self.plots[server]['rad_counter_plot'])
+            self.monitor_tabs[server].addTab(monitor_widget, 'RadMonitor')
