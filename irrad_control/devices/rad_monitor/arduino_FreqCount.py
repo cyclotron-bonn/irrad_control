@@ -8,6 +8,14 @@ class ArduinoTempSens(object):
 
     # Delimiter which separates the sensor numbers in the command string which is send via serial
     cmd_delimiter = 'T'
+
+    # Command references
+    cmds = {'get_frequency': 'gf',
+            'get_samplingtime': 'gt',
+            'set_samplingitme': 'st',
+            'failure_cmd': 'fh'}
+
+
     #need to change the port to AMC0 and the baudrate to 9600 timeout and ntc is delitable
     #I guess i need to write get_samplingtime set_samplingtime get_frequency get_raw_frequency
     def __init__(self, port="/dev/ttyUSB0", baudrate=9600, timeout=5):
@@ -21,7 +29,7 @@ class ArduinoTempSens(object):
 
         # Check connection by writing invalid data and receiving answer
         # Could this be any invalid data?
-        self.interface.write('{}100'.format(self.cmd_delimiter).encode())
+        self.interface.write(self.cmds['failure_cmd'].encode())
         test_res = float(self.interface.readline().strip())
 
         if test_res == '-1':
@@ -31,7 +39,7 @@ class ArduinoTempSens(object):
 
     def get_samplingtime(self):
         """Gets the samplingtime of the Arduino"""
-        cmd = 'gt'
+        cmd = self.cmds['get_samplingitme']
         samplingtime = self.interface.write(cmd)
         print(samplingtime)
 
@@ -39,7 +47,7 @@ class ArduinoTempSens(object):
 
     def get_frequency(self):
         """Gets the current frequency"""
-        cmd = 'gf'
+        cmd = self.cmds['get_frequency']
         frequency = self.interface.write(cmd)
         print(frequency)
         return frequency
