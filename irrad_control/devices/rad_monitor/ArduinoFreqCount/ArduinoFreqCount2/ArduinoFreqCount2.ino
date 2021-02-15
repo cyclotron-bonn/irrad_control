@@ -17,7 +17,7 @@ unsigned long frequency(unsigned long counts, unsigned int s_time) {
 
 
 void failure() {
-  Serial.println(-1);
+  Serial.println(9876543);
 }
 
 
