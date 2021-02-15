@@ -36,7 +36,13 @@ class ArduinoTempSens(object):
         print(samplingtime)
 
         return samplingtime
-    
+
+    def get_frequency(self):
+        """Gets the current frequency"""
+        cmd = 'gf'
+        frequency = self.interface.write(cmd)
+        print(frequency)
+        return frequency
 
 
 
