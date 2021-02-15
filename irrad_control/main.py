@@ -497,6 +497,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif data['meta']['type'] == 'temp':
 
             self.monitor_tab.plots[server]['temp_plot'].set_data(data)
+
+        elif data['meta']['type'] == 'counter':
+            self.monitor_tab.plots[server]['rad_counter_plot'].set_data(data)
             
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
@@ -611,7 +614,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
                     self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['devices']['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows']})
+                                                         'n_rows': reply_data['n_rows'], 'server': hostname})
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
 
