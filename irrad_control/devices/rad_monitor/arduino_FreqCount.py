@@ -10,24 +10,26 @@ class ArduinoTempSens(object):
     cmd_delimiter = 'T'
     #need to change the port to AMC0 and the baudrate to 9600 timeout and ntc is delitable
     #I guess i need to write get_samplingtime set_samplingtime get_frequency get_raw_frequency
-    def __init__(self, port="/dev/ttyUSB0", baudrate=115200, timeout=5, ntc_lim=(-55, 125)):
+    def __init__(self, port="/dev/ttyUSB0", baudrate=9600, timeout=5):
+
         #super() hilft bei mehrfach vererbung
         super(ArduinoTempSens, self).__init__()
-
-        self.ntc_lim = ntc_lim  # Store temperature limits of NTC thermistor
 
         # Make nice serial interface
         self.interface = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
         time.sleep(2)  # Sleep to allow Arduino to reboot caused by serial connection
 
         # Check connection by writing invalid data and receiving answer
+        # Could this be any invalid data?
         self.interface.write('{}100'.format(self.cmd_delimiter).encode())
         test_res = float(self.interface.readline().strip())
 
-        if test_res == 999.:
+        if test_res == '-1':
             logging.debug("Serial connection to Arduino temperature sensor established.")
         else:
             logging.error("No reply on serial connection to Arduino temperature sensor.")
+
+
 
     def get_temp(self, sensor):
         """Gets temperature of sensor where 0 <= sensor <= 7 is the physical pin number of the sensor on
