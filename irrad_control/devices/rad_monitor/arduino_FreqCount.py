@@ -3,11 +3,8 @@ import logging
 import time
 
 
-class ArduinoTempSens(object):
+class ArduinoFreqCount(object):
     """Class to read from Arduino temperature sensor setup"""
-
-    # Delimiter which separates the sensor numbers in the command string which is send via serial
-    cmd_delimiter = 'T'
 
     # Command references
     cmds = {'get_frequency': 'gf',
@@ -16,9 +13,8 @@ class ArduinoTempSens(object):
             'failure_cmd': 'fh'}
 
 
-    #need to change the port to AMC0 and the baudrate to 9600 timeout and ntc is delitable
-    #I guess i need to write get_samplingtime set_samplingtime get_frequency get_raw_frequency
-    def __init__(self, port="/dev/ttyUSB0", baudrate=9600, timeout=5):
+    #I guess still need to write get_raw_frequency and get samplingtime
+    def __init__(self, port="/dev/ttyACM0", baudrate=9600, timeout=5):
 
         #super() hilft bei mehrfach vererbung
         super(ArduinoTempSens, self).__init__()
