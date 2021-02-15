@@ -1,12 +1,15 @@
 import logging
 from time import time
 from serial import SerialException
-from irrad_control.utils.daq_proc import DAQProcess
-from irrad_control.devices.ic.ADS1256.ADS1256_definitions import *
-from irrad_control.devices.ic.ADS1256.ADS1256_drates import ads1256_drates
-from irrad_control.devices.ic.ADS1256.pipyadc import ADS1256
-from irrad_control.devices.stage.xystage import ZaberXYStage
-from irrad_control.devices.temp.arduino_temp_sens import ArduinoTempSens
+
+# Package imports
+from .utils.daq_proc import DAQProcess
+from .devices.ic.ADS1256.ADS1256_definitions import *
+from .devices.ic.ADS1256.ADS1256_drates import ads1256_drates
+from .devices.ic.ADS1256.pipyadc import ADS1256
+from .devices.stage.xystage import ZaberXYStage
+from .devices.temp.arduino_temp_sens import ArduinoTempSens
+from .devices.readout.ro_board import IrradDAQBoard
 
 
 class IrradServer(DAQProcess):
@@ -21,6 +24,7 @@ class IrradServer(DAQProcess):
         commands = {'adc': [],
                     'temp': [],
                     'server': ['start', 'shutdown'],
+                    'ro_board': ['set_ifs', 'get_ifs', 'set_temp_ch', 'cycle_temp_chs', 'get_gpio', 'set_gpio'],
                     'stage': ['move_rel', 'move_abs', 'prepare', 'scan', 'finish', 'stop', 'pos', 'home',
                               'set_speed', 'get_speed', 'no_beam', 'set_range', 'get_range', 'add_pos', 'del_pos', 'move_pos', 'get_pos']
                     }
@@ -68,6 +72,15 @@ class IrradServer(DAQProcess):
         # Otherwise remove from command list
         else:
             del self.commands['stage']
+
+        # If this server has stage
+        if 'ro_board' in self.setup['server']['devices']:
+
+            self._init_ro_board()
+
+        # Otherwise remove from command list
+        else:
+            del self.commands['ro_board']
 
     def _init_daq_adc(self):
         """Setup the ADS1256 instance and channels"""
@@ -124,6 +137,10 @@ class IrradServer(DAQProcess):
 
             # Add meta data and data
             _meta = {'timestamp': time(), 'name': self.server, 'type': 'raw'}
+
+            if 'ro_board' in self.setup['server']['devices']:
+                _meta['temp_ch'] = self.ro_board.get_temp_channel(cached=True)  # Expect the temp channel only to be changed programmatically
+
             _data = dict([(self.adc_setup['channels'][i], raw_data[i] * self.adc.v_per_digit) for i in range(len(raw_data))])
 
             # Put data into outgoing queue
@@ -180,6 +197,17 @@ class IrradServer(DAQProcess):
             logging.warning("XYStage removed from server devices")
             del self.commands['stage']
 
+    def _init_ro_board(self):
+
+        try:
+            # Init stage
+            self.ro_board = IrradDAQBoard(version='v0.2')  # TODO: pass version as arg in device setup
+
+        except IOError:
+            logging.error("Could not find device on I2C bus address {}".format(0x20))
+            logging.warning("IrradDAQBoard removed from server devices")
+            del self.commands['ro_board']
+
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
@@ -194,6 +222,27 @@ class IrradServer(DAQProcess):
 
             elif cmd == 'shutdown':
                 self.shutdown()
+
+        elif target == 'ro_board':
+
+            if cmd == 'set_ifs':
+                self.ro_board.set_ifs(group=data['group'], ifs=data['ifs'])
+            elif cmd == 'get_ifs':
+                _data = self.ro_board.get_ifs(group=data['group'])
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+            elif cmd == 'get_ifs':
+                _data = self.ro_board.get_ifs(group=data['group'])
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+            elif cmd == 'set_temp_ch':
+                if self.ro_board.is_cycling_temp_channels():
+                    self.ro_board.stop_cycle_temp_channels()
+                self.ro_board.set_temp_channel(channel=data['ch'])
+            elif cmd == 'cycle_temp_chs':
+                self.ro_board.cycle_temp_channels(channels=data['chs'], timeout=data['timeout'])
+            elif cmd == 'set_gpio':
+                self.ro_board.gpio_value = data['val']
+            elif cmd == 'get_gpio':
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.ro_board.gpio_value)
 
         elif target == 'stage':
 
