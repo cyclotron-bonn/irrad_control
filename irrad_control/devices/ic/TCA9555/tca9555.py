@@ -62,8 +62,19 @@ class TCA9555(object):
         if self.device_id == -1:
             raise IOError("Failed to establish connection on I2C-bus address {}".format(hex(self.address)))
 
+        # Flag which indicates writing or reading state
+        self._accessing_state = False
+
         if config:
             self.config = config
+
+    @property
+    def accessing_state(self):
+        return self._accessing_state
+
+    @accessing_state.setter
+    def accessing_state(self, val):
+        raise ValueError("This is a read-only property")
 
     @property
     def io_state(self):
@@ -249,6 +260,8 @@ class TCA9555(object):
             Value from which a BitString-representation of *state* can be created
         """
 
+        self._accessing_state = True
+
         # Create empty target register state
         target_reg_state = self._create_state(state, self._n_io_bits)
 
@@ -259,10 +272,12 @@ class TCA9555(object):
             target_port_state = target_reg_state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port]
 
             # If target and current state differ, write
-            if target_port_state != self.get_port_state(reg=reg, port=port):
-                self.set_port_state(reg=reg, port=port, state=target_port_state)
+            if target_port_state != self._get_port_state(reg=reg, port=port):
+                self._set_port_state(reg=reg, port=port, state=target_port_state)
 
-    def set_port_state(self, reg, port, state):
+        self._accessing_state = False
+
+    def _set_port_state(self, reg, port, state):
         """
         Get the current state of an individual port of the TCA9555
 
@@ -298,12 +313,13 @@ class TCA9555(object):
         reg: str
             Name of register whose state will be read
         """
-
-        state = sum([self.get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
+        self._accessing_state = True
+        state = sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
+        self._accessing_state = False
 
         return state
 
-    def get_port_state(self, reg, port):
+    def _get_port_state(self, reg, port):
         """
         Get the current state of an individual port of the TCA9555
 
