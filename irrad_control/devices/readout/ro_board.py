@@ -1,3 +1,6 @@
+from threading import Thread, Event
+
+# Package imports
 from . import ro_board_config
 from ..ic.TCA9555.tca9555 import TCA9555
 
@@ -16,6 +19,11 @@ class IrradDAQBoard(object):
         # Store the board config
         self.config = ro_board_config[version]
 
+        # Related to temperature channel cycling
+        self.temp_channel = None
+        self._temp_channel_cycle_thread = None
+        self._stop_temp_channel_cycle_flag = Event()
+
         # Setup the initial state of the board
         self._setup_defaults()
 
@@ -30,18 +38,7 @@ class IrradDAQBoard(object):
         # Set the input current scale
         self.set_ifs(group='ch12', ifs=self.config['defaults']['ch12_ifs'])
 
-        self.temp_channel = self.config['defaults']['temp_ch']
-
-    @property
-    def temp_channel(self):
-        if 'temp_ch' not in self.config:
-            self.config['temp_ch'] = self._intf.int_from_bits(bits=self.config['pins']['temp'])
-        return self.config['temp_ch']
-
-    @temp_channel.setter
-    def temp_channel(self, ch):
-        self._intf.int_to_bits(bits=self.config['pins']['temp'], val=ch)
-        self.config['temp_ch'] = ch
+        self.set_temp_channel(channel=self.config['defaults']['temp_ch'])
 
     @property
     def jumper_scale(self):
@@ -68,6 +65,19 @@ class IrradDAQBoard(object):
     def get_mux_value(self, group):
 
         return self._intf.int_from_bits(bits=self.config['pins'][group])
+
+    def get_temp_channel(self, cached=False):
+
+        if self.temp_channel is None or not cached:
+            self.temp_channel = self._intf.int_from_bits(bits=self.config['pins']['temp'])
+
+        return self.temp_channel
+
+    def set_temp_channel(self, channel):
+
+        self._intf.int_to_bits(bits=self.config['pins']['temp'], val=channel)
+
+        self.temp_channel = channel
 
     def set_ifs(self, group, ifs):
 
@@ -103,3 +113,27 @@ class IrradDAQBoard(object):
     def unset_gpio_pins(self, pins):
 
         self._intf.unset_bits(bits=self._check_and_map_gpio(pins=pins))
+
+    def is_cycling_temp_channels(self):
+        return False if self._temp_channel_cycle_thread is None else self._temp_channel_cycle_thread.is_alive()
+
+    def stop_cycle_temp_channels(self):
+        if not self.is_cycling_temp_channels():
+            return
+        self._stop_temp_channel_cycle_flag.set()
+        self._temp_channel_cycle_thread.join()
+
+    def cycle_temp_channels(self, channels, timeout=None):
+
+        self._temp_channel_cycle_thread = Thread(target=self._cycle_temp_channels, args=(channels, timeout))
+        self._temp_channel_cycle_thread.start()
+
+    def _cycle_temp_channels(self, channels, timeout=None):
+
+        n_channels = len(channels)
+        ch_idx = 0
+        while not self._stop_temp_channel_cycle_flag.wait(timeout=timeout):
+
+            if not self._intf.accessing_state:
+                self.set_temp_channel(channel=channels[ch_idx])
+                ch_idx = ch_idx + 1 if ch_idx != n_channels - 1 else 0
