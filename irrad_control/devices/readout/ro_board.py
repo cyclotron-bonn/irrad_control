@@ -25,9 +25,9 @@ class IrradDAQBoard(object):
         self._stop_temp_channel_cycle_flag = Event()
 
         # Setup the initial state of the board
-        self._setup_defaults()
+        self.restore_defaults()
 
-    def _setup_defaults(self):
+    def restore_defaults(self):
 
         # Set the direction (in or output) of the pins
         self._intf.set_direction(direction=0, bits=self.config['defaults']['output'])

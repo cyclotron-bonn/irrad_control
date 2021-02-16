@@ -21,7 +21,7 @@ v0.1:
   gain_groups: [sem, ch12]
   # Input full-current scale corresponding to +-5 V (2x2V5p to 2x2V5m) readout board output; INDEX corresponds to VALUE
   # Full current scale 7 gives unity gain, therefore only goes 2V5p - 2V5m; set to 0
-  ifs: [10000, 5000, 1000, 500, 100, 50, 10, 0]
+  ifs_scales: [10000, 5000, 1000, 500, 100, 50, 10, 0]
   # Unit of current scale
   ifs_unit: nA
   # Scales the current scale for the respective input channel; either 1 or 10 depending on jumper setting
