@@ -1,6 +1,28 @@
 import wiringpi as wp
 import bitstring as bs
 from collections import Iterable
+from functools import wraps
+from threading import Event
+
+
+def _lock(func):
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+
+        # Wait for flag to indicate that its availbale
+        args[0]._access_available.wait()
+
+        # Clear the available state and indicate we're now locking access
+        args[0]._access_available.clear()
+
+        res = func(*args, **kwargs)
+
+        args[0]._access_available.set()
+
+        return res
+
+    return wrapper
 
 
 class TCA9555(object):
@@ -63,24 +85,27 @@ class TCA9555(object):
             raise IOError("Failed to establish connection on I2C-bus address {}".format(hex(self.address)))
 
         # Flag which indicates writing or reading state
-        self._accessing_state = False
+        self._access_available = Event()
+        self._access_available.set()
 
         if config:
             self.config = config
 
     @property
     def accessing_state(self):
-        return self._accessing_state
+        return not self._access_available.is_set()
 
     @accessing_state.setter
     def accessing_state(self, val):
         raise ValueError("This is a read-only property")
 
     @property
+    @_lock
     def io_state(self):
         return self.get_state('input')
 
     @io_state.setter
+    @_lock
     def io_state(self, state):
         self.set_state('output', state)
 
@@ -109,10 +134,12 @@ class TCA9555(object):
         raise ValueError("This is a read-only property")
 
     @property
+    @_lock
     def config(self):
         return {reg: self.get_state(reg) for reg in self.regs}
 
     @config.setter
+    @_lock
     def config(self, config):
         for reg, val in config.items():
             self.set_state(reg, val)
@@ -213,6 +240,7 @@ class TCA9555(object):
 
         return bits
 
+    @_lock
     def _set_bits(self, reg, val=1, bits=None):
         """
         Get the current state of an individual port of the TCA9555
@@ -259,9 +287,6 @@ class TCA9555(object):
         state: BitString, Iterable, str
             Value from which a BitString-representation of *state* can be created
         """
-
-        self._accessing_state = True
-
         # Create empty target register state
         target_reg_state = self._create_state(state, self._n_io_bits)
 
@@ -274,8 +299,6 @@ class TCA9555(object):
             # If target and current state differ, write
             if target_port_state != self._get_port_state(reg=reg, port=port):
                 self._set_port_state(reg=reg, port=port, state=target_port_state)
-
-        self._accessing_state = False
 
     def _set_port_state(self, reg, port, state):
         """
@@ -313,9 +336,8 @@ class TCA9555(object):
         reg: str
             Name of register whose state will be read
         """
-        self._accessing_state = True
+
         state = sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
-        self._accessing_state = False
 
         return state
 
@@ -345,6 +367,7 @@ class TCA9555(object):
 
         return port_state
 
+    @_lock
     def int_to_bits(self, bits, val):
         """
         Method to set *bits* to state that represents *val*
@@ -358,7 +381,7 @@ class TCA9555(object):
         """
 
         # Get the actual logic levels which are applied to the pins
-        state = self.io_state
+        state = self.get_state('input')
 
         # Create state for set of bits
         val_bits = self._create_state(state=val, bit_length=len(bits))
@@ -371,7 +394,7 @@ class TCA9555(object):
             state[bit] = val_bits[i]
 
         # Set the updated state
-        self.io_state = state
+        self.set_state(reg='output', state=state)
 
     def int_from_bits(self, bits):
         """
