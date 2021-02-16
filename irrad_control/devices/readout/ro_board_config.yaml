@@ -3,11 +3,11 @@
 v0.1:
   # Voltages present on the board; need to be MEASURED once
   voltages:
-    Vp: 15.000
-    Vm: -15.000
-    2V5p: 2.586
-    2V5m: -2.601
-    5Vp: 5.004
+    Vp: 15.10
+    Vm: -15.10
+    2V5p: 2.571
+    2V5m: -2.613
+    5Vp: 5.06
   # Pin configuration of the interfacing TCA9555 16-bit GPIO expander, steering the multiplexers for gain etc.
   pins:
     sem: [0, 1, 2]
@@ -47,11 +47,11 @@ v0.1:
 v0.2:
   # Voltages present on the board; need to be MEASURED once
   voltages:
-    Vp: 15.000
-    Vm: -15.000
-    2V5p: 2.586
-    2V5m: -2.601
-    5Vp: 5.004
+    Vp: 15.10
+    Vm: -15.10
+    2V5p: 2.572
+    2V5m: -2.605
+    5Vp: 5.08
   # Pin configuration of the interfacing TCA9555 16-bit GPIO expander, steering the multiplexers for gain etc.
   pins:
     sem: [7, 8, 9]
