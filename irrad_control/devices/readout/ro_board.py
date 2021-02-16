@@ -122,8 +122,14 @@ class IrradDAQBoard(object):
             return
         self._stop_temp_channel_cycle_flag.set()
         self._temp_channel_cycle_thread.join()
+        self._stop_temp_channel_cycle_flag.clear()
+        self._temp_channel_cycle_thread = None
 
     def cycle_temp_channels(self, channels, timeout=None):
+
+        # In case of restart
+        if self.is_cycling_temp_channels():
+            self.stop_cycle_temp_channels()
 
         self._temp_channel_cycle_thread = Thread(target=self._cycle_temp_channels, args=(channels, timeout))
         self._temp_channel_cycle_thread.start()
@@ -134,6 +140,5 @@ class IrradDAQBoard(object):
         ch_idx = 0
         while not self._stop_temp_channel_cycle_flag.wait(timeout=timeout):
 
-            if not self._intf.accessing_state:
-                self.set_temp_channel(channel=channels[ch_idx])
-                ch_idx = ch_idx + 1 if ch_idx != n_channels - 1 else 0
+            self.set_temp_channel(channel=channels[ch_idx])
+            ch_idx = ch_idx + 1 if ch_idx != n_channels - 1 else 0
