@@ -5,20 +5,26 @@ from functools import wraps
 from threading import Event
 
 
-def _lock(func):
+def _event_lock(io_func):
+    """
+    Decorator which allows the complete execution of *io_func* without a different
+    thread calling another io functions which are decorated with this decorator.
+    Uses threading.Event to make simply block other calls until done.
+    """
 
-    @wraps(func)
+    @wraps(io_func)
     def wrapper(*args, **kwargs):
 
-        # Wait for flag to indicate that its availbale
-        args[0]._access_available.wait()
+        # Wait for flag to indicate that its available
+        args[0]._device_available.wait()
 
         # Clear the available state and indicate we're now locking access
-        args[0]._access_available.clear()
+        args[0]._device_available.clear()
 
-        res = func(*args, **kwargs)
+        res = io_func(*args, **kwargs)
 
-        args[0]._access_available.set()
+        # Make access available again
+        args[0]._device_available.set()
 
         return res
 
@@ -27,7 +33,7 @@ def _lock(func):
 
 class TCA9555(object):
     """
-    This class implements an interface to the 16-bit IO expander using the I2C-interface of a Raspberry Pi
+    This class implements a thread-safe interface to the 16-bit IO expander using the I2C-interface of a Raspberry Pi
 
     The TCA9555 consists of two 8-bit Configuration (input or output selection), Input Port, Output Port and
     Polarity Inversion (active high or active low operation) registers which are also referred to as ports:
@@ -41,18 +47,20 @@ class TCA9555(object):
 
         '10000000' ==  bit 0 high, all others low
         '00000001' == bit 7 high, all others low
+
+    All public methods are thread-safe
     """
 
     # Internal registers of (port_0, port_1)
     regs = {
         # Registers holding the actual values of the pin levels
-        'input': (0x00, 0x01),
+        "input": (0x00, 0x01),
         # Registers holding the target values of pin levels
-        'output': (0x02, 0x03),
+        "output": (0x02, 0x03),
         # Registers holding the polarity (active-high or active-low)
-        'polarity': (0x04, 0x05),
+        "polarity": (0x04, 0x05),
         # Registers holding whether the pins are configured as in- (1) or output (0)
-        'config': (0x06, 0x07)
+        "config": (0x06, 0x07),
     }
 
     # Number of available io bits; bits are shared into ports
@@ -82,32 +90,34 @@ class TCA9555(object):
 
         # Quick check; if self.device_id == -1 an error occurred
         if self.device_id == -1:
-            raise IOError("Failed to establish connection on I2C-bus address {}".format(hex(self.address)))
+            raise IOError(
+                "Failed to establish connection on I2C-bus address {}".format(hex(self.address))
+            )
 
-        # Flag which indicates writing or reading state
-        self._access_available = Event()
-        self._access_available.set()
+        # Flag which indicates writing or reading condition
+        self._device_available = Event()
+        self._device_available.set()
 
         if config:
             self.config = config
 
     @property
-    def accessing_state(self):
-        return not self._access_available.is_set()
+    def device_busy(self):
+        return not self._device_available.is_set()
 
-    @accessing_state.setter
-    def accessing_state(self, val):
+    @device_busy.setter
+    def device_busy(self, val):
         raise ValueError("This is a read-only property")
 
     @property
-    @_lock
+    @_event_lock
     def io_state(self):
-        return self.get_state('input')
+        return self._get_state("input")
 
     @io_state.setter
-    @_lock
+    @_event_lock
     def io_state(self, state):
-        self.set_state('output', state)
+        self._set_state("output", state)
 
     @property
     def n_io_bits(self):
@@ -134,15 +144,15 @@ class TCA9555(object):
         raise ValueError("This is a read-only property")
 
     @property
-    @_lock
+    @_event_lock
     def config(self):
-        return {reg: self.get_state(reg) for reg in self.regs}
+        return {reg: self._get_state(reg) for reg in self.regs}
 
     @config.setter
-    @_lock
+    @_event_lock
     def config(self, config):
         for reg, val in config.items():
-            self.set_state(reg, val)
+            self._set_state(reg, val)
 
     def _write_reg(self, reg, data):
         """
@@ -188,16 +198,18 @@ class TCA9555(object):
             pass
 
         elif isinstance(state, int):
-            state = bs.BitArray('uint:{}={}'.format(bit_length, state))
+            state = bs.BitArray("uint:{}={}".format(bit_length, state))
 
         elif isinstance(state, Iterable):
             state = bs.BitArray(state)
 
         else:
-            raise ValueError('State must be integer, string or BitArray representing {} bits'.format(bit_length))
+            raise ValueError(
+                "State must be integer, string or BitArray representing {} bits".format(bit_length)
+            )
 
         if len(state) != bit_length:
-            raise ValueError('State must be {}} bits'.format(bit_length))
+            raise ValueError("State must be {}} bits".format(bit_length))
 
         return state
 
@@ -210,9 +222,12 @@ class TCA9555(object):
         reg: str
             String of register name whose existence is checked
         """
-
         if reg not in self.regs:
-            raise ValueError('Register {} does not exist. Available registers: {}'.format(reg, ', '.join(self.regs.keys())))
+            raise ValueError(
+                "Register {} does not exist. Available registers: {}".format(
+                    reg, ", ".join(self.regs.keys())
+                )
+            )
 
     def _check_bits(self, bits, val=None):
         """
@@ -225,22 +240,28 @@ class TCA9555(object):
         val: int, None
             If not None, *val* must be an integer with bit length <= number of bits e.g. len(*bits*)
         """
-
         bits = bits if isinstance(bits, Iterable) else [bits]
 
         if any(not 0 <= b < self._n_io_bits for b in bits):
-            raise IndexError("{}'s {} bits are indexed from {} to {}".format(self.__class__.__name__, self._n_io_bits, 0, self._n_io_bits - 1))
+            raise IndexError(
+                "{}'s {} bits are indexed from {} to {}".format(
+                    self.__class__.__name__, self._n_io_bits, 0, self._n_io_bits - 1
+                )
+            )
 
         if len(set(bits)) != len(bits):
-            raise IndexError('Duplicate bit indices! *bits* must be composed of unique bit indices')
+            raise IndexError("Duplicate bit indices! *bits* must be composed of unique bit indices")
 
         if val:
             if val.bit_length() > len(bits):
-                raise ValueError('Too little bits. Bit length of value {} is {}, the number of bits is {}'.format(val, val.bit_length(), len(bits)))
+                raise ValueError(
+                    "Too little bits. Bit length of value {} is {}, the number of bits is {}".format(
+                        val, val.bit_length(), len(bits)
+                    )
+                )
 
         return bits
 
-    @_lock
     def _set_bits(self, reg, val=1, bits=None):
         """
         Get the current state of an individual port of the TCA9555
@@ -254,7 +275,6 @@ class TCA9555(object):
         bits: Iterable, int
             bits to set to *val*
         """
-
         if val not in (0, 1, True, False):
             raise ValueError("'val' can only be 1 or 0")
 
@@ -263,20 +283,20 @@ class TCA9555(object):
             bits = self._check_bits(bits=bits)
 
             # Get current io configuration state
-            state = self.get_state(reg=reg)
+            state = self._get_state(reg=reg)
 
             # Loop over state and set bits
             for bit in bits:
                 state[bit] = val
 
             # Set state
-            self.set_state(reg, state)
+            self._set_state(reg, state)
 
         else:
             # Set all pins to *val*
-            self.set_state(reg, [val] * self._n_io_bits)
+            self._set_state(reg, [val] * self._n_io_bits)
 
-    def set_state(self, reg, state):
+    def _set_state(self, reg, state):
         """
         Set the *state* to the register *reg*
 
@@ -294,7 +314,9 @@ class TCA9555(object):
         for port in range(self._n_ports):
 
             # Compare individual current port states with target port states
-            target_port_state = target_reg_state[port * self._n_bits_per_port:(port + 1) * self._n_bits_per_port]
+            target_port_state = target_reg_state[
+                port * self._n_bits_per_port : (port + 1) * self._n_bits_per_port
+            ]
 
             # If target and current state differ, write
             if target_port_state != self._get_port_state(reg=reg, port=port):
@@ -313,12 +335,11 @@ class TCA9555(object):
         state: BitString, Iterable, str, int
             Value from which a BitString-representation of *state* can be created
         """
-
         # Check if register exists
         self._check_register(reg)
 
         if port not in (0, 1):
-            raise IndexError('*port* must be index of physical port; either 0 or 1')
+            raise IndexError("*port* must be index of physical port; either 0 or 1")
 
         target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
 
@@ -327,7 +348,7 @@ class TCA9555(object):
 
         self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
 
-    def get_state(self, reg):
+    def _get_state(self, reg):
         """
         Get the *state* to the register *reg*
 
@@ -336,10 +357,7 @@ class TCA9555(object):
         reg: str
             Name of register whose state will be read
         """
-
-        state = sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
-
-        return state
+        return sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
 
     def _get_port_state(self, reg, port):
         """
@@ -352,22 +370,24 @@ class TCA9555(object):
         port: int
             Index of the port; either 0 or 1
         """
-
         # Check if register exists
         self._check_register(reg)
 
         if port not in (0, 1):
-            raise IndexError('*port* must be index of physical port; either 0 or 1')
+            raise IndexError("*port* must be index of physical port; either 0 or 1")
 
         # Read port state
-        port_state = self._create_state(state=self._read_reg(reg=self.regs[reg][port]), bit_length=self._n_bits_per_port)
+        port_state = self._create_state(
+            state=self._read_reg(reg=self.regs[reg][port]),
+            bit_length=self._n_bits_per_port,
+        )
 
         # Match bit order with physical pin order, increasing left to right
         port_state.reverse()
 
         return port_state
 
-    @_lock
+    @_event_lock
     def int_to_bits(self, bits, val):
         """
         Method to set *bits* to state that represents *val*
@@ -379,9 +399,8 @@ class TCA9555(object):
         val: int
             Integer which should be represented though *bits* binary state
         """
-
         # Get the actual logic levels which are applied to the pins
-        state = self.get_state('input')
+        state = self._get_state("input")
 
         # Create state for set of bits
         val_bits = self._create_state(state=val, bit_length=len(bits))
@@ -394,7 +413,7 @@ class TCA9555(object):
             state[bit] = val_bits[i]
 
         # Set the updated state
-        self.set_state(reg='output', state=state)
+        self._set_state("output", state)
 
     def int_from_bits(self, bits):
         """
@@ -405,7 +424,6 @@ class TCA9555(object):
         bits: Iterable, int
             bits from which to read the integer
         """
-
         # Get the actual logic levels which are applied to the pins
         state = self.io_state
 
@@ -417,6 +435,62 @@ class TCA9555(object):
 
         return val_bits.uint
 
+    @_event_lock
+    def set_state(self, reg, state):
+        """
+        Thread-safe version of the private *_set_state*-method
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be set
+        state: BitString, Iterable, str
+            Value from which a BitString-representation of *state* can be created
+        """
+        self._set_state(reg=reg, state=state)
+
+    @_event_lock
+    def set_port_state(self, reg, port, state):
+        """
+        Thread-safe version of the private *_set_port_state*-method
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be set
+        port: int
+            Index of the port; either 0 or 1
+        state: BitString, Iterable, str, int
+            Value from which a BitString-representation of *state* can be created
+        """
+        self._set_port_state(reg=reg, port=port, state=state)
+
+    @_event_lock
+    def get_state(self, reg):
+        """
+        Thread-safe version of the private *_get_state*-method
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        """
+        self._get_state(reg=reg)
+
+    @_event_lock
+    def get_port_state(self, reg, port):
+        """
+        Thread-safe version of the private *_get_port_state*-method
+
+        Parameters
+        ----------
+        reg: str
+            Name of register whose state will be read
+        port: int
+            Index of the port; either 0 or 1
+        """
+        self._get_port_state(reg=reg, port=port)
+
     def is_high(self, bit):
         """
         Method to get logical state of single bit
@@ -426,11 +500,11 @@ class TCA9555(object):
         bit: int
             bit from which to read the state
         """
-
         self._check_bits(bits=bit)
 
         return self.io_state[bit]
 
+    @_event_lock
     def set_direction(self, direction, bits=None):
         """
         Convenience-method to set direction of bits: input (1) or output (0)
@@ -442,8 +516,9 @@ class TCA9555(object):
         bits: Iterable, int, None
             bits for which the direction will be set
         """
-        self._set_bits(reg='config', val=int(bool(direction)), bits=bits)
+        self._set_bits(reg="config", val=int(bool(direction)), bits=bits)
 
+    @_event_lock
     def set_polarity(self, polarity, bits=None):
         """
         Convenience-method to set polarity of bits: active-high (0) or active-low (1)
@@ -455,8 +530,9 @@ class TCA9555(object):
         bits: Iterable, int, None
             bits for which the polarity will be set
         """
-        self._set_bits(reg='polarity', val=int(bool(polarity)), bits=bits)
+        self._set_bits(reg="polarity", val=int(bool(polarity)), bits=bits)
 
+    @_event_lock
     def set_level(self, level, bits=None):
         """
         Convenience-method to set logic-level of bits
@@ -468,9 +544,9 @@ class TCA9555(object):
         bits: Iterable, int, None
             bits for which the level will be set
         """
-        self._set_bits(reg='output', val=int(bool(level)), bits=bits)
+        self._set_bits(reg="output", val=int(bool(level)), bits=bits)
 
-    def format_config(self, format_='bin'):
+    def format_config(self, format_="bin"):
         """
         Method returning a more readable version of self.config
 
