@@ -498,7 +498,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             self.monitor_tab.plots[server]['temp_plot'].set_data(data)
             
-    def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True):
+    def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
         The command can have respective data *cmd_data*. Targets must be listed in self._targets."""
 
@@ -508,7 +508,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             return
 
         cmd_dict = {'target': target, 'cmd': cmd, 'data': cmd_data}
-        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict)
+        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict, timeout)
 
         # Make connections
         self._connect_worker_exception(worker=cmd_worker)
@@ -520,25 +520,40 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Start
         self.threadpool.start(cmd_worker)
 
-    def _send_cmd_get_reply(self, hostname, cmd_dict):
+    def _send_cmd_get_reply(self, hostname, cmd_dict, timeout=None):
         """Sending a command to the server / interpreter and waiting for its reply. This runs on a separate QThread due
         to the blocking nature of the recv() method of sockets. *cmd_dict* contains the target, cmd and cmd_data."""
 
         # Spawn socket to send request to server / interpreter and connect
         req = self.context.socket(zmq.REQ)
         req_port = self.setup['server'][hostname]['ports']['cmd'] if hostname in self.setup['server'] else self.setup['ports']['cmd']
+
+        if timeout:
+            req.setsockopt(zmq.RCVTIMEO, int(timeout))
+            req.setsockopt(zmq.LINGER, 0)
+
         req.connect(self._tcp_addr(req_port, hostname))
 
         # Send command dict and wait for reply
         req.send_json(cmd_dict)
-        reply = req.recv_json()
 
-        # Update reply dict by the servers IP address
-        reply['hostname'] = hostname
+        try:
+            reply = req.recv_json()
 
-        # Emit the received reply in pyqt signal and close socket
-        self.reply_received.emit(reply)
-        req.close()
+            # Update reply dict by the servers IP address
+            reply['hostname'] = hostname
+
+            # Emit the received reply in pyqt signal and close socket
+            self.reply_received.emit(reply)
+
+        except zmq.Again:
+            msg = 'Command {} with target {} timed out after {} seconds: no reply from server {}'
+            logging.error(msg.format(cmd_dict['cmd'],
+                                     cmd_dict['target'],
+                                     timeout // 1000,
+                                     self.setup['server'][hostname]['name']))
+        finally:
+            req.close()
 
     def handle_reply(self, reply_dict):
 
