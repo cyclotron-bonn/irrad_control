@@ -104,7 +104,7 @@ class IsegHVPS(object):
         answer = self.write_and_check(self.cmds['confirm_cmd'])
 
         if answer != self.fail_cmd:
-            answer = self.write_and_check(self.cmd['confirm_cmd'])
+            answer = self.write_and_check(self.cmds['confirm_cmd'])
             return answer
         else:
             raise ValueError('Cannot write {} with value {}.'.format(prop_str, prop))
