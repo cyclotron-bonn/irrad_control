@@ -91,7 +91,7 @@ class ArduinoFreqCount(object):
         self.interface.write('t'.encode())
         return self.interface.readline().strip()
 
-    def continous_read(self, prop='counts'):
+    def continous_read(self, prop='frequency'):
         #testing the frequency measurements
         read_func = self.get_frequency if prop == 'frequency' else self.get_counts
         try:
