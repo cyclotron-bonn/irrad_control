@@ -2,6 +2,22 @@ import serial
 import logging
 import time
 
+logging.getLogger().setLevel('INFO')
+
+
+def _check_cmd_fail(func):
+    
+    def wrapper(self, samplingtime=None):
+        
+        res = func(self) if samplingtime is None else func(self, samplingtime)
+        
+        if res == -1:
+            raise ValueError('Method {} failed with return value -1'.format(func.__name__))
+        
+        return res
+    
+    return wrapper
+
 
 class ArduinoFreqCount(object):
     """Class to read from Arduino temperature sensor setup"""
@@ -9,6 +25,7 @@ class ArduinoFreqCount(object):
     # Command references
     cmds = {'get_frequency': 'gf',
             'get_samplingtime': 'gt',
+            'get_counts': 'gc',
             'set_samplingtime': 'st{}',
             'failure_cmd': 'fh'}
     
@@ -27,37 +44,58 @@ class ArduinoFreqCount(object):
         test_res = int(self.interface.readline().strip())
         
         if test_res == -1:
-            print('success')
             logging.debug("Serial connection to Arduino temperature sensor established.")
         else:
             logging.error("No reply on serial connection to Arduino FreqCounter.")
-
+            
+    @_check_cmd_fail
     def get_samplingtime(self):
         """Gets the samplingtime of the Arduino"""
         
         #writes the command to the arduino
         self.interface.write(self.cmds['get_samplingtime'].encode())
-        #saves the answer from the arduino
-        samplingtime = float(self.interface.readline().strip())
-
-        return samplingtime
+        # read the answer from the arduino
+        return int(self.interface.readline().strip())
     
+    @_check_cmd_fail
     def get_frequency(self):
         """Gets the current frequency"""
         
         #writing the command to the arduino
         self.interface.write(self.cmds['get_frequency'].encode())
-        #saves the answer from the arduino
-        frequency = float(self.interface.readline().strip())
-        
-        return frequency
+        # read the answer from the arduino
+        try:
+            a = self.interface.readline().strip()
+            return int(a)
+        except ValueError:
+            print(a)
     
+    @_check_cmd_fail
+    def get_counts(self):
+        """Gets the current frequency"""
+        
+        #writing the command to the arduino
+        self.interface.write(self.cmds['get_counts'].encode())
+        # read the answer from the arduino
+        return int(self.interface.readline().strip())
+    
+    @_check_cmd_fail
     def set_samplingtime(self, samplingtime):
         """Sets the samplingtime"""
+        if samplingtime < 0:
+            raise ValueError('Sampling time must be positive integer')
         #sending the command of setting the samplingtime to the arduino
-        self.interface.write('st{}\n'.format(samplingtime).encode())
+        self.interface.write(self.cmds['set_samplingtime'].format(int(samplingtime)).encode())
+        
+    def test_serial_connection(self):
+        self.interface.write('t'.encode())
+        return self.interface.readline().strip()
 
-    def test(self):
+    def continous_read(self, prop='counts'):
         #testing the frequency measurements
-        while(1<3):
-            print(self.get_frequency())
+        read_func = self.get_frequency if prop == 'frequency' else self.get_counts
+        try:
+            while True:
+                logging.info('{} Hz'.format(read_func()))
+        except KeyboardInterrupt:
+            pass
