@@ -21,6 +21,10 @@ void failure() {
 }
 
 
+void test() {
+  Serial.println(1);
+}
+
 void write_res(unsigned long res) {
   Serial.println(res);  // Write result
   delayMicroseconds(50);  // Wait a little bit
@@ -62,7 +66,7 @@ void loop() {
       // Getting the sampling time
       if(cmd_string[1] == properties[0]) {
         write_res(sample_time);
-      }
+      } 
       // Getting the Frequency
       else if(cmd_string[1] == properties[1]) {
 
@@ -72,12 +76,23 @@ void loop() {
           write_res(current_freq);
         }
       }
+      // Getting the counts
+      else if(cmd_string[1] == properties[2]) {
+
+        if(FreqCount.available()){
+          current_count = FreqCount.read();
+          write_res(current_count);
+        }
+      }
     }
     // We're stopping the frequency reading
     else if(cmd_string[0] == operations[2]) {
       FreqCount.end();
     }
-
+    // We're testing the connection
+    else if(cmd_string[0] == 't') {
+      test();
+    }
     else {
       failure();
     }
