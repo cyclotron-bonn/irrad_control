@@ -101,7 +101,7 @@ class IsegHVPS(object):
 
     def _set_property(self, prop, prop_str):
         #Set the property in the HV supply
-        answer = self.write_and_check(self.cmds['confirm_cmd'])
+        answer = self.write_and_check(self.cmds[prop_str] + str(prop))
 
         if answer != self.fail_cmd:
             answer = self.write_and_check(self.cmds['confirm_cmd'])
@@ -121,7 +121,7 @@ class IsegHVPS(object):
         if voltage > self.v_lim:
             raise ValueError('Voltage is too high! Max. voltage is {} V'.format(self.v_lim))
         else:
-            self._set_property(voltage, 'set_voltage()')
+            self._set_property(voltage, 'set_voltage')
 
     #Turns the voltage to hv
     def HV_on(self):
@@ -165,6 +165,7 @@ class IsegHVPS(object):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
         else:
+            self.set_voltage(int(voltage + self.get_voltage()))
             return float(voltage + self.get_voltage())
 
     # test function not necessary anymore
