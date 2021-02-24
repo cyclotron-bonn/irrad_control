@@ -165,6 +165,7 @@ class IsegHVPS(object):
         if voltage + self.get_voltage() > self.v_lim:
             raise ValueError('Voltage is to high')
         else:
+            self.set_voltage(int(voltage + self.get_voltage()))
             return float(voltage + self.get_voltage())
 
     # test function not necessary anymore
