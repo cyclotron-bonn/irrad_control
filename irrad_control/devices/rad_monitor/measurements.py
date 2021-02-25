@@ -16,10 +16,10 @@ def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate=
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms".format(arduino_counter.get_samplintime()))
-        f.write("# Measuring 1/r^2-relation via {}".format(calibrate))
-        f.write("# Sampling each measurement {} times".format(n_measures_per_step))
-        f.write("# Measurement start: {} ".format(time.asctime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("# Measuring 1/r^2-relation via {}\n".format(calibrate))
+        f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
+        f.write("# Measurement start: {}\n\n".format(time.asctime()))
 
         writer = csv.writer(f)
 
@@ -55,12 +55,12 @@ def calibrate_source_center(outfile, arduino_counter, xy_stage, square=3, res=10
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms".format(arduino_counter.get_samplintime()))
-        f.write("# Measuring source center via {}".format(calibrate))
-        f.write("# Measure square +- {} cm around starting point".format(square))
-        f.write("# Splitting square in {} equidistant steps in each dimension".format(res))
-        f.write("# Sampling each measurement {} times".format(n_measures_per_step))
-        f.write("# Measurement start: {} ".format(time.asctime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("# Measuring source center via {}\n".format(calibrate))
+        f.write("# Measure square +- {} cm around starting point\n".format(square))
+        f.write("# Splitting square in {} equidistant steps in each dimension\n".format(res))
+        f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
+        f.write("# Measurement start: {}\n\n".format(time.asctime()))
 
         writer = csv.writer(f)
 
@@ -94,10 +94,10 @@ def measure_continuously(outfile, arduino_counter, n_measures_per_step=5, measur
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms".format(arduino_counter.get_samplintime()))
-        f.write("# Measuring {} continuously".format(measure))
-        f.write("# Sampling each measurement {} times".format(n_measures_per_step))
-        f.write("# Measurement start: {} ".format(time.asctime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("# Measuring {} continuously\n".format(measure))
+        f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
+        f.write("# Measurement start: {}\n\n".format(time.asctime()))
 
         writer = csv.writer(f)
 
