@@ -16,7 +16,7 @@ def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate=
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring 1/r^2-relation via {}\n".format(calibrate))
         f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
         f.write("# Measurement start: {}\n\n".format(time.asctime()))
@@ -55,7 +55,7 @@ def calibrate_source_center(outfile, arduino_counter, xy_stage, square=3, res=10
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring source center via {}\n".format(calibrate))
         f.write("# Measure square +- {} cm around starting point\n".format(square))
         f.write("# Splitting square in {} equidistant steps in each dimension\n".format(res))
@@ -94,7 +94,7 @@ def measure_continuously(outfile, arduino_counter, n_measures_per_step=5, measur
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplintime()))
+        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring {} continuously\n".format(measure))
         f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
         f.write("# Measurement start: {}\n\n".format(time.asctime()))
