@@ -16,7 +16,7 @@ def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate=
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
+        f.write("# Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring 1/r^2-relation via {}\n".format(calibrate))
         f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
         f.write("# Measurement start: {}\n\n".format(time.asctime()))
@@ -55,7 +55,7 @@ def calibrate_source_center(outfile, arduino_counter, xy_stage, square=3, res=10
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
+        f.write("# Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring source center via {}\n".format(calibrate))
         f.write("# Measure square +- {} cm around starting point\n".format(square))
         f.write("# Splitting square in {} equidistant steps in each dimension\n".format(res))
@@ -67,18 +67,23 @@ def calibrate_source_center(outfile, arduino_counter, xy_stage, square=3, res=10
         writer.writerow(["# Timestamp / s", "rel x / cm", "rel y / cm", "mean {}".format(calibrate), "std {}".format(calibrate)])
 
         read_func = arduino_counter.get_frequency if calibrate != 'counts' else arduino_counter.get_counts
-
+        
+        ref_pos = xy_stage.get_position(unit='cm')
+        ref_pos = [30.0 - ref_pos[0], 30.0 - ref_pos[1]]
+        
         rel_measure_points = np.linspace(-square, square, res)
 
         for y in rel_measure_points:
 
-            xy_stage.move_relative(target=y, axis=xy_stage.y_axis, unit='cm')
+            xy_stage.move_absolute(target=ref_pos[1] + y, axis=xy_stage.y_axis, unit='cm')
 
             for x in rel_measure_points:
 
-                xy_stage.move_relative(target=x, axis=xy_stage.x_axis, unit='cm')
+                xy_stage.move_absolute(target=ref_pos[0] + x, axis=xy_stage.x_axis, unit='cm')
 
                 data = []
+
+                print("Measuring at rel. to counter (x={}, y={}) cm".format(x, y))
 
                 for _ in range(n_measures_per_step):
                     m = read_func()
@@ -94,7 +99,7 @@ def measure_continuously(outfile, arduino_counter, n_measures_per_step=5, measur
 
     with open(outfile, 'w') as f:
 
-        f.write("Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
+        f.write("# Arduino counter with sampling time of {} ms\n".format(arduino_counter.get_samplingtime()))
         f.write("# Measuring {} continuously\n".format(measure))
         f.write("# Sampling each measurement {} times\n".format(n_measures_per_step))
         f.write("# Measurement start: {}\n\n".format(time.asctime()))
