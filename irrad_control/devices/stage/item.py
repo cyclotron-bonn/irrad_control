@@ -8,28 +8,87 @@ from .base_axis import BaseAxis
 
 class ItemTelnetClient(object):
 
+    # Byte tokens
     cr_lf_token = b'\r\n'
-    ok_token = b'200 OK'
+
+    # String tokens
+    ok_token = 'OK'
+    async_token = '!!'
 
     def __init__(self, host, port, timeout=1):
+
+        self.port = port
+        self.host = host
+        self.error = False
 
         # Open telnet connection
         self._client = telnetlib.Telnet(host=host, port=port, timeout=timeout)
 
+        # Allow connections to be made
         time.sleep(1)
 
-        attempts = 0
-        while attempts < 10:
-            self._send('')
-            if self._recv_until_CRLF() == self.ok_token:
-                break
-            attempts += 1
+        # try to connect
+        self._establish_connection()
 
-    def _send(self, msg):
-        logging.debug('Raw message sent: {}'.format(msg))
-        self._client.write(bytes(msg) + self.cr_lf_token)
+    def _establish_connection(self):
 
-    def _recv(self):
+        # Send dummy bytes
+        self.send('')
+
+        # Receive all initial garbage and throw it into gc
+        _ = self.recv_all()
+
+        # Send dummy bytes again and receive OK
+        reply = self.send_and_recv('')
+
+        if reply.split()[-1] != self.ok_token:
+            raise ValueError('Connection could not be established')
+
+    def send(self, msg):
+        _msg = bytes(msg) + self.cr_lf_token
+        logging.debug('Raw message sent: {}'.format(_msg))
+        self._client.write(_msg)
+
+    def recv(self):
+        reply = self._client.read_until(self.cr_lf_token, timeout=self._client.timeout).rstrip()
+        logging.debug('Raw reply received: {}'.format(reply))
+        return str(reply)
+
+    def _check_msg_reply(self, msg, reply):
+
+        # Separate into actual data and the return status
+        actual_reply, status = reply.split()
+
+        # Get HTTP status
+        if actual_reply.startswith(self.async_token):
+            https_state = actual_reply.split(':')[-1]
+        else:
+            https_state = actual_reply.split()[0]
+
+        if status != self.ok_token:
+            self.error = True
+            logging.error("Command {} to server unsuccessful: received HTTP status {}".format(msg, https_state))
+        else:
+            self.error = False
+            logging.debug("Command {} to server successful: received HTTP status {}".format(msg, https_state))
+
+    def send_and_recv(self, msg):
+
+        self.send(msg)
+        reply = self.recv()
+        self._check_msg_reply(msg, reply)
+
+        return reply
+
+    def send_and_recv_multiple(self, msg):
+
+        self.send(msg)
+        reply = self.recv_multiple()
+        self._check_msg_reply(msg, reply[0])
+
+        return reply
+
+    def recv_all(self):
 
         raw_reply = b''
 
@@ -41,65 +100,120 @@ class ItemTelnetClient(object):
 
         logging.debug('Raw reply received: {}'.format(raw_reply))
 
-        return raw_reply
+        return str(raw_reply)
 
-    def _recv_until_CRLF(self):
-        return self._client.read_until(self.cr_lf_token, timeout=self._client.timeout).rstrip()
-
-    def send_cmd(self, cmd, data=None):
+    def send_cmd(self, cmd, data=None, single_reply=True):
 
         # Build command string
-        cmd_str = str(cmd) + '' if data is None else ' '
+        cmd_str = str(cmd)
 
-        # data has more tha one field
+        # data has more than one field
         if isinstance(data, (tuple, list)):
-            cmd_str += ' '.join(str(a) for a in data)
-        else:
-            cmd_str += str(data) if data is not None else ''
+            cmd_str += ' ' + ' '.join(str(a) for a in data)
+        elif data is not None:
+            cmd_str += ' ' + str(data)
 
-        logging.debug('Attempting to send command: {}'.format(cmd_str))
+        return self.send_and_recv(msg=cmd_str) if single_reply else self.send_and_recv_multiple(msg=cmd_str)
 
-        self._send(msg=cmd_str)
-
-    def recv_reply(self, return_status=False):
-
-        status, reply = self._recv_until_CRLF(), self._recv_until_CRLF()
-
-        if status != self.ok_token and status:
-            logging.error("Command not succeeded with status {}; instead {}".format(self.ok_token, status))
-
-        return reply if return_status is False else status
-
-    def recv_multiple_replies(self):
+    def recv_multiple(self):
 
         replies = []
 
-        next_reply = self.recv_reply()
+        next_reply = self.recv()
         while next_reply:
             replies.append(next_reply)
-            next_reply = self.recv_reply()
+            next_reply = self.recv()
 
         return replies
 
 
 class ItemLinearStage(BaseAxis):
-    
-    def __init__(self, host, port):
-        super(ItemLinearStage, self).__init__(init_props=('position', 'speed', 'accel'))
 
-        self.client = ItemTelnetClient(host=host, port=port)
-        self.controller_id = None
-    
-    def convert_from_unit(self, value, unit):
-        pass
+    props = {'position': 'POSACTUAL'}
+
+    def __init__(self, host, port, udp=('131.220.221.224', '8802')):
+
+        self.udp = udp
+
+        # Init client
+        self.item_client = ItemTelnetClient(host=host, port=port)
+
+        # Login stage
+        self.item_client.send_cmd(cmd='LOGIN Stage Hochstromraum')
+
+        # Connect to udp
+        self.item_client.send_cmd(cmd='CONNECT udp', data=udp)
+
+        self.controller_id = self.get_id()
+
+        super(ItemLinearStage, self).__init__(init_props=('position', 'speed', 'accel'), native_unit='mm')
 
     def _get_property(self, prop):
 
-        return self._send_cmd('GET {cntrllr_id} {prop}'.format(cntrllr_id=self.controller_id,
-                                                               prop=prop))
-    
+        reply = self.item_client.send_cmd(cmd='GET', data=[self.controller_id, prop])
+        prop_value = reply.split(':')[-1]
+
+        try:
+            res = float(prop_value)
+            if res.is_integer():
+                res = int(res)
+        except ValueError:
+            res = prop_value
+
+        return 0 if self.item_client.error else res
+
+    def _set_enabled(self, state=True):
+        self.item_client.send_cmd(cmd='{} {}'.format('ENABLE' if state else 'DISABLE', self.controller_id))
+
+    def _check_move(self, value):
+        """Checks whether the target *value* is within the axis range"""
+
+        # Get minimum and maximum steps of travel
+        min_native, max_native = self.get_range()
+
+        # Check whether there's still room to move
+        if not (min_native <= value <= max_native):
+            logging.error("Movement out of travel range. Abort!")
+            return False
+
+        return True and not self.error
+
+    def _convert(self, value, unit, to_native=False):
+        """
+        Converts between native and physical units. Item native unit is mm
+
+        Parameters
+        ----------
+        value: float, int
+            Numerical value to/from which is converted
+        unit: str
+            Unit from/to which is converted; must be in sel.units
+        to_native: bool
+            Whether or not to convert to the native unit
+
+        Returns
+        -------
+            int, float
+        """
+        return value * self.unit_scale[unit.split('/')[0]] ** (1.0 if to_native else -1.0)
+
     def convert_to_unit(self, value, unit):
-        pass
+        """See self._convert"""
+        return self._convert(value, unit)
+
+    def convert_from_unit(self, value, unit):
+        """See self._convert"""
+        return self._convert(value, unit, to_native=True)
+
+    def enable(self):
+        self._set_enabled(True)
+
+    def disable(self):
+        self._set_enabled(False)
+
+    def get_id(self):
+        stage_id = self.item_client.send_and_recv_multiple(msg='LIST')[-1]
+        return int(stage_id)
 
     def get_position(self, unit=None):
         """
@@ -110,10 +224,104 @@ class ItemLinearStage(BaseAxis):
         """
 
         # Get position
-        pos = self._get_property('POS')
+        pos = self._get_property(self.props['position'])
 
         # Convert to *unit* if needed
         return pos if unit is None else self.convert_to_unit(pos, unit)
+
+    def get_speed(self, unit=None):
+        """
+        Get the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which speed should be converted. Must be in self.speed_units. If None, return speed in steps / s
+        """
+
+        speed, speed_unit = (self.config['speed'][v] for v in ('value', 'unit'))
+
+        speed_mm = self.convert_from_unit(speed, speed_unit)
+
+        return speed_mm if unit is None else self.convert_to_unit(speed_mm, unit)
+
+    @BaseAxis.update_config(entry='speed')
+    def set_speed(self, value, unit=None):
+        """
+        Set the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : float, int
+            speed at which *axis* should move
+        unit : str, None
+            unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
+        """
+
+        pass
+
+    def get_range(self, unit=None):
+        """
+        Get the travel range of axis
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which range should be converted. Must be in self.dist_units. If None, return speed in steps
+        """
+
+        _range, range_unit = (self.config['range'][v] for v in ('value', 'unit'))
+
+        _range_mm = [self.convert_from_unit(r_m, range_unit) for r_m in _range]
+
+        return _range_mm if unit is None else [self.convert_to_unit(r, unit) for r in _range]
+
+    @BaseAxis.update_config(entry='range')
+    def set_range(self, value, unit=None):
+        """
+        Set the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : float, int
+            speed at which *axis* should move
+        unit : str, None
+            unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
+        """
+
+        pass
+
+    def get_accel(self, unit=None):
+        """
+        Get the acceleration at which the axis increases speed for move rel and move abs commands
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which acceleration should be converted. Must be in self.accel_units.
+            If None, get acceleration in steps / s^2
+        """
+
+        accel, accel_unit = (self.config['accel'][v] for v in ('value', 'unit'))
+
+        accel_mms2 = self.convert_from_unit(accel, accel_unit)
+
+        return accel_mms2 if unit is None else self.convert_to_unit(accel_mms2, unit)
+
+    @BaseAxis.update_config(entry='accel')
+    def set_accel(self, value, unit=None):
+        """
+        Set the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : float, int
+            speed at which *axis* should move
+        unit : str, None
+            unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
+        """
+
+        pass
 
     def _move(self, value, unit, absolute=True):
         """
@@ -128,15 +336,22 @@ class ItemLinearStage(BaseAxis):
             unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
-        # Get target of travel in steps
+        # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)
 
         # Do sanity check whether movement is within axis range and move
-        self._send_cmd("MOVETO {cntrllr_id} {pos} {speed} {accel} {mode}".format(cntrllr_id=self.controller_id,
-                                                                                 pos=target,
-                                                                                 speed=self.get_speed(unit=unit),
-                                                                                 accel=self.get_accel(unit=unit),
-                                                                                 mode='A' if absolute else 'R'))
+        if self._check_move(value=target if absolute else target + self.get_position()):
+
+            # Enable for movement
+            self.enable()
+
+            self.item_client.send_cmd(cmd='MOVETO', data=[self.controller_id,
+                                                          target,
+                                                          self.get_speed(unit=unit),
+                                                          self.get_accel(unit=unit),
+                                                          'A' if absolute else 'R'])
+            # Disable stage
+            self.disable()
 
     @BaseAxis.update_config(entry='position')
     def move_rel(self, value, unit=None):

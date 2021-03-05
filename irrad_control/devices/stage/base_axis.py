@@ -1,9 +1,11 @@
 import logging
 import time
 import yaml
+from functools import wraps
+
+# Package imports
 from irrad_control import axis_config
 from irrad_control.utils.utils import create_pub_from_ctx
-from functools import wraps
 
 
 class BaseAxis(object):
@@ -58,7 +60,7 @@ class BaseAxis(object):
             res = axis_func(self, value, unit)
 
             if not self.error:
-                self.config[entry].update({'value': value, 'unit': unit})
+                self.config[entry].update({'value': getattr(self, 'get_{}'.format(entry))(unit=unit), 'unit': unit})
                 self.config['last_updated'] = time.asctime()
 
             return res
@@ -78,7 +80,7 @@ class BaseAxis(object):
 
         return unit
 
-    def add_position(self, name, value, unit, date=None):
+    def add_position(self, name, unit, value=None, date=None):
         """
         Method which stores new named position on the axis in the config. If it already exists in self.config['positions'], the entries are updated
 
@@ -86,8 +88,8 @@ class BaseAxis(object):
         ----------
         name: str
             name of the position
-        value: int, float
-            position
+        value: int, float, None
+            position, if None position is current position
         unit: str
             string of unit
         date: str, None
@@ -95,7 +97,8 @@ class BaseAxis(object):
         """
 
         # Position info dict
-        new_pos = {'value': value, 'unit': unit, 'date': time.asctime() if date is None else date}
+        new_pos = {'value': value if value is not None else self.get_position(unit),
+                   'unit': unit, 'date': time.asctime() if date is None else date}
 
         # We're updating an existing position
         if name in self.config['positions']:

@@ -391,7 +391,7 @@ class ZaberMultiStage(object):
             else:
                 axis.move_abs(value=pos[i], unit=unit)
 
-    def add_position(self, name, pos, unit, date=None):
+    def add_position(self, name, unit, pos=None, date=None):
         """
         Method which stores new XY stage position in the config. If it already exists in self.config['positions'], the entries are updated
 
@@ -399,8 +399,8 @@ class ZaberMultiStage(object):
         ----------
         name: str
             name of the position
-        pos: iterable
-            iterable of position
+        pos: iterable, None
+            iterable of position, if None, call get position
         unit: str
             string of metric unit
         date: str, None
@@ -408,7 +408,7 @@ class ZaberMultiStage(object):
         """
 
         for i, axis in enumerate(self.axis):
-            axis.add_position(name=name, value=pos[i], unit=unit, date=date)
+            axis.add_position(name=name, value=axis.get_position(unit) if pos is None else pos[i], unit=unit, date=date)
 
     def remove_position(self, name):
         """
