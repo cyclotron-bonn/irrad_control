@@ -10,7 +10,7 @@ def _check_file_exists(file):
         raise ValueError("File {} already exists".format(file))
 
 
-def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate='counts'):
+def calibrate_via_r2(outfile, xystage, arduino_counter, n_measures_per_step=5, calibrate='counts'):
 
     _check_file_exists(outfile)
 
@@ -31,11 +31,11 @@ def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate=
         step = None
 
         while step != 'q':
-
+            xystage.move_to_position(name='PipsCounterCenter')
             step = input(input_msg)
 
             print('Measuring {} for distance {} cm. Mean over {} measurements'.format(calibrate, step, n_measures_per_step))
-
+                        
             data = []
 
             for _ in range(n_measures_per_step):
@@ -43,7 +43,9 @@ def calibrate_via_r2(outfile, arduino_counter, n_measures_per_step=5, calibrate=
                 m = read_func()
                 print("Measured {}: {}".format(calibrate, m))
                 data.append(m)
-
+            
+            xystage.move_to_position(name='InspectorCenter')
+            
             dose_rate = input("Corresponding dose rate in uSv/h")
 
             writer.writerow([time.time(), step, np.mean(data), np.std(data), dose_rate])
@@ -69,7 +71,7 @@ def calibrate_source_center(outfile, arduino_counter, xy_stage, square=3, res=10
         read_func = arduino_counter.get_frequency if calibrate != 'counts' else arduino_counter.get_counts
         
         ref_pos = xy_stage.get_position(unit='cm')
-        ref_pos = [30.0 - ref_pos[0], 30.0 - ref_pos[1]]
+        ref_pos = [ref_pos[0], 30.0 - ref_pos[1]]
         
         rel_measure_points = np.linspace(-square, square, res)
 
