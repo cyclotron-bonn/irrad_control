@@ -48,25 +48,31 @@ class ArduinoFreqCount(object):
         else:
             logging.error("No reply on serial connection to Arduino FreqCounter.")
             
+    def write_and_read(self, msg):
+        self.interface.reset_input_buffer()
+        self.interface.reset_output_buffer()
+        self.interface.write(msg.encode())
+        return self.interface.readline().strip()
+    
     @_check_cmd_fail
     def get_samplingtime(self):
         """Gets the samplingtime of the Arduino"""
-        
+        return int(self.write_and_read(self.cmds['get_samplingtime']))
         #writes the command to the arduino
-        self.interface.write(self.cmds['get_samplingtime'].encode())
+        #self.interface.write(self.cmds['get_samplingtime'].encode())
         # read the answer from the arduino
-        return int(self.interface.readline().strip())
+        #return int(self.interface.readline().strip())
     
     @_check_cmd_fail
     def get_frequency(self):
         """Gets the current frequency"""
         
         #writing the command to the arduino
-        self.interface.write(self.cmds['get_frequency'].encode())
+        #self.interface.write(self.cmds['get_frequency'].encode())
         # read the answer from the arduino
         try:
-            a = self.interface.readline().strip()
-            return int(a)
+            #a = self.interface.readline().strip()
+            return int(self.write_and_read(self.cmds['get_frequency']))
         except ValueError:
             print(a)
     
@@ -75,9 +81,9 @@ class ArduinoFreqCount(object):
         """Gets the current frequency"""
         
         #writing the command to the arduino
-        self.interface.write(self.cmds['get_counts'].encode())
+        #self.interface.write(self.cmds['get_counts'].encode())
         # read the answer from the arduino
-        return int(self.interface.readline().strip())
+        return int(self.write_and_read(self.cmds['get_counts']))
     
     @_check_cmd_fail
     def set_samplingtime(self, samplingtime):
@@ -85,7 +91,7 @@ class ArduinoFreqCount(object):
         if samplingtime < 0:
             raise ValueError('Sampling time must be positive integer')
         #sending the command of setting the samplingtime to the arduino
-        self.interface.write(self.cmds['set_samplingtime'].format(int(samplingtime)).encode())
+        self.write_and_read(self.cmds['set_samplingtime'].format(int(samplingtime)))
         
     def test_serial_connection(self):
         self.interface.write('t'.encode())
