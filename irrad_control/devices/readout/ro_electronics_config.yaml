@@ -1,0 +1,16 @@
+# Configuration yaml for the R/O electronics
+# Input full-current scale corresponding to +-5 V readout electronics output; INDEX corresponds to VALUE
+ifs_scales: [1000, 330, 100, 33, 10, 3.3]
+# Unit of current scale
+ifs_unit: nA
+# Labels for printing
+ifs_labels: ["1 \u03bcA", "0.33 \u03bcA", "0.1 \u03bcA", "33 nA", "10 nA", "3.3 nA"]
+# Gain factors for the respective MUX channel
+gain_factors: [3.3, 10, 33 ,100, 330, 1000]
+input_channel: 4
+input_labels: ["L", "R", "U", "D"]
+output_channel: 5
+output_labels: ["L", "R", "U", "D", "SUM"]
+# Default values
+defaults:
+  ifs: 330
