@@ -113,6 +113,20 @@ class ZaberStepAxis(BaseAxis):
         """See self._convert"""
         return self._convert(value, unit, to_native=True)
 
+    @BaseAxis.update_config(entry='position')
+    def stop(self):
+        """
+        Stops current movement by decelerating until hold.
+        """
+        return self._send_cmd('stop')
+
+    @BaseAxis.update_config(entry='position')
+    def estop(self):
+        """
+        Stops current movement immediately.
+        """
+        return self._send_cmd('estop')
+
     def get_position(self, unit=None):
         """
         Returns the current position of the XY-stage in given unit

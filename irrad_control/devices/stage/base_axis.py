@@ -187,6 +187,9 @@ class BaseAxis(object):
     def move_abs(self, value, unit):
         raise NotImplementedError("{} needs to implement a 'move_abs'-method".format(self.__class__.__name__))
 
+    def stop(self):
+        raise NotImplementedError("{} needs to implement a 'stop'-method".format(self.__class__.__name__))
+
 
 class BaseAxisTracker(object):
     """Object that keeps track of a *BaseAxis*-instances movement by publishing its properties on every
