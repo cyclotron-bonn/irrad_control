@@ -14,5 +14,5 @@ hv_foils: 3
 hv_foil_voltage: +100 V
 sem_foil_material: carbon-coated aluminium
 hv_foil_material: aluminium
-foil_thickniess: 5 um
+foil_thickness: 5 um
 hv_supressor_voltage: -100 V
