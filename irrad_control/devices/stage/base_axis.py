@@ -21,7 +21,7 @@ class BaseAxis(object):
         self._dist, self._accel, self._speed = 'distance', 'speed', 'acceleration'
 
         # Dimensions of physical properties
-        self.unit_scale = {'m': 1e0, 'cm': 1e-1, 'mm': 1e-3}
+        self.unit_scale = {'m': 1e0, 'cm': 1e-2, 'mm': 1e-3}
         self.units = {self._dist: ('m', 'cm', 'mm'),
                       self._speed: ('m/s', 'cm/s', 'mm/s'),
                       self._accel: ('m/s^2', 'cm/s^2', 'mm/s^2')}
@@ -32,6 +32,7 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
+        return
         if config is None:
             self._read_config()
         else:
