@@ -44,33 +44,39 @@ class ItemTelnetClient(object):
         if reply.split()[-1] != self.ok_token:
             raise ValueError('Connection could not be established')
 
+        _ = self.recv_all()
+
     def send(self, msg):
-        _msg = bytes(msg) + self.cr_lf_token
+        _msg = bytes(msg, encoding='utf-8') + self.cr_lf_token
         logging.debug('Raw message sent: {}'.format(_msg))
         self._client.write(_msg)
 
     def recv(self):
         reply = self._client.read_until(self.cr_lf_token, timeout=self._client.timeout).rstrip()
         logging.debug('Raw reply received: {}'.format(reply))
-        return str(reply)
+        return str(reply)[2:-1]
 
     def _check_msg_reply(self, msg, reply):
 
         # Separate into actual data and the return status
-        actual_reply, status = reply.split()
+        try:
+            actual_reply, status = reply.split()
 
-        # Get HTTP status
-        if actual_reply.startswith(self.async_token):
-            https_state = actual_reply.split(':')[-1]
-        else:
-            https_state = actual_reply.split()[0]
+            # Get HTTP status
+            if actual_reply.startswith(self.async_token):
+                https_state = actual_reply.split(':')[-1]
+            else:
+                https_state = actual_reply.split()[0]
 
-        if status != self.ok_token:
-            self.error = True
-            logging.error("Command {} to server unsuccessful: received HTTP status {}".format(msg, https_state))
-        else:
-            self.error = False
-            logging.debug("Command {} to server successful: received HTTP status {}".format(msg, https_state))
+            if status != self.ok_token:
+                self.error = True
+                logging.error("Command {} to server unsuccessful: received HTTP status {}".format(msg, https_state))
+            else:
+                self.error = False
+                logging.debug("Command {} to server successful: received HTTP status {}".format(msg, https_state))
+
+        except ValueError:
+            pass
 
     def send_and_recv(self, msg):
 
@@ -112,6 +118,8 @@ class ItemTelnetClient(object):
             cmd_str += ' ' + ' '.join(str(a) for a in data)
         elif data is not None:
             cmd_str += ' ' + str(data)
+
+        logging.debug(cmd_str)
 
         return self.send_and_recv(msg=cmd_str) if single_reply else self.send_and_recv_multiple(msg=cmd_str)
 
@@ -187,7 +195,7 @@ class ItemLinearStage(BaseAxis):
         value: float, int
             Numerical value to/from which is converted
         unit: str
-            Unit from/to which is converted; must be in sel.units
+            Unit from/to which is converted; must be in self.units
         to_native: bool
             Whether or not to convert to the native unit
 
@@ -195,7 +203,7 @@ class ItemLinearStage(BaseAxis):
         -------
             int, float
         """
-        return value * self.unit_scale[unit.split('/')[0]] ** (1.0 if to_native else -1.0)
+        return value * 1e-3 * (self.unit_scale[unit.split('/')[0]] ** (1.0 if to_native else -1.0))
 
     def convert_to_unit(self, value, unit):
         """See self._convert"""
@@ -245,7 +253,7 @@ class ItemLinearStage(BaseAxis):
 
         return speed_mm if unit is None else self.convert_to_unit(speed_mm, unit)
 
-    @BaseAxis.update_config(entry='speed')
+    #@BaseAxis.update_config(entry='speed')
     def set_speed(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -276,7 +284,7 @@ class ItemLinearStage(BaseAxis):
 
         return _range_mm if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
-    @BaseAxis.update_config(entry='range')
+    #@BaseAxis.update_config(entry='range')
     def set_range(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -308,7 +316,7 @@ class ItemLinearStage(BaseAxis):
 
         return accel_mms2 if unit is None else self.convert_to_unit(accel_mms2, unit)
 
-    @BaseAxis.update_config(entry='accel')
+    #@BaseAxis.update_config(entry='accel')
     def set_accel(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -345,21 +353,21 @@ class ItemLinearStage(BaseAxis):
             # Enable for movement
             self.enable()
 
-            self.item_client.send_cmd(cmd='MOVETO', data=[self.controller_id,
-                                                          target,
-                                                          self.get_speed(unit=unit),
-                                                          self.get_accel(unit=unit),
-                                                          'A' if absolute else 'R'])
+            self.item_client.send_cmd(cmd='MOVETOMM',   data=[self.controller_id,
+                                                              target,
+                                                              self.get_speed(unit=unit),
+                                                              self.get_accel(unit=unit),
+                                                              'A' if absolute else 'R'])
             # Disable stage
             self.disable()
 
-    @BaseAxis.update_config(entry='position')
+    #@BaseAxis.update_config(entry='position')
     def move_rel(self, value, unit=None):
         """ See self._move """
 
         self._move(value, unit, absolute=False)
 
-    @BaseAxis.update_config(entry='position')
+    #@BaseAxis.update_config(entry='position')
     def move_abs(self, value, unit=None):
         """ See self._move """
 
