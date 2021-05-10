@@ -402,5 +402,5 @@ class ItemLinearStage(BaseAxis):
 
     def stop(self):
         """Stop any movement"""
-        self.item_client.send_cmd('STOP')
+        self.disable()
         self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
