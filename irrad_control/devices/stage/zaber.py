@@ -113,20 +113,6 @@ class ZaberStepAxis(BaseAxis):
         """See self._convert"""
         return self._convert(value, unit, to_native=True)
 
-    @base_axis_config_updater
-    def stop(self):
-        """
-        Stops current movement by decelerating until hold.
-        """
-        return self._send_cmd('stop')
-
-    @base_axis_config_updater
-    def estop(self):
-        """
-        Stops current movement immediately.
-        """
-        return self._send_cmd('estop')
-
     def get_position(self, unit=None):
         """
         Returns the current position of the XY-stage in given unit
@@ -348,6 +334,19 @@ class ZaberStepAxis(BaseAxis):
 
         # Do the movement
         self.move_abs(pos, unit)
+
+    def stop(self, emergency=False):
+        """
+        Stops current movement by decelerating until hold. I *emergency* is True, shut off driver current
+        for immediate halt.
+
+        Parameters
+        ----------
+        emergency: bool
+            whether to shut off the driver current
+        """
+        self._send_cmd('stop' if not emergency else 'estop')
+        self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
 
 
 class ZaberMultiStage(object):

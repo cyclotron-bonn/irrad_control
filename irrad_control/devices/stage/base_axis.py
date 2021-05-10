@@ -56,9 +56,7 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
-        if config is None:
-            self._read_config()
-        else:
+        if config is not None:
             self._apply_config()
 
     def _read_config(self, base_unit='mm'):

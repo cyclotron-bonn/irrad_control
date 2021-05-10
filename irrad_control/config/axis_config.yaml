@@ -7,19 +7,19 @@ filename: none
 inverted: False
 # Physical properties of axis
 speed:  # Speed with which axis moves
-  value: none
-  unit: none
+  value: null
+  unit: null
 range:  # Movement range of axis
-  value: none
-  unit: none
+  value: null
+  unit: null
 accel:  # Acceleration with which *speed* is approached
-  value: none
-  unit: none
+  value: null
+  unit: null
 travel: # Total travel of axis
   value: 0
   unit: m
 position:  # Current location on axis
-  value: none
-  unit: none
+  value: null
+  unit: null
 positions:  # Positions known to axis
   {}
