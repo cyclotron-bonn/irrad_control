@@ -41,16 +41,23 @@ class ItemTelnetClient(object):
         # Send dummy bytes again and receive OK
         reply = self.send_and_recv('')
 
+        # Receive all initial garbage and throw it into gc
+        _ = self.recv_all()
+
         if reply.split()[-1] != self.ok_token:
             raise ValueError('Connection could not be established')
 
     def send(self, msg):
+
+        # Apparently needed to discard unwanted additional messages from server
+        _ = self.recv_all()
+
         _msg = bytes(msg + self.cr_lf_token, encoding='utf-8')
         logging.debug('Raw message sent: {}'.format(_msg))
         self._client.write(_msg)
 
     def recv(self):
-        reply = self._client.read_until(self.cr_lf_token, timeout=self._client.timeout).rstrip()
+        reply = self._client.read_until(bytes(self.cr_lf_token, encoding='utf-8'), timeout=self._client.timeout).rstrip()
         logging.debug('Raw reply received: {}'.format(reply))
         return str(reply, encoding='utf-8')
 
@@ -81,9 +88,6 @@ class ItemTelnetClient(object):
         self.send(msg)
         reply = self.recv()
         self._check_msg_reply(msg, reply)
-
-        # Apparently needed to discard unwanted additional messages from server
-        _ = self.recv_all()
 
         return reply
 
@@ -155,11 +159,11 @@ class ItemLinearStage(BaseAxis):
 
         self.controller_id = self.get_id()
 
+        super(ItemLinearStage, self).__init__(native_unit='mm')
+
         self.set_speed(value=10, unit='mm/s')
         self.set_accel(value=1500, unit='mm/s2')
         self.set_range(value=[0, 695], unit='mm')
-
-        super(ItemLinearStage, self).__init__(native_unit='mm')
 
     def _get_property(self, prop):
 
@@ -353,14 +357,15 @@ class ItemLinearStage(BaseAxis):
         if self._check_move(value=target):
 
             # Enable for movement
-            self.enable()
+            #self.enable()
 
+            # This needs to be blocking
             self.item_client.send_cmd(cmd='MOVETOMM',   data=[self.controller_id,
                                                               target,
                                                               self.get_speed(unit=unit),
                                                               self.get_accel(unit=unit)])
             # Disable stage
-            self.disable()
+            #self.disable()
 
     @base_axis_config_updater
     def move_rel(self, value, unit=None):
@@ -395,7 +400,7 @@ class ItemLinearStage(BaseAxis):
         # Do the movement
         self.move_abs(pos, unit)
 
-    @base_axis_config_updater
     def stop(self):
         """Stop any movement"""
         self.item_client.send_cmd('STOP')
+        self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
