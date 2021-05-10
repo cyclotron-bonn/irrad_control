@@ -9,7 +9,7 @@ from .base_axis import BaseAxis, base_axis_config_updater
 class ItemTelnetClient(object):
 
     # Byte tokens
-    cr_lf_token = b'\r\n'
+    cr_lf_token = '\r\n'
 
     # String tokens
     ok_token = 'OK'
@@ -44,17 +44,15 @@ class ItemTelnetClient(object):
         if reply.split()[-1] != self.ok_token:
             raise ValueError('Connection could not be established')
 
-        _ = self.recv_all()
-
     def send(self, msg):
-        _msg = bytes(msg, encoding='utf-8') + self.cr_lf_token
+        _msg = bytes(msg + self.cr_lf_token, encoding='utf-8')
         logging.debug('Raw message sent: {}'.format(_msg))
         self._client.write(_msg)
 
     def recv(self):
         reply = self._client.read_until(self.cr_lf_token, timeout=self._client.timeout).rstrip()
         logging.debug('Raw reply received: {}'.format(reply))
-        return str(reply)[2:-1]
+        return str(reply, encoding='utf-8')
 
     def _check_msg_reply(self, msg, reply):
 
@@ -84,6 +82,9 @@ class ItemTelnetClient(object):
         reply = self.recv()
         self._check_msg_reply(msg, reply)
 
+        # Apparently needed to discard unwanted additional messages from server
+        _ = self.recv_all()
+
         return reply
 
     def send_and_recv_multiple(self, msg):
@@ -106,7 +107,7 @@ class ItemTelnetClient(object):
 
         logging.debug('Raw reply received: {}'.format(raw_reply))
 
-        return str(raw_reply)
+        return str(raw_reply, encoding='utf-8')
 
     def send_cmd(self, cmd, data=None, single_reply=True):
 
