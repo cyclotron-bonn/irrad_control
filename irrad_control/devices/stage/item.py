@@ -155,7 +155,11 @@ class ItemLinearStage(BaseAxis):
 
         self.controller_id = self.get_id()
 
-        super(ItemLinearStage, self).__init__(init_props=('position', 'speed', 'accel'), native_unit='mm')
+        self.set_speed(value=10, unit='mm/s')
+        self.set_accel(value=1500, unit='mm/s2')
+        self.set_range(value=[0, 695], unit='mm')
+
+        super(ItemLinearStage, self).__init__(native_unit='mm')
 
     def _get_property(self, prop):
 
@@ -390,7 +394,7 @@ class ItemLinearStage(BaseAxis):
 
         # Do the movement
         self.move_abs(pos, unit)
-        
+
     @base_axis_config_updater
     def stop(self):
         """Stop any movement"""
