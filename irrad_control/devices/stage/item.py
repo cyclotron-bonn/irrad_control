@@ -3,7 +3,7 @@ import telnetlib
 import logging
 
 # Package imports
-from .base_axis import BaseAxis
+from .base_axis import BaseAxis, base_axis_config_updater
 
 
 class ItemTelnetClient(object):
@@ -203,7 +203,7 @@ class ItemLinearStage(BaseAxis):
         -------
             int, float
         """
-        return value * 1e-3 * (self.unit_scale[unit.split('/')[0]] ** (1.0 if to_native else -1.0))
+        return value * (1e3 * self.unit_scale[unit.split('/')[0]]) ** (1.0 if to_native else -1.0)
 
     def convert_to_unit(self, value, unit):
         """See self._convert"""
@@ -253,7 +253,6 @@ class ItemLinearStage(BaseAxis):
 
         return speed_mm if unit is None else self.convert_to_unit(speed_mm, unit)
 
-    #@BaseAxis.update_config(entry='speed')
     def set_speed(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -265,8 +264,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-
-        pass
+        self.config['speed'].update({'value': value, 'unit': unit})
 
     def get_range(self, unit=None):
         """
@@ -284,7 +282,6 @@ class ItemLinearStage(BaseAxis):
 
         return _range_mm if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
-    #@BaseAxis.update_config(entry='range')
     def set_range(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -296,8 +293,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-
-        pass
+        self.config['range'].update({'value': value, 'unit': unit})
 
     def get_accel(self, unit=None):
         """
@@ -316,7 +312,6 @@ class ItemLinearStage(BaseAxis):
 
         return accel_mms2 if unit is None else self.convert_to_unit(accel_mms2, unit)
 
-    #@BaseAxis.update_config(entry='accel')
     def set_accel(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -328,8 +323,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-
-        pass
+        self.config['accel'].update({'value': value, 'unit': unit})
 
     def _move(self, value, unit, absolute=True):
         """
@@ -347,8 +341,11 @@ class ItemLinearStage(BaseAxis):
         # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)
 
+        # Make absolute vs rel travel by hand
+        target = target if absolute else target + self.get_position()
+
         # Do sanity check whether movement is within axis range and move
-        if self._check_move(value=target if absolute else target + self.get_position()):
+        if self._check_move(value=target):
 
             # Enable for movement
             self.enable()
@@ -356,18 +353,17 @@ class ItemLinearStage(BaseAxis):
             self.item_client.send_cmd(cmd='MOVETOMM',   data=[self.controller_id,
                                                               target,
                                                               self.get_speed(unit=unit),
-                                                              self.get_accel(unit=unit),
-                                                              'A' if absolute else 'R'])
+                                                              self.get_accel(unit=unit)])
             # Disable stage
             self.disable()
 
-    #@BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def move_rel(self, value, unit=None):
         """ See self._move """
 
         self._move(value, unit, absolute=False)
 
-    #@BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def move_abs(self, value, unit=None):
         """ See self._move """
 
@@ -393,3 +389,7 @@ class ItemLinearStage(BaseAxis):
 
         # Do the movement
         self.move_abs(pos, unit)
+
+    def stop(self):
+        """Stop any movement"""
+        self.item_client.send_cmd('STOP')

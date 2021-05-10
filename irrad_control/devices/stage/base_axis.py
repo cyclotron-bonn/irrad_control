@@ -8,6 +8,30 @@ from irrad_control import axis_config
 from irrad_control.utils.utils import create_pub_from_ctx
 
 
+def base_axis_config_updater(base_axis_func):
+    """Decorator which wraps around a function which changes the axis configuration such as each *set* method"""
+
+    @wraps(base_axis_func)
+    def wrapper(instance, value, unit):
+
+        res = base_axis_func(instance, value, unit)
+
+        if not instance.error:
+            prop = base_axis_func.__name__.split('_')[-1]
+            if base_axis_func.__name__ in ('move_rel', 'move_rel'):
+                instance.config['position'].update({'value': instance.get_position(unit=unit), 'unit': unit})
+            elif instance.hasattr('get_{}'.format(prop)):
+                instance.config[prop].update({'value': getattr(instance, 'get_{}'.format(prop))(unit=unit), 'unit': unit})
+            else:
+                raise KeyError("Property {} not in instances config: {}".format(prop, ', '.join(instance.config.key())))
+
+            instance.config['last_updated'] = time.asctime()
+
+        return res
+
+    return wrapper
+
+
 class BaseAxis(object):
     """
     Base class of a single motor stage represented by a movable point on a one dimensional axis. The main attributes of a motor stage are:
@@ -32,7 +56,6 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
-        return
         if config is None:
             self._read_config()
         else:
@@ -50,23 +73,6 @@ class BaseAxis(object):
             getattr(self, 'set_'.format(prop))(value=self.config[prop]['value'], unit=self.config[prop]['unit'])
 
         self.invert_axis = self.config['inverted']
-
-    @classmethod
-    def update_config(cls, axis_func, entry):
-        """Decorator which wraps around a function which changes the axis configuration such as each *set* method"""
-
-        @wraps(axis_func)
-        def wrapper(self, value, unit):
-
-            res = axis_func(self, value, unit)
-
-            if not self.error:
-                self.config[entry].update({'value': getattr(self, 'get_{}'.format(entry))(unit=unit), 'unit': unit})
-                self.config['last_updated'] = time.asctime()
-
-            return res
-
-        return wrapper
 
     def _check_unit(self, unit, unit_type):
         """Checks whether *unit* as well as *unit_type* are in *self.units*."""
