@@ -3,7 +3,7 @@ import yaml
 from zaber.serial import AsciiDevice, AsciiSerial
 
 # Package imports
-from .base_axis import BaseAxis
+from .base_axis import BaseAxis, base_axis_config_updater
 
 
 class ZaberStepAxis(BaseAxis):
@@ -113,14 +113,14 @@ class ZaberStepAxis(BaseAxis):
         """See self._convert"""
         return self._convert(value, unit, to_native=True)
 
-    @BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def stop(self):
         """
         Stops current movement by decelerating until hold.
         """
         return self._send_cmd('stop')
 
-    @BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def estop(self):
         """
         Stops current movement immediately.
@@ -145,7 +145,7 @@ class ZaberStepAxis(BaseAxis):
         # Convert to *unit* if needed
         return pos if unit is None else self.convert_to_unit(pos, unit)
 
-    @BaseAxis.update_config(entry='speed')
+    @base_axis_config_updater
     def set_speed(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -190,7 +190,7 @@ class ZaberStepAxis(BaseAxis):
 
         return speed if unit is None else self.convert_to_unit(speed, unit)
 
-    @BaseAxis.update_config(entry='range')
+    @base_axis_config_updater
     def set_range(self, value, unit=None):
         """
         Set the speed at which axis moves for move rel and move abs commands
@@ -234,7 +234,7 @@ class ZaberStepAxis(BaseAxis):
 
         return _range if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
-    @BaseAxis.update_config(entry='accel')
+    @base_axis_config_updater
     def set_accel(self, value, unit=None):
         """
         Set the acceleration at which the axis increases speed for move rel and move abs commands
@@ -316,13 +316,13 @@ class ZaberStepAxis(BaseAxis):
         if self._check_move(value=target if absolute else target + self.get_position()):
             self._send_cmd("move {} {}".format('abs' if absolute else 'rel', target))
 
-    @BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def move_rel(self, value, unit=None):
         """ See self._move """
 
         self._move(value, unit, absolute=False)
 
-    @BaseAxis.update_config(entry='position')
+    @base_axis_config_updater
     def move_abs(self, value, unit=None):
         """ See self._move """
 

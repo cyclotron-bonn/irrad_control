@@ -18,7 +18,7 @@ def base_axis_config_updater(base_axis_func):
 
         if not instance.error:
             prop = base_axis_func.__name__.split('_')[-1]
-            if base_axis_func.__name__ in ('move_rel', 'move_rel'):
+            if any(p in base_axis_func.__name__.lower() for p in ('move', 'stop')):
                 instance.config['position'].update({'value': instance.get_position(unit=unit), 'unit': unit})
             elif instance.hasattr('get_{}'.format(prop)):
                 instance.config[prop].update({'value': getattr(instance, 'get_{}'.format(prop))(unit=unit), 'unit': unit})

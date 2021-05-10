@@ -390,7 +390,8 @@ class ItemLinearStage(BaseAxis):
 
         # Do the movement
         self.move_abs(pos, unit)
-
+        
+    @base_axis_config_updater
     def stop(self):
         """Stop any movement"""
         self.item_client.send_cmd('STOP')
