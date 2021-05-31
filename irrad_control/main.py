@@ -388,7 +388,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Create missing tabs
         self.control_tab = IrradControlTab(setup=self.setup['server'], parent=self.tabs)
-        self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs)
+        self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs,
+                                           plot_path=self.setup['session']['outfolder'])
 
         # Connect control tab
         self.control_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))

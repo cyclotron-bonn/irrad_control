@@ -1,6 +1,8 @@
 import logging
 import pyqtgraph as pg
+import pyqtgraph.exporters as pg_ex
 import numpy as np
+import os
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
@@ -43,7 +45,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
     """Widget that wraps PlotWidgets and implements some additional features which allow to control the PlotWidgets content.
     Also adds button to show the respective PlotWidget in a QMainWindow"""
 
-    def __init__(self, plot=None, parent=None):
+    def __init__(self, plot=None, plot_path=None, parent=None):
         super(PlotWrapperWidget, self).__init__(parent=parent)
 
         # Set a reasonable minimum size
@@ -57,7 +59,10 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
         self.setLayout(QtWidgets.QVBoxLayout())
         self.plot_options = GridContainer(name='Plot options' if not hasattr(self.pw, 'name') else '{} options'.format(self.pw.name))
-        
+
+        # Output path for screenshots
+        self.plot_path = plot_path
+
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
             self._setup_widget()
@@ -132,6 +137,15 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             spinbox_refresh.valueChanged.connect(lambda v: self.pw.update_refresh_rate(v))
             _sub_layout_1.addWidget(spinbox_refresh)
 
+        # Button to save contents of self.pw.plt instance
+        self.btn_save = QtWidgets.QPushButton()
+        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
+        self.btn_save.setToolTip('Save plot as PNG')
+        self.btn_save.setFixedSize(25, 25)
+        self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(False))
+        self.btn_save.clicked.connect(self.save_plot)
+        self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(True))
+
         # Button to move self.pw to PlotWindow instance
         self.btn_open = QtWidgets.QPushButton()
         self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton))
@@ -144,13 +158,14 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to close self.pw to PlotWindow instance
         self.btn_close = QtWidgets.QPushButton()
-        self.btn_close.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
+        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
         self.btn_close.setToolTip('Close plot in window')
         self.btn_close.setFixedSize(25, 25)
         self.btn_close.setEnabled(False)
         self.btn_close.clicked.connect(lambda: self.btn_close.setEnabled(False))
         self.btn_close.clicked.connect(lambda: self.external_win.close())
 
+        _sub_layout_1.addWidget(self.btn_save)
         _sub_layout_1.addWidget(self.btn_open)
         _sub_layout_1.addWidget(self.btn_close)
 
@@ -173,6 +188,20 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         self.external_win.closeWin.connect(lambda: self.layout().insertWidget(1, self.pw))
         self.external_win.closeWin.connect(lambda: self.btn_open.setEnabled(True))
         self.external_win.show()
+
+    def save_plot(self):
+
+        exporter = pg_ex.ImageExporter(self.pw.plt)
+
+        # Generate filename
+        number = 0
+        out_file = lambda pw, n: os.path.join(os.getcwd() if self.plot_path is None else self.plot_path,
+                                              '{}_{}.png'.format(type(pw).__name__, n))
+        while os.path.isfile(out_file(self.pw, number)):
+            number += 1
+
+        exporter.export(out_file(self.pw, number))
+        logging.info("Saved plot to {}".format(out_file(self.pw, number)))
 
 
 class MultiPlotWidget(QtWidgets.QScrollArea):
