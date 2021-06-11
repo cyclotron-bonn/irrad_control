@@ -1,11 +1,20 @@
+import os
+import time
+import logging
+import subprocess
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
 # Package imports
 import irrad_control.devices.readout as ro
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.utils.logger import log_levels
+from irrad_control.utils.worker import QtWorker
+from irrad_control.gui.utils import check_unique_input, fill_combobox_items, remove_widget, get_host_ip
+from irrad_control.devices import devices
+from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
-from irrad_control.gui.utils import check_unique_input
+from irrad_control import network_config, daq_config, config_path
+from irrad_control.utils.tools import safe_yaml, make_path
 
 
 def _check_has_text(_edit):
@@ -19,11 +28,14 @@ class BaseSetupWidget(GridContainer):
 
     @property
     def isSetup(self):
-        return True
+        return self._is_setup()
 
     @isSetup.setter
-    def isSetup(self, s):
-        raise ValueError('*isSetup* is read-only property')
+    def isSetup(self, v):
+        raise ValueError("'isSetup' is read-only attribute")
+
+    def __init__(self, name, parent=None):
+        super(BaseSetupWidget, self).__init__(name=name, parent=parent)
 
     def setup(self):
         raise NotImplementedError('Implement a *setup* method which returns a setup dict')
@@ -31,34 +43,485 @@ class BaseSetupWidget(GridContainer):
     def _setup_changed(self):
         self.setupChanged.emit(self.setup())
 
+    def _is_setup(self):
+        return True
 
-class DeviceSetup(BaseSetupWidget):
+#################################################################
+# Irradiation session setup widget                              #
+#################################################################
 
-    def __init__(self, name, parent=None):
-        super(DeviceSetup, self).__init__(name=name, parent=parent)
+
+class SessionSetupWidget(QtWidgets.QWidget):
+
+    # Signal which is emitted whenever the server setup has been changed; bool indicates whether the setup is valid
+    setupValid = QtCore.pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super(SessionSetupWidget, self).__init__(parent=parent)
+
+        # The main layout for this widget
+        self.setLayout(QtWidgets.QVBoxLayout())
+
+        # Server setup; store the entire setup of all servers in this bad boy
+        self.setup_widgets = {}
+
+        # Store dict of ips and names
+        self.server_ips = {}
+
+        self.isSetup = False
 
         self._init_setup()
 
     def _init_setup(self):
 
-        checkbox_stage = QtWidgets.QCheckBox('XY-Stage')
-        checkbox_adc = QtWidgets.QCheckBox('ADC')
-        checkbox_temp = QtWidgets.QCheckBox('Temperature sensor')
+        session_setup = SessionSetup('Session')
+        network_setup = NetworkSetup('Network')
+        server_selection = ServerSelection('Server selection')
+
+        network_setup.serverIPsFound.connect(lambda ips: server_selection.add_selection(ips))
+        network_setup.serverIPsFound.connect(
+            lambda ips: None if len(ips) == 0 else
+            server_selection.widgets[ips[0]]['checkbox'].setChecked(1)
+            if (network_config['server']['default'] not in ips or len(ips) == 1)
+            else server_selection.widgets[network_config['server']['default']]['checkbox'].setChecked(1)
+        )
+
+        self.layout().addWidget(session_setup)
+        self.layout().addWidget(network_setup)
+        self.layout().addWidget(server_selection)
+
+        self.setup_widgets['session'] = session_setup
+        self.setup_widgets['network'] = network_setup
+        self.setup_widgets['selection'] = server_selection
+
+        # Connect config widgets
+        for wdgt in self.setup_widgets:
+            self.setup_widgets[wdgt].setupChanged.connect(self._validate_setup)
+
+    def _validate_setup(self):
+
+        try:
+
+            # Check whether all widgets are setup
+            for _, w in self.setup_widgets.items():
+                if not w.isSetup:
+                    logging.warning("{} is not properly set up".format(w.name.capitalize()))
+                    self.isSetup = False
+                    return
+
+            self.isSetup = True
+        finally:
+            self.setupValid.emit(self.isSetup)
+
+    def set_read_only(self, read_only=True):
+        for widget in self.setup_widgets:
+            self.setup_widgets[widget].set_read_only(read_only=read_only)
+
+#################################################################
+# Setup widgets related to the setup of the irradiation session #
+#################################################################
+
+
+class SessionSetup(BaseSetupWidget):
+
+    def __init__(self, name, parent=None):
+        super(SessionSetup, self).__init__(name=name, parent=parent)
+
+        # Attributes for paths and files
+        self.output_path = os.getcwd()
+
+        self._init_setup()
+
+    def _init_setup(self):
+
+        # Label and widgets to set the output folder
+        label_folder = QtWidgets.QLabel('Output folder:')
+        edit_folder = QtWidgets.QLineEdit()
+        edit_folder.setText(self.output_path)
+        edit_folder.setReadOnly(True)
+        btn_folder = QtWidgets.QPushButton('Set folder')
+        btn_folder.clicked.connect(self._get_output_folder)
+        btn_folder.clicked.connect(lambda _: edit_folder.setText(self.output_path))
 
         # Add to layout
-        self.add_widget(widget=[checkbox_stage, checkbox_adc, checkbox_temp])
+        self.add_widget(widget=[label_folder, edit_folder, btn_folder])
 
-        self.widgets['adc'] = checkbox_adc
-        self.widgets['stage'] = checkbox_stage
-        self.widgets['temp'] = checkbox_temp
+        # Label and widgets for output file
+        label_out_file = QtWidgets.QLabel('Output file:')
+        label_out_file.setToolTip('Name of output file containing raw and interpreted data. Cannot contain whitespaces!')
+        edit_out_file = QtWidgets.QLineEdit()
+        edit_out_file.setPlaceholderText('irradiation_{}'.format('_'.join(time.asctime().split())))
+        edit_out_file.textEdited.connect(lambda t, e=edit_out_file: e.setText(t.replace(' ', '_')))  # Don't allow whitespaces
+
+        # Add to layout
+        self.add_widget(widget=[label_out_file, edit_out_file])
+
+        # Label and combobox to set logging level
+        label_logging = QtWidgets.QLabel('Logging level:')
+        combo_logging = QtWidgets.QComboBox()
+        combo_logging.addItems([log_levels[lvl] for lvl in sorted([n_lvl for n_lvl in log_levels if isinstance(n_lvl, int)])])
+        combo_logging.setCurrentIndex(combo_logging.findText('INFO'))
+
+        # Add to layout
+        self.add_widget(widget=[label_logging, combo_logging])
+
+        self.widgets['logging_combo'] = combo_logging
+        self.widgets['folder_edit'] = edit_folder
+        self.widgets['outfile_edit'] = edit_out_file
+
+    def _get_output_folder(self):
+        """Opens a QFileDialog to select/create an output folder"""
+
+        caption = 'Select output folder'
+        path = QtWidgets.QFileDialog.getExistingDirectory(caption=caption, directory=self.output_path)
+
+        # If a path has been selected and its not the current path, update
+        if path and path != self.output_path:
+            self.output_path = path
+
+    def setup(self):
+        return {'loglevel': self.widgets['logging_combo'].currentText(),
+                'outfolder': self.widgets['folder_edit'].text(),
+                'outfile': os.path.join(self.widgets['folder_edit'].text(),
+                                        self.widgets['outfile_edit'].text() or self.widgets['outfile_edit'].placeholderText())
+                }
+
+
+class NetworkSetup(BaseSetupWidget):
+
+    serverIPsFound = QtCore.pyqtSignal(list)
+
+    def __init__(self, name, parent=None):
+        super(NetworkSetup, self).__init__(name=name, parent=parent)
+
+        # Get global threadpool instance to launch search for available servers
+        self.threadpool = QtCore.QThreadPool()
+        self.available_servers = []
+        self.selected_servers = []
+
+        self._init_setup()
+        self.find_servers()
+
+    def _init_setup(self):
+
+        # Host PC IP label and widget
+        label_host = QtWidgets.QLabel('Host IP:')
+        edit_host = QtWidgets.QLineEdit()
+        edit_host.textEdited.connect(lambda _: self._setup_changed())
+        edit_host.setInputMask("000.000.000.000;_")
+        host_ip = get_host_ip()
+
+        # If host can be found using get_host_ip(), don't allow manual input and don't show
+        if host_ip is not None:
+            edit_host.setText(host_ip)
+            edit_host.setReadOnly(True)
+            label_host.setVisible(False)
+            edit_host.setVisible(False)
+
+        # Add to layout
+        self.add_widget(widget=[label_host, edit_host])
+
+        # Server IP label and widgets
+        label_add_server = QtWidgets.QLabel('Add server IP:')
+        edit_server = QtWidgets.QLineEdit()
+        edit_server.setInputMask("000.000.000.000;_")
+        edit_server.textEdited.connect(lambda text: btn_add_server.setEnabled(text != '...' and text not in network_config['server']['all']))
+        edit_server.textEdited.connect(lambda text: btn_add_server.setToolTip(
+            "IP already in list of known server IPs" if text in network_config['server']['all'] else "Add IP to list of known servers"))
+        btn_add_server = QtWidgets.QPushButton('Add')
+        btn_add_server.clicked.connect(lambda _: self._add_to_known_servers(ip=edit_server.text()))
+        btn_add_server.clicked.connect(lambda _: self.find_servers())
+        btn_add_server.clicked.connect(lambda _: btn_add_server.setEnabled(False))
+        btn_add_server.setEnabled(False)
+
+        # Add to layout
+        self.add_widget(widget=[label_add_server, edit_server, btn_add_server])
+
+        self.label_status = QtWidgets.QLabel("Status")
+        self.serverIPsFound.connect(lambda ips: self.label_status.setText("{} of {} known servers found.".format(len(ips), len(network_config['server']['all']))))
+
+        # Add to layout
+        self.add_widget(widget=self.label_status)
+
+        self.widgets['host_edit'] = edit_host
+        self.widgets['server_edit'] = edit_server
+
+    def _add_to_known_servers(self, ip):
+        """Add IP address *ip* to irrad_control.server_ips. Sets default IP if wanted"""
+
+        msg = 'Set {} as default server address?'.format(ip)
+        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+
+        if reply == QtWidgets.QMessageBox.Yes:
+            network_config['server']['default'] = ip
+
+        network_config['server']['all'][ip] = 'none'
+
+        # Open the network_config.yaml and overwrites it with current server_ips
+        safe_yaml(path=make_path(config_path, 'network_config.yaml'), data=network_config)
+
+    def find_servers(self):
+
+        self.label_status.setText("Finding server(s)...")
+        self.threadpool.start(QtWorker(func=self._find_available_servers))
+
+    def _find_available_servers(self, timeout=10):
+
+        n_available = len(network_config['server']['all'])
+        start = time.time()
+        while len(self.available_servers) != n_available and time.time() - start < timeout:
+
+            for ip in network_config['server']['all']:
+                # If we already have found this server in the network, continue
+                if ip in self.available_servers:
+                    continue
+
+                p = subprocess.Popen(["ping", "-q", "-c 1", "-W 1", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                res = p.communicate(), p.returncode
+                if res[-1] == 0:
+                    self.available_servers.append(ip)
+                else:
+                    n_available -= 1
+
+        self.serverIPsFound.emit(self.available_servers)
+
+    def setup(self):
+        return self.widgets['host_edit'].text()
+
+    def _is_setup(self):
+        return False if self.widgets['host_edit'].isVisible() and not self.widgets['host_edit'].text() else True
+
+
+class ServerSelection(BaseSetupWidget):
+
+    def __init__(self, name, parent=None):
+        super(ServerSelection, self).__init__(name=name, parent=parent)
+
+    def add_selection(self, selection):
+
+        for i, ip in enumerate(selection):
+
+            if ip in self.widgets:
+                continue
+
+            chbx = QtWidgets.QCheckBox(str(ip))
+            edit = QtWidgets.QLineEdit()
+            default = 'Server_{}'.format(i + 1)
+            edit.setPlaceholderText(default if ip not in network_config['server']['all'] else network_config['server']['all'][ip] if network_config['server']['all'][ip] != 'none' else default)
+
+            # Connect
+            chbx.stateChanged.connect(self._setup_changed)
+            edit.textChanged.connect(self._setup_changed)
+
+            self.widgets[ip] = {'checkbox': chbx, 'edit': edit}
+
+            self.add_widget(widget=[chbx, edit])
+
+    def setup(self):
+        return {ip: con['edit'].text() or con['edit'].placeholderText() for ip, con in self.widgets.items() if con['checkbox'].isChecked()}
+
+    def _is_setup(self):
+        # Server selection check
+        server_names = [(val['edit'].text() or val['edit'].placeholderText()) for val in self.widgets.values()]
+        check_0 = any(chbx.isChecked() for chbx in [val['checkbox'] for val in self.widgets.values()])
+        check_1 = len(set(server_names)) == len(server_names)
+        return check_0 and check_1
+
+
+#################################################################
+# Server setup widget                                           #
+#################################################################
+
+
+class ServerSetupWidget(QtWidgets.QWidget):
+    """
+    Widget to do the setup of each available server. This includes what devices the server controls and
+    the settings of these devices themselves. Each server is represented as tab within the self widget.
+    """
+
+    # Signal which is emitted whenever the server setup has been changed; bool indicates whether the setup is valid
+    setupValid = QtCore.pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super(ServerSetupWidget, self).__init__(parent)
+
+        # The main layout for this widget
+        self.setLayout(QtWidgets.QVBoxLayout())
+
+        # No margins
+        self.layout().setContentsMargins(0, 0, 0, 0)
+
+        # Tabs for each available server
+        self.tabs = QtWidgets.QTabWidget()
+        self.layout().addWidget(self.tabs)
+
+        # Server setup; store the entire setup of all servers in this bad boy
+        self.setup_widgets = {}
+        self.tab_widgets = {}
+
+        # Store dict of ips and names
+        self.server_ips = {}
+
+        self.isSetup = False
+
+    def add_server(self, ip, name=None):
+        """Add a server  with ip *ip* for setup"""
+
+        # Number servers
+        current_server = name if name is not None else 'Server_{}'.format(self.tabs.count() + 1)
+
+        # If this server is not already in setup
+        if ip not in self.server_ips:
+            # Setup
+            self._init_setup(ip, current_server)
+            self._validate_setup()
+
+        else:
+            self.tabs.setTabText(self.tabs.indexOf(self.tab_widgets[ip]), current_server)
+
+        # Store/rename server name and ip
+        self.server_ips[ip] = current_server
+
+    def remove_server(self, ip):
+
+        if ip not in self.tab_widgets:
+            logging.warning("Server {} not in setup and therefore cannot be removed.".format(ip))
+            return
+
+        self.tabs.removeTab(self.tabs.indexOf(self.tab_widgets[ip]))
+        del self.tab_widgets[ip]
+        del self.server_ips[ip]
+        del self.setup_widgets[ip]
+
+    def _update_readout_widget(self, ip, ro_device, layout):
+
+        if self.setup_widgets[ip]['readout_dev'].device == ro_device:
+            return
+        elif ro_device != 'None':
+            ro_device_setup_updated = ReadoutDeviceSetup(name='Readout', device=ro_device)
+            remove_widget(widget=self.setup_widgets[ip]['readout_dev'], layout=layout, replace_with=ro_device_setup_updated)
+            self.setup_widgets[ip]['readout_dev'] = ro_device_setup_updated
+
+    def _init_setup(self, ip, name=None):
+
+        # Layout
+        _layout = QtWidgets.QVBoxLayout()
+
+        # Init setup
+        ro_device_sel = ReadoutDeviceSelection(name='Readout device')
+        serv_device_sel = ServerDeviceSelection(name='Server devices')
+        daq_setup = DAQSetup(name='Data acquisition')
+        ro_device_setup = ReadoutDeviceSetup('Readout', device=ro.RO_DEVICES.DAQBoard)
+        arduino_temp_setup = NTCSetup(name='ArduinoTempSens')
+
+        ro_device_sel.setupChanged.connect(lambda state, _ip=ip, _l=_layout:
+                                           (self._update_readout_widget(_ip, state, _l),
+                                            self.setup_widgets[_ip]['readout_dev'].setVisible(state != 'None'),
+                                            daq_setup.setVisible(state != 'None')))
+
+        # TODO: make this generic for server devices that have a dedicated setup widget
+        serv_device_sel.widgets['ArduinoTempSens'].stateChanged.connect(lambda state: arduino_temp_setup.setVisible(bool(state)))
+
+        # Add to layout
+        _layout.addWidget(ro_device_sel)
+        _layout.addWidget(serv_device_sel)
+        _layout.addWidget(arduino_temp_setup)
+        _layout.addWidget(daq_setup)
+        _layout.addWidget(ro_device_setup)
+        _layout.addStretch()
+
+        _widget = QtWidgets.QWidget()
+        _widget.setLayout(_layout)
+
+        # Store widgets
+        self.setup_widgets[ip] = {'readout_sel': ro_device_sel,
+                                  'device': serv_device_sel,
+                                  'temp': arduino_temp_setup,
+                                  'daq': daq_setup,
+                                  'readout_dev': ro_device_setup}
+
+        # Connect config widgets
+        for wdgt in self.setup_widgets[ip]:
+            self.setup_widgets[ip][wdgt].setupChanged.connect(self._validate_setup)
+
+        # Make scroll widget and set widget
+        scroll_server = NoBackgroundScrollArea()
+        scroll_server.setWidget(_widget)
+
+        # Finally, add to tab bar
+        self.tab_widgets[ip] = scroll_server
+        self.tabs.addTab(scroll_server, name)
+
+        # Select defaults
+        ro_device_sel.widgets[ro.RO_DEVICES.DAQBoard].toggle()
+        serv_device_sel.widgets['ArduinoTempSens'].setChecked(True)
+        serv_device_sel.widgets['ArduinoTempSens'].setChecked(False)
+
+    def _validate_setup(self):
+        """Check if all necessary input is ready to continue"""
+
+        try:
+
+            # Loop over all servers
+            for ip in self.server_ips:
+
+                # Check whether all widgets are setup
+                for _, w in self.setup_widgets[ip].items():
+                    if not w.isSetup:
+                        logging.warning("{} is not properly set up".format(w.name.capitalize()))
+                        self.isSetup = False
+                        return
+
+                # Check if server is used to control any device
+                if not any(w.isChecked() for _, w in self.setup_widgets[ip]['device'].widgets.items()) and self.setup_widgets[ip]['readout_sel'].setup() == 'None':
+                    logging.warning("No readout / server devices selected for server {}. Please choose devices or remove server.".format(ip))
+                    self.isSetup = False
+                    return
+
+                if self.setup_widgets[ip]['device'].widgets['ArduinoTempSens'].isChecked() and not any(tcb.isChecked() for tcb in self.setup_widgets[ip]['temp'].widgets['ntc_chbxs']):
+                    logging.warning("Select temperature sensors for server {} or remove from devices.".format(ip))
+                    self.isSetup = False
+                    return
+
+            self.isSetup = True
+
+        finally:
+            self.setupValid.emit(self.isSetup)
+
+    def set_read_only(self, read_only=True):
+
+        for ip in self.setup_widgets:
+            for k in self.setup_widgets[ip]:
+                self.setup_widgets[ip][k].set_read_only(read_only=read_only)
+
+#################################################################
+# Setup widgets related top the setup of individual RPi servers #
+#################################################################
+
+
+class ServerDeviceSelection(BaseSetupWidget):
+
+    def __init__(self, name, parent=None):
+        super(ServerDeviceSelection, self).__init__(name=name, parent=parent)
+
+        self._init_setup()
+
+    def _init_setup(self):
+
+        # Make checkboxes for device selection
+        self.widgets = {dev: QtWidgets.QCheckBox(dev) for dev in devices.__all__}
+
+        for k, w in self.widgets.items():
+            w.stateChanged.connect(lambda _: self._setup_changed())
+
+        # Add to layout
+        self.add_widget(widget=self.widgets.values())
+
+    def setup(self):
+        return {dev: w.isChecked() for dev, w in self.widgets.items()}
 
 
 class NTCSetup(BaseSetupWidget):
-
-    @property
-    def isSetup(self):
-        check_edits = [e for i, e in enumerate(self.widgets['ntc_edits']) if self.widgets['ntc_chbxs'].isChecked()]
-        return False if not check_edits else check_unique_input(check_edits)
 
     def __init__(self, name, n_sensors=8, parent=None):
         super(NTCSetup, self).__init__(name=name, parent=parent)
@@ -104,20 +567,69 @@ class NTCSetup(BaseSetupWidget):
         self.widgets['ntc_edits'] = edits
 
     def setup(self):
+        ntc_sensors = [i for i in range(len(self.widgets['ntc_chbxs'])) if self.widgets['ntc_chbxs'][i].isChecked()]
+        ntc_names = [e.text() or e.placeholderText() for i, e in enumerate(self.widgets['ntc_edits']) if i in ntc_sensors]
 
-        ntc = {}
-        ntc['ntc_sensors'] = [i for i in range(len(self.widgets['ntc_chbxs'])) if self.widgets['ntc_chbxs'][i].isChecked()]
-        ntc['ntc_names'] = [e.text() or e.placeholderText() for i, e in enumerate(self.widgets['ntc_edits']) if i in ntc['ntc_sensors']]
+        return dict(zip(ntc_sensors, ntc_names))
 
-        return ntc
+    def _is_setup(self):
+        check_edits = [e for i, e in enumerate(self.widgets['ntc_edits']) if self.widgets['ntc_chbxs'][i].isChecked()]
+        return False if not check_edits else check_unique_input(check_edits)
 
 
-class ReadoutSelection(BaseSetupWidget):
+class DAQSetup(BaseSetupWidget):
+
+    def __init__(self, name, parent=None):
+        super(DAQSetup, self).__init__(name=name, parent=parent)
+
+        # Call setup
+        self._init_setup()
+
+    def _init_setup(self):
+        # Label for name of DAQ device which is represented by the ADC
+        label_sem = QtWidgets.QLabel('SEM name:')
+        label_sem.setToolTip('Name of DAQ SEM e.g. SEM_C')
+        combo_sem = QtWidgets.QComboBox()
+        combo_sem.addItems(daq_config['sem']['all'])
+        combo_sem.setCurrentIndex(daq_config['sem']['all'].index(daq_config['sem']['default']))
+
+        # Add to layout
+        self.add_widget(widget=[label_sem, combo_sem])
+
+        # Label for readout scale combobox
+        label_kappa = QtWidgets.QLabel('Proton hardness factor %s:' % u'\u03ba')
+        combo_kappa = QtWidgets.QComboBox()
+        fill_combobox_items(combo_kappa, daq_config['kappa'])
+
+        # Add to layout
+        self.add_widget(widget=[label_kappa, combo_kappa])
+
+        # Proportionality constant related widgets
+        label_prop = QtWidgets.QLabel('Proportionality constant %s [1/V]:' % u'\u03bb')
+        label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
+        combo_prop = QtWidgets.QComboBox()
+        fill_combobox_items(combo_prop, daq_config['lambda'])
+
+        # Add to layout
+        self.add_widget(widget=[label_prop, combo_prop])
+
+        # Store all daq related widgets in dict
+        self.widgets['sem_combo'] = combo_sem
+        self.widgets['kappa_combo'] = combo_kappa
+        self.widgets['prop_combo'] = combo_prop
+
+    def setup(self):
+        return {'sem': self.widgets['sem_combo'].currentText(),
+                'lambda': float(self.widgets['prop_combo'].currentText().split()[0]),
+                'kappa': float(self.widgets['kappa_combo'].currentText().split()[0])}
+
+
+class ReadoutDeviceSelection(BaseSetupWidget):
 
     setupChanged = QtCore.pyqtSignal(str)
 
     def __init__(self, name, parent=None):
-        super(ReadoutSelection, self).__init__(name=name, parent=parent)
+        super(ReadoutDeviceSelection, self).__init__(name=name, parent=parent)
 
         self._init_setup()
 
@@ -129,8 +641,6 @@ class ReadoutSelection(BaseSetupWidget):
             rb = QtWidgets.QRadioButton(ro_dev)
             rb.clicked.connect(lambda _: self._setup_changed())
             radio_btn_grp.addButton(rb)
-            if ro_dev == ro.RO_DEVICES.DAQBoard:
-                rb.toggle()
             self.widgets[ro_dev] = rb
             btns.append(rb)
 
@@ -140,15 +650,8 @@ class ReadoutSelection(BaseSetupWidget):
         return [t for t in self.widgets if self.widgets[t].isChecked()][0]
 
 
-class ReadoutSetup(BaseSetupWidget):
+class ReadoutDeviceSetup(BaseSetupWidget):
     """Setup for R/O via 8 Channels ADC ADS1256"""
-
-    @property
-    def isSetup(self):
-        check_0 = check_unique_input(self.widgets['channel_edits'], ignore=self.not_used_placeholder)
-        check_1 = any(_check_has_text(e) for e in self.widgets['channel_edits'])
-        check_2 = True if 'ntc_setup' not in self.widgets else self.widgets['ntc_setup'].isSetup
-        return check_0 and check_1 and check_2
 
     def __init__(self, name, device=ro.RO_DEVICES.DAQBoard, n_channels=8, parent=None):
         """
@@ -163,7 +666,7 @@ class ReadoutSetup(BaseSetupWidget):
         parent: QtWidgets.QWidget
             Parent widget
         """
-        super(ReadoutSetup, self).__init__(name=name, parent=parent)
+        super(ReadoutDeviceSetup, self).__init__(name=name, parent=parent)
 
         if device not in ro.RO_DEVICES:
             raise ValueError('R/O device unknown. Must be on of {}'.format(', '.join(str(d) for d in ro.RO_DEVICES)))
@@ -178,11 +681,12 @@ class ReadoutSetup(BaseSetupWidget):
 
         # Temperature sensors
         if self.device == ro.RO_DEVICES.DAQBoard:
-            checkbox_ntc = QtWidgets.QCheckBox('Connect NTCs')
+            checkbox_ntc = QtWidgets.QCheckBox('Use NTC readout')
             ntc_setup = NTCSetup('NTCs')
             ntc_setup.setupChanged.connect(lambda _: self._setup_changed())
             ntc_setup.setVisible(False)
             checkbox_ntc.stateChanged.connect(lambda state: ntc_setup.setVisible(bool(state)))
+            checkbox_ntc.stateChanged.connect(lambda _: self._setup_changed())
             self.widgets['ntc_chbx'] = checkbox_ntc
             self.widgets['ntc_setup'] = ntc_setup
             self.grid.addWidget(checkbox_ntc, self.grid.rowCount(), 0)
@@ -406,7 +910,7 @@ class ReadoutSetup(BaseSetupWidget):
                                     for i, c in enumerate(self.widgets['scale_combos']) if self.widgets['channel_edits'][i].text()]
         else:
             readout['x10_jumper'] = self.widgets['jumper_chbx'].isChecked()
-            readout['ro_group_scales'] = {g: ro.DAQ_BOARD_CONFIG['ifs_labels{}'.format(
+            readout['ro_group_scales'] = {g: ro.DAQ_BOARD_CONFIG['common']['ifs_labels{}'.format(
                 '_10' if readout['x10_jumper'] else '')].index(self.widgets['group_scale_combos'][g].currentText())
                                           for g in self.widgets['group_scale_combos']}
             readout['ch_groups'] = [c.currentText() for i, c in enumerate(self.widgets['group_combos']) if self.widgets['channel_edits'][i].text()]
@@ -415,3 +919,9 @@ class ReadoutSetup(BaseSetupWidget):
                 readout['ntc'] = self.widgets['ntc_setup'].setup()
 
         return readout
+
+    def _is_setup(self):
+        check_0 = check_unique_input(self.widgets['channel_edits'], ignore=self.not_used_placeholder)
+        check_1 = any(_check_has_text(e) for e in self.widgets['channel_edits'])
+        check_2 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else self.widgets['ntc_setup'].isSetup
+        return check_0 and check_1 and check_2

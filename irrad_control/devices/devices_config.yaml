@@ -1,10 +1,14 @@
-ADS1256:
-  init: None
+#ADS1256:
+#  init: None
 
-IrradDAQBoard:
-  init:
-    version: v0.2
-    address: 0x20
+#TCA9555:
+#  init:
+#    address: 0x20
+
+#IrradDAQBoard:
+#  init:
+#    version: v0.2
+#    address: 0x20
 
 ZaberXYStage:
   init:
@@ -16,7 +20,3 @@ ArduinoTempSens:
     baudrate: 115200
     timeout: 5
     ntc_lim: (-55, 125)
-
-TCA9555:
-  init:
-    address: 0x20
