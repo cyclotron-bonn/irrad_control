@@ -13,7 +13,7 @@ from irrad_control.gui.utils import check_unique_input, fill_combobox_items, rem
 from irrad_control.devices import devices
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
-from irrad_control import network_config, daq_config, config_path
+from irrad_control import network_config, daq_config, config_path, tmp_dir
 from irrad_control.utils.tools import safe_yaml, make_path
 
 
@@ -139,12 +139,16 @@ class SessionSetup(BaseSetupWidget):
         edit_folder = QtWidgets.QLineEdit()
         edit_folder.setText(self.output_path)
         edit_folder.setReadOnly(True)
-        btn_folder = QtWidgets.QPushButton('Set folder')
+        btn_folder = QtWidgets.QPushButton(' Set folder')
+        btn_folder.setIcon(btn_folder.style().standardIcon(QtWidgets.QStyle.SP_DirIcon))
         btn_folder.clicked.connect(self._get_output_folder)
         btn_folder.clicked.connect(lambda _: edit_folder.setText(self.output_path))
+        btn_dump = QtWidgets.QPushButton(' Dump')
+        btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
+        btn_dump.clicked.connect(lambda _: edit_folder.setText(make_path(tmp_dir)))
 
         # Add to layout
-        self.add_widget(widget=[label_folder, edit_folder, btn_folder])
+        self.add_widget(widget=[label_folder, edit_folder, btn_dump, btn_folder])
 
         # Label and widgets for output file
         label_out_file = QtWidgets.QLabel('Output file:')
