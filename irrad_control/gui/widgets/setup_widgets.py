@@ -922,9 +922,12 @@ class ReadoutDeviceSetup(BaseSetupWidget):
                                     for i, c in enumerate(self.widgets['scale_combos']) if self.widgets['channel_edits'][i].text()]
         else:
             readout['x10_jumper'] = self.widgets['jumper_chbx'].isChecked()
-            readout['ro_group_scales'] = {g: ro.DAQ_BOARD_CONFIG['common']['ifs_labels{}'.format(
-                '_10' if readout['x10_jumper'] else '')].index(self.widgets['group_scale_combos'][g].currentText())
+
+            scale_labels = ro.DAQ_BOARD_CONFIG['common']['ifs_labels{}'.format('_10' if readout['x10_jumper'] else '')]
+            readout['ro_group_scales'] = {g: ro.DAQ_BOARD_CONFIG['common']['ifs_scales'][
+                scale_labels.index(self.widgets['group_scale_combos'][g].currentText())]
                                           for g in self.widgets['group_scale_combos']}
+
             readout['ch_groups'] = [c.currentText() for i, c in enumerate(self.widgets['group_combos']) if self.widgets['channel_edits'][i].text()]
 
             if self.widgets['ntc_chbx'].isChecked():
