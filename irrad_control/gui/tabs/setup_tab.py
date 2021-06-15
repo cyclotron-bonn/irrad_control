@@ -134,7 +134,8 @@ class IrradSetupTab(QtWidgets.QWidget):
             network_config['server']['all'][server_ip] = server_name
 
             # Readout
-            server_setup['readout'] = self.server_setup.setup_widgets[server_ip]['readout_dev'].setup()
+            if self.server_setup.setup_widgets[server_ip]['readout_sel'].setup() != 'None':
+                server_setup['readout'] = self.server_setup.setup_widgets[server_ip]['readout_dev'].setup()
 
             # DAQ
             server_setup['daq'] = self.server_setup.setup_widgets[server_ip]['daq'].setup()
