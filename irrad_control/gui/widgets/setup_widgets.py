@@ -421,7 +421,14 @@ class ServerSetupWidget(QtWidgets.QWidget):
         ro_device_sel.setupChanged.connect(lambda state, _ip=ip, _l=_layout:
                                            (self._update_readout_widget(_ip, state, _l),
                                             self.setup_widgets[_ip]['readout_dev'].setVisible(state != 'None'),
-                                            daq_setup.setVisible(state != 'None')))
+                                            daq_setup.setVisible(state != 'None'),
+                                            None if 'IrradDAQBoard' not in serv_device_sel.widgets else
+                                            serv_device_sel.widgets['IrradDAQBoard'].setChecked(
+                                                state == ro.RO_DEVICES.DAQBoard),
+                                            None if 'IrradDAQBoard' not in serv_device_sel.widgets else
+                                            serv_device_sel.widgets['IrradDAQBoard'].setEnabled(
+                                                state != ro.RO_DEVICES.DAQBoard)
+                                            ))
 
         # TODO: make this generic for server devices that have a dedicated setup widget
         serv_device_sel.widgets['ArduinoTempSens'].stateChanged.connect(lambda state: arduino_temp_setup.setVisible(bool(state)))
@@ -460,6 +467,7 @@ class ServerSetupWidget(QtWidgets.QWidget):
         ro_device_sel.widgets[ro.RO_DEVICES.DAQBoard].toggle()
         serv_device_sel.widgets['ArduinoTempSens'].setChecked(True)
         serv_device_sel.widgets['ArduinoTempSens'].setChecked(False)
+        ro_device_sel.setupChanged.emit(ro_device_sel.setup())
 
     def _validate_setup(self):
         """Check if all necessary input is ready to continue"""

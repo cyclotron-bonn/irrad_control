@@ -5,10 +5,10 @@
 #  init:
 #    address: 0x20
 
-#IrradDAQBoard:
-#  init:
-#    version: v0.2
-#    address: 0x20
+IrradDAQBoard:
+  init:
+    version: v0.2
+    address: 0x20
 
 ZaberXYStage:
   init:
