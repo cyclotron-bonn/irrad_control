@@ -10,7 +10,7 @@ import irrad_control.devices.readout as ro
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.utils import check_unique_input, fill_combobox_items, remove_widget, get_host_ip
-from irrad_control.devices import devices
+from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control import network_config, daq_config, config_path, tmp_dir
@@ -513,7 +513,7 @@ class ServerDeviceSelection(BaseSetupWidget):
     def _init_setup(self):
 
         # Make checkboxes for device selection
-        self.widgets = {dev: QtWidgets.QCheckBox(dev) for dev in devices.__all__}
+        self.widgets = {dev: QtWidgets.QCheckBox(dev) for dev in DEVICES_CONFIG}
 
         for k, w in self.widgets.items():
             w.stateChanged.connect(lambda _: self._setup_changed())
