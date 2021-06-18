@@ -2,6 +2,7 @@ from . import DEVICES_CONFIG
 
 # Readout-related
 from .readout.daq_board import IrradDAQBoard
+from .readout.adc_board import ADCBoard
 
 # Motor stage
 from .stage.xystage import ZaberXYStage
