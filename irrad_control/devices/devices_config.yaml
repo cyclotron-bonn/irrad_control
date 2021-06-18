@@ -5,6 +5,9 @@
 #  init:
 #    address: 0x20
 
+ADCBoard:
+  init: None
+
 IrradDAQBoard:
   init:
     version: v0.2
