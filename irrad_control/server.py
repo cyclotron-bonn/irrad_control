@@ -113,10 +113,10 @@ class IrradServer(DAQProcess):
 
             # Start data sending thread
             if dev == 'ADCBoard':
-                self.launch_thread(target=self.daq_thread, args=(self._daq_adc,))
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_adc)
 
             elif dev == 'ArduinoTempSens':
-                self.launch_thread(target=self.daq_thread, args=(self._daq_temp,))
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_temp)
 
     def _daq_adc(self):
         """
