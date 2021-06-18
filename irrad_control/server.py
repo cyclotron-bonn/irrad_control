@@ -55,10 +55,10 @@ class IrradServer(DAQProcess):
             try:
                 init_kwargs = self.setup['server']['devices'][dev]['init']
 
-                if init_kwargs:
-                    self.devices[dev] = getattr(devices, dev)(**init_kwargs)
-                else:
+                if init_kwargs.lower() == 'none':
                     self.devices[dev] = getattr(devices, dev)()
+                else:
+                    self.devices[dev] = getattr(devices, dev)(**init_kwargs)
 
                 if dev == 'ADCBoard':
                     self.devices[dev].drate = self.setup['server']['readout']['sampling_rate']
