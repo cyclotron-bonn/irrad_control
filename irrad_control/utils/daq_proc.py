@@ -265,11 +265,11 @@ class DAQProcess(Process):
         # Write PID file
         self._write_pid_file()
 
-    def launch_thread(self, target):
+    def launch_thread(self, target, *args, **kwargs):
         """Launch a ThreadWorker instance with *target* function and append to self.threads"""
 
         # Create and launch
-        thread = ThreadWorker(target=target)
+        thread = ThreadWorker(target=target, args=args, kwargs=kwargs)
         thread.start()
 
         # Add to instance threads
