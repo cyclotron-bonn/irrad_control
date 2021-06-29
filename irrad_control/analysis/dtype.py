@@ -3,8 +3,14 @@ from dataclasses import dataclass
 from numpy import dtype
 
 
+# Event dtype; used to log events such as beam current shutdowns, state changes etc
+_event_dtype = [('timestamp', '<f4'),
+                ('event', 'U64'),
+                ('parameters', 'U256')]
+
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
+                     ('axis_id', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
                      ('movement_status', 'U10'),  # String stating whether stage starts or stops movement
                      ('position', '<f4'),  # Position at movement status
                      ('speed', '<f4'),  # Speed at movement status
@@ -55,6 +61,8 @@ _result_dtype = [('proton_fluence', '<f8'),
 @dataclass
 class IrradDtypes:
 
+    event = dtype(_event_dtype)
+    motorstage = dtype(_motorstage_dtype)
     beam = dtype(_beam_dtype)
     scan = dtype(_scan_dtype)
     damage = dtype(_damage_dtype)
