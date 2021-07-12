@@ -22,13 +22,14 @@ _beam_dtype = [('timestamp', '<f4'),  # Timestamp of current measurement [s]
                ('beam_current', '<f4'),  # Beam current value [A]
                ('beam_current_error', '<f4'),  # Error of the beam current e.g. measurement error [A]
                ('reconstructed_beam_current', '<f4'),  # Beam current value reconstructed from signal after ADC instead of analog signal [A]
-               ('reconstructed_beam_current_error', '<f4'),  # Error of beam current value reconstructed from signal after ADC instead of analog signal [A]
+               ('beam_loss', '<f4'),  # Beam current loss at extraction, detected by Beam-Loss-Monitor [A]
                ('horizontal_beam_position', '<f4'),  # Relative x position of the mean of the beam distribution [%]
                ('vertical_beam_position', '<f4')]  # Relative y position of the mean of the beam distribution [%]
 
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
+               ('n_rows', '<i2'),  # Number of total rows
                ('row_start_timestamp', '<f4'),  # Posix-timestamp when beginning to scan a row [s]
                ('row_stop_timestamp', '<f4'),  # Posix-timestamp when ending to scan a row [s]
                ('row_start_x', '<f4'),  # x component of the starting position of currently-scanned row [mm]
@@ -36,7 +37,11 @@ _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row_stop_x', '<f4'),  # x component of the stopping position of currently-scanned row [mm]
                ('row_stop_y', '<f4'),  # # y component of the stopping position of currently-scanned row [mm]
                ('row_mean_beam_current', '<f4'),  # Mean of the beam current during scanning current row [nA]
-               ('row_mean_beam_current_err', '<f4'),  # Error of the beam current; quadratic addition of std of beam current and measurement error [nA]
+               ('row_mean_beam_current_error', '<f4'),  # Error of the beam current; quadratic addition of std of beam current and measurement error [nA]
+               ('row_proton_fluence', '<f8'),  # The proton fluence during scanning current row [protons/cm^2]
+               ('row_proton_fluence_error', '<f8'),  # Error of the proton fluence during scanning current row [protons/cm^2]
+               ('row_tid', '<f4'),  # The TID during scanning current row [Mrad]
+               ('row_tid_error', '<f4'),  # Error of the tid [Mrad]
                ('row_scan_speed', '<f4'),  # Speed with which the sample is scanned [mm/s]
                ('row_separation', '<f4')]  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
 
@@ -50,12 +55,13 @@ _damage_dtype = [('timestamp', '<f4'), # Timestamp [s]
 
 
 # Result data type: contains proton as well as neutron fluence and scaling factor
-_result_dtype = [('proton_fluence', '<f8'),
+_result_dtype = [('timestamp', '<f4'),
+                 ('proton_fluence', '<f8'),
                  ('proton_fluence_error', '<f8'),
                  ('neutron_fluence', '<f8'),
                  ('neutron_fluence_error', '<f8'),
-                 ('tid', '<f8'),
-                 ('tid_error', '<f8')]
+                 ('tid', '<f4'),
+                 ('tid_error', '<f4')]
 
 
 @dataclass
@@ -73,3 +79,9 @@ class IrradDtypes:
         dtypes = [default_dtype] * len(names) if dtypes is None else dtypes
 
         return dtype(list(zip(names, dtypes)))
+
+    def __getitem__(self, item):
+        if hasattr(self, item) and isinstance(getattr(self, item), dtype):
+            return getattr(self, item)
+        else:
+            raise KeyError("IrradDtypes do not contain {}".format(item))
