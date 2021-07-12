@@ -11,11 +11,11 @@ RO_TYPES = ("sem_left",
             "sem_right",
             "sem_up",
             "sem_down",
+            "sem_sum",
             "cup",
-            "cup_integrated",
+            "blm",
             "ntc",
-            "ntc_integrated",
             "general_purpose")
 
 RO_DEFAULTS = {'ch_names': ('Left', 'Right', 'Up', 'Down', 'Sum', 'Cup', 'NTC'),
-               'ch_types': ("sem_left", "sem_right", "sem_up", "sem_down", "cup_integrated", "ntc_integrated")}
+               'ch_types': ("sem_left", "sem_right", "sem_up", "sem_down", "sem_sum", "cup_integrated", "ntc_integrated")}

@@ -7,18 +7,6 @@ sem:
     - SEM-39-deg
     - SEM-15-deg
 
-# Descriptor of hardware-related output behind digitized voltage signal or channel
-adc_channels:
-  - sem_left
-  - sem_right
-  - sem_up
-  - sem_down
-  - sem_sum
-  - sem_h_shift
-  - sem_v_shift
-  - cup_integrated
-  - none
-
 # Proportionality constant(s) of the SEMs for online measurements of the HISKP proton beam current.
 # The beam current I_Beam is calculated by the SEM sum signal U_SEM in [V], the 5V full-scale scale I_fs
 # of the custom readout electronics (3.3,10,33,100,330,1000) in [nA] and the proportionality constant lambda in [1/V] like:
