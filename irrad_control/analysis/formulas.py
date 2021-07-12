@@ -47,17 +47,17 @@ def proton_fluence_scan(proton_current, scan_step, scan_speed):
         Proton beam current in A
 
     scan_step: float
-        Separation between scanned rows in mm / cm / m
+        Separation between scanned rows in mm
 
     scan_speed:
-        Speed with which rows are scanned in mm/s / cm/s / m/s
+        Speed with which rows are scanned in mm/s
 
     Returns
     -------
     Fluence in protons / cm^2 delivered.
 
     """
-    return proton_current / (irrad_consts.elementary_charge * scan_speed * scan_step)
+    return proton_current / (irrad_consts.elementary_charge * scan_speed * scan_step * 1e-2)
 
 
 def proton_flux_scan(proton_current, scan_step, scan_speed, scan_duration):
@@ -123,22 +123,26 @@ def calibrated_beam_current(beam_monitor_sig, calibration_factor, full_scale_cur
     -------
     Beam current in nA
     """
-    return calibration_factor * full_scale_current * beam_monitor_sig
+    return calibration_factor * full_scale_current * beam_monitor_sig * 1e-9
 
 
-def rel_beam_position(sig_a, sig_b):
+def rel_beam_position(sig_a, sig_b, plane):
 
     try:
-        pos = (sig_a - sig_b) / (sig_a + sig_b)
+        rel_pos = float(sig_a - sig_b) / float(sig_a + sig_b)
     except ZeroDivisionError:
-        pos = 0
+        rel_pos = 0.0
 
-    return float(pos) * 100
+    # If we don't have beam, sometimes results get large and cause problems with displaying the data, therefore limit
+    rel_pos = 1.0 if rel_pos > 1 else -1 if rel_pos < -1 else rel_pos
+
+    # Horizontally, if we are shifted to the left the graph should move to the left, therefore * -1
+    rel_pos *= -100 if plane == 'h' else 100
 
 
 def v_sig_to_i_sig(v_sig, full_scale_current, full_scale_voltage):
-    return v_sig * full_scale_current / full_scale_voltage
+    return v_sig * full_scale_current / full_scale_voltage * 1e-9
 
 
 def i_sig_to_v_sig(i_sig, full_scale_current, full_scale_voltage):
-    return i_sig * full_scale_voltage / full_scale_current
+    return i_sig * full_scale_voltage / (full_scale_current * 1e-9)
