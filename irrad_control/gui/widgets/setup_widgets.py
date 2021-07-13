@@ -435,6 +435,12 @@ class ServerSetupWidget(QtWidgets.QWidget):
                                            (self._update_readout_widget(_ip, state, _l),
                                             self.setup_widgets[_ip]['readout_dev'].setVisible(state != 'None'),
                                             daq_setup.setVisible(state != 'None'),
+                                            None if 'ADCBoard' not in serv_device_sel.widgets else
+                                            serv_device_sel.widgets['ADCBoard'].setChecked(
+                                                state != 'None'),
+                                            None if 'ADCBoard' not in serv_device_sel.widgets else
+                                            serv_device_sel.widgets['ADCBoard'].setEnabled(
+                                                not state != 'None'),
                                             None if 'IrradDAQBoard' not in serv_device_sel.widgets else
                                             serv_device_sel.widgets['IrradDAQBoard'].setChecked(
                                                 state == ro.RO_DEVICES.DAQBoard),
