@@ -46,18 +46,15 @@ class IrradConverter(DAQProcess):
         self.interaction_flags = {server: {'write': Event(),
                                            'offset': Event()} for server in self.server}
 
-        self.data_flags = {server: {'scan': False,
-                                    'damage': False,
-                                    'rawoffset': False,
-                                    'result': False,
-                                    'scanning': False} for server in self.server}
-
         # Containers to hold data
         # Store tables
         self.data_tables = defaultdict(dict)
 
         # Store data per interpretation cycle
         self.data_arrays = defaultdict(dict)
+
+        # Flag indicating whether to store data
+        self.data_flags = defaultdict(dict)
 
         # Dict with lists to append beam current values to during scanning
         self._scan_currents = defaultdict(list)
@@ -95,12 +92,14 @@ class IrradConverter(DAQProcess):
 
             self._raw_offsets[server] = defaultdict(list)
 
+            self.data_flags[server]['scanning'] = False
+
             # Create needed tables and arrays
             for dname in ('Raw', 'RawOffset', 'Event', 'Beam', 'Damage', 'Scan', 'Result'):
 
                 try:
                     dtype = self.dtypes[dname.lower()]
-                except KeyError:
+                except KeyError:  # Raw and RawOffset data
                     dtype = self.dtypes.generic_dtype(names=['timestamp']+self.readout_setup[server]['channels'])
 
                 # Create and store tables
@@ -110,53 +109,73 @@ class IrradConverter(DAQProcess):
                 # Create arrays
                 self.data_arrays[server][dname.lower()] = np.zeros(shape=1, dtype=dtype)
 
-        if 'ntc' in self.readout_setup:
+                # Create data flags
+                self.data_flags[server][dname.lower()] = False
 
-            dtype = self.dtypes.generic_dtype(names=['timestamp']+self.readout_setup['ntc'].values())
-            dname = 'temp_daq_board'
-            node_name = 'Temperature_DAQBoard'
+        # We have temperature data
+        if 'ntc' in server_setup['readout'] or 'ArduinoTempSens' in server_setup['devices']:
 
-            # Create and store tables
-            self.data_tables[server][dname] = self.output_table.create_table('/{}'.format(server_setup['name']),
-                                                                             description=dtype,
-                                                                             name=node_name)
-            # Create arrays
-            self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+            # Make temperature measurement group in outfile
+            # Create group at root
+            self.output_table.create_group('/{}'.format(server_setup['name']), 'Temperature')
 
-            # Add flag
-            self.data_flags[server][dname] = False
+            if 'ntc' in server_setup['readout']:
 
-        if 'ArduinoTempSens' in server_setup['devices']:
+                dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
+                                                  dtypes=['<f4', '<U{}'.format(np.max([len(s) for s in self.readout_setup['ntc'].values()])), '<f2'])
+                dname = 'temp_daq_board'
+                node_name = 'DAQBoard'
 
-            dtype = self.dtypes.generic_dtype(names=['timestamp'] + server_setup['devices']['ArduinoTempSens']['setup'].values())
-            dname = 'temp_arduino'
-            node_name = 'Temperature_ArduinoTempSens'
+                # Channel on which the NTC voltages are cycled
+                self._lookups[server]['ntc_group_idx'] = self.readout_setup[server]['ch_groups'].index('ntc')
 
-            # Create and store tables
-            self.data_tables[server][dname] = self.output_table.create_table('/{}'.format(server_setup['name']),
-                                                                             description=dtype,
-                                                                             name=node_name)
-            # Create arrays
-            self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+                # Create and store tables
+                self.data_tables[server][dname] = self.output_table.create_table('/{}/Temperature'.format(server_setup['name']),
+                                                                                 description=dtype,
+                                                                                 name=node_name)
+                # Create arrays
+                self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
 
-            # Add flag
-            self.data_flags[server][dname] = False
+                # Add flag
+                self.data_flags[server][dname] = False
 
-        if 'ZaberXYStage' in server_setup['devices']:
+            if 'ArduinoTempSens' in server_setup['devices']:
 
-            dtype = self.dtypes['motorstage']
-            dname = 'motorstage_zaberxystage'
-            node_name = 'Motorstage_ZaberXYStage'
+                dtype = self.dtypes.generic_dtype(names=['timestamp'] + server_setup['devices']['ArduinoTempSens']['setup'].values())
+                dname = 'temp_arduino'
+                node_name = 'ArduinoTempSens'
 
-            # Create and store tables
-            self.data_tables[server][dname] = self.output_table.create_table('/{}'.format(server_setup['name']),
-                                                                             description=dtype,
-                                                                             name=node_name)
-            # Create arrays
-            self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+                # Create and store tables
+                self.data_tables[server][dname] = self.output_table.create_table('/{}/Temperature'.format(server_setup['name']),
+                                                                                 description=dtype,
+                                                                                 name=node_name)
+                # Create arrays
+                self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
 
-            # Add flag
-            self.data_flags[server][dname] = False
+                # Add flag
+                self.data_flags[server][dname] = False
+
+        # We have motorstage data
+        if 'ZaberXYStage' in server_setup['devices']:  # FIXME: make flag for devices that are stages / ADD: ItemStage
+            # Make temperature measurement group in outfile
+            # Create group at root
+            self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
+
+            if 'ZaberXYStage' in server_setup['devices']:
+
+                dtype = self.dtypes['motorstage']
+                dname = 'motorstage_zaberxystage'
+                node_name = 'ZaberXYStage'
+
+                # Create and store tables
+                self.data_tables[server][dname] = self.output_table.create_table('/{}/Motorstage'.format(server_setup['name']),
+                                                                                 description=dtype,
+                                                                                 name=node_name)
+                # Create arrays
+                self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+
+                # Add flag
+                self.data_flags[server][dname] = False
 
     def _handle_raw_data(self, server, data, meta):
 
@@ -171,6 +190,9 @@ class IrradConverter(DAQProcess):
             # Subtract offset from data; initially offset is 0 for all ch
             if ch in self._lookups[server]['offset_ch']:
                 data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
+
+        # Append data to table within this interpretation cycle
+        self.data_flags[server]['raw'] = True
 
     def _get_raw_offset(self, server, data):
 
@@ -333,6 +355,9 @@ class IrradConverter(DAQProcess):
             self._scan_currents[server].append(ufloat(self.data_arrays[server]['beam']['beam_current'][0],
                                                       self.data_arrays[server]['beam']['beam_current_error'][0]))
 
+        # Append data to table within this interpretation cycle
+        self.data_flags[server]['beam'] = True
+
         return beam_data
 
     def _interpret_scan_data(self, server, data, meta):
@@ -482,8 +507,22 @@ class IrradConverter(DAQProcess):
         return scan_data
 
     def _interpret_daq_board_ntc_data(self, server, data, meta):
-        # TODO: put channel number which corresponds to NTC readout in setup!
-        return 1
+
+        # Get NTC channel voltage
+        ntc_voltage = data[self.readout_setup[server]['channels'][self._lookups[server]['ntc_group_idx']]]
+        ntc_temp = analysis.formulas.get_ntc_temp(ntc_voltage=ntc_voltage, ref_voltage=ro.DAQ_BOARD_CONFIG['common']['2V5p'])
+
+        self.data_arrays[server]['temp_daq_board']['timestamp'] = meta['timestamp']
+        self.data_arrays[server]['temp_daq_board']['ntc_channel'] = meta['ntc_ch']
+        self.data_arrays[server]['temp_daq_board']['temperature'] = ntc_temp
+
+        # Append data to table within this interpretation cycle
+        self.data_flags[server]['temp_daq_board'] = True
+
+        ntc_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_daq_board'},
+                    'data': {meta['ntc_ch']: ntc_temp}}
+
+        return ntc_data
 
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
@@ -541,24 +580,16 @@ class IrradConverter(DAQProcess):
 
         return interpreted_data
 
-    def _store_flag_data(self, server):
+    def store_data(self, server):
+        """Method which appends current data to table files. If tables are longer then self._max_buf_len,
+        flush the buffer to hard drive"""
 
+        # Store data that is not always available
         for storable_data, store_status in self.data_flags[server].items():
 
             if storable_data in self.data_tables[server] and store_status:
                 self.data_tables[server][storable_data].append(self.data_arrays[server][storable_data])
                 self.data_flags[server][storable_data] = False
-
-    def store_data(self, server):
-        """Method which appends current data to table files. If tables are longer then self._max_buf_len,
-        flush the buffer to hard drive"""
-
-        # We always have this data so write
-        self.data_tables[server]['raw'].append(self.data_arrays[server]['raw'])
-        self.data_tables[server]['beam'].append(self.data_arrays[server]['beam'])
-
-        # Store data that is not always available
-        self._store_flag_data(server=server)
 
         # Flush data to hard drive in fixed interval
         if self._last_data_flush is None or time() - self._last_data_flush >= self._data_flush_interval:
@@ -614,6 +645,9 @@ class IrradConverter(DAQProcess):
 
         # User info
         logging.info('Closing output file {}'.format(self.output_table.filename))
+
+        for server in self.server:
+            self.store_data(server=server)
 
         self.output_table.flush()
 
