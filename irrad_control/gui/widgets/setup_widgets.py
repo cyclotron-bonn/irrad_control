@@ -294,8 +294,11 @@ class NetworkSetup(BaseSetupWidget):
 
     def _is_setup(self):
         check = False if self.widgets['host_edit'].isVisible() and not self.widgets['host_edit'].text() else True
+
+        # Logging
         if not check:
             logging.warning("Host IP could not be determined. Please enter manually!")
+
         return check
 
 
@@ -331,11 +334,14 @@ class ServerSelection(BaseSetupWidget):
         # Server selection check
         server_names = [(val['edit'].text() or val['edit'].placeholderText()) for val in self.widgets.values()]
         check_0 = any(chbx.isChecked() for chbx in [val['checkbox'] for val in self.widgets.values()])
+        check_1 = len(set(server_names)) == len(server_names)
+
+        # Logging
         if not check_0:
             logging.warning("No server is selected. Please select a server connected to control the setup")
-        check_1 = len(set(server_names)) == len(server_names)
         if not check_1:
             logging.warning("Server names must be unique.")
+
         return check_0 and check_1
 
 
@@ -593,11 +599,14 @@ class NTCSetup(BaseSetupWidget):
 
     def _is_setup(self):
         check_edits = [e for i, e in enumerate(self.widgets['ntc_edits']) if self.widgets['ntc_chbxs'][i].isChecked()]
+        check_unique = check_unique_input(check_edits)
+
+        # Logging
         if not check_edits:
             logging.warning("No temperature sensor (NTC) selected")
-        check_unique = check_unique_input(check_edits)
         if not check_unique:
             logging.warning("Temperature sensor names must be unique")
+
         return False if not check_edits else check_unique
 
 
