@@ -1,5 +1,6 @@
 """Collection of analysis functions"""
 import irrad_control.analysis.constants as irrad_consts
+import math
 
 
 def tid_scan(proton_fluence, stopping_power):
@@ -146,3 +147,18 @@ def v_sig_to_i_sig(v_sig, full_scale_current, full_scale_voltage):
 
 def i_sig_to_v_sig(i_sig, full_scale_current, full_scale_voltage):
     return i_sig * full_scale_voltage / (full_scale_current * 1e-9)
+
+
+def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, temp_nominal=25, beta_coefficient=3950):
+    # 1 / T = 1 / T_0 + 1 / B * ln(R / R_0)
+
+    # Calc resistance in Ohm
+    ntc_resistance = ref_resistor / ((ref_voltage / ntc_voltage) - 1)
+
+    # Calc temperature
+    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * math.log(ntc_resistance / ntc_nominal))
+
+    # Adjust to Celsius
+    temp -= irrad_consts.kelvin
+
+    return temp
