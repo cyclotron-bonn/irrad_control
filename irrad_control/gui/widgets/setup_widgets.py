@@ -293,7 +293,10 @@ class NetworkSetup(BaseSetupWidget):
         return self.widgets['host_edit'].text()
 
     def _is_setup(self):
-        return False if self.widgets['host_edit'].isVisible() and not self.widgets['host_edit'].text() else True
+        check = False if self.widgets['host_edit'].isVisible() and not self.widgets['host_edit'].text() else True
+        if not check:
+            logging.warning("Host IP could not be determined. Please enter manually!")
+        return check
 
 
 class ServerSelection(BaseSetupWidget):
@@ -328,7 +331,11 @@ class ServerSelection(BaseSetupWidget):
         # Server selection check
         server_names = [(val['edit'].text() or val['edit'].placeholderText()) for val in self.widgets.values()]
         check_0 = any(chbx.isChecked() for chbx in [val['checkbox'] for val in self.widgets.values()])
+        if not check_0:
+            logging.warning("No server is selected. Please select a server connected to control the setup")
         check_1 = len(set(server_names)) == len(server_names)
+        if not check_1:
+            logging.warning("Server names must be unique.")
         return check_0 and check_1
 
 
@@ -586,7 +593,12 @@ class NTCSetup(BaseSetupWidget):
 
     def _is_setup(self):
         check_edits = [e for i, e in enumerate(self.widgets['ntc_edits']) if self.widgets['ntc_chbxs'][i].isChecked()]
-        return False if not check_edits else check_unique_input(check_edits)
+        if not check_edits:
+            logging.warning("No temperature sensor (NTC) selected")
+        check_unique = check_unique_input(check_edits)
+        if not check_unique:
+            logging.warning("Temperature sensor names must be unique")
+        return False if not check_edits else check_unique
 
 
 class DAQSetup(BaseSetupWidget):
@@ -941,5 +953,16 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         check_0 = check_unique_input(self.widgets['channel_edits'], ignore=self.not_used_placeholder)
         check_1 = any(_check_has_text(e) for e in self.widgets['channel_edits'])
         check_2 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else self.widgets['ntc_setup'].isSetup
-        check_3 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else any(gcbx.currentText() == 'ntc' for gcbx in self.widgets['group_combos'])
+        check_3 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else len([gcbx.currentText() == 'ntc' for gcbx in self.widgets['group_combos']]) == 1
+
+        # Logging
+        if not check_0:
+            logging.warning("Channel names must be unique")
+        if not check_1:
+            logging.warning("No channel selected. Enter a channel name to activate respective channel")
+        if not check_2:
+            logging.warning("DAQBoard NTC readout not set up")
+        if not check_3:
+            logging.warning("No or multiple *ntc* group channels selected. Reading out NTCs requires exactly one channel to be selected as *ntc* group")
+
         return check_0 and check_1 and check_2 and check_3
