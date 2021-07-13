@@ -829,6 +829,8 @@ class ReadoutDeviceSetup(BaseSetupWidget):
                 _cbx_group = QtWidgets.QComboBox()
                 _cbx_group.addItems(ro.DAQ_BOARD_CONFIG['common']['mux_groups'])
                 _cbx_group.setToolTip('Select R/O group for each channel.')
+                _cbx_group.setCurrentIndex(_cbx_group.findText(ro.RO_DEFAULTS['ch_groups'][i]) if i < len(ro.RO_DEFAULTS['ch_names']) else 1)  # ch12
+                _cbx_group.currentIndexChanged.connect(lambda _: self._setup_changed())
                 input_widgets['group_combos'].append(_cbx_group)
 
                 # Connections
@@ -841,7 +843,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
             _cbx_type = QtWidgets.QComboBox()
             _cbx_type.addItems(ro.RO_TYPES)
             _cbx_type.setToolTip('Select type of channel. If *general_purpose*, this info is used for interpretation.')
-            _cbx_type.setCurrentIndex(i if i < len(ro.RO_DEFAULTS['ch_names']) else ro.RO_TYPES.index('general_purpose'))
+            _cbx_type.setCurrentIndex(_cbx_type.findText(ro.RO_DEFAULTS['ch_types'][i]) if i < len(ro.RO_DEFAULTS['ch_names']) else ro.RO_TYPES.index('general_purpose'))
             _cbx_type.setEnabled(bool(_edit.text()))
             input_widgets['type_combos'].append(_cbx_type)
 
@@ -939,4 +941,5 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         check_0 = check_unique_input(self.widgets['channel_edits'], ignore=self.not_used_placeholder)
         check_1 = any(_check_has_text(e) for e in self.widgets['channel_edits'])
         check_2 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else self.widgets['ntc_setup'].isSetup
-        return check_0 and check_1 and check_2
+        check_3 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else any(gcbx.currentText() == 'ntc' for gcbx in self.widgets['group_combos'])
+        return check_0 and check_1 and check_2 and check_3
