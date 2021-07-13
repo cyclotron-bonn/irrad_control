@@ -11,7 +11,7 @@ common:
   # Number of channels of the used MUX508IPWR 3-bit multiplexer
   mux_channel: 8
   # Groups of different MUXes
-  mux_groups: [ sem, ch12, temp ]
+  mux_groups: [ sem, ch12, ntc ]
   gain_groups: [ sem, ch12 ]
   # Input full-current scale corresponding to +-5 V (2x2V5p to 2x2V5m) readout board output; INDEX corresponds to VALUE
   # Full current scale 7 gives unity gain, therefore only goes 2V5p - 2V5m; set to 0
