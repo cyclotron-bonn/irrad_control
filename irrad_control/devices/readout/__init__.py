@@ -17,5 +17,6 @@ RO_TYPES = ("sem_left",
             "ntc",
             "general_purpose")
 
-RO_DEFAULTS = {'ch_names': ('Left', 'Right', 'Up', 'Down', 'Sum', 'Cup', 'NTC'),
-               'ch_types': ("sem_left", "sem_right", "sem_up", "sem_down", "sem_sum", "cup_integrated", "ntc_integrated")}
+RO_DEFAULTS = {'ch_names': ('Left', 'Right', 'Up', 'Down', 'Sum', 'BLM', 'NTC'),
+               'ch_types': ("sem_left", "sem_right", "sem_up", "sem_down", "sem_sum", "blm", "ntc"),
+               'ch_groups': ("sem", "sem", "sem", "sem", "sem", "ch12", "ntc")}
