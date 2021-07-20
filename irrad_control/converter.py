@@ -259,21 +259,24 @@ class IrradConverter(DAQProcess):
 
         # Update histograms
         # Beam position
-        bp_h_idx, bp_v_idx = analysis.formulas.get_hist_idx(val=[beam_data['data']['position']['h'], beam_data['data']['position']['v']],
-                                                            bin_edges=self.data_hists[server]['beam_position']['meta']['edges'])
-
-        hist_data['data']['beam_position_idxs'] = (bp_h_idx, bp_v_idx)
-
-        self.data_hists[server]['beam_position']['hist'][bp_h_idx, bp_v_idx] += 1
-
+        bp_h_idx = analysis.formulas.get_hist_idx(val=beam_data['data']['position']['h'],
+                                                  bin_edges=self.data_hists[server]['beam_position']['meta']['edges'][0])
+        bp_v_idx = analysis.formulas.get_hist_idx(val=beam_data['data']['position']['v'],
+                                                  bin_edges=self.data_hists[server]['beam_position']['meta']['edges'][1])
+        try:
+            self.data_hists[server]['beam_position']['hist'][bp_h_idx, bp_v_idx] += 1
+            hist_data['data']['beam_position_idxs'] = (bp_h_idx, bp_v_idx)
+        except IndexError:
+            pass
         # SEY fraction
         for plane in ('horizontal', 'vertical'):
             try:
                 sey_frac = beam_data['data']['sey'][plane[0]] / beam_data['data']['sey']['sum'] * 100
-                sey_idx = analysis.formulas.get_hist_idx(val=sey_frac, bin_edges=self.data_hists[server]['sey_{}'.format(plane)]['meta']['edges'])
-                hist_data['data']['sey_{}_idx'.format(plane)] = sey_idx
+                sey_idx = analysis.formulas.get_hist_idx(val=sey_frac,
+                                                         bin_edges=self.data_hists[server]['sey_{}'.format(plane)]['meta']['edges'])
                 self.data_hists[server]['sey_{}'.format(plane)]['hist'][sey_idx] += 1
-            except ZeroDivisionError:
+                hist_data['data']['sey_{}_idx'.format(plane)] = sey_idx
+            except (ZeroDivisionError, IndexError):
                 pass
 
         return hist_data
@@ -390,7 +393,7 @@ class IrradConverter(DAQProcess):
                     try:
                         loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
                         if loss >= self._beam_cut_off_threshold:
-                            logging.warning("Beam cut-off detected! Losing {:.2f} of beam at extraction!".format(loss*100))
+                            logging.warning("Beam cut-off detected! Losing {:.2f} % of beam at extraction!".format(loss * 100))
                     except ZeroDivisionError:
                         pass
 
