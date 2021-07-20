@@ -1,6 +1,6 @@
 """Collection of analysis functions"""
 import irrad_control.analysis.constants as irrad_consts
-import math
+import numpy as np
 
 
 def tid_scan(proton_fluence, stopping_power):
@@ -156,9 +156,13 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
     ntc_resistance = ref_resistor / ((ref_voltage / ntc_voltage) - 1)
 
     # Calc temperature
-    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * math.log(ntc_resistance / ntc_nominal))
+    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * np.log(ntc_resistance / ntc_nominal))
 
     # Adjust to Celsius
     temp -= irrad_consts.kelvin
 
     return temp
+
+
+def get_hist_idx(val, bin_edges, side='left'):
+    return np.searchsorted(bin_edges, val, side=side)
