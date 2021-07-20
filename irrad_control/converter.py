@@ -31,6 +31,7 @@ class IrradConverter(DAQProcess):
         self._beam_correction_threshold = 0.05
 
         self.dtypes = analysis.dtype.IrradDtypes()
+        self.hists = analysis.dtype.IrradHists()
 
         # Call init of super class
         super(IrradConverter, self).__init__(name=name, commands=commands)
@@ -52,6 +53,9 @@ class IrradConverter(DAQProcess):
 
         # Store data per interpretation cycle
         self.data_arrays = defaultdict(dict)
+
+        # Store hist data
+        self.data_hists = defaultdict(dict)
 
         # Flag indicating whether to store data
         self.data_flags = defaultdict(dict)
@@ -111,6 +115,22 @@ class IrradConverter(DAQProcess):
 
                 # Create data flags
                 self.data_flags[server][dname.lower()] = False
+
+            # Create histogram group and entries
+            self.output_table.create_group('/{}'.format(server_setup['name']), 'Histogram')
+            for hist_name in ('beam_position', 'sey_horizontal', 'sey_vertical'):
+                hist, edges, centers = self.hists.create_hist(hist_name=hist_name)
+
+                self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[hist_name]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
+
+                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                # Create group for histogram
+                self.output_table.create_group('/{}/Histogram'.format(server_setup['name']), table_name)
+
+                # Add meta data arrays for hist
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'edges', edges)
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'centers', centers)
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
 
         # We have temperature data
         if 'ntc' in server_setup['readout'] or 'ArduinoTempSens' in server_setup['devices']:
@@ -232,9 +252,36 @@ class IrradConverter(DAQProcess):
         # Uncertainty on mean is error and std quadratically added
         return _mean_w_err.n, (_mean_w_err.s ** 2 + np.std(data) ** 2) ** 0.5
 
+    def _update_hist_entries(self, server, beam_data):
+
+        hist_data = {'meta': {'timestamp': beam_data['meta']['timestamp'], 'name': server, 'type': 'hist'},
+                     'data': {}}
+
+        # Update histograms
+        # Beam position
+        bp_h_idx, bp_v_idx = analysis.formulas.get_hist_idx(val=[beam_data['data']['position']['h'], beam_data['data']['position']['v']],
+                                                            bin_edges=self.data_hists[server]['beam_position']['meta']['edges'])
+
+        hist_data['data']['beam_position_idxs'] = (bp_h_idx, bp_v_idx)
+
+        self.data_hists[server]['beam_position']['hist'][bp_h_idx, bp_v_idx] += 1
+
+        # SEY fraction
+        for plane in ('horizontal', 'vertical'):
+            try:
+                sey_frac = beam_data['data']['sey'][plane[0]] / beam_data['data']['sey']['sum'] * 100
+                sey_idx = analysis.formulas.get_hist_idx(val=sey_frac, bin_edges=self.data_hists[server]['sey_{}'.format(plane)]['meta']['edges'])
+                hist_data['data']['sey_{}_idx'.format(plane)] = sey_idx
+                self.data_hists[server]['sey_{}'.format(plane)]['hist'][sey_idx] += 1
+            except ZeroDivisionError:
+                pass
+
+        return hist_data
+
     def _interpret_beam_data(self, server, data, meta):
 
-        beam_data = {'position': {}, 'current': {}, 'loss': 0}
+        beam_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'beam'},
+                     'data': {'position': {}, 'current': {}, 'loss': 0, 'sey': {}}}
 
         # Get timestamp from data for beam data arrays
         self.data_arrays[server]['beam']['timestamp'] = meta['timestamp']
@@ -258,6 +305,8 @@ class IrradConverter(DAQProcess):
                                                              full_scale_current=self._get_full_scale_current(server, idx_R, self.readout_setup[server]['device']),
                                                              full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
+                    beam_data['data']['sey']['h'] = sig_L + sig_R
+
                     rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane=plane)
 
                 elif plane == 'v' and self._lookups[server]['sem_v']:
@@ -272,23 +321,25 @@ class IrradConverter(DAQProcess):
                                                              full_scale_current=self._get_full_scale_current(server, idx_D, self.readout_setup[server]['device']),
                                                              full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
+                    beam_data['data']['sey']['v'] = sig_U + sig_D
+
                     rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane=plane)
 
                 else:
                     logging.warning("Beam position can not be calculated!")
                     rel_pos = np.nan
 
-                self.data_arrays[server]['beam'][dname] = beam_data['position'][plane] = rel_pos
+                self.data_arrays[server]['beam'][dname] = beam_data['data']['position'][plane] = rel_pos
 
             # Beam current
             elif 'beam_current' in dname:
 
                 current = 0
                 beam_type = 'reconstructed' if 'reconstructed' in dname else 'actual'
+                n_foils = len(self._lookups[server]['sem_foils'])
 
                 if beam_type == 'reconstructed':
 
-                    n_foils = len(self._lookups[server]['sem_foils'])
                     if n_foils not in (2, 4):
                         msg = "Reconstructed beam current must be derived from 2 or 4 foils (currently {})".format(n_foils)
                         logging.warning(msg)
@@ -316,11 +367,16 @@ class IrradConverter(DAQProcess):
                             current += 0.01 * self._get_full_scale_current(server=server,
                                                                            ch_idx=self._lookups[server]['ro_type_idx']['sem_sum'],
                                                                            ro_device=self.readout_setup[server]['device'])
+                        else:
+                            # Calculate sum SE current
+                            beam_data['data']['sey']['sum'] = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
+                                                                                               full_scale_voltage=self._get_full_scale_current(server, sum_idx, self.readout_setup[server]['device']),
+                                                                                               full_scale_current=self._lookups[server]['full_scale_voltage'])
                     else:
                         msg = "Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing"
                         logging.warning(msg)
 
-                self.data_arrays[server]['beam'][dname] = beam_data['current'][beam_type] = current
+                self.data_arrays[server]['beam'][dname] = beam_data['data']['current'][beam_type] = current
 
             elif 'loss' in dname:
                 if 'blm' in self._lookups[server]['ro_type_idx']:
@@ -348,7 +404,7 @@ class IrradConverter(DAQProcess):
                 else:
                     blm_current = np.nan
 
-                self.data_arrays[server]['beam'][dname] = beam_data['loss'] = blm_current
+                self.data_arrays[server]['beam'][dname] = beam_data['data']['loss'] = blm_current
 
         # Add to beam current container if stage is scanning
         if self.data_flags[server]['scanning']:
@@ -361,8 +417,6 @@ class IrradConverter(DAQProcess):
         return beam_data
 
     def _interpret_scan_data(self, server, data, meta):
-
-        scan_data = {}
 
         if data['status'] == 'scan_init':
 
@@ -550,6 +604,11 @@ class IrradConverter(DAQProcess):
 
             interpreted_data.append(beam_data)
 
+            # Histograms
+            hist_data = self._update_hist_entries(server=server, beam_data=beam_data)
+
+            interpreted_data.append(hist_data)
+
             # Get temperature data from NTC on IrradDAQBoard
             if 'ntc_ch' in meta_data:
                 ntc_data = self._interpret_daq_board_ntc_data(server=server, data=data, meta=meta_data)
@@ -646,8 +705,14 @@ class IrradConverter(DAQProcess):
         # User info
         logging.info('Closing output file {}'.format(self.output_table.filename))
 
-        for server in self.server:
+        for server, server_setup in self.setup['server'].items():
+
             self.store_data(server=server)
+
+            # Store histograms
+            for hist_name in self.data_hists[server]:
+                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'hist', self.data_hists[server][hist_name]['hist'])
 
         self.output_table.flush()
 

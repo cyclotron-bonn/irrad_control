@@ -1,6 +1,6 @@
 """Collection of dtypes for numpy structured arrays used within the analysis / interpretation"""
+import numpy as np
 from dataclasses import dataclass
-from numpy import dtype
 
 
 # Event dtype; used to log events such as beam current shutdowns, state changes etc
@@ -67,21 +67,54 @@ _result_dtype = [('timestamp', '<f4'),
 @dataclass
 class IrradDtypes:
 
-    event = dtype(_event_dtype)
-    motorstage = dtype(_motorstage_dtype)
-    beam = dtype(_beam_dtype)
-    scan = dtype(_scan_dtype)
-    damage = dtype(_damage_dtype)
-    result = dtype(_result_dtype)
+    event = np.dtype(_event_dtype)
+    motorstage = np.dtype(_motorstage_dtype)
+    beam = np.dtype(_beam_dtype)
+    scan = np.dtype(_scan_dtype)
+    damage = np.dtype(_damage_dtype)
+    result = np.dtype(_result_dtype)
 
     def generic_dtype(self, names, dtypes=None, default_dtype='<f4'):
 
         dtypes = [default_dtype] * len(names) if dtypes is None else dtypes
 
-        return dtype(list(zip(names, dtypes)))
+        return np.dtype(list(zip(names, dtypes)))
 
     def __getitem__(self, item):
-        if hasattr(self, item) and isinstance(getattr(self, item), dtype):
+        if hasattr(self, item) and isinstance(getattr(self, item), np.dtype):
             return getattr(self, item)
         else:
             raise KeyError("IrradDtypes do not contain {}".format(item))
+
+
+@dataclass
+class IrradHists:
+
+    beam_position = {'unit': 'percent', 'bins': (101, 101), 'range': [(-100, 100), (-100, 100)]}
+    sey_horizontal = {'unit': 'percent', 'bins': 51, 'range': (0, 100)}
+    sey_vertical = {'unit': 'percent', 'bins': 51, 'range': (0, 100)}
+
+    def create_hist(self, hist_name, return_edges=True, return_centers=True):
+        hist_dict = self.__getitem__(hist_name)
+        hist = np.zeros(shape=hist_dict['bins'])
+
+        if len(hist.shape) == 1:
+            edges = np.linspace(hist_dict['range'][0], hist_dict['range'][1], hist_dict['bins'] + 1)
+            centers = 0.5 * (edges[1:] + edges[:-1])
+        else:
+            edges = [np.linspace(hist_dict['range'][i][0], hist_dict['range'][i][1], hist_dict['bins'][i] + 1) for i in range(len(hist.shape))]
+            centers = [0.5 * (edges[i][1:] + edges[i][:-1]) for i in range(len(hist.shape))]
+        res = [hist]
+
+        if return_edges:
+            res.append(edges)
+        if return_centers:
+            res.append(centers)
+
+        return tuple(res) if len(res) != 1 else res[0]
+
+    def __getitem__(self, item):
+        if hasattr(self, item) and isinstance(getattr(self, item), dict):
+            return getattr(self, item)
+        else:
+            raise KeyError("IrradHists do not contain {}".format(item))
