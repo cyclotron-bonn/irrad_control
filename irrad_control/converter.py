@@ -92,7 +92,7 @@ class IrradConverter(DAQProcess):
             self._lookups[server]['sem_h'] = all(x in self._lookups[server]['ro_type_idx'] for x in ('sem_left', 'sem_right'))
             self._lookups[server]['sem_v'] = all(x in self._lookups[server]['ro_type_idx'] for x in ('sem_up', 'sem_down'))
             self._lookups[server]['offset_ch'] = set([ch for ch in self._lookups[server]['ro_type_idx'] if 'ntc' not in ch])
-            self._lookups[server]['full_scale_voltage'] = 5.0 if self.readout_setup[server]['device'] != ro.RO_DEVICES.DAQBoard else 2 * ro.DAQ_BOARD_CONFIG['common']['2V5p']
+            self._lookups[server]['full_scale_voltage'] = 5.0 if self.readout_setup[server]['device'] != ro.RO_DEVICES.DAQBoard else 2 * ro.DAQ_BOARD_CONFIG['common']['voltages']['2V5p']
 
             self._raw_offsets[server] = defaultdict(list)
 
