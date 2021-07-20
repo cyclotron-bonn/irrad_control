@@ -1,4 +1,5 @@
 import logging
+from bitstring import CreationError
 from time import time
 from serial import SerialException
 
@@ -69,7 +70,7 @@ class IrradServer(DAQProcess):
                     self.devices[dev].setup_zmq(ctx=self.context, skt=self.socket_type['data'],
                                                 addr=self._internal_sub_addr, sender=self.server)
 
-            except (IOError, SerialException) as e:
+            except (IOError, SerialException, CreationError) as e:
 
                 if type(e) is SerialException:
                     msg = "Could not connect to serial port {}. Maybe it is used by another process?"
@@ -82,7 +83,8 @@ class IrradServer(DAQProcess):
                         port = 'unknown'
 
                     logging.error(msg.format(port))
-
+                elif type(e) is CreationError:
+                    logging.error("Could not find DAQBoard on I2C bus")
                 else:
                     if dev == 'ADCBoard':
                         logging.error("Could not access SPI device file. Enable SPI interface!")
