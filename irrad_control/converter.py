@@ -197,23 +197,6 @@ class IrradConverter(DAQProcess):
                 # Add flag
                 self.data_flags[server][dname] = False
 
-    def _handle_raw_data(self, server, data, meta):
-
-        # Get timestamp from data for beam and raw arrays
-        self.data_arrays[server]['raw']['timestamp'] = meta['timestamp']
-
-        for ch in data:
-
-            # Fill raw data structured array first
-            self.data_arrays[server]['raw'][ch] = data[ch]
-
-            # Subtract offset from data; initially offset is 0 for all ch
-            if ch in self._lookups[server]['offset_ch']:
-                data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
-
-        # Append data to table within this interpretation cycle
-        self.data_flags[server]['raw'] = True
-
     def _get_raw_offset(self, server, data):
 
         # Loop over data until sufficient data for mean is collected
@@ -280,6 +263,38 @@ class IrradConverter(DAQProcess):
                 pass
 
         return hist_data
+
+    def _interpret_raw_data(self, server, data, meta):
+
+        raw_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'raw'},
+                    'data': {'voltage': {}, 'current': {}}}
+
+        # Get timestamp from data for beam and raw arrays
+        self.data_arrays[server]['raw']['timestamp'] = meta['timestamp']
+
+        for ch in data:
+
+            # Fill raw data structured array first
+            self.data_arrays[server]['raw'][ch] = data[ch]
+
+            # Subtract offset from data; initially offset is 0 for all ch
+            if ch in self._lookups[server]['offset_ch']:
+                data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
+
+                ch_idx = self.readout_setup[server]['channels'].index(ch)
+                raw_data['data']['current'][ch] = analysis.formulas.v_sig_to_i_sig(v_sig=data[ch],
+                                                                                   full_scale_current=self._get_full_scale_current(server, ch_idx, self.readout_setup[server]['device']),
+                                                                                   full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+
+                if 'sem_sum' in self._lookups[server]['ro_type_idx'] and self._lookups[server]['ro_type_idx']['sem_sum'] == ch_idx:
+                    raw_data['data']['current'][ch] *= 4
+
+            raw_data['data']['voltage'][ch] = data[ch]
+
+        # Append data to table within this interpretation cycle
+        self.data_flags[server]['raw'] = True
+
+        return raw_data
 
     def _interpret_beam_data(self, server, data, meta):
 
@@ -594,7 +609,9 @@ class IrradConverter(DAQProcess):
 
             ### Raw data ###
 
-            self._handle_raw_data(server=server, data=data, meta=meta_data)
+            intrprtd_raw_data = self._interpret_raw_data(server=server, data=data, meta=meta_data)
+
+            interpreted_data.append(intrprtd_raw_data)
 
             # Get offsets
             if self.interaction_flags[server]['offset'].is_set():
