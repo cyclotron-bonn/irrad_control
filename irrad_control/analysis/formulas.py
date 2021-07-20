@@ -142,6 +142,7 @@ def rel_beam_position(sig_a, sig_b, plane):
 
     return rel_pos
 
+
 def v_sig_to_i_sig(v_sig, full_scale_current, full_scale_voltage):
     return v_sig * full_scale_current / full_scale_voltage * 1e-9
 
@@ -166,4 +167,9 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
 
 
 def get_hist_idx(val, bin_edges, side='left'):
-    return np.searchsorted(bin_edges, val, side=side)
+    res = np.searchsorted(bin_edges, val, side=side)
+    if isinstance(res, np.ndarray):
+        return [int(idx) for idx in res]
+    else:
+        return int(res)
+
