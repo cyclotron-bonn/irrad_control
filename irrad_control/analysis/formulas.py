@@ -140,6 +140,7 @@ def rel_beam_position(sig_a, sig_b, plane):
     # Horizontally, if we are shifted to the left the graph should move to the left, therefore * -1
     rel_pos *= -100 if plane == 'h' else 100
 
+    return rel_pos
 
 def v_sig_to_i_sig(v_sig, full_scale_current, full_scale_voltage):
     return v_sig * full_scale_current / full_scale_voltage * 1e-9
