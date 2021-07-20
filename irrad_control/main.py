@@ -647,10 +647,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Data subscriber
         data_sub = self.context.socket(zmq.SUB)
 
-        # Loop over servers and connect to their data streams
-        for server in self.setup['server']:
-            data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
-
         # Connect to interpreter data stream
         data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
