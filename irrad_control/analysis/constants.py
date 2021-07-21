@@ -8,3 +8,6 @@ p_stop_Si = 28.74  # MeV cm^2 / g
 
 # Kelvin
 kelvin = 273.15  # Degree Celsius
+
+# nano prefix
+nano = 1e-9
