@@ -223,7 +223,7 @@ class IrradConverter(DAQProcess):
         else:
             i_full_scale = self.readout_setup[server]['ro_scales'][ch_idx]
 
-        return i_full_scale
+        return i_full_scale * analysis.constants.nano  # nA
 
     def _calc_mean_and_error(self, data, data_err):
         # Make uncertainty array
@@ -277,11 +277,12 @@ class IrradConverter(DAQProcess):
             # Fill raw data structured array first
             self.data_arrays[server]['raw'][ch] = data[ch]
 
+            ch_idx = self.readout_setup[server]['channels'].index(ch)
+
             # Subtract offset from data; initially offset is 0 for all ch
-            if ch in self._lookups[server]['offset_ch']:
+            if self.readout_setup[server]['types'][ch_idx] in self._lookups[server]['offset_ch']:
                 data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
 
-                ch_idx = self.readout_setup[server]['channels'].index(ch)
                 raw_data['data']['current'][ch] = analysis.formulas.v_sig_to_i_sig(v_sig=data[ch],
                                                                                    full_scale_current=self._get_full_scale_current(server, ch_idx, self.readout_setup[server]['device']),
                                                                                    full_scale_voltage=self._lookups[server]['full_scale_voltage'])
@@ -353,10 +354,9 @@ class IrradConverter(DAQProcess):
             elif 'beam_current' in dname:
 
                 current = 0
-                beam_type = 'reconstructed' if 'reconstructed' in dname else 'actual'
                 n_foils = len(self._lookups[server]['sem_foils'])
 
-                if beam_type == 'reconstructed':
+                if 'reconstructed' in dname:
 
                     if n_foils not in (2, 4):
                         msg = "Reconstructed beam current must be derived from 2 or 4 foils (currently {})".format(n_foils)
@@ -394,7 +394,7 @@ class IrradConverter(DAQProcess):
                         msg = "Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing"
                         logging.warning(msg)
 
-                self.data_arrays[server]['beam'][dname] = beam_data['data']['current'][beam_type] = current
+                self.data_arrays[server]['beam'][dname] = beam_data['data']['current'][dname] = current
 
             elif 'loss' in dname:
                 if 'blm' in self._lookups[server]['ro_type_idx']:
