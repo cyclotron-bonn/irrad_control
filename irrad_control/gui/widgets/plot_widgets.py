@@ -621,7 +621,7 @@ class RawDataPlot(ScrollingIrradDataPlot):
         self.use_unit = 'V'
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(RawDataPlot, self).__init__(channels=daq_setup['devices']['adc']['channels'], units={'left': self.use_unit},
+        super(RawDataPlot, self).__init__(channels=daq_setup['readout']['channels'], units={'left': self.use_unit},
                                           name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                           parent=parent)
 
@@ -631,8 +631,7 @@ class RawDataPlot(ScrollingIrradDataPlot):
 
         # Connect to signal
         for con in [lambda u: self.plt.getAxis('left').setLabel(text='Signal', units=u),
-                    lambda u: unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V')),
-                    lambda u: setattr(self, '_data', self.convert_to_unit(self._data, u))]:  # convert between units
+                    lambda u: unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V'))]:
             self.unitChanged.connect(con)
 
         # Add
@@ -642,36 +641,16 @@ class RawDataPlot(ScrollingIrradDataPlot):
         self.use_unit = 'V' if self.use_unit == 'A' else 'A'
         self.unitChanged.emit(self.use_unit)
 
-    def convert_to_unit(self, data, unit):
-        """Method to convert raw data between Volt and Ampere"""
-
-        # Check whether data is not None
-        if not data:
-            logging.info('No data to convert')
-            return
-
-        res = OrderedDict()
-
-        # Loop over data and overwrite
-        for ch in data:
-            _idx = self.channels.index(ch)
-            # Get data, scale and type of channel
-            val, scale, _type = data[ch], self.daq_setup['devices']['adc']['ro_scales'][_idx], self.daq_setup['devices']['adc']['types'][_idx]
-            # Adjust scale in case we're looking at SEM's sum signal; in this case current is multiplied by factor of 4
-            scale *= 1 if _type != 'sem_sum' else 4
-
-            res[ch] = val / 5.0 * scale * 1e-9 if unit == 'A' else val * 5.0 / 1e-9 / scale
-
-        return res
+        # Restart the time of incoming data
+        self._time, self._idx = None, 0
 
     def set_data(self, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
 
-        # Convert voltages to currents and overwrite
-        if self.use_unit == 'A':
-            data['data'] = self.convert_to_unit(data['data'], self.use_unit)
+        plot_data = {'meta': data['meta'],
+                     'data': data['data']['current'] if self.use_unit == 'A' else data['data']['voltage']}
 
-        super(RawDataPlot, self).set_data(data)
+        super(RawDataPlot, self).set_data(plot_data)
 
 
 class PlotPushButton(pg.TextItem):
@@ -870,7 +849,7 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Init class attributes
         self.daq_setup = daq_setup
-        self.ro_types = daq_setup['devices']['adc']['types']
+        self.ro_types = daq_setup['readout']['types']
         self.daq_device = daq_device
         self._plt_range = position_range if position_range else [-110, 110] * 2
         self._add_hist = add_hist
