@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets
 from collections import OrderedDict
 from irrad_control.gui.widgets import PlotWrapperWidget, MultiPlotWidget  # Wrapper widgets
-from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, FractionHist  # Actual plots
+from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, SEYFractionHist  # Actual plots
 
 class IrradMonitorTab(QtWidgets.QWidget):
     """Widget which implements a data monitor"""
@@ -36,18 +36,18 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 monitor_widget = None
 
-                if 'adc' in self.setup[server]['devices']:
+                if 'readout' in self.setup[server]:
 
                     if monitor == 'Raw':
 
-                        self.plots[server]['raw_plot'] = RawDataPlot(self.setup[server], daq_device=self.setup[server]['devices']['daq']['sem'])
+                        self.plots[server]['raw_plot'] = RawDataPlot(self.setup[server], daq_device=self.setup[server]['daq']['sem'])
 
                         monitor_widget = PlotWrapperWidget(self.plots[server]['raw_plot'])
 
                     elif monitor == 'Beam':
 
-                        self.plots[server]['current_plot'] = BeamCurrentPlot(daq_device=self.setup[server]['devices']['daq']['sem'])
-                        self.plots[server]['pos_plot'] = BeamPositionPlot(self.setup[server], daq_device=self.setup[server]['devices']['daq']['sem'])
+                        self.plots[server]['current_plot'] = BeamCurrentPlot(daq_device=self.setup[server]['daq']['sem'])
+                        self.plots[server]['pos_plot'] = BeamPositionPlot(self.setup[server], daq_device=self.setup[server]['daq']['sem'])
 
                         beam_current_wrapper = PlotWrapperWidget(self.plots[server]['current_plot'])
                         beam_pos_wrapper = PlotWrapperWidget(self.plots[server]['pos_plot'])
@@ -56,12 +56,12 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                     elif monitor == 'SEM':
                         plot_wrappers = []
-                        if all(x in self.setup[server]['devices']['adc']['types'] for x in ('sem_right', 'sem_left')):
-                            self.plots[server]['sem_h_plot'] = FractionHist(rel_sig='SEM Horizontal', norm_sig='SEM_{}'.format(u'\u03A3'.encode('utf-8')))
+                        if all(x in self.setup[server]['readout']['types'] for x in ('sem_right', 'sem_left')):
+                            self.plots[server]['sem_h_plot'] = SEYFractionHist(rel_sig='sey_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
                             plot_wrappers.append(PlotWrapperWidget(self.plots[server]['sem_h_plot']))
 
-                        if all(x in self.setup[server]['devices']['adc']['types'] for x in ('sem_up', 'sem_down')):
-                            self.plots[server]['sem_v_plot'] = FractionHist(rel_sig='SEM Vertical', norm_sig='SEM_{}'.format(u'\u03A3'.encode('utf-8')))
+                        if all(x in self.setup[server]['readout']['types'] for x in ('sem_up', 'sem_down')):
+                            self.plots[server]['sem_v_plot'] = SEYFractionHist(rel_sig='sey_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
                             plot_wrappers.append(PlotWrapperWidget(self.plots[server]['sem_v_plot']))
 
                         if len(plot_wrappers) == 1:
@@ -72,7 +72,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                 if 'temp' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
-                        daq_device = 'ArduinoTempSens' if 'daq' not in self.setup[server]['devices'] else self.setup[server]['devices']['daq']['sem']
+                        daq_device = 'ArduinoTempSens' if 'daq' not in self.setup[server] else self.setup[server]['daq']['sem']
                         self.plots[server]['temp_plot'] = TemperatureDataPlot(self.setup[server], daq_device=daq_device)
                         monitor_widget = PlotWrapperWidget(self.plots[server]['temp_plot'])
 
