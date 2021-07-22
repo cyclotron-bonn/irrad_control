@@ -419,7 +419,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Check whether data is interpreted
         if data['meta']['type'] == 'raw':
-
             self.daq_info_widget.update_raw_data(data)
             self.monitor_tab.plots[server]['raw_plot'].set_data(data)
 
@@ -427,10 +426,23 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif data['meta']['type'] == 'beam':
             self.daq_info_widget.update_beam_current(data)
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
-            _data = {'meta': data['meta'], 'data': data['data']['current']}
-            self.monitor_tab.plots[server]['current_plot'].set_data(_data)
-            self.control_tab.beam_current = data['data']['current']['analog']
+            self.monitor_tab.plots[server]['current_plot'].set_data(data)
+
+            if 'frac_h' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
+            if 'frac_v' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
+
+            self.control_tab.beam_current = data['data']['current']['beam_current']
             self.control_tab.check_no_beam()
+
+        elif data['meta']['type'] == 'hist':
+            if 'beam_position_idxs' in data['data']:
+                self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
+            if 'sey_horizontal_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['sey_horizontal_idx'])
+            if 'sey_vertical_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
         # Check whether data is interpreted
         elif data['meta']['type'] == 'fluence':
