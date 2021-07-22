@@ -854,14 +854,14 @@ class BeamPositionPlot(IrradPlotWidget):
     Plot for displaying the beam position. The position is displayed from analog and digital data if available.
     """
 
-    def __init__(self, daq_setup, position_range=None, daq_device=None, name=None, add_hist=True, parent=None):
+    def __init__(self, daq_setup, daq_device=None, name=None, add_hist=True, parent=None):
         super(BeamPositionPlot, self).__init__(parent=parent)
 
         # Init class attributes
         self.daq_setup = daq_setup
         self.ro_types = daq_setup['readout']['types']
         self.daq_device = daq_device
-        self._plt_range = position_range if position_range else [-110, 110] * 2
+        self.hist_types = analysis.dtype.IrradHists()
         self._add_hist = add_hist
         self.name = name if name is not None else type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device
 
@@ -876,8 +876,8 @@ class BeamPositionPlot(IrradPlotWidget):
         self.plt.setLabel('left', text='Vertical displacement', units='%')
         self.plt.setLabel('bottom', text='Horizontal displacement', units='%')
         self.plt.showGrid(x=True, y=True, alpha=0.99)
-        self.plt.setRange(xRange=self._plt_range[:2], yRange=self._plt_range[2:])
-        self.plt.setLimits(**dict([(k, self._plt_range[i]) for i, k in enumerate(('xMin', 'xMax', 'yMin', 'yMax'))]))
+        self.plt.setRange(xRange=self.hist_types['beam_position']['range'][0], yRange=self.hist_types['beam_position']['range'][1])
+        self.plt.setLimits(**dict([(k, self.hist_types['beam_position']['range'][0 if i < 2 else 1][i % 2]) for i, k in enumerate(('xMin', 'xMax', 'yMin', 'yMax'))]))
         self.plt.hideButtons()
 
         self.enable_stats()
@@ -908,16 +908,19 @@ class BeamPositionPlot(IrradPlotWidget):
                     self.curves[curve].set_plotitem(self.plt)
                 self.show_data(curve)
 
-    def add_2d_hist(self, curve, cmap='hot', bins=(50, 50), **kwargs):
+    def add_2d_hist(self, curve, cmap='hot', **kwargs):
 
         if curve not in self.curves:
             logging.error("Can only add histogram to existing curve")
             return
 
-        if len(bins) != 2:
-            raise ValueError("Bins must be iterable of integers of len 2")
-
         hist_name = curve + '_hist'
+
+        # Add hist data
+        bins = self.hist_types[curve]['bins']
+        plot_range = self.hist_types[curve]['range']
+        hist, edges, centers = self.hist_types.create_hist(curve)
+        self._data[hist_name] = {'hist': hist, 'edges': edges, 'centers': centers}
 
         if 'lut' not in kwargs:
             # Create colormap and init
@@ -933,35 +936,27 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Add and manage position
         self.curves[hist_name] = pg.ImageItem(**kwargs)
-        self.curves[hist_name].translate(self._plt_range[0], self._plt_range[2])
-        self.curves[hist_name].scale(get_scale(self._plt_range[:2], bins[0]), get_scale(self._plt_range[2:], bins[1]))
+        self.curves[hist_name].translate(plot_range[0][0], plot_range[1][0])
+        self.curves[hist_name].scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
         self.curves[hist_name].setZValue(-10)
-
-        # Add hist data
-        hist_types = analysis.dtype.IrradHists()
-        hist, edges, centers = hist_types.create_hist(curve)
-        self._data[hist_name] = {'hist': hist, 'edges': edges, 'centers': centers}
 
     def set_data(self, data):
 
         sig = 'beam_position'
 
-        # We are updating the crosshair data
-        if data['meta']['type'] == 'beam':
+        pos_data = data['data']['position']
+        h_shift = None if 'h' not in pos_data else pos_data['h']
+        v_shift = None if 'v' not in pos_data else pos_data['v']
 
-            pos_data = data['data']['position']
-            h_shift = None if 'h' not in pos_data else pos_data['h']
-            v_shift = None if 'v' not in pos_data else pos_data['v']
+        # Update data
+        self._data[sig] = (h_shift, v_shift)
+        self._data_is_set = True
 
-            # Update data
-            self._data[sig] = (h_shift, v_shift)
-            self._data_is_set = True
-
-        else:
-
-            if sig + '_hist' in self.curves and 'beam_position_idxs' in data['data']:
-                idx_x, idx_y = data['data']['beam_position_idxs']
-                self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
+    def update_hist(self, data):
+        sig = 'beam_position'
+        if sig + '_hist' in self.curves:
+            idx_x, idx_y = data
+            self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
@@ -1116,11 +1111,11 @@ class FluenceHist(IrradPlotWidget):
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
 
 
-class FractionHist(IrradPlotWidget):
+class SEYFractionHist(IrradPlotWidget):
     """This implements a histogram of the fraction of one signal to another"""
 
-    def __init__(self, rel_sig, norm_sig, bins=100, colors=_MPL_COLORS, refresh_rate=10, parent=None):
-        super(FractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+    def __init__(self, rel_sig, norm_sig, colors=_MPL_COLORS, refresh_rate=10, parent=None):
+        super(SEYFractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Signal names; relative signal versus the signal it's normalized to
         self.rel_sig = rel_sig
@@ -1129,9 +1124,10 @@ class FractionHist(IrradPlotWidget):
         # Get colors
         self.colors = colors
 
+        self.hist_types = analysis.dtype.IrradHists()
+        hist, edges, centers = self.hist_types.create_hist(rel_sig)
         # Hold data
-        self._data['hist'], self._data['edges'] = np.zeros(shape=bins), np.linspace(0, 100, bins + 1)
-        self._data['centers'] = 0.5 * (self._data['edges'][1:] + self._data['edges'][:-1])
+        self._data['hist'], self._data['edges'], self._data['centers'] = hist, edges, centers
 
         self._setup_plot()
 
@@ -1144,7 +1140,7 @@ class FractionHist(IrradPlotWidget):
         self.plt.setLabel('bottom', text='Fraction {} / {}'.format(self.rel_sig, self.norm_sig), units='%')
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.showGrid(x=True, y=True)
-        self.plt.setLimits(xMin=0, xMax=self._data['edges'].shape[0], yMin=0)
+        self.plt.setLimits(xMin=self.hist_types[self.rel_sig]['range'][0], xMax=self.hist_types[self.rel_sig]['range'][1], yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
 
@@ -1167,21 +1163,14 @@ class FractionHist(IrradPlotWidget):
             self.show_data(curve)
 
     def set_data(self, data):
+        # Store current fraction
+        self._data['fraction'] = data
+        self._data_is_set = True
 
-        # Meta data and data
-        _meta, _data = data['meta'], data['data']
-
-        # Store currrent fraction
-        self._data['fraction'] = _data
-
+    def update_hist(self, data):
         # Histogram fraction
-        hist_idx = np.searchsorted(self._data['edges'], _data)
-        try:
-            self._data['hist'][hist_idx] += 1
-            self._data['hist_idx'] = hist_idx
-            self._data_is_set = True
-        except IndexError:
-            logging.debug("Histogram index {} out of bounds for shape {}".format(hist_idx, *self._data['hist'].shape))
+        self._data['hist'][data] += 1
+        self._data['hist_idx'] = data
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
@@ -1230,7 +1219,7 @@ class FractionHist(IrradPlotWidget):
                 if curve == 'hist':
                     self.curves[curve].setData(x=self._data['edges'], y=self._data['hist'], stepMode=True)
                 if curve == 'current_frac':
-                    self.curves[curve].set_position(x=self._data['hist_idx'] + 0.5, y=self._data['hist'][self._data['hist_idx']])
+                    self.curves[curve].set_position(x=self._data['fraction'], y=self._data['hist'][self._data['hist_idx']])
 
             if self._show_stats:
                 self._set_stats()
