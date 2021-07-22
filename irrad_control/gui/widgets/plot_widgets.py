@@ -703,7 +703,7 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
         self.beam_current_setup = beam_current_setup
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(BeamCurrentPlot, self).__init__(channels=['analog', 'digital'], units={'left': 'A', 'right': 'A'},
+        super(BeamCurrentPlot, self).__init__(channels=('beam_current', 'reconstructed_beam_current', 'beam_loss', 'beam_current_error'), units={'left': 'A', 'right': 'A'},
                                               name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                               parent=parent)
 
@@ -711,6 +711,13 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
         self.plt.hideAxis('left')
         self.plt.showAxis('right')
         self.plt.setLabel('right', text='Beam current', units='A')
+
+    def set_data(self, data):
+        """Overwrite set_data method in order to show beam data"""
+
+        plot_data = {'meta': data['meta'], 'data': data['data']['current']}
+
+        super(BeamCurrentPlot, self).set_data(plot_data)
 
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
