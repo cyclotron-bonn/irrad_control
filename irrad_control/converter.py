@@ -300,7 +300,7 @@ class IrradConverter(DAQProcess):
     def _interpret_beam_data(self, server, data, meta):
 
         beam_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'beam'},
-                     'data': {'position': {}, 'current': {}, 'loss': 0, 'sey': {}}}
+                     'data': {'position': {}, 'current': {}, 'sey': {}}}
 
         # Get timestamp from data for beam data arrays
         self.data_arrays[server]['beam']['timestamp'] = meta['timestamp']
@@ -422,7 +422,14 @@ class IrradConverter(DAQProcess):
                 else:
                     blm_current = np.nan
 
-                self.data_arrays[server]['beam'][dname] = beam_data['data']['loss'] = blm_current
+                self.data_arrays[server]['beam'][dname] = beam_data['data']['current']['beam_loss'] = blm_current
+
+        # Calc SEY fractions
+        if 'sum' in beam_data['data']['sey']:
+            if 'h' in beam_data['data']['sey']:
+                beam_data['data']['sey']['frac_h'] = beam_data['data']['sey']['h']/beam_data['data']['sey']['sum'] * 100
+            if 'v' in beam_data['data']['sey']:
+                beam_data['data']['sey']['frac_v'] = beam_data['data']['sey']['v']/beam_data['data']['sey']['sum'] * 100
 
         # Add to beam current container if stage is scanning
         if self.data_flags[server]['scanning']:
