@@ -4,6 +4,9 @@ import numpy as np
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
+
+# Package imports
+import irrad_control.analysis as analysis
 from irrad_control.gui.widgets.util_widgets import GridContainer
 
 # Matplotlib default colors
@@ -881,18 +884,8 @@ class BeamPositionPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        if any(x in self.ro_types for x in ('sem_h_shift', 'sem_v_shift')):
-            sig = 'analog'
-            self.curves[sig] = CrosshairItem(color=_MPL_COLORS[0], name=sig,
-                                             horizontal='sem_h_shift' in self.ro_types,
-                                             vertical='sem_v_shift' in self.ro_types)
-
-            # Add 2D histogram
-            if self._add_hist and self.curves[sig].horizontal and self.curves[sig].vertical:
-                self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
-
         if any(all(x in self.ro_types for x in y) for y in [('sem_left', 'sem_right'), ('sem_up', 'sem_down')]):
-            sig = 'digital'
+            sig = 'beam_position'
             self.curves[sig] = CrosshairItem(color=_MPL_COLORS[1], name=sig,
                                              horizontal='sem_left' in self.ro_types and 'sem_right' in self.ro_types,
                                              vertical='sem_up' in self.ro_types and 'sem_down' in self.ro_types)
@@ -938,35 +931,30 @@ class BeamPositionPlot(IrradPlotWidget):
         self.curves[hist_name].setZValue(-10)
 
         # Add hist data
-        self._data[hist_name] = {}
-        self._data[hist_name]['hist'] = np.zeros(shape=bins)
-        self._data[hist_name]['edges'] = (np.linspace(self._plt_range[0], self._plt_range[1], bins[0] + 1),
-                                          np.linspace(self._plt_range[2], self._plt_range[3], bins[1] + 1))
-        self._data[hist_name]['centers'] = (0.5 * (self._data[hist_name]['edges'][0][1:] + self._data[hist_name]['edges'][0][:-1]),
-                                            0.5 * (self._data[hist_name]['edges'][1][1:] + self._data[hist_name]['edges'][1][:-1]))
+        hist_types = analysis.dtype.IrradHists()
+        hist, edges, centers = hist_types.create_hist(curve)
+        self._data[hist_name] = {'hist': hist, 'edges': edges, 'centers': centers}
 
     def set_data(self, data):
 
-        # Meta data and data
-        meta, pos_data = data['meta'], data['data']['position']
+        sig = 'beam_position'
 
-        for sig in pos_data:
-            if sig not in self.curves:
-                continue
-            h_shift = None if 'h' not in pos_data[sig] else pos_data[sig]['h']
-            v_shift = None if 'v' not in pos_data[sig] else pos_data[sig]['v']
+        # We are updating the crosshair data
+        if data['meta']['type'] == 'beam':
+
+            pos_data = data['data']['position']
+            h_shift = None if 'h' not in pos_data else pos_data['h']
+            v_shift = None if 'v' not in pos_data else pos_data['v']
 
             # Update data
             self._data[sig] = (h_shift, v_shift)
+            self._data_is_set = True
 
-            if sig + '_hist' in self.curves and all(x is not None for x in self._data[sig]):
-                # Get histogram indices and increment
-                idx_x, idx_y = (np.searchsorted(self._data[sig + '_hist']['edges'][i], self._data[sig][i]) for i in range(len(self._data[sig])))
-                try:
-                    self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
-                except IndexError:
-                    logging.debug("Histogram indices ({},{}) out of bounds for shape ({},{})".format(idx_x, idx_y, *self._data[sig + '_hist']['hist'].shape))
-        self._data_is_set = True
+        else:
+
+            if sig + '_hist' in self.curves and 'beam_position_idxs' in data['data']:
+                idx_x, idx_y = data['data']['beam_position_idxs']
+                self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
