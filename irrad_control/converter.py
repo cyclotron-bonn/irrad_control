@@ -142,7 +142,7 @@ class IrradConverter(DAQProcess):
             if 'ntc' in server_setup['readout']:
 
                 dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
-                                                  dtypes=['<f4', '<U{}'.format(np.max([len(s) for s in self.readout_setup['ntc'].values()])), '<f2'])
+                                                  dtypes=['<f4', '<U{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
                 dname = 'temp_daq_board'
                 node_name = 'DAQBoard'
 
@@ -589,7 +589,7 @@ class IrradConverter(DAQProcess):
 
         # Get NTC channel voltage
         ntc_voltage = data[self.readout_setup[server]['channels'][self._lookups[server]['ntc_group_idx']]]
-        ntc_temp = analysis.formulas.get_ntc_temp(ntc_voltage=ntc_voltage, ref_voltage=ro.DAQ_BOARD_CONFIG['common']['2V5p'])
+        ntc_temp = analysis.formulas.get_ntc_temp(ntc_voltage=ntc_voltage, ref_voltage=ro.DAQ_BOARD_CONFIG['common']['voltages']['2V5p'])
 
         self.data_arrays[server]['temp_daq_board']['timestamp'] = meta['timestamp']
         self.data_arrays[server]['temp_daq_board']['ntc_channel'] = meta['ntc_ch']
