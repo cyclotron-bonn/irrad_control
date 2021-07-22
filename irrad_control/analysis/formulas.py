@@ -169,7 +169,7 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
 def get_hist_idx(val, bin_edges, side='left'):
     res = np.searchsorted(bin_edges, val, side=side)
     if isinstance(res, np.ndarray):
-        return [int(idx) for idx in res]
+        return [int(idx) - 1 for idx in res]
     else:
-        return int(res)
+        return int(res) - 1
 
