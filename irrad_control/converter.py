@@ -616,6 +616,20 @@ class IrradConverter(DAQProcess):
 
             return ntc_data
 
+    def _interpret_arduino_temp_data(self, server, data, meta):
+
+        temp_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_arduino'},
+                     'data': {}}
+
+        self.data_arrays[server]['temp_arduino']['timestamp'] = meta['timestamp']
+
+        for temp in data:
+            self.data_arrays[server]['temp_arduino'][temp] = temp_data['data'] = data[temp]
+
+        self.data_flags[server]['temp_arduino'] = True
+
+        return temp_data
+
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -666,12 +680,8 @@ class IrradConverter(DAQProcess):
         # Store temperature
         elif meta_data['type'] == 'temp':
 
-            self.data_arrays[server]['temp_arduino']['timestamp'] = meta_data['timestamp']
-
-            for temp in data:
-                self.data_arrays[server]['temp_arduino'][temp] = data[temp]
-
-            self.data_flags[server]['temp_arduino'] = True
+            temp_data = self._interpret_arduino_temp_data(server=server, data=data, meta=meta_data)
+            interpreted_data.append(temp_data)
 
         # If event is not set, store data to hdf5 file
         if not self.interaction_flags[server]['write'].is_set():

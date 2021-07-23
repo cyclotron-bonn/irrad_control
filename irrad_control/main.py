@@ -506,7 +506,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
 
-        elif data['meta']['type'] == 'temp':
+        elif data['meta']['type'] == 'temp_arduino':
 
             self.monitor_tab.plots[server]['temp_arduino_plot'].set_data(meta=data['meta'], data=data['data'])
 
