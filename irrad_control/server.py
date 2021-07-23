@@ -70,6 +70,17 @@ class IrradServer(DAQProcess):
                     self.devices[dev].setup_zmq(ctx=self.context, skt=self.socket_type['data'],
                                                 addr=self._internal_sub_addr, sender=self.server)
 
+                if dev == 'IrradDAQBoard':
+                    # Set initial ro scales
+                    self.devices[dev].set_ifs(group='sem',
+                                              ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
+                    self.devices[dev].set_ifs(group='ch12',
+                                              ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
+
+                    if 'ntc' in self.setup['server']['readout']:
+                        ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
+                        self.devices[dev].cylce_temp_channels(channels=ntc_channels, timeout=0.2)
+
             except (IOError, SerialException, CreationError) as e:
 
                 if type(e) is SerialException:
