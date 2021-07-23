@@ -187,8 +187,10 @@ class IrradServer(DAQProcess):
 
             if cmd == 'set_ifs':
                 ro_board.set_ifs(group=data['group'], ifs=data['ifs'])
+                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
             elif cmd == 'get_ifs':
-                _data = ro_board.get_ifs(group=data['group'])
+                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
             elif cmd == 'set_temp_ch':
                 if ro_board.is_cycling_temp_channels():
