@@ -62,6 +62,7 @@ class IrradConverter(DAQProcess):
 
         # Dict with lists to append beam current values to during scanning
         self._scan_currents = defaultdict(list)
+        self._ntc_temps = defaultdict(dict)
         self._lookups = defaultdict(dict)
         self._raw_offsets = {}
         self._row_fluence_hist = {}
@@ -142,7 +143,7 @@ class IrradConverter(DAQProcess):
             if 'ntc' in server_setup['readout']:
 
                 dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
-                                                  dtypes=['<f4', '<U{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
+                                                  dtypes=['<f4', '<S{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
                 dname = 'temp_daq_board'
                 node_name = 'DAQBoard'
 
@@ -590,18 +591,24 @@ class IrradConverter(DAQProcess):
         # Get NTC channel voltage
         ntc_voltage = data[self.readout_setup[server]['channels'][self._lookups[server]['ntc_group_idx']]]
         ntc_temp = analysis.formulas.get_ntc_temp(ntc_voltage=ntc_voltage, ref_voltage=ro.DAQ_BOARD_CONFIG['common']['voltages']['2V5p'])
+        ntc_ch_name = self.readout_setup[server]['ntc'][str(meta['ntc_ch'])]
 
         self.data_arrays[server]['temp_daq_board']['timestamp'] = meta['timestamp']
-        self.data_arrays[server]['temp_daq_board']['ntc_channel'] = meta['ntc_ch']
+        self.data_arrays[server]['temp_daq_board']['ntc_channel'] = ntc_ch_name.encode('ascii')
         self.data_arrays[server]['temp_daq_board']['temperature'] = ntc_temp
 
         # Append data to table within this interpretation cycle
         self.data_flags[server]['temp_daq_board'] = True
 
-        ntc_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_daq_board'},
-                    'data': {self.readout_setup[server]['ntc'][str(meta['ntc_ch'])]: ntc_temp}}
+        self._ntc_temps[server][ntc_ch_name] = ntc_temp
 
-        return ntc_data
+        # Collect data of all NTCs and then send; easier for plotting wrt timestamp
+        if len(self._ntc_temps[server]) == len(self.readout_setup[server]['ntc']):
+            ntc_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_daq_board'},
+                        'data': self._ntc_temps[server].copy()}
+            self._ntc_temps[server] = {}
+
+            return ntc_data
 
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
@@ -639,7 +646,9 @@ class IrradConverter(DAQProcess):
             # Get temperature data from NTC on IrradDAQBoard
             if 'ntc_ch' in meta_data:
                 ntc_data = self._interpret_daq_board_ntc_data(server=server, data=data, meta=meta_data)
-                interpreted_data.append(ntc_data)
+
+                if ntc_data:
+                    interpreted_data.append(ntc_data)
 
         elif meta_data['type'] == 'stage':
 
