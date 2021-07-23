@@ -1,7 +1,6 @@
 import yaml
 import os
 from PyQt5 import QtWidgets, QtCore
-from collections import OrderedDict
 from copy import deepcopy
 from irrad_control import network_config, config_path
 from irrad_control.devices import DEVICES_CONFIG

@@ -968,7 +968,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         check_0 = check_unique_input(self.widgets['channel_edits'], ignore=self.not_used_placeholder)
         check_1 = any(_check_has_text(e) for e in self.widgets['channel_edits'])
         check_2 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else self.widgets['ntc_setup'].isSetup
-        check_3 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else len([True for gcbx in self.widgets['group_combos'] if gcbx.currentText() == 'ntc']) == 1
+        check_3 = True if 'ntc_setup' not in self.widgets else True if not self.widgets['ntc_chbx'].isChecked() else len([True for gcbx in self.widgets['group_combos'] if gcbx.currentText() == 'ntc' and gcbx.isEnabled()]) == 1
 
         # Logging
         if not check_0:
