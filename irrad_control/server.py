@@ -79,7 +79,7 @@ class IrradServer(DAQProcess):
 
                     if 'ntc' in self.setup['server']['readout']:
                         ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
-                        self.devices[dev].cylce_temp_channels(channels=ntc_channels, timeout=0.2)
+                        self.devices[dev].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
 
             except (IOError, SerialException, CreationError) as e:
 
