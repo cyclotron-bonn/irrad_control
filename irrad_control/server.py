@@ -6,6 +6,7 @@ from serial import SerialException
 # Package imports
 from irrad_control.devices import devices
 from irrad_control.utils.daq_proc import DAQProcess
+from irrad_control.devices.readout import RO_DEVICES
 
 
 class IrradServer(DAQProcess):
@@ -70,7 +71,7 @@ class IrradServer(DAQProcess):
                     self.devices[dev].setup_zmq(ctx=self.context, skt=self.socket_type['data'],
                                                 addr=self._internal_sub_addr, sender=self.server)
 
-                if dev == 'IrradDAQBoard':
+                if dev == 'IrradDAQBoard' and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
                     # Set initial ro scales
                     self.devices[dev].set_ifs(group='sem',
                                               ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
