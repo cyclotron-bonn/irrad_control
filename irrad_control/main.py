@@ -420,13 +420,13 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Check whether data is interpreted
         if data['meta']['type'] == 'raw':
             self.daq_info_widget.update_raw_data(data)
-            self.monitor_tab.plots[server]['raw_plot'].set_data(data)
+            self.monitor_tab.plots[server]['raw_plot'].set_data(meta=data['meta'], data=data['data'])
 
         # Check whether data is interpreted
         elif data['meta']['type'] == 'beam':
             self.daq_info_widget.update_beam_current(data)
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
-            self.monitor_tab.plots[server]['current_plot'].set_data(data)
+            self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
 
             if 'frac_h' in data['data']['sey']:
                 self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
@@ -508,7 +508,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'temp':
 
-            self.monitor_tab.plots[server]['temp_plot'].set_data(data)
+            self.monitor_tab.plots[server]['temp_arduino_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'temp_daq_board':
+            self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
             
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.

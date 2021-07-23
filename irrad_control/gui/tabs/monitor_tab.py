@@ -1,7 +1,9 @@
 from PyQt5 import QtWidgets
 from collections import OrderedDict
-from irrad_control.gui.widgets import PlotWrapperWidget, MultiPlotWidget  # Wrapper widgets
-from irrad_control.gui.widgets import RawDataPlot, BeamPositionPlot, BeamCurrentPlot, FluenceHist, TemperatureDataPlot, SEYFractionHist  # Actual plots
+
+# Package imports
+from irrad_control.gui.widgets import plot_widgets as plots  # Actual plots
+
 
 class IrradMonitorTab(QtWidgets.QWidget):
     """Widget which implements a data monitor"""
@@ -40,41 +42,64 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                     if monitor == 'Raw':
 
-                        self.plots[server]['raw_plot'] = RawDataPlot(self.setup[server], daq_device=self.setup[server]['daq']['sem'])
-
-                        monitor_widget = PlotWrapperWidget(self.plots[server]['raw_plot'])
+                        channels = self.setup[server]['readout']['channels']
+                        daq_device = self.setup[server]['daq']['sem']
+                        self.plots[server]['raw_plot'] = plots.RawDataPlot(channels=channels,
+                                                                           daq_device=daq_device)
+                        monitor_widget = plots.PlotWrapperWidget(self.plots[server]['raw_plot'])
 
                     elif monitor == 'Beam':
 
-                        self.plots[server]['current_plot'] = BeamCurrentPlot(daq_device=self.setup[server]['daq']['sem'])
-                        self.plots[server]['pos_plot'] = BeamPositionPlot(self.setup[server], daq_device=self.setup[server]['daq']['sem'])
+                        channels = ('beam_current', 'beam_current_error', 'reconstructed_beam_current')
+                        daq_device = self.setup[server]['daq']['sem']
+                        if 'blm' in self.setup[server]['readout']['types']:
+                            channels += ('beam_loss', )
+                        self.plots[server]['current_plot'] = plots.BeamCurrentPlot(channels=channels,
+                                                                                   daq_device=daq_device)
 
-                        beam_current_wrapper = PlotWrapperWidget(self.plots[server]['current_plot'])
-                        beam_pos_wrapper = PlotWrapperWidget(self.plots[server]['pos_plot'])
+                        self.plots[server]['pos_plot'] = plots.BeamPositionPlot(self.setup[server], daq_device=daq_device)
 
-                        monitor_widget = MultiPlotWidget(plots=[beam_current_wrapper, beam_pos_wrapper])
+                        beam_current_wrapper = plots.PlotWrapperWidget(self.plots[server]['current_plot'])
+                        beam_pos_wrapper = plots.PlotWrapperWidget(self.plots[server]['pos_plot'])
+
+                        monitor_widget = plots.MultiPlotWidget(plots=[beam_current_wrapper, beam_pos_wrapper])
 
                     elif monitor == 'SEM':
                         plot_wrappers = []
                         if all(x in self.setup[server]['readout']['types'] for x in ('sem_right', 'sem_left')):
-                            self.plots[server]['sem_h_plot'] = SEYFractionHist(rel_sig='sey_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
-                            plot_wrappers.append(PlotWrapperWidget(self.plots[server]['sem_h_plot']))
+                            self.plots[server]['sem_h_plot'] = plots.SEYFractionHist(rel_sig='sey_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
+                            plot_wrappers.append(plots.PlotWrapperWidget(self.plots[server]['sem_h_plot']))
 
                         if all(x in self.setup[server]['readout']['types'] for x in ('sem_up', 'sem_down')):
-                            self.plots[server]['sem_v_plot'] = SEYFractionHist(rel_sig='sey_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
-                            plot_wrappers.append(PlotWrapperWidget(self.plots[server]['sem_v_plot']))
+                            self.plots[server]['sem_v_plot'] = plots.SEYFractionHist(rel_sig='sey_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
+                            plot_wrappers.append(plots.PlotWrapperWidget(self.plots[server]['sem_v_plot']))
 
                         if len(plot_wrappers) == 1:
                             monitor_widget = plot_wrappers[0]
                         elif plot_wrappers:
-                            monitor_widget = MultiPlotWidget(plots=plot_wrappers)
+                            monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'temp' in self.setup[server]['devices']:
+                if 'ntc' in self.setup[server]['readout'] or 'ArduinoTempSens' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
-                        daq_device = 'ArduinoTempSens' if 'daq' not in self.setup[server] else self.setup[server]['daq']['sem']
-                        self.plots[server]['temp_plot'] = TemperatureDataPlot(self.setup[server], daq_device=daq_device)
-                        monitor_widget = PlotWrapperWidget(self.plots[server]['temp_plot'])
+                        plot_wrappers = []
+
+                        if 'ntc' in self.setup[server]['readout']:
+                            channels = list(self.setup[server]['readout']['ntc'].values())
+                            self.plots[server]['temp_daq_board_plot'] = plots.TemperatureDataPlot(channels=channels,
+                                                                                                  daq_device='DAQBoard')
+                            plot_wrappers.append(plots.PlotWrapperWidget(self.plots[server]['temp_daq_board_plot']))
+
+                        if 'ArduinoTempsSens' in self.setup[server]['devices']:
+                            channels = list(self.setup[server]['devices']['ArduinoTempSens']['setup'].values())
+                            self.plots[server]['temp_arduino_plot'] = plots.TemperatureDataPlot(channels=channels,
+                                                                                                daq_device='ArduinoTempSens')
+                            plot_wrappers.append(plots.PlotWrapperWidget(self.plots[server]['temp_arduino_plot']))
+
+                        if len(plot_wrappers) == 1:
+                            monitor_widget = plot_wrappers[0]
+                        elif plot_wrappers:
+                            monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
                 if monitor_widget is not None:
                     self.monitor_tabs[server].addTab(monitor_widget, monitor)
@@ -85,6 +110,6 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
         for server in self.setup:
 
-            self.plots[server]['fluence_plot'] = FluenceHist(irrad_setup={'n_rows': n_rows, 'kappa': kappa})
-            monitor_widget = PlotWrapperWidget(self.plots[server]['fluence_plot'])
+            self.plots[server]['fluence_plot'] = plots.FluenceHist(irrad_setup={'n_rows': n_rows, 'kappa': kappa})
+            monitor_widget = plots.PlotWrapperWidget(self.plots[server]['fluence_plot'])
             self.monitor_tabs[server].addTab(monitor_widget, 'Fluence')

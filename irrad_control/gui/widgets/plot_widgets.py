@@ -490,23 +490,20 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
-    def set_data(self, data):
+    def set_data(self, meta, data):
         """Set the data of the plot. Input data is data plus meta data"""
 
-        # Meta data and data
-        _meta, _data = data['meta'], data['data']
-
         # Store timestamp of current data
-        self._timestamp = _meta['timestamp']
+        self._timestamp = meta['timestamp']
 
         # Set data rate if available
-        if 'data_rate' in _meta:
-            self._drate = _meta['data_rate']
+        if 'data_rate' in meta:
+            self._drate = meta['data_rate']
 
         # Get data rate from data in order to set time axis
         if self._time is None:
-            if 'data_rate' in _meta:
-                self._drate = _meta['data_rate']
+            if 'data_rate' in meta:
+                self._drate = meta['data_rate']
                 shape = int(round(self._drate) * self._period + 1)
                 self._time = np.full(shape=shape, fill_value=np.nan)
                 for ch in self.channels:
@@ -533,10 +530,10 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             self._idx += 1
 
             # Set data in curves
-            for ch in _data:
+            for ch in data:
                 # Shift data to the right and set 0th element
                 self._data[ch][1:] = self._data[ch][:-1]
-                self._data[ch][0] = _data[ch]
+                self._data[ch][0] = data[ch]
 
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
@@ -616,15 +613,12 @@ class RawDataPlot(ScrollingIrradDataPlot):
 
     unitChanged = QtCore.pyqtSignal(str)
 
-    def __init__(self, daq_setup, daq_device=None, parent=None):
-
-        # Init class attributes
-        self.daq_setup = daq_setup
+    def __init__(self, channels, daq_device=None, parent=None):
 
         self.use_unit = 'V'
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(RawDataPlot, self).__init__(channels=daq_setup['readout']['channels'], units={'left': self.use_unit},
+        super(RawDataPlot, self).__init__(channels=channels, units={'left': self.use_unit},
                                           name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                           parent=parent)
 
@@ -647,13 +641,10 @@ class RawDataPlot(ScrollingIrradDataPlot):
         # Restart the time of incoming data
         self._time, self._idx = None, 0
 
-    def set_data(self, data):
+    def set_data(self, meta, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
-
-        plot_data = {'meta': data['meta'],
-                     'data': data['data']['current'] if self.use_unit == 'A' else data['data']['voltage']}
-
-        super(RawDataPlot, self).set_data(plot_data)
+        raw_data = data['current'] if self.use_unit == 'A' else data['voltage']
+        super(RawDataPlot, self).set_data(meta=meta, data=raw_data)
 
 
 class PlotPushButton(pg.TextItem):
@@ -697,13 +688,10 @@ class PlotPushButton(pg.TextItem):
 class BeamCurrentPlot(ScrollingIrradDataPlot):
     """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
 
-    def __init__(self, beam_current_setup=None, daq_device=None, parent=None):
-
-        # Init class attributes
-        self.beam_current_setup = beam_current_setup
+    def __init__(self, channels, daq_device=None, parent=None):
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(BeamCurrentPlot, self).__init__(channels=('beam_current', 'reconstructed_beam_current', 'beam_loss', 'beam_current_error'), units={'left': 'A', 'right': 'A'},
+        super(BeamCurrentPlot, self).__init__(channels=channels, units={'left': 'A', 'right': 'A'},
                                               name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                               parent=parent)
 
@@ -712,21 +700,12 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
         self.plt.showAxis('right')
         self.plt.setLabel('right', text='Beam current', units='A')
 
-    def set_data(self, data):
-        """Overwrite set_data method in order to show beam data"""
-
-        plot_data = {'meta': data['meta'], 'data': data['data']['current']}
-
-        super(BeamCurrentPlot, self).set_data(plot_data)
-
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
 
-    def __init__(self, temp_setup, daq_device=None, parent=None):
+    def __init__(self, channels, daq_device=None, parent=None):
 
-        self.temp_setup = temp_setup
-
-        super(TemperatureDataPlot, self).__init__(channels=list(temp_setup['devices']['temp'].values()), units={'right': 'C', 'left': 'C'},
+        super(TemperatureDataPlot, self).__init__(channels=channels, units={'right': 'C', 'left': 'C'},
                                                   name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                                   parent=parent)
 
