@@ -599,7 +599,7 @@ class IrradConverter(DAQProcess):
         self.data_flags[server]['temp_daq_board'] = True
 
         ntc_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_daq_board'},
-                    'data': {meta['ntc_ch']: ntc_temp}}
+                    'data': {self.readout_setup[server]['ntc'][str(meta['ntc_ch'])]: ntc_temp}}
 
         return ntc_data
 
