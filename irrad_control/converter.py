@@ -420,17 +420,23 @@ class IrradConverter(DAQProcess):
                                                                                                              extracted_current))
                         self.data_arrays[server]['beam']['beam_current'] = extracted_current
 
+                    # Only add beam loss to data if we have BLM data
+                    beam_data['data']['current']['beam_loss'] = blm_current
+
                 else:
                     blm_current = np.nan
 
-                self.data_arrays[server]['beam'][dname] = beam_data['data']['current']['beam_loss'] = blm_current
+                self.data_arrays[server]['beam'][dname] = blm_current
 
         # Calc SEY fractions
         if 'sum' in beam_data['data']['sey']:
-            if 'h' in beam_data['data']['sey']:
-                beam_data['data']['sey']['frac_h'] = beam_data['data']['sey']['h']/beam_data['data']['sey']['sum'] * 100
-            if 'v' in beam_data['data']['sey']:
-                beam_data['data']['sey']['frac_v'] = beam_data['data']['sey']['v']/beam_data['data']['sey']['sum'] * 100
+            try:
+                if 'h' in beam_data['data']['sey']:
+                    beam_data['data']['sey']['frac_h'] = beam_data['data']['sey']['h']/beam_data['data']['sey']['sum'] * 100
+                if 'v' in beam_data['data']['sey']:
+                    beam_data['data']['sey']['frac_v'] = beam_data['data']['sey']['v']/beam_data['data']['sey']['sum'] * 100
+            except ZeroDivisionError:
+                pass
 
         # Add to beam current container if stage is scanning
         if self.data_flags[server]['scanning']:
