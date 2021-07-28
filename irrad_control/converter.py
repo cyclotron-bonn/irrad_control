@@ -343,8 +343,8 @@ class IrradConverter(DAQProcess):
 
                     # Scale voltage signal to current; signals can have different R/O scales
                     sig_U = analysis.formulas.v_sig_to_i_sig(v_sig=sig_U,
-                                                             full_scale_voltage=self._get_full_scale_current(server, idx_U, self.readout_setup[server]['device']),
-                                                             full_scale_current=self._lookups[server]['full_scale_voltage'])
+                                                             full_scale_current=self._get_full_scale_current(server, idx_U, self.readout_setup[server]['device']),
+                                                             full_scale_voltage=self._lookups[server]['full_scale_voltage'])
                     sig_D = analysis.formulas.v_sig_to_i_sig(v_sig=sig_D,
                                                              full_scale_current=self._get_full_scale_current(server, idx_D, self.readout_setup[server]['device']),
                                                              full_scale_voltage=self._lookups[server]['full_scale_voltage'])
@@ -397,8 +397,8 @@ class IrradConverter(DAQProcess):
                         else:
                             # Calculate sum SE current
                             beam_data['data']['sey']['sum'] = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
-                                                                                               full_scale_voltage=self._get_full_scale_current(server, sum_idx, self.readout_setup[server]['device']),
-                                                                                               full_scale_current=self._lookups[server]['full_scale_voltage'])
+                                                                                               full_scale_current=self._get_full_scale_current(server, sum_idx, self.readout_setup[server]['device']),
+                                                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
                     else:
                         msg = "Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing"
                         logging.warning(msg)
