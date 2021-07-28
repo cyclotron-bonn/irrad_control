@@ -21,7 +21,7 @@ class IrradConverter(DAQProcess):
         name = 'interpreter' if name is None else name
 
         # Dict of known commands; flag to indicate when cmd is busy
-        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start']}
+        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start', 'update_group_ifs']}
 
         # Attributes controlling converter behaviour
         self._data_flush_interval = 1.0
@@ -264,6 +264,14 @@ class IrradConverter(DAQProcess):
                 pass
 
         return hist_data
+
+    def _interpret_event(self, server, event, parameters):
+
+        self.data_arrays[server]['event']['timestamp'] = time()
+        self.data_arrays[server]['event']['event'] = event.encode('ascii')
+        self.data_arrays[server]['event']['parameters'] = parameters.encode('ascii')
+
+        self.data_flags[server]['event'] = True
 
     def _interpret_raw_data(self, server, data, meta):
 
@@ -750,6 +758,11 @@ class IrradConverter(DAQProcess):
                     self.interaction_flags[server]['write'].set()
 
                 self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, not self.interaction_flags[server]['write'].is_set()])
+
+            elif cmd == 'update_group_ifs':
+                server, ifs, group = data['server'], data['ifs'], data['group']
+                self.readout_setup[server]['ro_group_scales'][group] = ifs
+                self._interpret_event(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

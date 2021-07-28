@@ -59,7 +59,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
         # Server process and hardware that can receive commands using self.send_cmd method
-        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter')
+        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board')
 
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()
@@ -585,6 +585,14 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
                     # Try to close
                     self.close()
+
+            elif sender == 'ro_board':
+
+                if reply == 'set_ifs':
+                    cmd_data = {'server': hostname}
+                    cmd_data.update(reply_data)
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='update_group_ifs', cmd_data=cmd_data)
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(hostname, True))
 
             elif sender == 'interpreter':
 
