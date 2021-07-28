@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 # Event dtype; used to log events such as beam current shutdowns, state changes etc
 _event_dtype = [('timestamp', '<f4'),
-                ('event', 'U64'),
-                ('parameters', 'U256')]
+                ('event', '<S64'),
+                ('parameters', '<S256')]
 
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
