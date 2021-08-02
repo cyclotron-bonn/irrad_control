@@ -458,6 +458,8 @@ class IrradConverter(DAQProcess):
 
     def _interpret_scan_data(self, server, data, meta):
 
+        scan_data = None
+
         if data['status'] == 'scan_init':
 
             self.data_arrays[server]['scan']['row_separation'] = data['y_step']
