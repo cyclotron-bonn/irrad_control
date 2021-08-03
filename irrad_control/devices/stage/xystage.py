@@ -741,7 +741,7 @@ class ZaberXYStage(object):
         except (OSError, IOError):
             logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(xy_stage_config_yaml))
 
-    def prepare_scan(self, rel_start_point, rel_end_point, scan_speed, step_size, server):
+    def prepare_scan(self, rel_start_point, rel_end_point, scan_speed, step_size, server, **kwargs):
         """
         Prepares a scan by storing all needed info in self.scan_params
 
