@@ -15,11 +15,13 @@ IrradDAQBoard:
 
 ZaberXYStage:
   init:
-    serial_port: /dev/ttyUSB0
+    serial_port: /dev/ttyUSB1
 
 ArduinoTempSens:
   init:
-    port: /dev/ttyUSB1
+    port: /dev/ttyUSB0
     baudrate: 115200
     timeout: 5
-    ntc_lim: (-55, 125)
+    ntc_lim:
+      - -55
+      - 125
