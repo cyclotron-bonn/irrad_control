@@ -90,7 +90,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                                                                                                   daq_device='DAQBoard')
                             plot_wrappers.append(plots.PlotWrapperWidget(self.plots[server]['temp_daq_board_plot']))
 
-                        if 'ArduinoTempsSens' in self.setup[server]['devices']:
+                        if 'ArduinoTempSens' in self.setup[server]['devices']:
                             channels = list(self.setup[server]['devices']['ArduinoTempSens']['setup'].values())
                             self.plots[server]['temp_arduino_plot'] = plots.TemperatureDataPlot(channels=channels,
                                                                                                 daq_device='ArduinoTempSens')
