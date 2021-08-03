@@ -1004,14 +1004,15 @@ class FluenceHist(IrradPlotWidget):
         Plot for displaying the beam position. The position is displayed from analog and digital data if available.
         """
 
-    def __init__(self, irrad_setup, refresh_rate=5, daq_device=None, parent=None):
+    def __init__(self, n_rows, kappa, refresh_rate=5, daq_device=None, parent=None):
         super(FluenceHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Init class attributes
-        self.irrad_setup = irrad_setup
         self.daq_device = daq_device
+        self.n_rows = n_rows
+        self.kappa = kappa
 
-        self._data['hist_rows'] = np.arange(self.irrad_setup['n_rows'] + 1)
+        self._data['hist_rows'] = np.arange(self.n_rows + 1)
 
         # Setup the main plot
         self._setup_plot()
@@ -1024,10 +1025,10 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
         self.plt.setLabel('right', text='Neutron fluence', units='cm^-2')
         self.plt.setLabel('bottom', text='Scan row')
-        self.plt.getAxis('right').setScale(self.irrad_setup['kappa'])
+        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
-        self.plt.setLimits(xMin=0, xMax=self.irrad_setup['n_rows'], yMin=0)
+        self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
 
@@ -1062,8 +1063,8 @@ class FluenceHist(IrradPlotWidget):
         _meta, _data = data['meta'], data['data']
 
         # Set data
-        self._data['hist'] = data['data']['hist']
-        self._data['hist_err'] = data['data']['hist_err']
+        self._data['hist'] = data['data']['fluence_hist']
+        self._data['hist_err'] = data['data']['fluence_hist_err']
 
         # Get stats
         self._data['hist_mean'], self._data['hist_std'] = (f(self._data['hist']) for f in (np.mean, np.std))
@@ -1078,9 +1079,10 @@ class FluenceHist(IrradPlotWidget):
                     try:
                         self.curves[curve].setData(x=self._data['hist_rows'], y=self._data['hist'], stepMode=True)
                         self.curves['mean'].setValue(self._data['hist_mean'])
-                        self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'], self._data['hist_std']))
-                        self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (self._data['hist_mean'],
-                                                                                                                                      self._data['hist_std'])]))
+                        self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'],
+                                                                                                self._data['hist_std']))
+                        self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.kappa for x in (self._data['hist_mean'],
+                                                                                                                       self._data['hist_std'])]))
                     except Exception as e:
                         logging.warning('Fluence histogram exception: {}'.format(e.message))
 

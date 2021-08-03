@@ -445,23 +445,17 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
         # Check whether data is interpreted
-        elif data['meta']['type'] == 'fluence':
+        elif data['meta']['type'] == 'scan':
             self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
+            self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+            self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
-            hist, hist_err = (data['data'][x] for x in ('hist', 'hist_err'))
-
-            lower_mean_f = sum([hist[i] - hist_err[i] for i in range(len(hist))]) / float(len(hist))
-
-            if lower_mean_f >= self.control_tab.aim_fluence:
+            if data['data']['eta_n_scans'] == 0:
                 self.send_cmd(server, 'stage', 'finish')
 
-            self.control_tab.update_info(row=hist[self.control_tab.scan_params['row']], unit='p/cm^2')
+        elif data['meta']['type'] == 'damage':
 
-            if self.control_tab.scan_params['row'] in (0, self.control_tab.scan_params['n_rows'] - 1):
-                mean_fluence = sum(hist) / len(hist)
-                self.control_tab.update_info(scan=mean_fluence, unit='p/cm^2')
-                est_n_scans = (self.control_tab.aim_fluence - mean_fluence) / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                self.control_tab.update_info(nscan=int(est_n_scans))
+            self.control_tab.update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
 
         elif data['meta']['type'] == 'stage':
 
@@ -637,9 +631,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
                                                          'n_rows': reply_data['n_rows']})
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
-
-                    est_n_scans = self.control_tab.aim_fluence / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                    self.control_tab.update_info(nscan=int(est_n_scans))
 
                 elif reply == 'finish':
 
