@@ -450,7 +450,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
             self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
-            if data['data']['eta_n_scans'] == 0:
+            # FIXME: more precise result would be helpful
+            if data['data']['eta_n_scans'] < 0:
                 self.send_cmd(server, 'stage', 'finish')
 
         elif data['meta']['type'] == 'damage':
@@ -566,7 +567,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
                     # Send command to find where stage is and what the speeds are
-                    if 'stage' in self.setup['server'][hostname]['devices']:
+                    if 'ZaberXYStage' in self.setup['server'][hostname]['devices']:
                         self.send_cmd(hostname, 'stage', 'pos')
                         self.send_cmd(hostname, 'stage', 'get_speed')
                         self.send_cmd(hostname, 'stage', 'get_range')
