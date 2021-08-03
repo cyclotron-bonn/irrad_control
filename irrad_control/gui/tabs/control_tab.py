@@ -20,7 +20,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
         # Setup related
         self.setup = setup  # Store setup of server(s)
-        self.stage_server = [server for server in setup if 'stage' in setup[server]['devices']]
+        self.stage_server = [server for server in setup if 'ZaberXYStage' in setup[server]['devices']]
 
         # Check
         if len(self.stage_server) == 1:
