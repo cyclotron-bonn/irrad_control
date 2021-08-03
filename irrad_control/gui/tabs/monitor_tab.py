@@ -110,6 +110,6 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
         for server in self.setup:
 
-            self.plots[server]['fluence_plot'] = plots.FluenceHist(irrad_setup={'n_rows': n_rows, 'kappa': kappa})
+            self.plots[server]['fluence_plot'] = plots.FluenceHist(n_rows=n_rows, kappa=kappa)
             monitor_widget = plots.PlotWrapperWidget(self.plots[server]['fluence_plot'])
             self.monitor_tabs[server].addTab(monitor_widget, 'Fluence')
