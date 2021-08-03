@@ -21,7 +21,7 @@ class IrradConverter(DAQProcess):
         name = 'interpreter' if name is None else name
 
         # Dict of known commands; flag to indicate when cmd is busy
-        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start', 'update_group_ifs']}
+        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start', 'update_group_ifs', 'prepare_scan']}
 
         # Attributes controlling converter behaviour
         self._data_flush_interval = 1.0
@@ -66,6 +66,7 @@ class IrradConverter(DAQProcess):
         self._lookups = defaultdict(dict)
         self._raw_offsets = {}
         self._row_fluence_hist = {}
+        self._irrad_setup = {}
 
         # R/O setup per server
         self.readout_setup = {}
@@ -567,12 +568,22 @@ class IrradConverter(DAQProcess):
             # Append data to table within this interpretation cycle
             self.data_flags[server]['scan'] = True
 
+            # ETA time and n_scans
+            remainder_fluence = self._irrad_setup[server]['aim_proton_fluence'] - np.mean(self._row_fluence_hist[server]).n
+            row_scan_time = self.data_arrays[server]['scan']['row_stop_timestamp'][0] - self.data_arrays[server]['scan']['row_start_timestamp'][0]
+            try:
+                eta_n_scans = int(remainder_fluence / row_proton_fluence.n)
+                eta_time = eta_n_scans * row_scan_time * self.data_arrays[server]['scan']['n_rows'][0]
+            except ZeroDivisionError:
+                eta_time = eta_n_scans = 0
+
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
                          'data': {'fluence_hist': [val if isinstance(val, int) else val.n for val in self._row_fluence_hist[server]],
                                   'fluence_hist_err': [0 if isinstance(val, int) else val.s for val in self._row_fluence_hist[server]],
                                   'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
                                   'row_mean_tid': (row_proton_tid.n, row_proton_tid.s),
-                                  'row': int(self.data_arrays[server]['scan']['row'][0])}}
+                                  'row': int(self.data_arrays[server]['scan']['row'][0]),
+                                  'eta_time': eta_time, 'eta_n_scans': eta_n_scans}}
 
         elif data['status'] == 'scan_finished':
 
@@ -765,6 +776,10 @@ class IrradConverter(DAQProcess):
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
                 self._interpret_event(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
+
+            elif cmd == 'prepare_scan':
+                server, irrad_setup = data['server'], data['setup']
+                self._irrad_setup[server] = irrad_setup
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

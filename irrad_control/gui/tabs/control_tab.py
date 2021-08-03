@@ -323,6 +323,10 @@ class IrradControlTab(QtWidgets.QWidget):
 
         self.btn_start = QtWidgets.QPushButton('START')
         self.btn_start.setToolTip("Start scan.")
+        self.btn_start.clicked.connect(lambda _: self.send_cmd(target='interpreter',
+                                                               cmd='prepare_scan',
+                                                               cmd_data={'server': self.stage_server,
+                                                                         'setup': self.scan_params}))
         self.btn_start.clicked.connect(lambda _: self.send_cmd(target='stage', cmd='prepare', cmd_data=self.scan_params))
 
         self.btn_finish = QtWidgets.QPushButton('FINISH')
@@ -493,9 +497,11 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def set_aim_fluence(self, nominal, exponent):
         self.aim_fluence = nominal * 10**exponent
+        self.update_scan_parameters(aim_proton_fluence=self.aim_fluence)
 
     def set_min_current(self, min_current):
         self.min_scan_current = min_current * 1e-9  # Nano ampere
+        self.update_scan_parameters(min_scan_current=self.min_scan_current)
 
     def check_no_beam(self):
 
