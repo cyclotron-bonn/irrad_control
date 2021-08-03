@@ -660,7 +660,7 @@ class IrradConverter(DAQProcess):
         # Retrieve server IP , meta data and actual data from raw data dict
         server, meta_data, data = raw_data['meta']['name'], raw_data['meta'], raw_data['data']
 
-        if meta_data['type'] == 'raw':
+        if meta_data['type'] == 'raw_data':
 
             ### Raw data ###
 

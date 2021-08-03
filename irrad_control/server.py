@@ -138,7 +138,7 @@ class IrradServer(DAQProcess):
         """
 
         # Add meta data and data
-        _meta = {'timestamp': time(), 'name': self.server, 'type': 'raw'}
+        _meta = {'timestamp': time(), 'name': self.server, 'type': 'raw_data'}
 
         _data = self.devices['ADCBoard'].read_channels(self.setup['server']['readout']['channels'])
 
