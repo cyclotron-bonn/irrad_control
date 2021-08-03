@@ -162,7 +162,7 @@ class IrradConverter(DAQProcess):
 
             if 'ArduinoTempSens' in server_setup['devices']:
 
-                dtype = self.dtypes.generic_dtype(names=['timestamp'] + server_setup['devices']['ArduinoTempSens']['setup'].values())
+                dtype = self.dtypes.generic_dtype(names=['timestamp'] + list(server_setup['devices']['ArduinoTempSens']['setup'].values()))
                 dname = 'temp_arduino'
                 node_name = 'ArduinoTempSens'
 
@@ -634,7 +634,7 @@ class IrradConverter(DAQProcess):
         self.data_arrays[server]['temp_arduino']['timestamp'] = meta['timestamp']
 
         for temp in data:
-            self.data_arrays[server]['temp_arduino'][temp] = temp_data['data'] = data[temp]
+            self.data_arrays[server]['temp_arduino'][temp] = temp_data['data'][temp] = data[temp]
 
         self.data_flags[server]['temp_arduino'] = True
 
