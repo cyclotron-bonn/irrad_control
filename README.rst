@@ -13,7 +13,7 @@ For more information on the irradiation site at Bonn University please visit the
 Installation
 ============
 
-You have to have Python >= 2.7 with the following packages installed:
+You have to have Python >= 3.7 with the following packages installed:
 
 - numpy
 - pyyaml
@@ -23,12 +23,19 @@ You have to have Python >= 2.7 with the following packages installed:
 - `pyqtgraph <http://pyqtgraph.org/>`_
 - matplotlib
 - paramiko
+- uncertainties
 
 It's recommended to use a Python environment like `Miniconda <https://conda.io/miniconda.html>`_. After installation you can use Minicondas package manager ``conda`` to install the required packages
 
 .. code-block:: bash
 
    conda install numpy pyyaml pytables pyqt pyzmq pyqtgraph paramiko matplotlib
+
+To install the `uncertainties` package use `pip`
+
+.. code-block::
+
+  pip install uncertainties
 
 To finally install ``irrad_control`` on the DAQ PC run the setup script
 
@@ -55,7 +62,7 @@ DAQ
 ===
 
 During irradiations, the extracted beam current is measured continuously via a dedicated **s**\econdary **e**\lectron **m**\onitor (SEM) and R/O electronics.
-A `ADDA board <https://www.waveshare.com/wiki/High-Precision_AD/DA_Board>`_ is used to digitize the beam current measurment with rates between 20 - 150 Hz.
+An `ADDA board <https://www.waveshare.com/wiki/High-Precision_AD/DA_Board>`_ is used to digitize the beam current measurment with rates between 20 - 150 Hz.
 A 2D-motorstage is used to scan devices inside a cooling box through the beam. Scan parameters such as scan speed and start/end positions are logged for each stage axis movement.
 Furthermore, several NTCs are located inside the cooling box which is cooled via nitrogen gas. The NTCs are read out via the R/O electronics with ~ 1 Hz.
 For more information please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
