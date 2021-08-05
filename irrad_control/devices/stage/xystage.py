@@ -1009,6 +1009,12 @@ class ZaberXYStage(object):
                 # Determine whether we're going from top to bottom or opposite
                 _tmp_rows = list(range(scan_params['n_rows']) if scan % 2 == 0 else reversed(range(scan_params['n_rows'])))
 
+                _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
+                _data = {'status': 'scan_begin', 'scan': scan}
+
+                # Put init data
+                data_pub.send_json({'meta': _meta, 'data': _data})
+
                 # Loop over rows
                 for row in _tmp_rows:
 
@@ -1031,6 +1037,12 @@ class ZaberXYStage(object):
 
                     # Scan row
                     self._scan_row(row=row, scan_params=scan_params, scan=scan, data_pub=data_pub)
+
+                _meta = {'timestamp': time.time(), 'name': scan_params['server'], 'type': 'stage'}
+                _data = {'status': 'scan_complete', 'scan': scan}
+
+                # Put init data
+                data_pub.send_json({'meta': _meta, 'data': _data})
 
                 # Increment
                 scan += 1

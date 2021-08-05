@@ -483,56 +483,6 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['scan']['row_start_y'] = data['y_start']
             self.data_arrays[server]['scan']['row_scan_speed'] = data['speed']
 
-            # Initialize and keep track of scan number
-            self._scan_number = data['scan'] if self._scan_number is None else self._scan_number
-
-            # Check if we made a complete scan; update damage data
-            if self._scan_number != data['scan']:
-
-                # Get scan proton fluence in each row
-                row_proton_fluences_last_scan = self.data_tables[server]['scan'].col('row_proton_fluence')[-self.data_arrays[server]['scan']['n_rows'][0]:]
-
-                # Get scan proton fluence error in each row
-                row_proton_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_proton_fluence_error')[-self.data_arrays[server]['scan']['n_rows'][0]:]
-
-                # Calculate mean proton fluence of last scan
-                mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(data=unumpy.uarray(row_proton_fluences_last_scan,
-                                                                                                                      row_proton_fluences_last_scan_err))
-
-                # Calculate absolute delivered fluence with this scan
-                abs_proton_fluence = ufloat(mean_scan_proton_fluence,
-                                            mean_scan_proton_fluence_err) + ufloat(self.data_arrays[server]['damage']['scan_proton_fluence'][0],
-                                                                                   self.data_arrays[server]['damage']['scan_proton_fluence_error'][0])
-
-                # Calculate absolute delivered TID with this scan
-                abs_tid = analysis.formulas.tid_scan(proton_fluence=abs_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
-
-                # Completed scan number and timestamp of completion
-                self.data_arrays[server]['damage']['timestamp'] = meta['timestamp']
-                self.data_arrays[server]['damage']['scan'] = self._scan_number
-                self.data_arrays[server]['damage']['scan_proton_fluence'] = abs_proton_fluence.n
-                self.data_arrays[server]['damage']['scan_proton_fluence_error'] = abs_proton_fluence.s
-                self.data_arrays[server]['damage']['scan_tid'] = abs_tid.n
-                self.data_arrays[server]['damage']['scan_tid_error'] = abs_tid.s
-
-                # Log
-                logging.info("Scan {}: ({:.2E} +- {:.2E}) protons / cm^2 and ({:.2E} +- {:.2E}) Mrad".format(self._scan_number,
-                                                                                                             abs_proton_fluence.n,
-                                                                                                             abs_proton_fluence.s,
-                                                                                                             abs_tid.n,
-                                                                                                             abs_tid.s))
-
-                # Append data to table within this interpretation cycle
-                self.data_flags[server]['damage'] = True
-
-                # Update scan number
-                self._scan_number = data['scan']
-
-                scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'damage'},
-                             'data': {'scan': int(self.data_arrays[server]['damage']['scan'][0]),
-                                      'scan_proton_fluence': (abs_proton_fluence.n, abs_proton_fluence.s),
-                                      'scan_tid': (abs_tid.n, abs_tid.s)}}
-
         elif data['status'] == 'scan_stop':
 
             self.data_flags[server]['scanning'] = False
@@ -586,6 +536,55 @@ class IrradConverter(DAQProcess):
                                   'row_mean_tid': (row_proton_tid.n, row_proton_tid.s),
                                   'row': int(self.data_arrays[server]['scan']['row'][0]),
                                   'eta_time': eta_time, 'eta_n_scans': eta_n_scans}}
+
+        elif data['status'] == 'scan_complete':
+
+            # Get scan proton fluence in each row
+            row_proton_fluences_last_scan = self.data_tables[server]['scan'].col('row_proton_fluence')[
+                                            -self.data_arrays[server]['scan']['n_rows'][0]:]
+
+            # Get scan proton fluence error in each row
+            row_proton_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_proton_fluence_error')[
+                                                -self.data_arrays[server]['scan']['n_rows'][0]:]
+
+            # Calculate mean proton fluence of last scan
+            mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(
+                data=unumpy.uarray(row_proton_fluences_last_scan,
+                                   row_proton_fluences_last_scan_err))
+
+            # Calculate absolute delivered fluence with this scan
+            abs_proton_fluence = ufloat(mean_scan_proton_fluence,
+                                        mean_scan_proton_fluence_err) + ufloat(
+                self.data_arrays[server]['damage']['scan_proton_fluence'][0],
+                self.data_arrays[server]['damage']['scan_proton_fluence_error'][0])
+
+            # Calculate absolute delivered TID with this scan
+            abs_tid = analysis.formulas.tid_scan(proton_fluence=abs_proton_fluence,
+                                                 stopping_power=analysis.constants.p_stop_Si)
+
+            # Completed scan number and timestamp of completion
+            self.data_arrays[server]['damage']['timestamp'] = meta['timestamp']
+            self.data_arrays[server]['damage']['scan'] = data['scan']
+            self.data_arrays[server]['damage']['scan_proton_fluence'] = abs_proton_fluence.n
+            self.data_arrays[server]['damage']['scan_proton_fluence_error'] = abs_proton_fluence.s
+            self.data_arrays[server]['damage']['scan_tid'] = abs_tid.n
+            self.data_arrays[server]['damage']['scan_tid_error'] = abs_tid.s
+
+            # Log
+            logging.info(
+                "Scan {}: ({:.2E} +- {:.2E}) protons / cm^2 and ({:.2E} +- {:.2E}) Mrad".format(data['scan'],
+                                                                                                abs_proton_fluence.n,
+                                                                                                abs_proton_fluence.s,
+                                                                                                abs_tid.n,
+                                                                                                abs_tid.s))
+
+            # Append data to table within this interpretation cycle
+            self.data_flags[server]['damage'] = True
+
+            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'damage'},
+                         'data': {'scan': data['scan'],
+                                  'scan_proton_fluence': (abs_proton_fluence.n, abs_proton_fluence.s),
+                                  'scan_tid': (abs_tid.n, abs_tid.s)}}
 
         elif data['status'] == 'scan_finished':
 
