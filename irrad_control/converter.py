@@ -227,18 +227,17 @@ class IrradConverter(DAQProcess):
 
         return i_full_scale * analysis.constants.nano  # nA
 
-    def _calc_mean_and_error(self, data, data_err):
-        # Make uncertainty array
-        _data_w_err = unumpy.uarray(data, data_err)
+    def _calc_mean_and_error(self, data):
 
         # Calculate mean and error on mean
-        _mean_w_err = np.mean(_data_w_err)
+        mean_w_err = np.mean(data)
 
         # Uncertainty on mean is error and std quadratically added
-        try:
-            res = _mean_w_err.n, (_mean_w_err.s ** 2 + np.std(data) ** 2) ** 0.5
-        except AttributeError:  # Somehow result is float64
-            res = _mean_w_err, np.std(data)
+        if hasattr(mean_w_err, 'n') and hasattr(mean_w_err, 's'):
+            res = mean_w_err.n, (mean_w_err.s ** 2 + unumpy.nominal_values(data).std() ** 2) ** 0.5
+        else:
+            res = mean_w_err, np.std(data)
+
         return res
 
     def _update_hist_entries(self, server, beam_data):
@@ -497,8 +496,8 @@ class IrradConverter(DAQProcess):
                 row_proton_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_proton_fluence_error')[-self.data_arrays[server]['scan']['n_rows'][0]:]
 
                 # Calculate mean proton fluence of last scan
-                mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(data=row_proton_fluences_last_scan,
-                                                                                                   data_err=row_proton_fluences_last_scan_err)
+                mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(data=unumpy.uarray(row_proton_fluences_last_scan,
+                                                                                                                      row_proton_fluences_last_scan_err))
 
                 # Calculate absolute delivered fluence with this scan
                 abs_proton_fluence = ufloat(mean_scan_proton_fluence,
@@ -539,8 +538,7 @@ class IrradConverter(DAQProcess):
             self.data_flags[server]['scanning'] = False
 
             # Calculate mean row fluence and error
-            row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=[val.n for val in self._scan_currents[server]],
-                                                                                         data_err=[val.s for val in self._scan_currents[server]])
+            row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
 
             row_proton_fluence = analysis.formulas.proton_fluence_scan(proton_current=ufloat(row_mean_beam_current, row_mean_beam_current_err),
                                                                        scan_step=self.data_arrays[server]['scan']['row_separation'][0],
@@ -582,8 +580,8 @@ class IrradConverter(DAQProcess):
                 eta_time = eta_n_scans = 0
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
-                         'data': {'fluence_hist': [val if isinstance(val, int) else val.n for val in self._row_fluence_hist[server]],
-                                  'fluence_hist_err': [0 if isinstance(val, int) else val.s for val in self._row_fluence_hist[server]],
+                         'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
+                                  'fluence_hist_err': unumpy.std_devs(self._row_fluence_hist[server]).tolist(),
                                   'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
                                   'row_mean_tid': (row_proton_tid.n, row_proton_tid.s),
                                   'row': int(self.data_arrays[server]['scan']['row'][0]),
