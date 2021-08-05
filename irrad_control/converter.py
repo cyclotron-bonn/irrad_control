@@ -235,7 +235,11 @@ class IrradConverter(DAQProcess):
         _mean_w_err = np.mean(_data_w_err)
 
         # Uncertainty on mean is error and std quadratically added
-        return _mean_w_err.n, (_mean_w_err.s ** 2 + np.std(data) ** 2) ** 0.5
+        try:
+            res = _mean_w_err.n, (_mean_w_err.s ** 2 + np.std(data) ** 2) ** 0.5
+        except AttributeError:  # Somehow result is float64
+            res = _mean_w_err, np.std(data)
+        return res
 
     def _update_hist_entries(self, server, beam_data):
 
