@@ -67,6 +67,7 @@ class IrradConverter(DAQProcess):
         self._raw_offsets = {}
         self._row_fluence_hist = {}
         self._irrad_setup = {}
+        self._dtimes = defaultdict(dict)
 
         # R/O setup per server
         self.readout_setup = {}
@@ -198,6 +199,21 @@ class IrradConverter(DAQProcess):
 
                 # Add flag
                 self.data_flags[server][dname] = False
+
+    def _calc_drate(self, server, meta):
+
+        # Check if we have incoming data timing stored
+        if meta['type'] not in self._dtimes[server]:
+            self._dtimes[server][meta['type']] = time()
+            return
+
+        # Calc data rate
+        now = time()
+        drate = 1. / (now - self._dtimes[server][meta['type']])
+        self._dtimes[server][meta['type']] = now
+
+        # Write data rate to meta
+        meta['data_rate'] = drate
 
     def _get_raw_offset(self, server, data):
 
@@ -710,6 +726,10 @@ class IrradConverter(DAQProcess):
             self.store_data(server)
         else:
             logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
+
+        # Calc and add data rate to interpreted meta data
+        for in_data in interpreted_data:
+            self._calc_drate(server=server, meta=in_data['meta'])
 
         return interpreted_data
 

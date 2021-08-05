@@ -671,28 +671,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
-        data_timestamps = {}
-        
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
 
-            data = data_sub.recv_json()
-            dtype = data['meta']['type']
-            server = data['meta']['name']
-
-            if server not in data_timestamps:
-                data_timestamps[server] = {}
-
-            if dtype not in data_timestamps[server]:
-                data_timestamps[server][dtype] = time.time()
-            else:
-                now = time.time()
-                drate = 1. / (now - data_timestamps[server][dtype])
-                data_timestamps[server][dtype] = now
-                data['meta']['data_rate'] = drate
-
-            self.data_received.emit(data)
+            self.data_received.emit(data_sub.recv_json())
             
     def recv_log(self):
         
