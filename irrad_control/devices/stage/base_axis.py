@@ -311,5 +311,6 @@ class BaseAxisTracker(object):
             return
 
         # Decorator replacing original movement funcs
+        # See https://stackoverflow.com/questions/394770/override-a-method-at-instance-level
         axis.move_abs = MethodType(base_axis_movement_tracker(axis.move_abs, axis_id=axis_id, zmq_config=self.zmq_config), axis)
         axis.move_rel = MethodType(base_axis_movement_tracker(axis.move_rel, axis_id=axis_id, zmq_config=self.zmq_config), axis)
