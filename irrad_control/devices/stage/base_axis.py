@@ -2,6 +2,7 @@ import logging
 import time
 import yaml
 from functools import wraps
+from types import MethodType
 
 # Package imports
 from irrad_control import axis_config
@@ -32,6 +33,72 @@ def base_axis_config_updater(base_axis_func):
     return wrapper
 
 
+def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config=None):
+    """
+    Decorator function which is used keep track of the stage travel. Optionally publishes movement data via ZMQ.
+
+    Parameters
+    ----------
+    axis_movement_func: function object
+        function which executes an axis movement
+    axis_id: str
+        Identifier for this axis under which the data is published
+    zmq_config: dict
+        dict containing needed zmq objects to publish axis movement data
+    Returns
+    -------
+    movement_wrapper: function object
+        wrapped movement_func
+    """
+
+    @wraps(axis_movement_func)
+    def movement_wrapper(axis, value, unit):
+
+        # Get starting position of movement in native unit
+        start = axis.convert_from_unit(**axis.config['position'])
+
+        pub = None if not zmq_config else create_pub_from_ctx(ctx=zmq_config['ctx'], addr=zmq_config['addr'])
+
+        if pub:
+
+            # Publish collection of data from which movement can be predicted
+            _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
+            _data = {'status': 'move_start', 'axis': axis_id}
+            _data.update({prop: axis.config[prop] for prop in axis.init_props})
+
+            # Publish data
+            pub.send_json({'meta': _meta, 'data': _data})
+
+        # Execute movement
+        reply = axis_movement_func(value, unit)
+
+        # Get position after movement
+        stop = axis.convert_from_unit(**axis.config['position'])
+
+        # Calculate distance travelled in native unit
+        travel = abs(stop - start)
+
+        if pub:
+            # Publish collection of data from which movement can be predicted
+            _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
+            _data = {'status': 'move_stop', 'axis': axis_id, 'travel': axis.convert_to_unit(travel, unit), 'unit': unit}
+
+            # Publish data
+            pub.send_json({'meta': _meta, 'data': _data})
+
+        if axis.config['travel']['unit'] is not None:
+            tot_travel = axis.convert_to_unit(travel, unit=axis.config['travel']['unit'])
+        else:
+            tot_travel = axis.convert_from_unit(travel, unit=axis.config['travel']['unit'])
+
+        axis.config['travel']['value'] += tot_travel
+        axis.config['last_updated'] = time.asctime()
+
+        return reply
+
+    return movement_wrapper
+
+
 class BaseAxis(object):
     """
     Base class of a single motor stage represented by a movable point on a one dimensional axis. The main attributes of a motor stage are:
@@ -55,9 +122,6 @@ class BaseAxis(object):
         self.error = None
 
         self.init_props = init_props
-
-        if config is not None:
-            self._apply_config()
 
     def _read_config(self, base_unit='mm'):
 
@@ -243,72 +307,9 @@ class BaseAxisTracker(object):
             return
 
         if axis in self._tracked_axes:
-            logging.error('Axis {} with ID {} is already tracked.'.format(type(axis), axis_id))
+            logging.warning('Axis {} with ID {} is already tracked.'.format(type(axis), axis_id))
             return
 
         # Decorator replacing original movement funcs
-        axis.move_abs = self._movement_tracker(axis.move_abs, axis_id)
-        axis.move_rel = self._movement_tracker(axis.move_rel, axis_id)
-
-    def _movement_tracker(self, movement_func, axis_id):
-        """
-        Decorator function which is used keep track of the stage travel. Optionally publishes movement data via ZMQ.
-
-        Parameters
-        ----------
-        movement_func: function object
-            function which executes a stage movement
-        axis_id: str
-            Identifier for this axis under which the data is published
-        Returns
-        -------
-        movement_wrapper: function object
-            wrapped movement_func
-        """
-
-        @wraps(movement_func)
-        def movement_wrapper(axis, value, unit):
-
-            # Get starting position of movement in native unit
-            start = axis.convert_from_unit(**axis.config['position'])
-
-            pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
-
-            if pub:
-
-                # Publish collection of data from which movement can be predicted
-                _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'axis'}
-                _data = {'status': 'move_start', 'axis': axis_id}
-                _data.update({prop: axis.config[prop] for prop in axis.init_props})
-
-                # Publish data
-                pub.send_json({'meta': _meta, 'data': _data})
-
-            # Execute movement
-            reply = movement_func(axis, value, unit)
-
-            # Get position after movement
-            stop = axis.convert_from_unit(**axis.config['position'])
-
-            # Calculate distance travelled in native unit
-            travel = abs(stop - start)
-
-            if pub:
-                # Publish collection of data from which movement can be predicted
-                _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'axis'}
-                _data = {'status': 'move_stop', 'axis': axis_id, 'travel': axis.convert_to_unit(travel, unit), 'unit': unit}
-
-                # Publish data
-                pub.send_json({'meta': _meta, 'data': _data})
-
-            if axis.config['travel']['unit'] is not None:
-                tot_travel = axis.convert_to_unit(travel, unit=axis.config['travel']['unit'])
-            else:
-                tot_travel = axis.convert_from_unit(travel, unit=axis.config['travel']['unit'])
-
-            axis.config['travel']['value'] += tot_travel
-            axis.config['last_updated'] = time.asctime()
-
-            return reply
-
-        return movement_wrapper
+        axis.move_abs = MethodType(base_axis_movement_tracker(axis.move_abs, axis_id=axis_id, zmq_config=self.zmq_config), axis)
+        axis.move_rel = MethodType(base_axis_movement_tracker(axis.move_rel, axis_id=axis_id, zmq_config=self.zmq_config), axis)
