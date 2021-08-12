@@ -1,9 +1,14 @@
 import logging
 import pyqtgraph as pg
+import pyqtgraph.exporters as pg_ex
 import numpy as np
+import os
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import OrderedDict
+
+# Package imports
+import irrad_control.analysis as analysis
 from irrad_control.gui.widgets.util_widgets import GridContainer
 
 # Matplotlib default colors
@@ -43,7 +48,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
     """Widget that wraps PlotWidgets and implements some additional features which allow to control the PlotWidgets content.
     Also adds button to show the respective PlotWidget in a QMainWindow"""
 
-    def __init__(self, plot=None, parent=None):
+    def __init__(self, plot=None, plot_path=None, parent=None):
         super(PlotWrapperWidget, self).__init__(parent=parent)
 
         # Set a reasonable minimum size
@@ -57,7 +62,10 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
         self.setLayout(QtWidgets.QVBoxLayout())
         self.plot_options = GridContainer(name='Plot options' if not hasattr(self.pw, 'name') else '{} options'.format(self.pw.name))
-        
+
+        # Output path for screenshots
+        self.plot_path = plot_path
+
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
             self._setup_widget()
@@ -132,6 +140,15 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             spinbox_refresh.valueChanged.connect(lambda v: self.pw.update_refresh_rate(v))
             _sub_layout_1.addWidget(spinbox_refresh)
 
+        # Button to save contents of self.pw.plt instance
+        self.btn_save = QtWidgets.QPushButton()
+        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
+        self.btn_save.setToolTip('Save plot as PNG')
+        self.btn_save.setFixedSize(25, 25)
+        self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(False))
+        self.btn_save.clicked.connect(self.save_plot)
+        self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(True))
+
         # Button to move self.pw to PlotWindow instance
         self.btn_open = QtWidgets.QPushButton()
         self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton))
@@ -144,13 +161,14 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to close self.pw to PlotWindow instance
         self.btn_close = QtWidgets.QPushButton()
-        self.btn_close.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
+        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
         self.btn_close.setToolTip('Close plot in window')
         self.btn_close.setFixedSize(25, 25)
         self.btn_close.setEnabled(False)
         self.btn_close.clicked.connect(lambda: self.btn_close.setEnabled(False))
         self.btn_close.clicked.connect(lambda: self.external_win.close())
 
+        _sub_layout_1.addWidget(self.btn_save)
         _sub_layout_1.addWidget(self.btn_open)
         _sub_layout_1.addWidget(self.btn_close)
 
@@ -173,6 +191,20 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         self.external_win.closeWin.connect(lambda: self.layout().insertWidget(1, self.pw))
         self.external_win.closeWin.connect(lambda: self.btn_open.setEnabled(True))
         self.external_win.show()
+
+    def save_plot(self):
+
+        exporter = pg_ex.ImageExporter(self.pw.plt)
+
+        # Generate filename
+        number = 0
+        out_file = lambda pw, n: os.path.join(os.getcwd() if self.plot_path is None else self.plot_path,
+                                              '{}_{}.png'.format(type(pw).__name__, n))
+        while os.path.isfile(out_file(self.pw, number)):
+            number += 1
+
+        exporter.export(out_file(self.pw, number))
+        logging.info("Saved plot to {}".format(out_file(self.pw, number)))
 
 
 class MultiPlotWidget(QtWidgets.QScrollArea):
@@ -487,23 +519,20 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
-    def set_data(self, data):
+    def set_data(self, meta, data):
         """Set the data of the plot. Input data is data plus meta data"""
 
-        # Meta data and data
-        _meta, _data = data['meta'], data['data']
-
         # Store timestamp of current data
-        self._timestamp = _meta['timestamp']
+        self._timestamp = meta['timestamp']
 
         # Set data rate if available
-        if 'data_rate' in _meta:
-            self._drate = _meta['data_rate']
+        if 'data_rate' in meta:
+            self._drate = meta['data_rate']
 
         # Get data rate from data in order to set time axis
         if self._time is None:
-            if 'data_rate' in _meta:
-                self._drate = _meta['data_rate']
+            if 'data_rate' in meta:
+                self._drate = meta['data_rate']
                 shape = int(round(self._drate) * self._period + 1)
                 self._time = np.full(shape=shape, fill_value=np.nan)
                 for ch in self.channels:
@@ -530,10 +559,10 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             self._idx += 1
 
             # Set data in curves
-            for ch in _data:
+            for ch in data:
                 # Shift data to the right and set 0th element
                 self._data[ch][1:] = self._data[ch][:-1]
-                self._data[ch][0] = _data[ch]
+                self._data[ch][0] = data[ch]
 
     def refresh_plot(self):
         """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
@@ -613,15 +642,12 @@ class RawDataPlot(ScrollingIrradDataPlot):
 
     unitChanged = QtCore.pyqtSignal(str)
 
-    def __init__(self, daq_setup, daq_device=None, parent=None):
-
-        # Init class attributes
-        self.daq_setup = daq_setup
+    def __init__(self, channels, daq_device=None, parent=None):
 
         self.use_unit = 'V'
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(RawDataPlot, self).__init__(channels=daq_setup['devices']['adc']['channels'], units={'left': self.use_unit},
+        super(RawDataPlot, self).__init__(channels=channels, units={'left': self.use_unit},
                                           name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                           parent=parent)
 
@@ -631,8 +657,7 @@ class RawDataPlot(ScrollingIrradDataPlot):
 
         # Connect to signal
         for con in [lambda u: self.plt.getAxis('left').setLabel(text='Signal', units=u),
-                    lambda u: unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V')),
-                    lambda u: setattr(self, '_data', self.convert_to_unit(self._data, u))]:  # convert between units
+                    lambda u: unit_btn.setText('Switch unit ({})'.format('A' if u == 'V' else 'V'))]:
             self.unitChanged.connect(con)
 
         # Add
@@ -642,36 +667,13 @@ class RawDataPlot(ScrollingIrradDataPlot):
         self.use_unit = 'V' if self.use_unit == 'A' else 'A'
         self.unitChanged.emit(self.use_unit)
 
-    def convert_to_unit(self, data, unit):
-        """Method to convert raw data between Volt and Ampere"""
+        # Restart the time of incoming data
+        self._time, self._idx = None, 0
 
-        # Check whether data is not None
-        if not data:
-            logging.info('No data to convert')
-            return
-
-        res = OrderedDict()
-
-        # Loop over data and overwrite
-        for ch in data:
-            _idx = self.channels.index(ch)
-            # Get data, scale and type of channel
-            val, scale, _type = data[ch], self.daq_setup['devices']['adc']['ro_scales'][_idx], self.daq_setup['devices']['adc']['types'][_idx]
-            # Adjust scale in case we're looking at SEM's sum signal; in this case current is multiplied by factor of 4
-            scale *= 1 if _type != 'sem_sum' else 4
-
-            res[ch] = val / 5.0 * scale * 1e-9 if unit == 'A' else val * 5.0 / 1e-9 / scale
-
-        return res
-
-    def set_data(self, data):
+    def set_data(self, meta, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
-
-        # Convert voltages to currents and overwrite
-        if self.use_unit == 'A':
-            data['data'] = self.convert_to_unit(data['data'], self.use_unit)
-
-        super(RawDataPlot, self).set_data(data)
+        raw_data = data['current'] if self.use_unit == 'A' else data['voltage']
+        super(RawDataPlot, self).set_data(meta=meta, data=raw_data)
 
 
 class PlotPushButton(pg.TextItem):
@@ -715,13 +717,10 @@ class PlotPushButton(pg.TextItem):
 class BeamCurrentPlot(ScrollingIrradDataPlot):
     """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
 
-    def __init__(self, beam_current_setup=None, daq_device=None, parent=None):
-
-        # Init class attributes
-        self.beam_current_setup = beam_current_setup
+    def __init__(self, channels, daq_device=None, parent=None):
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(BeamCurrentPlot, self).__init__(channels=['analog', 'digital'], units={'left': 'A', 'right': 'A'},
+        super(BeamCurrentPlot, self).__init__(channels=channels, units={'left': 'A', 'right': 'A'},
                                               name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                               parent=parent)
 
@@ -733,11 +732,9 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
 
-    def __init__(self, temp_setup, daq_device=None, parent=None):
+    def __init__(self, channels, daq_device=None, parent=None):
 
-        self.temp_setup = temp_setup
-
-        super(TemperatureDataPlot, self).__init__(channels=list(temp_setup['devices']['temp'].values()), units={'right': 'C', 'left': 'C'},
+        super(TemperatureDataPlot, self).__init__(channels=channels, units={'right': 'C', 'left': 'C'},
                                                   name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                                   parent=parent)
 
@@ -865,14 +862,14 @@ class BeamPositionPlot(IrradPlotWidget):
     Plot for displaying the beam position. The position is displayed from analog and digital data if available.
     """
 
-    def __init__(self, daq_setup, position_range=None, daq_device=None, name=None, add_hist=True, parent=None):
+    def __init__(self, daq_setup, daq_device=None, name=None, add_hist=True, parent=None):
         super(BeamPositionPlot, self).__init__(parent=parent)
 
         # Init class attributes
         self.daq_setup = daq_setup
-        self.ro_types = daq_setup['devices']['adc']['types']
+        self.ro_types = daq_setup['readout']['types']
         self.daq_device = daq_device
-        self._plt_range = position_range if position_range else [-110, 110] * 2
+        self.hist_types = analysis.dtype.IrradHists()
         self._add_hist = add_hist
         self.name = name if name is not None else type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device
 
@@ -887,8 +884,8 @@ class BeamPositionPlot(IrradPlotWidget):
         self.plt.setLabel('left', text='Vertical displacement', units='%')
         self.plt.setLabel('bottom', text='Horizontal displacement', units='%')
         self.plt.showGrid(x=True, y=True, alpha=0.99)
-        self.plt.setRange(xRange=self._plt_range[:2], yRange=self._plt_range[2:])
-        self.plt.setLimits(**dict([(k, self._plt_range[i]) for i, k in enumerate(('xMin', 'xMax', 'yMin', 'yMax'))]))
+        self.plt.setRange(xRange=self.hist_types['beam_position']['range'][0], yRange=self.hist_types['beam_position']['range'][1])
+        self.plt.setLimits(**dict([(k, self.hist_types['beam_position']['range'][0 if i < 2 else 1][i % 2]) for i, k in enumerate(('xMin', 'xMax', 'yMin', 'yMax'))]))
         self.plt.hideButtons()
 
         self.enable_stats()
@@ -902,18 +899,8 @@ class BeamPositionPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        if any(x in self.ro_types for x in ('sem_h_shift', 'sem_v_shift')):
-            sig = 'analog'
-            self.curves[sig] = CrosshairItem(color=_MPL_COLORS[0], name=sig,
-                                             horizontal='sem_h_shift' in self.ro_types,
-                                             vertical='sem_v_shift' in self.ro_types)
-
-            # Add 2D histogram
-            if self._add_hist and self.curves[sig].horizontal and self.curves[sig].vertical:
-                self.add_2d_hist(curve=sig, autoDownsample=True, opacity=0.66, cmap='hot')
-
         if any(all(x in self.ro_types for x in y) for y in [('sem_left', 'sem_right'), ('sem_up', 'sem_down')]):
-            sig = 'digital'
+            sig = 'beam_position'
             self.curves[sig] = CrosshairItem(color=_MPL_COLORS[1], name=sig,
                                              horizontal='sem_left' in self.ro_types and 'sem_right' in self.ro_types,
                                              vertical='sem_up' in self.ro_types and 'sem_down' in self.ro_types)
@@ -929,16 +916,19 @@ class BeamPositionPlot(IrradPlotWidget):
                     self.curves[curve].set_plotitem(self.plt)
                 self.show_data(curve)
 
-    def add_2d_hist(self, curve, cmap='hot', bins=(50, 50), **kwargs):
+    def add_2d_hist(self, curve, cmap='hot', **kwargs):
 
         if curve not in self.curves:
             logging.error("Can only add histogram to existing curve")
             return
 
-        if len(bins) != 2:
-            raise ValueError("Bins must be iterable of integers of len 2")
-
         hist_name = curve + '_hist'
+
+        # Add hist data
+        bins = self.hist_types[curve]['bins']
+        plot_range = self.hist_types[curve]['range']
+        hist, edges, centers = self.hist_types.create_hist(curve)
+        self._data[hist_name] = {'hist': hist, 'edges': edges, 'centers': centers}
 
         if 'lut' not in kwargs:
             # Create colormap and init
@@ -954,40 +944,27 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Add and manage position
         self.curves[hist_name] = pg.ImageItem(**kwargs)
-        self.curves[hist_name].translate(self._plt_range[0], self._plt_range[2])
-        self.curves[hist_name].scale(get_scale(self._plt_range[:2], bins[0]), get_scale(self._plt_range[2:], bins[1]))
+        self.curves[hist_name].translate(plot_range[0][0], plot_range[1][0])
+        self.curves[hist_name].scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
         self.curves[hist_name].setZValue(-10)
-
-        # Add hist data
-        self._data[hist_name] = {}
-        self._data[hist_name]['hist'] = np.zeros(shape=bins)
-        self._data[hist_name]['edges'] = (np.linspace(self._plt_range[0], self._plt_range[1], bins[0] + 1),
-                                          np.linspace(self._plt_range[2], self._plt_range[3], bins[1] + 1))
-        self._data[hist_name]['centers'] = (0.5 * (self._data[hist_name]['edges'][0][1:] + self._data[hist_name]['edges'][0][:-1]),
-                                            0.5 * (self._data[hist_name]['edges'][1][1:] + self._data[hist_name]['edges'][1][:-1]))
 
     def set_data(self, data):
 
-        # Meta data and data
-        meta, pos_data = data['meta'], data['data']['position']
+        sig = 'beam_position'
 
-        for sig in pos_data:
-            if sig not in self.curves:
-                continue
-            h_shift = None if 'h' not in pos_data[sig] else pos_data[sig]['h']
-            v_shift = None if 'v' not in pos_data[sig] else pos_data[sig]['v']
+        pos_data = data['data']['position']
+        h_shift = None if 'h' not in pos_data else pos_data['h']
+        v_shift = None if 'v' not in pos_data else pos_data['v']
 
-            # Update data
-            self._data[sig] = (h_shift, v_shift)
-
-            if sig + '_hist' in self.curves and all(x is not None for x in self._data[sig]):
-                # Get histogram indices and increment
-                idx_x, idx_y = (np.searchsorted(self._data[sig + '_hist']['edges'][i], self._data[sig][i]) for i in range(len(self._data[sig])))
-                try:
-                    self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
-                except IndexError:
-                    logging.debug("Histogram indices ({},{}) out of bounds for shape ({},{})".format(idx_x, idx_y, *self._data[sig + '_hist']['hist'].shape))
+        # Update data
+        self._data[sig] = (h_shift, v_shift)
         self._data_is_set = True
+
+    def update_hist(self, data):
+        sig = 'beam_position'
+        if sig + '_hist' in self.curves:
+            idx_x, idx_y = data
+            self._data[sig + '_hist']['hist'][idx_x, idx_y] += 1
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
@@ -1056,14 +1033,15 @@ class FluenceHist(IrradPlotWidget):
         Plot for displaying the beam position. The position is displayed from analog and digital data if available.
         """
 
-    def __init__(self, irrad_setup, refresh_rate=5, daq_device=None, parent=None):
+    def __init__(self, n_rows, kappa, refresh_rate=5, daq_device=None, parent=None):
         super(FluenceHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Init class attributes
-        self.irrad_setup = irrad_setup
         self.daq_device = daq_device
+        self.n_rows = n_rows
+        self.kappa = kappa
 
-        self._data['hist_rows'] = np.arange(self.irrad_setup['n_rows'] + 1)
+        self._data['hist_rows'] = np.arange(self.n_rows + 1)
 
         # Setup the main plot
         self._setup_plot()
@@ -1076,10 +1054,10 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
         self.plt.setLabel('right', text='Neutron fluence', units='cm^-2')
         self.plt.setLabel('bottom', text='Scan row')
-        self.plt.getAxis('right').setScale(self.irrad_setup['kappa'])
+        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
-        self.plt.setLimits(xMin=0, xMax=self.irrad_setup['n_rows'], yMin=0)
+        self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
 
@@ -1114,8 +1092,8 @@ class FluenceHist(IrradPlotWidget):
         _meta, _data = data['meta'], data['data']
 
         # Set data
-        self._data['hist'] = data['data']['hist']
-        self._data['hist_err'] = data['data']['hist_err']
+        self._data['hist'] = data['data']['fluence_hist']
+        self._data['hist_err'] = data['data']['fluence_hist_err']
 
         # Get stats
         self._data['hist_mean'], self._data['hist_std'] = (f(self._data['hist']) for f in (np.mean, np.std))
@@ -1130,9 +1108,10 @@ class FluenceHist(IrradPlotWidget):
                     try:
                         self.curves[curve].setData(x=self._data['hist_rows'], y=self._data['hist'], stepMode=True)
                         self.curves['mean'].setValue(self._data['hist_mean'])
-                        self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'], self._data['hist_std']))
-                        self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.irrad_setup['kappa'] for x in (self._data['hist_mean'],
-                                                                                                                                      self._data['hist_std'])]))
+                        self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'],
+                                                                                                self._data['hist_std']))
+                        self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.kappa for x in (self._data['hist_mean'],
+                                                                                                                       self._data['hist_std'])]))
                     except Exception as e:
                         logging.warning('Fluence histogram exception: {}'.format(e.message))
 
@@ -1142,11 +1121,11 @@ class FluenceHist(IrradPlotWidget):
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
 
 
-class FractionHist(IrradPlotWidget):
+class SEYFractionHist(IrradPlotWidget):
     """This implements a histogram of the fraction of one signal to another"""
 
-    def __init__(self, rel_sig, norm_sig, bins=100, colors=_MPL_COLORS, refresh_rate=10, parent=None):
-        super(FractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+    def __init__(self, rel_sig, norm_sig, colors=_MPL_COLORS, refresh_rate=10, parent=None):
+        super(SEYFractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Signal names; relative signal versus the signal it's normalized to
         self.rel_sig = rel_sig
@@ -1155,9 +1134,10 @@ class FractionHist(IrradPlotWidget):
         # Get colors
         self.colors = colors
 
+        self.hist_types = analysis.dtype.IrradHists()
+        hist, edges, centers = self.hist_types.create_hist(rel_sig)
         # Hold data
-        self._data['hist'], self._data['edges'] = np.zeros(shape=bins), np.linspace(0, 100, bins + 1)
-        self._data['centers'] = 0.5 * (self._data['edges'][1:] + self._data['edges'][:-1])
+        self._data['hist'], self._data['edges'], self._data['centers'] = hist, edges, centers
 
         self._setup_plot()
 
@@ -1170,7 +1150,7 @@ class FractionHist(IrradPlotWidget):
         self.plt.setLabel('bottom', text='Fraction {} / {}'.format(self.rel_sig, self.norm_sig), units='%')
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.showGrid(x=True, y=True)
-        self.plt.setLimits(xMin=0, xMax=self._data['edges'].shape[0], yMin=0)
+        self.plt.setLimits(xMin=self.hist_types[self.rel_sig]['range'][0], xMax=self.hist_types[self.rel_sig]['range'][1], yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
 
@@ -1193,21 +1173,14 @@ class FractionHist(IrradPlotWidget):
             self.show_data(curve)
 
     def set_data(self, data):
+        # Store current fraction
+        self._data['fraction'] = data
+        self._data_is_set = True
 
-        # Meta data and data
-        _meta, _data = data['meta'], data['data']
-
-        # Store currrent fraction
-        self._data['fraction'] = _data
-
+    def update_hist(self, data):
         # Histogram fraction
-        hist_idx = np.searchsorted(self._data['edges'], _data)
-        try:
-            self._data['hist'][hist_idx] += 1
-            self._data['hist_idx'] = hist_idx
-            self._data_is_set = True
-        except IndexError:
-            logging.debug("Histogram index {} out of bounds for shape {}".format(hist_idx, *self._data['hist'].shape))
+        self._data['hist'][data] += 1
+        self._data['hist_idx'] = data
 
     def _set_stats(self):
         """Show curve statistics for active_curves which have been clicked or are hovered over"""
@@ -1256,7 +1229,7 @@ class FractionHist(IrradPlotWidget):
                 if curve == 'hist':
                     self.curves[curve].setData(x=self._data['edges'], y=self._data['hist'], stepMode=True)
                 if curve == 'current_frac':
-                    self.curves[curve].set_position(x=self._data['hist_idx'] + 0.5, y=self._data['hist'][self._data['hist_idx']])
+                    self.curves[curve].set_position(x=self._data['fraction'], y=self._data['hist'][self._data['hist_idx']])
 
             if self._show_stats:
                 self._set_stats()

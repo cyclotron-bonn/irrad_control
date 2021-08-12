@@ -167,16 +167,6 @@ class DAQProcess(Process):
         # Create sockets
         self._allocate_sockets()
 
-    def _close_zmq(self):
-        """Shutdown the zmq contexct and close sockets"""
-
-        # Close the sockets and context
-        for sock in self.sockets:
-            self.sockets[sock].close()
-
-        # Terminate context
-        self.context.term()
-
     def _allocate_sockets(self, min_port=8000, max_port=9000, max_tries=100, rep_linger=500):
         """
         Method to acquire all needed sockets. Ports are selected by zmq's *bind_to_random_port* method which
@@ -225,6 +215,7 @@ class DAQProcess(Process):
 
         internal_data_pub = self.context.socket(zmq.PUB)
         internal_data_pub.setsockopt(zmq.SNDHWM, self.hwm)
+        internal_data_pub.setsockopt(zmq.LINGER, 0)
         internal_data_pub.connect(self._internal_sub_addr)
 
         return internal_data_pub
@@ -265,11 +256,11 @@ class DAQProcess(Process):
         # Write PID file
         self._write_pid_file()
 
-    def launch_thread(self, target):
+    def launch_thread(self, target, *args, **kwargs):
         """Launch a ThreadWorker instance with *target* function and append to self.threads"""
 
         # Create and launch
-        thread = ThreadWorker(target=target)
+        thread = ThreadWorker(target=target, args=args, kwargs=kwargs)
         thread.start()
 
         # Add to instance threads
@@ -592,9 +583,6 @@ class DAQProcess(Process):
         self.clean_up()
 
         logging.info("Process {} with PID {} shut down successfully".format(self.pname, self.pid))
-
-        # Close all zmq-related objects
-        self._close_zmq()
 
     def run(self):
         """ Main process function"""

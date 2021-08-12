@@ -1,4 +1,4 @@
-from irrad_control.devices.adc.ADS1256_definitions import *
+from irrad_control.devices.ic.ADS1256.ADS1256_definitions import *
 from collections import OrderedDict
 
 # ADS1256 data rates in samples per second

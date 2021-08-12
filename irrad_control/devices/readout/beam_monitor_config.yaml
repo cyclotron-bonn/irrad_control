@@ -1,0 +1,18 @@
+sensors:
+  - sem
+  - cup
+  - ntc
+sensor_types:
+  - sem_left
+  - sem_right
+  - sem_up
+  - sem_down
+  - cup_integrated
+  - ntc_integrated
+sem_foils: 4
+hv_foils: 3
+hv_foil_voltage: +100 V
+sem_foil_material: carbon-coated aluminium
+hv_foil_material: aluminium
+foil_thickness: 5 um
+hv_supressor_voltage: -100 V

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from irrad_control.devices.adc.ADS1256_definitions import *
+from irrad_control.devices.ic.ADS1256.ADS1256_definitions import *
 ################  Raspberry Pi Physical Interface Properties  #################
 # SPI bus configuration and GPIO pins used for the ADS1255/ADS1256.
 # These defaults are used by the constructor of the ADS1256 class.

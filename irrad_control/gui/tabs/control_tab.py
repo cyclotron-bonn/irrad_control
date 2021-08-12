@@ -1,6 +1,9 @@
 import time
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
+
+# Pacakage imports
+import irrad_control.devices.readout as ro
 from irrad_control.gui.widgets import GridContainer, XYStagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
 
@@ -17,7 +20,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
         # Setup related
         self.setup = setup  # Store setup of server(s)
-        self.stage_server = [server for server in setup if 'stage' in setup[server]['devices']]
+        self.stage_server = [server for server in setup if 'ZaberXYStage' in setup[server]['devices']]
 
         # Check
         if len(self.stage_server) == 1:
@@ -320,6 +323,10 @@ class IrradControlTab(QtWidgets.QWidget):
 
         self.btn_start = QtWidgets.QPushButton('START')
         self.btn_start.setToolTip("Start scan.")
+        self.btn_start.clicked.connect(lambda _: self.send_cmd(target='interpreter',
+                                                               cmd='prepare_scan',
+                                                               cmd_data={'server': self.stage_server,
+                                                                         'setup': self.scan_params}))
         self.btn_start.clicked.connect(lambda _: self.send_cmd(target='stage', cmd='prepare', cmd_data=self.scan_params))
 
         self.btn_finish = QtWidgets.QPushButton('FINISH')
@@ -381,6 +388,30 @@ class IrradControlTab(QtWidgets.QWidget):
             chbx_record = QtWidgets.QCheckBox('Enable toggling recording state in DAQ dock')
             chbx_record.stateChanged.connect(lambda state, _server=server: self.enableDAQRec.emit(_server, bool(state)))
 
+            # Change RO scale
+            label_ro_scale = QtWidgets.QLabel("Set R/O group scale:")
+            cbx_group = QtWidgets.QComboBox()
+            cbx_group.addItems(ro.DAQ_BOARD_CONFIG['common']['gain_groups'])
+            cbx_scale = QtWidgets.QComboBox()
+            cbx_scale.addItems(ro.DAQ_BOARD_CONFIG['common']['ifs_labels'])
+            btn_ro_scale = QtWidgets.QPushButton('Set R/O scale')
+
+            for action in [
+                # Stop recording data
+                lambda _, _server=server: self.send_cmd(target='interpreter',
+                                                        cmd='record_data',
+                                                        cmd_data=(_server, False)),
+                # Switch scale on hardware
+                lambda _, s=server, cbx_g=cbx_group, cbx_s=cbx_scale:
+                self.sendCmd.emit({'hostname': s,
+                                   'target': 'ro_board',
+                                   'cmd': 'set_ifs',
+                                   'cmd_data':
+                                       {'ifs': ro.DAQ_BOARD_CONFIG['common']['ifs_scales'][cbx_scale.currentIndex()],
+                                        'group': cbx_group.currentText()}})
+            ]:
+                btn_ro_scale.clicked.connect(action)
+
             # Add spacer layout
             spacer = QtWidgets.QVBoxLayout()
             spacer.addStretch()
@@ -388,6 +419,8 @@ class IrradControlTab(QtWidgets.QWidget):
             grid.add_widget(widget=[label_offset, btn_offset])
             grid.add_widget(widget=[label_record, btn_record])
             grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+            if 'readout' in self.setup[server] and self.setup[server]['readout']['device'] == ro.RO_DEVICES.DAQBoard:
+                grid.add_widget(widget=[label_ro_scale, cbx_group, cbx_scale, btn_ro_scale])
             grid.add_layout(spacer)
 
             tab_widget.addTab(grid, self.setup[server]['name'])
@@ -464,9 +497,11 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def set_aim_fluence(self, nominal, exponent):
         self.aim_fluence = nominal * 10**exponent
+        self.update_scan_parameters(aim_proton_fluence=self.aim_fluence)
 
     def set_min_current(self, min_current):
         self.min_scan_current = min_current * 1e-9  # Nano ampere
+        self.update_scan_parameters(min_scan_current=self.min_scan_current)
 
     def check_no_beam(self):
 

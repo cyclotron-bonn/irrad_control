@@ -1,15 +1,14 @@
 import logging
+from bitstring import CreationError
 from time import time
 from serial import SerialException
+
+# Package imports
+from irrad_control.devices import devices
 from irrad_control.utils.daq_proc import DAQProcess
-from irrad_control.devices.adc.ADS1256_definitions import *
-from irrad_control.devices.adc.ADS1256_drates import ads1256_drates
-from irrad_control.devices.adc.pipyadc import ADS1256
-from irrad_control.devices.stage.zaber import ZaberMultiStage
 from irrad_control.devices.stage.base_axis import BaseAxisTracker
-from irrad_control.devices.temp.arduino_temp_sens import ArduinoTempSens
-from irrad_control import xy_stage_config, xy_stage_config_yaml
 from irrad_control.utils.dut_scan import DUTScan
+from irrad_control.devices.readout import RO_DEVICES
 
 
 class IrradServer(DAQProcess):
@@ -24,9 +23,13 @@ class IrradServer(DAQProcess):
         commands = {'adc': [],
                     'temp': [],
                     'server': ['start', 'shutdown'],
+                    'ro_board': ['set_ifs', 'get_ifs', 'set_temp_ch', 'cycle_temp_chs', 'get_gpio', 'set_gpio'],
                     'stage': ['move_rel', 'move_abs', 'prepare', 'scan', 'finish', 'stop', 'pos', 'home',
                               'set_speed', 'get_speed', 'no_beam', 'set_range', 'get_range', 'add_pos', 'del_pos', 'move_pos', 'get_pos']
                     }
+
+        # Hold server devices
+        self.devices = {}
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name, commands=commands)
@@ -44,77 +47,75 @@ class IrradServer(DAQProcess):
         # Setup logging
         self._setup_logging()
 
-        # If this server has an ADC, setup and start sending data
-        if 'adc' in self.setup['server']['devices']:
+        self._init_devices()
 
-            # Setup adc and start DAQ in separate thread
-            self._init_daq_adc()
+        self._launch_daq_threads()
 
-        # Otherwise remove from command list
-        else:
-            del self.commands['adc']
+    def _init_devices(self):
 
-        # If this server has temp sensor
-        if 'temp' in self.setup['server']['devices']:
+        # Loop over server devices and initialize
+        for dev in self.setup['server']['devices']:
 
-            self._init_daq_temp()
+            try:
+                init_kwargs = self.setup['server']['devices'][dev]['init']
 
-        # Otherwise remove from command list
-        else:
-            del self.commands['temp']
-
-        # If this server has stage
-        if 'stage' in self.setup['server']['devices']:
-
-            self._init_xy_stage()
-
-        # Otherwise remove from command list
-        else:
-            del self.commands['stage']
-
-    def _init_daq_adc(self):
-        """Setup the ADS1256 instance and channels"""
-
-        try:
-            self.adc_setup = self.setup['server']['devices']['adc']
-
-            # Instance of ADS1256 ADC on WaveShare board
-            self.adc = ADS1256()
-
-            # Set initial data rate from DAQ setup
-            self.adc.drate = ads1256_drates[self.adc_setup['sampling_rate']]
-
-            # Calibrate the ADC before DAQ
-            self.adc.cal_self()
-
-            # Declare all available channels of the ADS1256
-            pos_channels = (POS_AIN0, POS_AIN1, POS_AIN2, POS_AIN3, POS_AIN4, POS_AIN5, POS_AIN6, POS_AIN7)
-            gnd = NEG_AINCOM
-            self.adc_channels = []
-
-            # Assign the physical channel numbers e.g. multiplexer address
-            for ch in self.adc_setup['ch_numbers']:
-                # Single-ended versus common ground gnd
-                if isinstance(ch, int):
-                    tmp_ch = pos_channels[ch] | gnd
-                # Differential measurement
+                if isinstance(init_kwargs, dict):
+                    self.devices[dev] = getattr(devices, dev)(**init_kwargs)
                 else:
-                    a, b = ch
-                    tmp_ch = pos_channels[a] | pos_channels[b]
-                # Add to channels
-                self.adc_channels.append(tmp_ch)
+                    self.devices[dev] = getattr(devices, dev)()
 
-            # Start data sending thread
-            self.launch_thread(target=self._daq_adc)
+                if dev == 'ADCBoard':
+                    self.devices[dev].drate = self.setup['server']['readout']['sampling_rate']
+                    self.devices[dev].setup_channels(self.setup['server']['readout']['ch_numbers'])
 
-        except IOError:
-            logging.error("Could not access SPI device file. Enable SPI interface!")
-            logging.warning("ADC removed from server devices")
-            del self.commands['adc']
+                if dev == 'ZaberXYStage':
 
-    def _daq_adc(self):
+                    self.axis_tracker = BaseAxisTracker()
+                    self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
+                    self.dut_scan = DUTScan(scan_stage=self.devices[dev])
+                    self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
+
+                    for i, axis in enumerate(self.devices[dev].axis):
+                        self.axis_tracker.track_axis(axis=axis, axis_id='ScanStage_{}'.format(i))
+
+                if dev == 'IrradDAQBoard' and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
+                    # Set initial ro scales
+                    self.devices[dev].set_ifs(group='sem',
+                                              ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
+                    self.devices[dev].set_ifs(group='ch12',
+                                              ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
+
+                    if 'ntc' in self.setup['server']['readout']:
+                        ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
+                        self.devices[dev].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
+
+            except (IOError, SerialException, CreationError) as e:
+
+                if type(e) is SerialException:
+                    msg = "Could not connect to serial port {}. Maybe it is used by another process?"
+
+                    if 'port' in self.setup['server']['devices'][dev]['init']:
+                        port = self.setup['server']['devices'][dev]['init']['port']
+                    elif 'serial_port' in self.setup['server']['devices'][dev]['init']:
+                        port = self.setup['server']['devices'][dev]['init']['serial_port']
+                    else:
+                        port = 'unknown'
+
+                    logging.error(msg.format(port))
+                elif type(e) is CreationError:
+                    logging.error("Could not find DAQBoard on I2C bus")
+                else:
+                    if dev == 'ADCBoard':
+                        logging.error("Could not access SPI device file. Enable SPI interface!")
+
+                logging.warning("{} removed from server devices".format(dev))
+
+                if dev in self.commands:
+                    del self.commands[dev]
+
+    def daq_thread(self, daq_func):
         """
-        Does data acquisition int separate thread by reading the ADC values and putting the result into the outgoing queue
+        Does data acquisition in separate thread, retrieving results and putting them into the outgoing queue
         """
 
         internal_data_pub = self.create_internal_data_pub()
@@ -122,74 +123,55 @@ class IrradServer(DAQProcess):
         # Acquire data if not stop signal is set
         while not self.stop_flags['send'].is_set():
 
-            # Read raw data from ADC
-            raw_data = self.adc.read_sequence(self.adc_channels)
-
-            # Add meta data and data
-            _meta = {'timestamp': time(), 'name': self.server, 'type': 'raw'}
-            _data = dict([(self.adc_setup['channels'][i], raw_data[i] * self.adc.v_per_digit) for i in range(len(raw_data))])
+            meta, data = daq_func()
 
             # Put data into outgoing queue
-            internal_data_pub.send_json({'meta': _meta, 'data': _data})
+            internal_data_pub.send_json({'meta': meta, 'data': data})
 
-    def _init_daq_temp(self):
+    def _launch_daq_threads(self):
 
-        try:
-
-            self.temp_setup = self.setup['server']['devices']['temp']
-
-            # Init temp sens
-            self.temp_sens = ArduinoTempSens(port="/dev/ttyUSB1")  # TODO: pass port as arg in device setup
+        for dev in self.devices:
 
             # Start data sending thread
-            self.launch_thread(target=self._daq_temp)
+            if dev == 'ADCBoard':
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_adc)
 
-        except SerialException:
-            logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB1"))
-            logging.warning("Temperature sensor removed from server devices")
-            del self.commands['temp']
+            elif dev == 'ArduinoTempSens':
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_temp)
+
+    def _daq_adc(self):
+        """
+        Does data acquisition of ADC
+        """
+
+        # Add meta data and data
+        _meta = {'timestamp': time(), 'name': self.server, 'type': 'raw_data'}
+
+        _data = self.devices['ADCBoard'].read_channels(self.setup['server']['readout']['channels'])
+
+        # If we're using the NTC readout of the DAqBoard
+        if 'IrradDAQBoard' in self.devices and 'ntc' in self.setup['server']['readout']:
+            # Expect the temp channel only to be changed programmatically
+            _meta['ntc_ch'] = self.devices['IrradDAQBoard'].get_temp_channel(cached=True)
+
+        return _meta, _data
 
     def _daq_temp(self):
         """
         Does data acquisition in separate thread by reading the temp values and putting the result into the outgoing queue
         """
 
-        internal_data_pub = self.create_internal_data_pub()
+        # Add meta data and data
+        _meta = {'timestamp': time(), 'name': self.server, 'type': 'temp'}
 
-        # Send data als long as specified
-        while not self.stop_flags['send'].is_set():
+        temp_setup = self.setup['server']['devices']['ArduinoTempSens']['setup']
 
-            # Read raw temp data
-            raw_temp = self.temp_sens.get_temp(sorted(self.temp_setup.keys()))
+        # Read raw temp data
+        raw_temp = self.devices['ArduinoTempSens'].get_temp(sorted(temp_setup.keys()))
 
-            # Add meta data and data
-            _meta = {'timestamp': time(), 'name': self.server, 'type': 'temp'}
-            _data = dict([(self.temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
+        _data = dict([(temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
 
-            # Put data into outgoing queue
-            internal_data_pub.send_json({'meta': _meta, 'data': _data})
-
-    def _init_xy_stage(self):
-
-        try:
-            # Init stage
-            xy_config = xy_stage_config
-            xy_config['filename'] = xy_stage_config_yaml
-
-            self.xy_stage = ZaberMultiStage(n_axis=2, port='/dev/ttyUSB0', config=xy_config, invert_axis=(1,))  # TODO: pass port as arg in device setup
-            self.axis_tracker = BaseAxisTracker()
-            self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
-
-            for i, axis in enumerate(self.xy_stage.axis):
-                self.axis_tracker.track_axis(axis=axis, axis_id='ScanStage_{}'.format(i))
-
-            self.dut_scan = DUTScan(scan_stage=self.xy_stage)
-            self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
-
-        except SerialException:
-            logging.error("Could not connect to port {}. Maybe it is used by another process?".format("/dev/ttyUSB0"))
-            logging.warning("XYStage removed from server devices")
-            del self.commands['stage']
+        return _meta, _data
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
@@ -206,37 +188,61 @@ class IrradServer(DAQProcess):
             elif cmd == 'shutdown':
                 self.shutdown()
 
+        elif target == 'ro_board':
+
+            ro_board = self.devices['IrradDAQBoard']
+
+            if cmd == 'set_ifs':
+                ro_board.set_ifs(group=data['group'], ifs=data['ifs'])
+                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+            elif cmd == 'get_ifs':
+                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+            elif cmd == 'set_temp_ch':
+                if ro_board.is_cycling_temp_channels():
+                    ro_board.stop_cycle_temp_channels()
+                ro_board.set_temp_channel(channel=data['ch'])
+            elif cmd == 'cycle_temp_chs':
+                ro_board.cycle_temp_channels(channels=data['chs'], timeout=data['timeout'])
+            elif cmd == 'set_gpio':
+                ro_board.gpio_value = data['val']
+            elif cmd == 'get_gpio':
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=ro_board.gpio_value)
+
         elif target == 'stage':
+
+            xy_stage = self.devices['ZaberXYStage']
 
             if cmd == 'move_rel':
 
-                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].move_rel(value=data['distance'], unit=data['unit'])
+                xy_stage.axis[0 if data['axis'] == 'x' else 1].move_rel(value=data['distance'], unit=data['unit'])
 
-                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
+                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'move_abs':
 
-                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].move_abs(value=data['distance'], unit=data['unit'])
+                xy_stage.axis[0 if data['axis'] == 'x' else 1].move_abs(value=data['distance'], unit=data['unit'])
 
-                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
+                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_speed':
 
-                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].set_speed(value=data['speed'], unit=data['unit'])
+                xy_stage.axis[0 if data['axis'] == 'x' else 1].set_speed(value=data['speed'], unit=data['unit'])
 
-                _data = [axis.get_speed(unit='mm/s') for axis in self.xy_stage.axis]
+                _data = [axis.get_speed(unit='mm/s') for axis in xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'set_range':
 
-                self.xy_stage.axis[0 if data['axis'] == 'x' else 1].set_range(value=data['range'], unit=data['unit'])
+                xy_stage.axis[0 if data['axis'] == 'x' else 1].set_range(value=data['range'], unit=data['unit'])
 
-                _data = [axis.get_range(unit='mm') for axis in self.xy_stage.axis]
+                _data = [axis.get_range(unit='mm') for axis in xy_stage.axis]
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
@@ -247,6 +253,7 @@ class IrradServer(DAQProcess):
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'scan':
+
                 self.dut_scan.scan_device()
 
             elif cmd == 'stop':
@@ -258,32 +265,32 @@ class IrradServer(DAQProcess):
                     self.dut_scan.event('finish', True)
 
             elif cmd == 'pos':
-                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
+                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'get_pos':
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.xy_stage.config[0]['positions'])  #FIXME!!!
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=xy_stage.config[0]['positions'])  #FIXME!!!
 
             elif cmd == 'add_pos':
-                self.xy_stage.add_position(**data)
+                xy_stage.add_position(**data)
 
             elif cmd == 'del_pos':
-                self.xy_stage.remove_position(data)
+                xy_stage.remove_position(data)
 
             elif cmd == 'move_pos':
-                self.xy_stage.move_to_position(**data)
+                xy_stage.move_to_position(**data)
 
             elif cmd == 'get_speed':
-                _data = [axis.get_speed(unit='mm/s') for axis in self.xy_stage.axis]
+                _data = [axis.get_speed(unit='mm/s') for axis in xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'get_range':
-                _data = [axis.get_range(unit='mm') for axis in self.xy_stage.axis]
+                _data = [axis.get_range(unit='mm') for axis in xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'home':
-                self.xy_stage.home_stage()
-                _data = [axis.get_position(unit='mm') for axis in self.xy_stage.axis]
+                xy_stage.home_stage()
+                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'no_beam':
