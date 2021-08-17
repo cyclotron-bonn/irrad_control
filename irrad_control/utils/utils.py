@@ -75,6 +75,7 @@ def create_pub_from_ctx(ctx, addr, hwm=10):
     pub.connect(addr)
 
     # Allow connection to be made
+    # https://stackoverflow.com/questions/19442970/zeromq-have-to-sleep-before-send
     time.sleep(0.5)
 
     return pub
