@@ -9,7 +9,7 @@ from .base_axis import BaseAxis, base_axis_config_updater
 class ZaberStepAxis(BaseAxis):
     """Base-class representing basic functionality of a Zaber motorstage with a stepper motor"""
 
-    def __init__(self, port, addr=1, config=None):
+    def __init__(self, port, addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
 
         super(ZaberStepAxis, self).__init__(config=config, native_unit='step')
 
@@ -27,11 +27,9 @@ class ZaberStepAxis(BaseAxis):
         self.invert_axis = False
 
         # Model specific attributes
-        self.model = 'X-XY-LRQ300BL-E01'
-        self.microstep = 0.49609375e-6  # meter
-        self.linear_motion_per_rev = 6.35e-3  # meter
-        self.steps_per_rev = 200  # steps
-        self.travel = 300e-3  # meter
+        self.model = model
+        self.microstep = step  # meter
+        self.travel = travel  # meter
         self.travel_microsteps = int(self.travel / self.microstep)
 
     @staticmethod
