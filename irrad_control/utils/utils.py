@@ -1,4 +1,5 @@
 import logging
+import time
 
 
 def check_zmq_addr(addr):
@@ -72,5 +73,8 @@ def create_pub_from_ctx(ctx, addr, hwm=10):
     pub = ctx.socket(1)  # zmq.PUB == 1
     pub.set_hwm(hwm)
     pub.connect(addr)
+
+    # Allow connection to be made
+    time.sleep(0.5)
 
     return pub
