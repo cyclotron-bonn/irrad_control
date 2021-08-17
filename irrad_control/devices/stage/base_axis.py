@@ -1,6 +1,5 @@
 import logging
 import time
-import yaml
 from functools import wraps
 from types import MethodType
 from threading import get_ident
@@ -8,6 +7,7 @@ from threading import get_ident
 # Package imports
 from irrad_control import axis_config
 from irrad_control.utils.utils import create_pub_from_ctx
+from irrad_control.utils.tools import save_yaml
 
 
 def base_axis_config_updater(base_axis_func):
@@ -218,14 +218,15 @@ class BaseAxis(object):
         try:
             logging.info('Updating {} axis positions')
 
-            # Overwrite xy stage stats
-            with open(self.config['filename'], 'w') as _xys_w:
-                yaml.safe_dump(self.config, _xys_w, default_flow_style=False)
+            save_yaml(path=self.config['filename'], data=self.config)
 
-            logging.info('Successfully updated XY-Stage configuration')
+            logging.info('Successfully updated axis configuration')
 
         except (OSError, IOError):
-            logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(self.config['filename']))
+            logging.warning("Could not update axis configuration file at {}. Maybe it is opened by another process?".format(self.config['filename']))
+
+    def __del__(self):
+        self.save_config()
 
     def convert_to_unit(self, value, unit):
         raise NotImplementedError("{} needs to implement a 'convert_to_unit'-method".format(self.__class__.__name__))
