@@ -302,6 +302,10 @@ class ZaberStepAxis(BaseAxis):
         if self._check_move(value=target if absolute else target + self.get_position()):
             self._send_cmd("move {} {}".format('abs' if absolute else 'rel', target))
 
+            # Block until movement is finished if wanted
+            if self.blocking:
+                self.axis.poll_until_idle()
+
     @base_axis_config_updater
     def move_rel(self, value, unit=None):
         """ See self._move """

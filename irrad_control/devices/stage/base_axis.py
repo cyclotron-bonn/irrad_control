@@ -126,6 +126,8 @@ class BaseAxis(object):
 
         self.error = None
 
+        self.blocking = True
+
         self.init_props = init_props
 
     def _read_config(self, base_unit='mm'):
