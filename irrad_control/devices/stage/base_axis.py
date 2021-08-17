@@ -3,6 +3,7 @@ import time
 import yaml
 from functools import wraps
 from types import MethodType
+from threading import get_ident
 
 # Package imports
 from irrad_control import axis_config
@@ -33,7 +34,7 @@ def base_axis_config_updater(base_axis_func):
     return wrapper
 
 
-def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config=None):
+def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config, axis_domain=None):
     """
     Decorator function which is used keep track of the stage travel. Optionally publishes movement data via ZMQ.
 
@@ -41,7 +42,7 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config=None):
     ----------
     axis_movement_func: function object
         function which executes an axis movement
-    axis_id: str
+    axis_id: int
         Identifier for this axis under which the data is published
     zmq_config: dict
         dict containing needed zmq objects to publish axis movement data
@@ -54,20 +55,24 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config=None):
     @wraps(axis_movement_func)
     def movement_wrapper(axis, value, unit):
 
+        _axis_key = id(axis)
+
+        # PUB thread and current thread are not the same; need to create new socket
+        if zmq_config['axis_pubs'][_axis_key]['thread_id'] != get_ident():
+            zmq_config['axis_pubs'][_axis_key]['pub'] = create_pub_from_ctx(ctx=zmq_config['ctx'],
+                                                                            addr=zmq_config['addr'])
+            zmq_config['axis_pubs'][_axis_key]['thread_id'] = get_ident()
+
         # Get starting position of movement in native unit
         start = axis.convert_from_unit(**axis.config['position'])
 
-        pub = None if not zmq_config else create_pub_from_ctx(ctx=zmq_config['ctx'], addr=zmq_config['addr'])
+        # Publish collection of data from which movement can be predicted
+        _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
+        _data = {'status': 'move_start', 'axis': axis_id, 'axis_domain': axis_domain}
+        _data.update({prop: axis.config[prop] for prop in axis.init_props})
 
-        if pub:
-
-            # Publish collection of data from which movement can be predicted
-            _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
-            _data = {'status': 'move_start', 'axis': axis_id}
-            _data.update({prop: axis.config[prop] for prop in axis.init_props})
-
-            # Publish data
-            pub.send_json({'meta': _meta, 'data': _data})
+        # Publish data
+        zmq_config['axis_pubs'][_axis_key]['pub'].send_json({'meta': _meta, 'data': _data})
 
         # Execute movement
         reply = axis_movement_func(value, unit)
@@ -78,13 +83,13 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config=None):
         # Calculate distance travelled in native unit
         travel = abs(stop - start)
 
-        if pub:
-            # Publish collection of data from which movement can be predicted
-            _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
-            _data = {'status': 'move_stop', 'axis': axis_id, 'travel': axis.convert_to_unit(travel, unit), 'unit': unit}
+        # Publish collection of data from which movement can be predicted
+        _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
+        _data = {'status': 'move_stop', 'axis': axis_id, 'axis_domain': axis_domain,
+                 'travel': axis.convert_to_unit(travel, unit), 'unit': unit}
 
-            # Publish data
-            pub.send_json({'meta': _meta, 'data': _data})
+        # Publish data
+        zmq_config['axis_pubs'][_axis_key]['pub'].send_json({'meta': _meta, 'data': _data})
 
         if axis.config['travel']['unit'] is not None:
             tot_travel = axis.convert_to_unit(travel, unit=axis.config['travel']['unit'])
@@ -264,32 +269,26 @@ class BaseAxisTracker(object):
     """Object that keeps track of a *BaseAxis*-instances movement by publishing its properties on every
     movement-state change e.g. start / stop """
 
-    def __init__(self):
+    def __init__(self, context, address, axis=None, axis_domain=None, sender=None):
 
         # ZMQ configuration
-        self.zmq_config = {}
+        self.ctx = context
+        self.addr = address
+        self.sender = sender
+        self._zmq_config = {'ctx': self.ctx, 'addr': self.addr, 'sender': sender, 'axis_pubs': {}}
 
+        # Store axis, pubs / threads they live on
         self._tracked_axes = []
 
-    def setup_zmq(self, ctx, skt, addr, sender=None):
-        """
-        Method to pass a ZMQ context to the stage class in order to allow it to publish data on a socket
+        # We have axis to track
+        if axis:
+            if isinstance(axis, (list, tuple)):
+                for i, a in enumerate(axis):
+                    self.track_axis(axis=a, axis_id=i, axis_domain=axis_domain)
+            else:
+                self.track_axis(axis=axis, axis_id=0, axis_domain=axis_domain)
 
-        Parameters
-        ----------
-        ctx: zmq.Context instance
-            A ZMQ context instance from which sockets can be created
-        skt: zmq.PUB
-            A ZMQ publisher socket
-        addr: str
-            A ZMQ address to connect to. Must be a valid combination of protocol, address and port
-        sender: str, None
-            Name of the device from which the stage is interfaced
-        """
-        # Store
-        self.zmq_config.update({'ctx': ctx, 'skt': skt, 'addr': addr, 'sender': sender})
-
-    def track_axis(self, axis, axis_id):
+    def track_axis(self, axis, axis_id, axis_domain=None):
         """
         Method that decorates movement functions of *axis* so that movement is tracked in axis config. If set up,
         axis data is published via ZMQ.
@@ -298,8 +297,10 @@ class BaseAxisTracker(object):
         ----------
         axis: BaseAxis
             BaseAxis instance
-        axis_id: str
+        axis_id: int
             Identifier for this axis under which the data is published
+        axis_domain: str
+            Name of the axis domain (e.g. the motorstage which contains the axis e.g. 'ScanStage'
         """
 
         if not isinstance(axis, BaseAxis):
@@ -310,7 +311,18 @@ class BaseAxisTracker(object):
             logging.warning('Axis {} with ID {} is already tracked.'.format(type(axis), axis_id))
             return
 
+        self._zmq_config['axis_pubs'][id(axis)] = {'pub': create_pub_from_ctx(ctx=self.ctx, addr=self.addr),
+                                                   'thread_id': get_ident()}
+
         # Decorator replacing original movement funcs
         # See https://stackoverflow.com/questions/394770/override-a-method-at-instance-level
-        axis.move_abs = MethodType(base_axis_movement_tracker(axis.move_abs, axis_id=axis_id, zmq_config=self.zmq_config), axis)
-        axis.move_rel = MethodType(base_axis_movement_tracker(axis.move_rel, axis_id=axis_id, zmq_config=self.zmq_config), axis)
+        axis.move_abs = MethodType(base_axis_movement_tracker(axis_movement_func=axis.move_abs,
+                                                              axis_id=axis_id,
+                                                              zmq_config=self._zmq_config,
+                                                              axis_domain=axis_domain),
+                                   axis)
+        axis.move_rel = MethodType(base_axis_movement_tracker(axis_movement_func=axis.move_rel,
+                                                              axis_id=axis_id,
+                                                              zmq_config=self._zmq_config,
+                                                              axis_domain=axis_domain),
+                                   axis)
