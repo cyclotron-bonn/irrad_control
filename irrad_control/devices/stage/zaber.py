@@ -3,7 +3,7 @@ import yaml
 from zaber.serial import AsciiDevice, AsciiSerial
 
 # Package imports
-from .base_axis import BaseAxis, base_axis_config_updater
+from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config
 
 
 class ZaberStepAxis(BaseAxis):
@@ -362,7 +362,7 @@ class ZaberMultiStage(object):
         # Initialize the zaber device
         serial = AsciiSerial(port)
 
-        self.config = config
+        self.config = load_base_axis_config(config=config)
 
         # Initialize axes
         for a in range(n_axis):

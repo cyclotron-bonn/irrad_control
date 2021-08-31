@@ -1,5 +1,6 @@
 import logging
 import time
+from os.path import isfile
 from functools import wraps
 from types import MethodType
 from threading import get_ident
@@ -7,7 +8,18 @@ from threading import get_ident
 # Package imports
 from irrad_control import axis_config
 from irrad_control.utils.utils import create_pub_from_ctx
-from irrad_control.utils.tools import save_yaml
+from irrad_control.utils.tools import save_yaml, load_yaml
+
+
+def load_base_axis_config(config):
+
+    if config is not None:
+        if isinstance(config, dict):
+            return config
+        elif isfile(config):
+            return load_yaml(config)
+    else:
+        return axis_config
 
 
 def base_axis_config_updater(base_axis_func):
@@ -112,7 +124,7 @@ class BaseAxis(object):
     def __init__(self, config=None, native_unit=None, init_props=('position', 'speed', 'accel', 'range')):
 
         # Axis configuration; holds physical properties such as movement speed, acceleration, etc.
-        self.config = axis_config if config is None else config
+        self.config = load_base_axis_config(config=config)
 
         self._dist, self._accel, self._speed = 'distance', 'speed', 'acceleration'
 
@@ -130,6 +142,9 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
+        if self.config:
+            self._apply_config()
+
     def _read_config(self, base_unit='mm'):
 
         for prop in self.init_props:
@@ -139,7 +154,9 @@ class BaseAxis(object):
     def _apply_config(self):
 
         for prop in self.init_props:
-            getattr(self, 'set_'.format(prop))(value=self.config[prop]['value'], unit=self.config[prop]['unit'])
+            # Don't set the position; we don't want the stage to move on init
+            if prop != 'position':
+                getattr(self, 'set_'.format(prop))(value=self.config[prop]['value'], unit=self.config[prop]['unit'])
 
         self.invert_axis = self.config['inverted']
 
