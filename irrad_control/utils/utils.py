@@ -52,7 +52,7 @@ def check_zmq_addr(addr):
     return True if protocol else False
 
 
-def create_pub_from_ctx(ctx, addr, hwm=10):
+def create_pub_from_ctx(ctx, addr, hwm=10, delay=0.3):
     """
     Create and return a publisher socket from a given context
 
@@ -64,6 +64,8 @@ def create_pub_from_ctx(ctx, addr, hwm=10):
         address to which the publisher is connected
     hwm: int
         high-watermark for outgoing packages
+    delay: float
+        delay which allows the under-the-hood connections of ZMQ to be made
     """
 
     # Check if the address is valid
@@ -76,6 +78,6 @@ def create_pub_from_ctx(ctx, addr, hwm=10):
 
     # Allow connection to be made
     # https://stackoverflow.com/questions/19442970/zeromq-have-to-sleep-before-send
-    time.sleep(0.5)
+    time.sleep(delay)
 
     return pub
