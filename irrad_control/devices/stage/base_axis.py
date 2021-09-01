@@ -229,7 +229,10 @@ class BaseAxis(object):
         This method get's called inside the instances' destructor.
         """
 
-        if self.config['filename'] is None:
+        if self.config is None:
+            return
+
+        elif 'filename' not in self.config or self.config['filename'] is None:
             return
 
         try:
