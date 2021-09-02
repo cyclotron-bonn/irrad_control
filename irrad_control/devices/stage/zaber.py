@@ -1,15 +1,14 @@
 import logging
-import yaml
 from zaber.serial import AsciiDevice, AsciiSerial
 
 # Package imports
-from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config
+from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config, save_base_axis_config
 
 
 class ZaberStepAxis(BaseAxis):
     """Base-class representing basic functionality of a Zaber motorstage with a stepper motor"""
 
-    def __init__(self, port, addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
+    def __init__(self, port, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
 
         super(ZaberStepAxis, self).__init__(config=config, native_unit='step')
 
@@ -18,7 +17,7 @@ class ZaberStepAxis(BaseAxis):
             port = AsciiSerial(port)
 
         # Create a device with the given address
-        self.device = AsciiDevice(port, addr)
+        self.device = AsciiDevice(port, dev_addr)
 
         # Create an axis representing the device
         self.axis = self.device.axis(1)
@@ -351,22 +350,26 @@ class ZaberStepAxis(BaseAxis):
         self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
 
 
-class ZaberMultiStage(object):
+class ZaberMultiAxis(object):
     """Implements a multi-axis Zaber motorstage"""
 
-    def __init__(self, n_axis, port='/dev/ttyUSB0', config=None, invert_axis=None):
+    def __init__(self, n_axis, port='/dev/ttyUSB0', dev_addrs=None, config=None, invert_axis=None):
 
         # Holding the axis objects
         self.axis = []
 
+        self._dev_addrs = [i+1 for i in range(n_axis)] if dev_addrs is None else dev_addrs
+
         # Initialize the zaber device
-        serial = AsciiSerial(port)
+        if not isinstance(port, AsciiSerial):
+            port = AsciiSerial(port)
 
         self.config = load_base_axis_config(config=config)
 
         # Initialize axes
         for a in range(n_axis):
-            self.axis.append(ZaberStepAxis(port=serial, addr=a+1, config=None if config is None else self.config[a]))
+            self.axis.append(ZaberStepAxis(port=port, addr=self._dev_addrs[a],
+                                           config=None if config is None else self.config[a]))
 
         if invert_axis:
             for axis in invert_axis:
@@ -443,18 +446,4 @@ class ZaberMultiStage(object):
         Method save the content of self.config aka irrad_control.XX_stage_config to the respective config yaml (overwriting it).
         This method get's called inside the instances' destructor.
         """
-
-        if self.config['filename'] is None:
-            return
-
-        try:
-            logging.info('Updating {} axis positions')
-
-            # Overwrite xy stage stats
-            with open(self.config['filename'], 'w') as _xys_w:
-                yaml.safe_dump(self.config, _xys_w, default_flow_style=False)
-
-            logging.info('Successfully updated XY-Stage configuration')
-
-        except (OSError, IOError):
-            logging.warning("Could not update XY-Stage configuration file at {}. Maybe it is opened by another process?".format(self.config['filename']))
+        save_base_axis_config(config=self.config)
