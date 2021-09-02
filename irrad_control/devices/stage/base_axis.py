@@ -22,6 +22,29 @@ def load_base_axis_config(config):
         return axis_config
 
 
+def save_base_axis_config(config):
+    """
+    Method save the content of self.config aka irrad_control.XX_stage_config to the respective config yaml (overwriting it).
+    This method get's called inside the instances' destructor.
+    """
+
+    if config is None:
+        return
+
+    elif 'filename' not in config or config['filename'] is None:
+        return
+
+    try:
+        logging.info('Updating {} axis positions')
+
+        save_yaml(path=config['filename'], data=config)
+
+        logging.info('Successfully updated axis configuration')
+
+    except (OSError, IOError, FileNotFoundError):
+        logging.warning("Could not update axis configuration file at {}. Maybe it is opened by another process?".format(config['filename']))
+
+
 def base_axis_config_updater(base_axis_func):
     """Decorator which wraps around a function which changes the axis configuration such as each *set* method"""
 
@@ -224,26 +247,7 @@ class BaseAxis(object):
             logging.warning('Position {} unknown and therefore cannot be removed.'.format(name))
 
     def save_config(self):
-        """
-        Method save the content of self.config aka irrad_control.XX_stage_config to the respective config yaml (overwriting it).
-        This method get's called inside the instances' destructor.
-        """
-
-        if self.config is None:
-            return
-
-        elif 'filename' not in self.config or self.config['filename'] is None:
-            return
-
-        try:
-            logging.info('Updating {} axis positions')
-
-            save_yaml(path=self.config['filename'], data=self.config)
-
-            logging.info('Successfully updated axis configuration')
-
-        except (OSError, IOError):
-            logging.warning("Could not update axis configuration file at {}. Maybe it is opened by another process?".format(self.config['filename']))
+        save_base_axis_config(config=self.config)
 
     def __del__(self):
         self.save_config()
