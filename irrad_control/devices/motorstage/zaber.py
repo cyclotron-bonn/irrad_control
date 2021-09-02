@@ -10,8 +10,6 @@ class ZaberStepAxis(BaseAxis):
 
     def __init__(self, port, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
 
-        super(ZaberStepAxis, self).__init__(config=config, native_unit='step')
-
         # If we are not already connected to a serial port, open one
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
@@ -30,6 +28,8 @@ class ZaberStepAxis(BaseAxis):
         self.microstep = step  # meter
         self.travel = travel  # meter
         self.travel_microsteps = int(self.travel / self.microstep)
+
+        super(ZaberStepAxis, self).__init__(config=config, native_unit='step')
 
     @staticmethod
     def _check_reply(reply):
@@ -353,7 +353,7 @@ class ZaberStepAxis(BaseAxis):
 class ZaberMultiAxis(object):
     """Implements a multi-axis Zaber motorstage"""
 
-    def __init__(self, n_axis, port='/dev/ttyUSB0', dev_addrs=None, config=None, invert_axis=None):
+    def __init__(self, n_axis, port='/dev/ttyUSB0', dev_addrs=None, config=None, invert_axis=None, **axis_init):
 
         # Holding the axis objects
         self.axis = []
@@ -368,8 +368,9 @@ class ZaberMultiAxis(object):
 
         # Initialize axes
         for a in range(n_axis):
-            self.axis.append(ZaberStepAxis(port=port, addr=self._dev_addrs[a],
-                                           config=None if config is None else self.config[a]))
+            self.axis.append(ZaberStepAxis(port=port, dev_addr=self._dev_addrs[a],
+                                           config=None if config is None else self.config[a],
+                                           **axis_init))
 
         if invert_axis:
             for axis in invert_axis:

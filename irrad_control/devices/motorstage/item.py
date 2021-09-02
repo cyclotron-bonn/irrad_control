@@ -144,7 +144,7 @@ class ItemLinearStage(BaseAxis):
 
     props = {'position': 'POSACTUAL'}
 
-    def __init__(self, host, port, udp=('131.220.221.224', '8802')):
+    def __init__(self, host, port, udp=('131.220.221.224', '8802'), config=None):
 
         self.udp = udp
 
@@ -159,11 +159,7 @@ class ItemLinearStage(BaseAxis):
 
         self.controller_id = self.get_id()
 
-        super(ItemLinearStage, self).__init__(native_unit='mm')
-
-        self.set_speed(value=10, unit='mm/s')
-        self.set_accel(value=1500, unit='mm/s2')
-        self.set_range(value=[0, 695], unit='mm')
+        super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
 
     def _get_property(self, prop):
 
