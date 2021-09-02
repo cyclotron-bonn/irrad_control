@@ -144,7 +144,7 @@ class ItemLinearStage(BaseAxis):
 
     props = {'position': 'POSACTUAL'}
 
-    def __init__(self, host, port, udp=('131.220.221.224', '8802'), config=None):
+    def __init__(self, host, port, udp, config=None):
 
         self.udp = udp
 
