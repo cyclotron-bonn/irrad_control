@@ -5,6 +5,10 @@ from zaber.serial import AsciiDevice, AsciiSerial
 from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config, save_base_axis_config
 
 
+class ZaberAsciiPort(AsciiSerial):
+    pass
+
+
 class ZaberStepAxis(BaseAxis):
     """Base-class representing basic functionality of a Zaber motorstage with a stepper motor"""
 
