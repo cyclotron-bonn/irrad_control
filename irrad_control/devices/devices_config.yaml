@@ -13,9 +13,24 @@ IrradDAQBoard:
     version: v0.2
     address: 0x20
 
-ZaberXYStage:
+ScanStage:
   init:
-    serial_port: /dev/ttyUSB1
+    port: /dev/ttyUSB1
+    config: ./motorstage/scan_stage.yaml
+
+SetupTableStage:
+  init:
+    port: /dev/ttyUSB1
+    config: ./motorstage/setup_table_stage.yaml
+
+ExternalCupStage:
+  init:
+    host: None
+    port: 1234
+    udp:
+      - 1
+      - 2
+    config: ./motorstage/external_cup_stage.yaml
 
 ArduinoTempSens:
   init:
