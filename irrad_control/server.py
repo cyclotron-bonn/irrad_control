@@ -6,7 +6,7 @@ from serial import SerialException
 # Package imports
 from irrad_control.devices import devices
 from irrad_control.utils.daq_proc import DAQProcess
-from irrad_control.devices.stage.base_axis import BaseAxisTracker
+from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
 
@@ -49,45 +49,51 @@ class IrradServer(DAQProcess):
 
         self._init_devices()
 
+        self._setup_devices()
+
         self._launch_daq_threads()
 
     def _init_devices(self):
+
+        # Dict holding potentially shared ports which connect to multi-device controllers
+        shared_ports = {}
+
+        # When ever a BaseAxis device is initialized, we want to track the movement
+        self.axis_tracker = BaseAxisTracker(context=self.context,
+                                            address=self._internal_sub_addr,
+                                            sender=self.name)
 
         # Loop over server devices and initialize
         for dev in self.setup['server']['devices']:
 
             try:
+
+                # Get device and init kwargs
+                device = getattr(devices, dev)
                 init_kwargs = self.setup['server']['devices'][dev]['init']
 
+                # Check if device is Zaber motorstage which potentially shares port through multi controller
+                if issubclass(device, (devices.ZaberStepAxis, devices.ZaberMultiAxis)):
+                    port = init_kwargs['port']
+                    # Check if port has been opened
+                    if port not in shared_ports:
+                        shared_ports[port] = devices.ZaberAsciiPort(port)
+                    init_kwargs['port'] = shared_ports[port]
+
+                # Actually initialize device
                 if isinstance(init_kwargs, dict):
-                    self.devices[dev] = getattr(devices, dev)(**init_kwargs)
+                    self.devices[dev] = device(**init_kwargs)
                 else:
-                    self.devices[dev] = getattr(devices, dev)()
+                    self.devices[dev] = device()
 
-                if dev == 'ADCBoard':
-                    self.devices[dev].drate = self.setup['server']['readout']['sampling_rate']
-                    self.devices[dev].setup_channels(self.setup['server']['readout']['ch_numbers'])
+                # If device is BaseAxis, track movement
+                if isinstance(self.devices[dev], BaseAxis):
+                    self.axis_tracker.track_axis(axis=self.devices[dev], axis_id=0, axis_domain=dev)
 
-                if dev == 'ZaberXYStage':
-
-                    self.axis_tracker = BaseAxisTracker()
-                    self.axis_tracker.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
-                    self.dut_scan = DUTScan(scan_stage=self.devices[dev])
-                    self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr, sender=self.server)
-
-                    for i, axis in enumerate(self.devices[dev].axis):
-                        self.axis_tracker.track_axis(axis=axis, axis_id='ScanStage_{}'.format(i))
-
-                if dev == 'IrradDAQBoard' and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
-                    # Set initial ro scales
-                    self.devices[dev].set_ifs(group='sem',
-                                              ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
-                    self.devices[dev].set_ifs(group='ch12',
-                                              ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
-
-                    if 'ntc' in self.setup['server']['readout']:
-                        ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
-                        self.devices[dev].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
+                elif hasattr(self.devices[dev], 'axis'):
+                    for axis_id, a in enumerate(self.devices[dev].axis):
+                        if isinstance(a, BaseAxis):
+                            self.axis_tracker.track_axis(axis=a, axis_id=axis_id, axis_domain=dev)
 
             except (IOError, SerialException, CreationError) as e:
 
@@ -112,6 +118,31 @@ class IrradServer(DAQProcess):
 
                 if dev in self.commands:
                     del self.commands[dev]
+
+    def _setup_devices(self):
+
+        ### Specific device-related procedures ###
+
+        if 'ADCBoard' in self.devices:
+            self.devices['ADCBoard'].drate = self.setup['server']['readout']['sampling_rate']
+            self.devices['ADCBoard'].setup_channels(self.setup['server']['readout']['ch_numbers'])
+
+        if 'ScanStage' in self.devices:
+
+            self.dut_scan = DUTScan(scan_stage=self.devices['ScanStage'])
+            self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr,
+                                    sender=self.server)
+
+        if 'IrradDAQBoard' in self.devices and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
+            # Set initial ro scales
+            self.devices['IrradDAQBoard'].set_ifs(group='sem',
+                                                  ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
+            self.devices['IrradDAQBoard'].set_ifs(group='ch12',
+                                                  ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
+
+            if 'ntc' in self.setup['server']['readout']:
+                ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
+                self.devices['IrradDAQBoard'].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
 
     def daq_thread(self, daq_func):
         """
