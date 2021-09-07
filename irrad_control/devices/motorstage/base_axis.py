@@ -6,12 +6,46 @@ from types import MethodType
 from threading import get_ident
 
 # Package imports
-from irrad_control import axis_config
 from irrad_control.utils.utils import create_pub_from_ctx
 from irrad_control.utils.tools import save_yaml, load_yaml
 
 
-def load_base_axis_config(config):
+# Base configuration of a one dimensional motorstage axis
+BASE_AXIS_CONFIG = {
+
+    'meta': {
+        'misc': None,
+        'last_updated': None,
+        'filename': None},
+
+    'axis': {
+        'inverted': False,  # Axis is inverted
+        'speed': {
+            'value': None,
+            'unit': None
+        },
+        'range': {
+            'value': None,
+            'unit': None
+        },
+        'accel': {
+            'value': None,
+            'unit': None
+        },
+        'travel': {
+            'value': 0,
+            'unit': None
+        },
+        'position': {
+            'value': None,
+            'unit': None
+        },
+        'positions': {}
+    }
+}
+
+
+def load_base_axis_config(config, n_axis=1):
 
     if config is not None:
         if isinstance(config, dict):
@@ -19,7 +53,10 @@ def load_base_axis_config(config):
         elif isfile(config):
             return load_yaml(config)
     else:
-        return axis_config
+        if n_axis == 1:
+            return {**BASE_AXIS_CONFIG['meta'], **BASE_AXIS_CONFIG['axis']}
+        else:
+            return {**BASE_AXIS_CONFIG['meta'], **{n: BASE_AXIS_CONFIG['axis'] for n in range(n_axis)}}
 
 
 def save_base_axis_config(config):
@@ -62,7 +99,8 @@ def base_axis_config_updater(base_axis_func):
             else:
                 raise KeyError("Property {} not in instances config: {}".format(prop, ', '.join(instance.config.key())))
 
-            instance.config['last_updated'] = time.asctime()
+            if 'last_updated' in instance.config:
+                instance.config['last_updated'] = time.asctime()
 
         return res
 
