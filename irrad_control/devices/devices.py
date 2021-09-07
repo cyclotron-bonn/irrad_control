@@ -7,7 +7,7 @@ from .readout.adc_board import ADCBoard
 # Motor stage
 from .motorstage.zaber import ZaberAsciiPort, ZaberStepAxis, ZaberMultiAxis
 from .motorstage.item import ItemLinearStage
-from .motorstage import ScanStage, SetupTableStage, ExternalCupStage
+from .motorstage.motorstage import ScanStage, SetupTableStage, ExternalCupStage
 
 # Arduino
 from .temp.arduino_temp_sens import ArduinoTempSens
