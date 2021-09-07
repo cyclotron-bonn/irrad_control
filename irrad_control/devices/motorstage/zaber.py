@@ -368,7 +368,7 @@ class ZaberMultiAxis(object):
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
 
-        self.config = load_base_axis_config(config=config)
+        self.config = load_base_axis_config(config=config, n_axis=n_axis)
 
         # Initialize axes
         for a in range(n_axis):
@@ -452,3 +452,6 @@ class ZaberMultiAxis(object):
         This method get's called inside the instances' destructor.
         """
         save_base_axis_config(config=self.config)
+
+    def __del__(self):
+        self.save_config()
