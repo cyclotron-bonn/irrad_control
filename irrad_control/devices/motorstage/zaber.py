@@ -380,12 +380,147 @@ class ZaberMultiAxis(object):
             for axis in invert_axis:
                 self.axis[axis].invert_axis = True
 
+        for axis in self.axis:
+            axis.blocking = True
+
+    def _get_axis_prop(self, prop, unit=None):
+        """
+        Returns the current property *prop* of all axes in the multistage in given unit
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which *prop* is given. Must be in self.*axis*.{speed/dist/accel}_units.
+            If None, set *prop* in native unit.
+        Returns
+        -------
+        list: list of *prop* for all axes
+        """
+
+        return [getattr(a, f'get_{prop}')(unit=unit) for a in self.axis]
+
+    def _set_axis_prop(self, prop, value, unit=None, axis=None):
+        """
+        Set the property *prop* for *axis*. If *axis* is None, set for all axes
+
+        Parameters
+        ----------
+        value : float, int
+            value of *prop* for *axis*
+        unit : str, None
+            unit in which *prop* is given. Must be in self.*axis*.{speed/dist/accel}_units.
+            If None, set prop in native unit
+        axis: int, None
+            int of axis to set prop of; if None, all axes *prop* is set
+        """
+
+        if isinstance(axis, int) and len(self.axis) > axis:
+            getattr(self.axis[axis], f'set_{prop}')(value=value, unit=unit)
+        else:
+            _ = [getattr(a, f'set_{prop}')(value=value, unit=unit) for a in self.axis]
+
     def home_stage(self):
         """Send all axis to their lower limit"""
         for axis in reversed(self.axis):
             axis.move_abs(axis.config['range']['value'][0], unit=axis.config['range']['unit'])
 
-    def move_to_position(self, pos=None, unit=None, name=None):
+    def get_position(self, unit=None):
+        """
+        Returns the current position of the multistage in given unit
+
+        unit : str, None
+            unit in which range is given. Must be in self.axis.dist_units. If None, set speed in steps
+        """
+
+        # Get position
+        return self._get_axis_prop(prop='position', unit=unit)
+
+    def set_speed(self, value, unit=None, axis=None):
+        """
+        Set the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : float, int
+            speed at which *axis* should move
+        unit : str, None
+            unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
+        axis: int, None
+            int of axis to set speed of; if None, all axis' speed is set
+        """
+        self._set_axis_prop(prop='speed', value=value, unit=unit, axis=axis)
+
+    def get_speed(self, unit=None):
+        """
+        Get the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which speed should be converted. Must be in self.speed_units. If None, return speed in steps / s
+        """
+        return self._get_axis_prop(prop='speed', unit=unit)
+
+    def set_range(self, value, unit=None, axis=None):
+        """
+        Set the speed at which axis moves for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : iterable
+            range to be set, must be of len 2
+        unit : str, None
+            unit in which range is given. Must be in self.dist_units. If None, set speed in steps
+        axis: int, None
+            int of axis to set range of; if None, all axis' range is set
+        """
+        self._set_axis_prop(prop='range', value=value, unit=unit, axis=axis)
+
+    def get_range(self, unit=None):
+        """
+        Get the travel range of axis
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which range should be converted. Must be in self.dist_units. If None, return speed in steps
+        """
+        return self._get_axis_prop(prop='range', unit=unit)
+
+    def set_accel(self, value, unit=None, axis=None):
+        """
+        Set the acceleration at which the axis increases speed for move rel and move abs commands
+
+        Parameters
+        ----------
+        value : float, int
+            acceleration; float if *unit* is given, else integer in steps
+        unit : str, None
+            unit in which distance is given. Must be in self.dist_units. If None, get acceleration in steps / s^2
+        """
+        self._set_axis_prop(prop='accel', value=value, unit=unit, axis=axis)
+
+    def get_accel(self, unit=None):
+        """
+        Get the acceleration at which the axis increases speed for move rel and move abs commands
+
+        Parameters
+        ----------
+        unit : str, None
+            unit in which acceleration should be converted. Must be in self.accel_units.
+            If None, get acceleration in steps / s^2
+        """
+        return self._get_axis_prop(prop='accel', unit=unit)
+
+    def move_rel(self, axis, value, unit=None):
+        """ See self._move """
+        self.axis[axis].move_rel(value=value, unit=unit)
+
+    def move_abs(self, axis, value, unit=None):
+        """ See self._move """
+        self.axis[axis].move_abs(value=value, unit=unit)
+
+    def move_pos(self, pos=None, unit=None, name=None):
         """
         Method which moves the stage to a given position: Position can either be defined by giving *x* and *y* values
         with a *unit* or a *name*. If a *name* is given, it must be contained in the self.config['positions']. If a
