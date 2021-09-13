@@ -227,7 +227,7 @@ class DUTScan(object):
         if data_pub is not None:
 
             # Publish data
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'stage'}
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
             _data = {'status': 'scan_start', 'scan': scan, 'row': row,
                      'speed': self.scan_stage.axis[0].get_speed(unit='mm/s'),
                      'x_start': self.scan_stage.axis[0].position(unit='mm'),
@@ -252,7 +252,7 @@ class DUTScan(object):
         if data_pub is not None:
 
             # Publish stop data
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'stage'}
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
             _data = {'status': 'scan_stop',
                      'x_stop': self.scan_stage.axis[0].position(unit='mm'),
                      'y_stop': self.scan_stage.axis[1].position(unit='mm')}
@@ -285,7 +285,7 @@ class DUTScan(object):
         self.scan_stage.axis[0].set_speed(self.scan_config['speed'], unit='mm/s')
 
         # Initialize scan
-        _meta = {'timestamp': time.time(), 'name': self.scan_config['server'], 'type': 'stage'}
+        _meta = {'timestamp': time.time(), 'name': self.scan_config['server'], 'type': 'scan'}
         _data = {'status': 'scan_init', 'y_step': self.scan_config['step_size'], 'n_rows': self.scan_config['n_rows']}
 
         # Put init data
@@ -338,7 +338,7 @@ class DUTScan(object):
         finally:
 
             # Put finished data
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'stage'}
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
             _data = {'status': 'scan_finished'}
 
             # Publish data

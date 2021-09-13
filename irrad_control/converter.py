@@ -707,7 +707,7 @@ class IrradConverter(DAQProcess):
                 if ntc_data:
                     interpreted_data.append(ntc_data)
 
-        elif meta_data['type'] == 'stage':
+        elif meta_data['type'] == 'scan':
 
             scan_data = self._interpret_scan_data(server=server, data=data, meta=meta_data)
 
