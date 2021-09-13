@@ -446,7 +446,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
         # Check whether data is interpreted
-        elif data['meta']['type'] == 'scan':
+        elif data['meta']['type'] == 'row':
             self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
             self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
             self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
@@ -459,7 +459,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             self.control_tab.update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
 
-        elif data['meta']['type'] == 'stage':
+        elif data['meta']['type'] == 'scan':
 
             if data['data']['status'] == 'scan_init':  # Scan is being initialized
 

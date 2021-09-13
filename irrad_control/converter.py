@@ -544,7 +544,7 @@ class IrradConverter(DAQProcess):
             except ZeroDivisionError:
                 eta_time = eta_n_scans = 0
 
-            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
+            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'row'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
                                   'fluence_hist_err': unumpy.std_devs(self._row_fluence_hist[server]).tolist(),
                                   'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
