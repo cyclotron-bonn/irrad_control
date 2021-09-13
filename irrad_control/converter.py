@@ -44,6 +44,9 @@ class IrradConverter(DAQProcess):
         self.interaction_flags = {server: {'write': Event(),
                                            'offset': Event()} for server in self.server}
 
+        # We want to start writing data from every server from the start
+        _ = [self.interaction_flags[s]['write'].set() for s in self.server]
+
         # Containers to hold data
         # Store tables
         self.data_tables = defaultdict(dict)
@@ -485,6 +488,9 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['scan']['n_rows'] = data['n_rows']
             self._row_fluence_hist[server] = [0] * data['n_rows']
 
+            # Make sure we are recoding data when we initialize a scan
+            self.interaction_flags[server]['write'].set()
+
         elif data['status'] == 'scan_start':
 
             del self._scan_currents[server][:]
@@ -740,7 +746,7 @@ class IrradConverter(DAQProcess):
             self._store_axis_data(server=server, data=data, meta=meta_data)
 
         # If event is not set, store data to hdf5 file
-        if not self.interaction_flags[server]['write'].is_set():
+        if self.interaction_flags[server]['write'].is_set():
             self.store_data(server)
         else:
             logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
@@ -805,11 +811,11 @@ class IrradConverter(DAQProcess):
                 server, record = data
 
                 if record:  # We want to write
-                    self.interaction_flags[server]['write'].clear()
-                else:
                     self.interaction_flags[server]['write'].set()
+                else:
+                    self.interaction_flags[server]['write'].clear()
 
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, not self.interaction_flags[server]['write'].is_set()])
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, self.interaction_flags[server]['write'].is_set()])
 
             elif cmd == 'update_group_ifs':
                 server, ifs, group = data['server'], data['ifs'], data['group']
