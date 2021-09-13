@@ -176,16 +176,19 @@ class IrradConverter(DAQProcess):
                 self.data_flags[server][dname] = False
 
         # We have motorstage data
-        if 'ZaberXYStage' in server_setup['devices']:  # FIXME: make flag for devices that are stages / ADD: ItemStage
-            # Make temperature measurement group in outfile
-            # Create group at root
-            self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
+        # FIXME: make flag for devices that are stages instead of hardcode
+        motorstage_node = '/{}'.format(server_setup['name']), 'Motorstage'
+        for motorstage in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
-            if 'ZaberXYStage' in server_setup['devices']:
+            if motorstage in server_setup['devices']:
+
+                # Create group at root because we have a motorstage
+                if motorstage_node not in self.output_table:
+                    self.output_table.create_group(motorstage_node)
 
                 dtype = self.dtypes['motorstage']
-                dname = 'motorstage_zaberxystage'
-                node_name = 'ZaberXYStage'
+                dname = f'motorstage_{motorstage.lower()}'
+                node_name = motorstage
 
                 # Create and store tables
                 self.data_tables[server][dname] = self.output_table.create_table('/{}/Motorstage'.format(server_setup['name']),
