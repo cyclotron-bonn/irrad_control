@@ -177,14 +177,13 @@ class IrradConverter(DAQProcess):
 
         # We have motorstage data
         # FIXME: make flag for devices that are stages instead of hardcode
-        motorstage_node = '/{}'.format(server_setup['name']), 'Motorstage'
         for motorstage in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
             if motorstage in server_setup['devices']:
 
                 # Create group at root because we have a motorstage
-                if motorstage_node not in self.output_table:
-                    self.output_table.create_group(motorstage_node)
+                if '/{}/Motorstage'.format(server_setup['name']) not in self.output_table:
+                    self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
 
                 dtype = self.dtypes['motorstage']
                 dname = f'motorstage_{motorstage.lower()}'
