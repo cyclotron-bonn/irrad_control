@@ -667,6 +667,21 @@ class IrradConverter(DAQProcess):
 
         return temp_data
 
+    def _store_axis_data(self, server, data, meta):
+
+        axis_domain = 'motorstage_{}'.format(data['axis_domain'].lower())
+
+        self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
+        self.data_arrays[server][axis_domain]['axis_id'] = data['axis_id']
+        self.data_arrays[server][axis_domain]['movement_status'] = data['status']
+        self.data_arrays[server][axis_domain]['position'] = data['position']
+
+        for prop in ('speed', 'accel', 'travel'):
+            if prop in data:
+                self.data_arrays[server][axis_domain][prop] = data[prop]
+
+        self.data_flags[server][axis_domain] = True
+
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -719,6 +734,10 @@ class IrradConverter(DAQProcess):
 
             temp_data = self._interpret_arduino_temp_data(server=server, data=data, meta=meta_data)
             interpreted_data.append(temp_data)
+
+        # A motorstage axis has send movement change data
+        elif meta_data['type'] == 'axis':
+            self._store_axis_data(server=server, data=data, meta=meta_data)
 
         # If event is not set, store data to hdf5 file
         if not self.interaction_flags[server]['write'].is_set():

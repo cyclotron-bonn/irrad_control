@@ -470,22 +470,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(False)
                 self.daq_info_widget.record_btns[server].setEnabled(False)
 
-            elif data['data']['status'] in ('move_start', 'move_stop'):  # Stage started / stopped movement
-
-                new_pos = self.control_tab.stage_attributes['position'][:]
-                new_pos[data['data']['axis']] = data['data']['pos'] * 1e3
-                self.control_tab.update_info(position=new_pos, unit='mm')
-
-                if data['data']['status'] == 'move_start':
-                    for entry in ('accel', 'range', 'speed'):
-                        new_entry = self.control_tab.stage_attributes[entry][:]
-                        # Units in Si: meter to millimeter
-                        if entry == 'range':
-                            new_entry[data['data']['axis']] = [d*1e3 for d in data['data'][entry]]
-                        else:
-                            new_entry[data['data']['axis']] = data['data'][entry] * 1e3
-                        self.control_tab.update_info(**{entry: new_entry, 'unit': 'mm' if entry == 'range' else 'mm/s' if entry == 'speed' else 'mm/s2'})
-
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
                 self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
@@ -508,6 +492,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'temp_daq_board':
             self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'axis':
+            print(data['data'])
+            pass  # TODO: handle direct axis info from server
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.

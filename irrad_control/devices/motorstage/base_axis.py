@@ -142,7 +142,10 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config, axis_dom
         # Publish collection of data from which movement can be predicted
         _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
         _data = {'status': 'move_start', 'axis': axis_id, 'axis_domain': axis_domain}
-        _data.update({prop: axis.config[prop] for prop in axis.init_props})
+        # Provide everything in the base unit of mm
+        _data.update({'position': axis.get_position(unit='mm'),
+                      'speed': axis.get_speed(unit='mm/s'),
+                      'accel': axis.get_accel(unit='mm/s2')})
 
         # Publish data
         zmq_config['axis_pubs'][_axis_key]['pub'].send_json({'meta': _meta, 'data': _data})
@@ -159,8 +162,7 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config, axis_dom
         # Publish collection of data from which movement can be predicted
         _meta = {'timestamp': time.time(), 'name': zmq_config['sender'], 'type': 'axis'}
         _data = {'status': 'move_stop', 'axis': axis_id, 'axis_domain': axis_domain,
-                 'travel': axis.convert_to_unit(travel, unit), 'unit': unit}
-        _data.update({prop: axis.config[prop] for prop in axis.init_props})
+                 'travel': axis.convert_to_unit(travel, 'mm'), 'position': axis.get_position(unit='mm')}
 
         # Publish data
         zmq_config['axis_pubs'][_axis_key]['pub'].send_json({'meta': _meta, 'data': _data})
