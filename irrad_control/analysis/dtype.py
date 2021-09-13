@@ -12,10 +12,10 @@ _event_dtype = [('timestamp', '<f4'),
 _motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
                      ('axis_id', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
                      ('movement_status', 'U10'),  # String stating whether stage starts or stops movement
-                     ('position', '<f4'),  # Position at movement status
-                     ('speed', '<f4'),  # Speed at movement status
-                     ('accel', '<f4'),  # Acceleration at movement status
-                     ('travel', '<f4')]  # Travel
+                     ('position', '<f4'),  # Position at movement status [mm]
+                     ('speed', '<f4'),  # Speed at movement status [mm/s]
+                     ('accel', '<f4'),  # Acceleration at movement status [mm/s2]
+                     ('travel', '<f4')]  # Travel [mm]
 
 # Beam data type: contains info about beam current and position from primary and secondary signals
 _beam_dtype = [('timestamp', '<f4'),  # Timestamp of current measurement [s]
