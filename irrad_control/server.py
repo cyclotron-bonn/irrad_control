@@ -195,11 +195,26 @@ class IrradServer(DAQProcess):
 
         return _meta, _data
 
+    def _call_device_method(self, device, method, call_data):
+
+        call_kwargs = call_data['kwargs']
+        call_threaded = call_data['threaded']
+
+        if call_threaded:
+            self.launch_thread(target=getattr(self.devices[device], method), kwargs=call_kwargs)
+        else:
+            res = getattr(self.devices[device], method)(**call_kwargs)
+            self._send_reply(reply=method, sender=device, _type='STANDARD', data=res)
+
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
+        # Check if we want to call a devices method directly
+        if target in self.devices and hasattr(self.devices[target], cmd) and data:
+            self._call_device_method(device=target, method=cmd, call_data=data)
+
         # Handle server commands
-        if target == 'server':
+        elif target == 'server':
 
             if cmd == 'start':
 
