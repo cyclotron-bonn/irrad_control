@@ -19,20 +19,11 @@ class IrradServer(DAQProcess):
         # Set name of this interpreter process
         name = 'server' if name is None else name
 
-        # Dict of known commands
-        commands = {'adc': [],
-                    'temp': [],
-                    'server': ['start', 'shutdown'],
-                    'ro_board': ['set_ifs', 'get_ifs', 'set_temp_ch', 'cycle_temp_chs', 'get_gpio', 'set_gpio'],
-                    'stage': ['move_rel', 'move_abs', 'prepare', 'scan', 'finish', 'stop', 'pos', 'home',
-                              'set_speed', 'get_speed', 'no_beam', 'set_range', 'get_range', 'add_pos', 'del_pos', 'move_pos', 'get_pos']
-                    }
-
         # Hold server devices
         self.devices = {}
 
         # Call init of super class
-        super(IrradServer, self).__init__(name=name, commands=commands)
+        super(IrradServer, self).__init__(name=name)
 
     def _start_server(self, setup):
         """Sets up the server process"""

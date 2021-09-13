@@ -14,7 +14,7 @@ from irrad_control.utils.worker import ThreadWorker
 class DAQProcess(Process):
     """Base-class of data acquisition processes"""
 
-    def __init__(self, name, commands, daq_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
+    def __init__(self, name, daq_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
         """
         Init the process
 
@@ -23,8 +23,6 @@ class DAQProcess(Process):
 
         name: str
             Name of the process
-        commands: dict
-            Dictionary containing command strings and targets
         daq_streams: str, list, tuple
             String or iterable of strings of zmq addresses of data streams to connect to
         hwm: int
@@ -63,9 +61,6 @@ class DAQProcess(Process):
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
-
-        # Dict of known commands
-        self.commands = commands
 
         # Attribute to store irrad session setup in
         self.setup = None
@@ -387,20 +382,7 @@ class DAQProcess(Process):
         # Extract info from cmd_dict
         try:
 
-            target = cmd_dict['target']
-            cmd = cmd_dict['cmd']
-
-            # Command sanity checks
-            # Log message for sanity checks
-            error_log = "Target '{}' unknown. Known {} are: {}!"
-
-            if target not in self.commands:
-                logging.error(error_log.format(target, 'targets', ', '.join(self.commands.keys())))
-                error_reply += "No {} target named {}\n".format(self.pname, target)
-
-            elif cmd not in self.commands[target]:
-                logging.error(error_log.format(cmd, 'commands', ', '.join(self.commands[target])))
-                error_reply = 'No target command named {}'.format(cmd)
+            _, _ = cmd_dict['target'], cmd_dict['cmd']
 
         except KeyError:
             error_reply += "Command dict incomplete. Missing 'cmd' or 'target' field!\n"

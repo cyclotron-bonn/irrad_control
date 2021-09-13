@@ -20,9 +20,6 @@ class IrradConverter(DAQProcess):
         # Set name of this interpreter process
         name = 'interpreter' if name is None else name
 
-        # Dict of known commands; flag to indicate when cmd is busy
-        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start', 'update_group_ifs', 'prepare_scan']}
-
         # Attributes controlling converter behaviour
         self._data_flush_interval = 1.0
         self._last_data_flush = None
@@ -34,7 +31,7 @@ class IrradConverter(DAQProcess):
         self.hists = analysis.dtype.IrradHists()
 
         # Call init of super class
-        super(IrradConverter, self).__init__(name=name, commands=commands)
+        super(IrradConverter, self).__init__(name=name)
 
     def _setup_daq(self):
 
