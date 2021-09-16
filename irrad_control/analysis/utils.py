@@ -77,7 +77,7 @@ def load_irrad_data(data_file, config_file, specify_entries=None, subtract_raw_o
                 update_dict(irrad_data[server_name], nested_data)
 
             # Subtract offsets of raw data
-            if substract_raw_offset and all(e in irrad_data[server_name] for e in ('Raw', 'RawOffset')):
+            if subtract_raw_offset and all(e in irrad_data[server_name] for e in ('Raw', 'RawOffset')):
                 for dname in irrad_data[server_name]['RawOffset'].dtype.names:
                     if dname != 'timestamp':
                         # Substract latest offset
