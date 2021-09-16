@@ -1,0 +1,69 @@
+host: 127.0.0.1
+server:
+  127.0.0.1:
+    daq:
+      kappa: 4.1
+      lambda: 1.358
+      sem: SEM-15-deg
+    devices:
+      ADCBoard:
+        init: None
+      ArduinoTempSens:
+        init:
+          baudrate: 115200
+          ntc_lim:
+          - -55
+          - 125
+          port: /dev/ttyUSB2
+          timeout: 5
+        setup:
+          0: BLM
+          2: FC
+          4: DUT
+      IrradDAQBoard:
+        init:
+          address: 32
+          version: v0.2
+      ZaberXYStage:
+        init:
+          serial_port: /dev/ttyUSB0
+    name: HSR
+    readout:
+      ch_groups:
+      - sem
+      - sem
+      - sem
+      - sem
+      - sem
+      - ch12
+      ch_numbers:
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      channels:
+      - Left
+      - Right
+      - Up
+      - Down
+      - Sum
+      - BLM
+      device: DAQBoard
+      ro_group_scales:
+        ch12: 1000
+        sem: 500
+      sampling_rate: 100.0
+      types:
+      - sem_left
+      - sem_right
+      - sem_up
+      - sem_down
+      - sem_sum
+      - blm
+      x10_jumper: false
+session:
+  loglevel: NOTSET
+  outfile: /example/path/to/folder/file
+  outfolder: /example/path/to/folder
