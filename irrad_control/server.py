@@ -197,13 +197,22 @@ class IrradServer(DAQProcess):
 
     def _call_device_method(self, device, method, call_data):
 
-        call_kwargs = call_data['kwargs']
-        call_threaded = call_data['threaded']
+        def _call():
+            # Make result dict and call
+            res = {}
+            res['result'] = getattr(self.devices[device], method)(**call_data['kwargs'])
 
-        if call_threaded:
-            self.launch_thread(target=getattr(self.devices[device], method), kwargs=call_kwargs)
+            # Check for callback
+            if 'callback' in call_data and hasattr(self.devices[device], call_data['callback']['method']):
+                callback_method, callback_kwargs = call_data['callback']['method'], call_data['callback']['kwargs']
+                res['callback'] = getattr(self.devices[device], callback_method)(**callback_kwargs)
+
+            return res
+
+        if call_data['threaded']:
+            self.launch_thread(target=_call)
         else:
-            res = getattr(self.devices[device], method)(**call_kwargs)
+            res = _call()
             self._send_reply(reply=method, sender=device, _type='STANDARD', data=res)
 
     def handle_cmd(self, target, cmd, data=None):
@@ -342,7 +351,7 @@ class IrradServer(DAQProcess):
     def clean_up(self):
         """Mandatory clean up - method"""
         try:
-            del self.xy_stage
+            del self.devices
         except AttributeError:
             pass
 
