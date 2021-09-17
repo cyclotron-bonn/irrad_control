@@ -199,8 +199,10 @@ class IrradServer(DAQProcess):
 
         def _call():
             # Make result dict and call
-            res = {}
-            res['result'] = getattr(self.devices[device], method)(**call_data['kwargs'])
+            res = {
+                'call': {**call_data},
+                'result': getattr(self.devices[device], method)(**call_data['kwargs'])
+            }
 
             # Check for callback
             if 'callback' in call_data and hasattr(self.devices[device], call_data['callback']['method']):
