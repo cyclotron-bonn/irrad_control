@@ -552,6 +552,10 @@ class DAQProcess(Process):
                     # Append to list of already reported exceptions
                     reported.append(daq_thread)
 
+                # Remove thread object from container for garbage collection
+                elif not daq_thread.is_alive():
+                    self.threads.remove(daq_thread)
+
     def _close(self):
 
         # Wait for all the threads to join
