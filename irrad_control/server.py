@@ -200,7 +200,7 @@ class IrradServer(DAQProcess):
         def _call():
             # Make result dict and call
             res = {
-                'call': {**call_data},
+                'call': {'method': method, 'kwargs': call_data['kwargs'], 'device': device},
                 'result': getattr(self.devices[device], method)(**call_data['kwargs'])
             }
 
