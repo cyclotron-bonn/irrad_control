@@ -58,9 +58,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # QThreadPool manages GUI threads on its own; every runnable started via start(runnable) is auto-deleted after.
         self.threadpool = QtCore.QThreadPool()
 
-        # Server process and hardware that can receive commands using self.send_cmd method
-        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board')
-
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()
 
@@ -496,12 +493,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
-        The command can have respective data *cmd_data*. Targets must be listed in self._targets."""
-
-        if target not in self._targets:
-            msg = '{} not in known by command targets. Known targets: {}'.format(target, ', '.join(self._targets))
-            logging.error(msg)
-            return
+        The command can have respective data *cmd_data*."""
 
         cmd_dict = {'target': target, 'cmd': cmd, 'data': cmd_data}
         cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict, timeout)
