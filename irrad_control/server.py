@@ -107,8 +107,8 @@ class IrradServer(DAQProcess):
 
                 logging.warning("{} removed from server devices".format(dev))
 
-                if dev in self.commands:
-                    del self.commands[dev]
+                if dev in self.devices:
+                    del self.devices[dev]
 
     def _setup_devices(self):
 
@@ -204,16 +204,15 @@ class IrradServer(DAQProcess):
 
             # Check for callback
             if 'callback' in call_data and hasattr(self.devices[device], call_data['callback']['method']):
-                callback_method, callback_kwargs = call_data['callback']['method'], call_data['callback']['kwargs']
-                res['callback'] = getattr(self.devices[device], callback_method)(**callback_kwargs)
+                res['callback'] = {**call_data['callback']}
+                res['callback']['result'] = getattr(self.devices[device], res['callback']['method'])(**res['callback']['kwargs'])
 
             return res
 
         if call_data['threaded']:
             self.launch_thread(target=_call)
         else:
-            res = _call()
-            self._send_reply(reply=method, sender=device, _type='STANDARD', data=res)
+            self._send_reply(reply=method, sender=device, _type='STANDARD', data=_call())
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
