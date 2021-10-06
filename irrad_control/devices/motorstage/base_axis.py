@@ -217,7 +217,9 @@ class BaseAxis(object):
         for prop in self.init_props:
             # Don't set the position; we don't want the stage to move on init
             if prop != 'position':
-                getattr(self, 'set_'.format(prop))(value=self.config['axis'][prop]['value'], unit=self.config['axis'][prop]['unit'])
+                value, unit = self.config['axis'][prop]['value'], self.config['axis'][prop]['unit']
+                if value is not None:
+                    getattr(self, 'set_{}'.format(prop))(value=value, unit=unit)
 
         self.invert_axis = self.config['axis']['inverted']
 
