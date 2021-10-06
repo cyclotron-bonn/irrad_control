@@ -22,8 +22,6 @@ def load_device_init_configs():
                     except FileNotFoundError:
                         init['config'] = None
                         logging.warning("Config file {} could not be found!".format(config_file))
-                else:
-                    init['config'] = None
 
 
 DEVICES_CONFIG = load_yaml(make_path(location(__file__), 'devices_config.yaml'))

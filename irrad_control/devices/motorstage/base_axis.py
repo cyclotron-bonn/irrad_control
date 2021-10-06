@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from os.path import isfile
 from functools import wraps
@@ -49,13 +50,17 @@ BASE_AXIS_CONFIG = {
 
 def load_base_axis_config(config=None):
 
+    tmp = BASE_AXIS_CONFIG.copy()
+
     if config is not None:
         if isinstance(config, dict):
             return config
         elif isfile(config):
             return load_yaml(config)
+        elif isinstance(config, str) and os.access(os.path.dirname(config), os.W_OK):
+            tmp['meta']['filename'] = config
 
-    return {'meta': BASE_AXIS_CONFIG['meta'], 'axis': BASE_AXIS_CONFIG['axis']}
+    return {'meta': tmp['meta'], 'axis': tmp['axis']}
 
 
 def save_base_axis_config(config):
