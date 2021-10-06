@@ -23,7 +23,7 @@ class IrradServer(DAQProcess):
         # Hold server devices
         self.devices = {}
 
-        self._motorstage_configs = {}
+        self._motorstages = []
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
@@ -92,7 +92,8 @@ class IrradServer(DAQProcess):
                             if isinstance(a, BaseAxis):
                                 self.axis_tracker.track_axis(axis=a, axis_id=axis_id, axis_domain=dev)
 
-                    self._motorstage_configs[dev] = self.devices[dev].config
+                    # Store device names of motorstages
+                    self._motorstages.append(dev)
 
             except (IOError, SerialException, CreationError) as e:
 
@@ -238,11 +239,13 @@ class IrradServer(DAQProcess):
 
                 # Start server with setup which is cmd data
                 self._start_server(data)
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data={'pid': self.pid,
-                                                                                   'motorstages': self._motorstage_configs})
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.pid)
 
             elif cmd == 'shutdown':
                 self.shutdown()
+
+            elif cmd == 'motorstages':
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data={d: self.devices[d].config for d in self._motorstages})
 
         elif target == 'ro_board':
 

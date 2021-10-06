@@ -556,10 +556,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if sender == 'server':
 
                 if reply == 'start':
-                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data['pid']))
+                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
-                    # TODO: put motorstage stuff into control tab
-                    print(reply_data['motorstages'])
+
+                    # Get initial motorstage configuration
+                    self.send_cmd(hostname=hostname, target=sender, cmd='motorstages')
 
                 elif reply == 'shutdown':
 
@@ -568,6 +569,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
                     # Try to close
                     self.close()
+
+                elif reply == 'motorstages':
+
+                    # TODO: pass reply data to control tab
+                    print(reply_data)
 
             elif sender == 'ro_board':
 
