@@ -368,12 +368,15 @@ class ZaberMultiAxis(object):
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
 
-        self.config = load_base_axis_config(config=config, n_axis=n_axis)
+        if config is None:
+            self.config = {n: load_base_axis_config() for n in range(n_axis)}
+        else:
+            self.config = load_base_axis_config(config=config)
 
         # Initialize axes
         for a in range(n_axis):
             self.axis.append(ZaberStepAxis(port=port, dev_addr=self._dev_addrs[a],
-                                           config=None if config is None else self.config[a],
+                                           config=self.config[a],
                                            **axis_init))
 
         if invert_axis:
