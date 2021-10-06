@@ -184,9 +184,6 @@ class BaseAxis(object):
 
     def __init__(self, config=None, native_unit=None, init_props=('position', 'speed', 'accel', 'range')):
 
-        # Axis configuration; holds physical properties such as movement speed, acceleration, etc.
-        self.config = load_base_axis_config(config=config)
-
         self._dist, self._accel, self._speed = 'distance', 'speed', 'acceleration'
 
         # Dimensions of physical properties
@@ -203,8 +200,14 @@ class BaseAxis(object):
 
         self.init_props = init_props
 
-        if self.config:
+        # Axis configuration; holds physical properties such as movement speed, acceleration, etc.
+        self.config = load_base_axis_config(config=config)
+
+        # If we had a valid config apply
+        if config:
             self._apply_config()
+        else:
+            self._read_config()
 
     def _read_config(self, base_unit='mm'):
 
