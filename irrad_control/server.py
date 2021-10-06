@@ -5,6 +5,7 @@ from serial import SerialException
 
 # Package imports
 from irrad_control.devices import devices
+from irrad_control.devices.motorstage import motorstage
 from irrad_control.utils.daq_proc import DAQProcess
 from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
@@ -21,6 +22,8 @@ class IrradServer(DAQProcess):
 
         # Hold server devices
         self.devices = {}
+
+        self._motorstage_configs = {}
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
@@ -77,14 +80,19 @@ class IrradServer(DAQProcess):
                 else:
                     self.devices[dev] = device()
 
-                # If device is BaseAxis, track movement
-                if isinstance(self.devices[dev], BaseAxis):
-                    self.axis_tracker.track_axis(axis=self.devices[dev], axis_id=0, axis_domain=dev)
+                # Device is a motorstages
+                if hasattr(motorstage, dev):
 
-                elif hasattr(self.devices[dev], 'axis'):
-                    for axis_id, a in enumerate(self.devices[dev].axis):
-                        if isinstance(a, BaseAxis):
-                            self.axis_tracker.track_axis(axis=a, axis_id=axis_id, axis_domain=dev)
+                    # If device is BaseAxis, track movement
+                    if isinstance(self.devices[dev], BaseAxis):
+                        self.axis_tracker.track_axis(axis=self.devices[dev], axis_id=0, axis_domain=dev)
+
+                    elif hasattr(self.devices[dev], 'axis'):
+                        for axis_id, a in enumerate(self.devices[dev].axis):
+                            if isinstance(a, BaseAxis):
+                                self.axis_tracker.track_axis(axis=a, axis_id=axis_id, axis_domain=dev)
+
+                    self._motorstage_configs[dev] = self.devices[dev].config
 
             except (IOError, SerialException, CreationError) as e:
 
@@ -230,7 +238,8 @@ class IrradServer(DAQProcess):
 
                 # Start server with setup which is cmd data
                 self._start_server(data)
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=self.pid)
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data={'pid': self.pid,
+                                                                                   'motorstages': self._motorstage_configs})
 
             elif cmd == 'shutdown':
                 self.shutdown()

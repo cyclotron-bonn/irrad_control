@@ -556,15 +556,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if sender == 'server':
 
                 if reply == 'start':
-                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
+                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data['pid']))
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
-
-                    # Send command to find where stage is and what the speeds are
-                    if 'ZaberXYStage' in self.setup['server'][hostname]['devices']:
-                        self.send_cmd(hostname, 'stage', 'pos')
-                        self.send_cmd(hostname, 'stage', 'get_speed')
-                        self.send_cmd(hostname, 'stage', 'get_range')
-                        self.send_cmd(hostname, 'stage', 'get_pos')
+                    # TODO: put motorstage stuff into control tab
+                    print(reply_data['motorstages'])
 
                 elif reply == 'shutdown':
 
