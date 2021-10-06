@@ -16,7 +16,9 @@ BASE_AXIS_CONFIG = {
     'meta': {
         'misc': None,
         'last_updated': None,
-        'filename': None},
+        'filename': None,
+        'configured': False
+    },
 
     'axis': {
         'inverted': False,  # Axis is inverted
@@ -204,7 +206,7 @@ class BaseAxis(object):
         self.config = load_base_axis_config(config=config)
 
         # If we had a valid config apply
-        if config:
+        if self.config['meta']['configured']:
             self._apply_config()
         else:
             self._read_config()
