@@ -45,7 +45,7 @@ BASE_AXIS_CONFIG = {
 }
 
 
-def load_base_axis_config(config, n_axis=1):
+def load_base_axis_config(config=None):
 
     if config is not None:
         if isinstance(config, dict):
@@ -53,7 +53,7 @@ def load_base_axis_config(config, n_axis=1):
         elif isfile(config):
             return load_yaml(config)
 
-    return {'meta': BASE_AXIS_CONFIG['meta'], 'axes': {n: BASE_AXIS_CONFIG['axis'] for n in range(n_axis)}}
+    return {**BASE_AXIS_CONFIG['meta'], **BASE_AXIS_CONFIG['axis']}
 
 
 def save_base_axis_config(config):
