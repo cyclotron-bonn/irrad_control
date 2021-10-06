@@ -17,7 +17,7 @@ class ScanStage(ZaberMultiAxis):
     def __init__(self, port, config=None):
         super(ScanStage, self).__init__(n_axis=2,
                                         port=port,
-                                        dev_addrs=(1, 2),
+                                        axis_addrs=(1, 2),
                                         config=config,
                                         invert_axis=(1,),
                                         **self.axis_init)
@@ -38,7 +38,7 @@ class SetupTableStage(ZaberStepAxis):
 
     def __init__(self, port, config=None):
         super(SetupTableStage, self).__init__(port=port,
-                                              dev_addr=3,
+                                              axis_addr=3,
                                               config=config,
                                               **self.axis_init)
 

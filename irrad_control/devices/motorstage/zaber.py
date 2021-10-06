@@ -12,17 +12,17 @@ class ZaberAsciiPort(AsciiSerial):
 class ZaberStepAxis(BaseAxis):
     """Base-class representing basic functionality of a Zaber motorstage with a stepper motor"""
 
-    def __init__(self, port, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
+    def __init__(self, port, axis_addr=1, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
 
         # If we are not already connected to a serial port, open one
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
 
-        # Create a device with the given address
+        # Create a device with the given address; device is the controller; increase number for daisy-chaining controllers
         self.device = AsciiDevice(port, dev_addr)
 
         # Create an axis representing the device
-        self.axis = self.device.axis(1)
+        self.axis = self.device.axis(axis_addr)
 
         # Whether the axis is inverted
         self.invert_axis = False
@@ -357,26 +357,28 @@ class ZaberStepAxis(BaseAxis):
 class ZaberMultiAxis(object):
     """Implements a multi-axis Zaber motorstage"""
 
-    def __init__(self, n_axis, port='/dev/ttyUSB0', dev_addrs=None, config=None, invert_axis=None, **axis_init):
+    def __init__(self, n_axis, port='/dev/ttyUSB0', axis_addrs=None, dev_addrs=None, config=None, invert_axis=None, **axis_init):
 
         # Holding the axis objects
         self.axis = []
 
-        self._dev_addrs = [i+1 for i in range(n_axis)] if dev_addrs is None else dev_addrs
+        self._axis_addrs = [i+1 for i in range(n_axis)] if axis_addrs is None else axis_addrs
+        self._dev_addrs = [1] * n_axis if dev_addrs is None else dev_addrs  # Default: share multi-axis controller
 
         # Initialize the zaber device
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
 
         if config is None:
-            self.config = {n: load_base_axis_config() for n in range(n_axis)}
+            meta_config = load_base_axis_config()
+            self.config = {'meta': meta_config['meta'], 'axis': {n: meta_config.copy() for n in range(n_axis)}}
         else:
             self.config = load_base_axis_config(config=config)
 
         # Initialize axes
         for a in range(n_axis):
-            self.axis.append(ZaberStepAxis(port=port, dev_addr=self._dev_addrs[a],
-                                           config=self.config[a],
+            self.axis.append(ZaberStepAxis(port=port, axis_addr=self._axis_addrs[a], dev_addr=self._dev_addrs[a],
+                                           config=self.config['axis'][a],
                                            **axis_init))
 
         if invert_axis:
