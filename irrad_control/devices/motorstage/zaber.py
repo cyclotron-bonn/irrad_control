@@ -216,8 +216,8 @@ class ZaberStepAxis(BaseAxis):
             _reply = self._send_cmd("get limit.{}".format(lim))
             _range.append(0 if self.error else int(_reply.data))
 
-        if self.invert_axis:
-            _range = [self.travel_microsteps - r for r in reversed(_range)]
+        #if self.invert_axis:
+        #    _range = [self.travel_microsteps - r for r in reversed(_range)]
 
         return _range if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
@@ -297,7 +297,7 @@ class ZaberStepAxis(BaseAxis):
         target = value if unit is None else self.convert_from_unit(value, unit)
 
         if self.invert_axis:
-            target = self.travel_microsteps - target if absolute else target * (-1)
+            target = self.travel_microsteps - target if absolute else target
 
         # Do sanity check whether movement is within axis range and move
         if self._check_move(value=target if absolute else target + self.get_position()):
