@@ -297,7 +297,7 @@ class ZaberStepAxis(BaseAxis):
         target = value if unit is None else self.convert_from_unit(value, unit)
 
         if self.invert_axis:
-            target = self.travel_microsteps - target if absolute else target
+            target = self.travel_microsteps - target if absolute else (-1) * target
 
         # Do sanity check whether movement is within axis range and move
         if self._check_move(value=target if absolute else target + self.get_position()):
