@@ -16,10 +16,10 @@ class ZaberStepAxis(BaseAxis):
 
         # If we are not already connected to a serial port, open one
         if not isinstance(port, AsciiSerial):
-            port = AsciiSerial(port)
+            self.port = AsciiSerial(port)
 
         # Create a device with the given address; device is the controller; increase number for daisy-chaining controllers
-        self.device = AsciiDevice(port, dev_addr)
+        self.device = AsciiDevice(self.port, dev_addr)
 
         # Create an axis representing the device
         self.axis = self.device.axis(axis_addr)
@@ -367,7 +367,7 @@ class ZaberMultiAxis(object):
 
         # Initialize the zaber device
         if not isinstance(port, AsciiSerial):
-            port = AsciiSerial(port)
+            self.port = AsciiSerial(port)
 
         # There is no config at all; FIXME; not pretty
         if config is None:
@@ -384,7 +384,7 @@ class ZaberMultiAxis(object):
 
         # Initialize axes
         for a in range(n_axis):
-            self.axis.append(ZaberStepAxis(port=port, axis_addr=self._axis_addrs[a], dev_addr=self._dev_addrs[a],
+            self.axis.append(ZaberStepAxis(port=self.port, axis_addr=self._axis_addrs[a], dev_addr=self._dev_addrs[a],
                                            config=self.config['axis'][a],
                                            **axis_init))
 
