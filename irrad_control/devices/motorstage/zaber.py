@@ -369,11 +369,18 @@ class ZaberMultiAxis(object):
         if not isinstance(port, AsciiSerial):
             port = AsciiSerial(port)
 
+        # There is no config at all; FIXME; not pretty
         if config is None:
-            meta_config = load_base_axis_config()
-            self.config = {'meta': meta_config['meta'], 'axis': {n: meta_config.copy() for n in range(n_axis)}}
+            axes_config = {n: load_base_axis_config() for n in range(n_axis)}
+            self.config = {'meta': load_base_axis_config()['meta'], 'axis': axes_config}
+        # We have config file or already loaded dict
         else:
             self.config = load_base_axis_config(config=config)
+
+            # The config is the file path in which the config will be stored; no file yet
+            if len(self.config['axis']) != n_axis:
+                axes_config = {n: load_base_axis_config(config=config) for n in range(n_axis)}
+                self.config = {'meta': load_base_axis_config(config=config)['meta'], 'axis': axes_config}
 
         # Initialize axes
         for a in range(n_axis):

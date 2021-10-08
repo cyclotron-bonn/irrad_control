@@ -5,6 +5,7 @@ from os.path import isfile
 from functools import wraps
 from types import MethodType
 from threading import get_ident
+from copy import deepcopy
 
 # Package imports
 from irrad_control.utils.utils import create_pub_from_ctx
@@ -50,7 +51,7 @@ BASE_AXIS_CONFIG = {
 
 def load_base_axis_config(config=None):
 
-    tmp = BASE_AXIS_CONFIG.copy()
+    tmp = deepcopy(BASE_AXIS_CONFIG)
 
     if config is not None:
         if isinstance(config, dict):
@@ -60,7 +61,7 @@ def load_base_axis_config(config=None):
         elif isinstance(config, str) and os.access(os.path.dirname(config), os.W_OK):
             tmp['meta']['filename'] = config
 
-    return {'meta': tmp['meta'], 'axis': tmp['axis']}
+    return tmp
 
 
 def save_base_axis_config(config):
