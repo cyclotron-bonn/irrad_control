@@ -7,7 +7,7 @@ from irrad_control.devices.ic.TCA9555.tca9555 import TCA9555
 
 class IrradDAQBoard(object):
 
-    def __init__(self, version='v0.1', address=0x20, ntc_channels=None):
+    def __init__(self, version='v0.1', address=0x20):
 
         # Check for version support
         if version not in DAQ_BOARD_CONFIG['version']:
@@ -20,7 +20,7 @@ class IrradDAQBoard(object):
 
         # Related to ntc channel cycling
         # NTC readouts; iterable of ints corresponding to pin header number
-        self.ntc_channels = ntc_channels
+        self.ntc_channels = None
         self.ntc = None
         self._ntc_cycle_thread = None
         self._stop_ntc_cycle_flag = Event()
@@ -28,10 +28,6 @@ class IrradDAQBoard(object):
 
         # Setup the initial state of the board
         self.restore_defaults()
-
-        # If ntc channels are given set the first ntc of the selection
-        if self.ntc_channels:
-            self.next_ntc()
 
     def restore_defaults(self):
 
@@ -45,6 +41,11 @@ class IrradDAQBoard(object):
         self.set_ifs(group='ch12', ifs=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ch12_ifs'])
 
         self.set_ntc_channel(channel=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ntc_ch'])
+
+    def init_ntc_readout(self, ntc_channels):
+        self.ntc_channels = [ntc_channels] if isinstance(ntc_channels, int) else ntc_channels
+        # Set first channel
+        self.set_ntc_channel(self.ntc_channels[self._ntc_idx])
 
     @property
     def jumper_scale(self):
