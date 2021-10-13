@@ -28,6 +28,10 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         self._init_ui()
 
+        self.motorstagePosChanged.connect(lambda m: [self._containers[k]['pos'].widgets[v][-2].setStyleSheet('QLabel {color: green;}') for k in m for v in m[k]])
+        self.motorstagePosChanged.connect(
+            lambda m: [self._containers[k]['pos'].widgets[v][-2].setText('Saved') for k in m for v in m[k]])
+
     def _init_ui(self):
 
         self.setWindowTitle('Add / edit motorstage positions')
@@ -43,6 +47,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         # Tab widget
         self.tabs = QtWidgets.QTabWidget()
+        self.tabs.currentChanged.connect(lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx))))
         self.main_widget.layout().addWidget(self.tabs)
 
         # Buttons to apply /cancel save
@@ -59,8 +64,8 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.addStretch(1)
         self.btn_cancel = QtWidgets.QPushButton('Close / Cancel')
-        self.btn_save = QtWidgets.QPushButton('Apply')
-        self.btn_save.clicked.connect(self._edit(motorstage=self.tabs.tabText(self.tabs.currentIndex())))
+        self.btn_save = QtWidgets.QPushButton('Save')
+        self.btn_save.clicked.connect(lambda _: self._edit(motorstage=self.tabs.tabText(self.tabs.currentIndex())))
         self.btn_save.setEnabled(False)
         self.btn_save.clicked.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
         self.btn_cancel.clicked.connect(self.close)
@@ -80,7 +85,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 return h_line
 
             # Make column names
-            cols = ('Name', 'Position', '', 'Date', 'Status', 'Delete')
+            cols = ('Name', 'Position') + (len(travel_range) - 1) * ('',) + ('Date', 'Status', 'Delete')
 
             # Config is dict with axis id as key; start with axis 0
             axes = sorted(travel_range.keys())
@@ -113,7 +118,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             # Loop over axes
             for ax in axes:
                 spx = QtWidgets.QDoubleSpinBox()
-                spx.setPrefix(f'Axis {ax}')
+                spx.setPrefix(f'Axis {ax}: ')
                 spx.setSuffix(f' {unit}')
                 spx.setDecimals(3)
                 spx.setMinimum(travel_range[ax][0])
@@ -141,7 +146,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             self._ms_widgets[motorstage] = ms_widget
             self.tabs.addTab(scroll, motorstage)
 
-    def add_position(self, motorstage, name, axes_positions, unit, date=None, saved=True):
+    def add_position(self, motorstage, name, axes_positions, unit, date=None, saved=False):
         """Method to create a set of widgets to allow setting position and name """
 
         if name not in self._positions_buffer[motorstage]:
@@ -152,11 +157,11 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             spxs = []
             for i in range(len(axes_positions)):
                 spx = QtWidgets.QDoubleSpinBox()
-                spx.setPrefix(f'Axis {i}')
+                spx.setPrefix(f'Axis {i}: ')
                 spx.setSuffix(f' {unit}')
                 spx.setDecimals(3)
-                spx.setMinimum(self._ms_spnbxs[motorstage].minimum())
-                spx.setMaximum(self._ms_spnbxs[motorstage].maximum())
+                spx.setMinimum(self._ms_spnbxs[motorstage][i].minimum())
+                spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
                 spx.setValue(axes_positions[i])
                 spx.wheelEvent = lambda e: None  # Disable wheel event
                 spx.valueChanged.connect(lambda val, axis=i: self._positions_buffer[motorstage][name].update({axis: val}))
@@ -199,7 +204,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         for p in self.positions[motorstage]:
             # Check if anything in the buffer is different; if yes, we want to edit
             for prop in self.positions[motorstage][p]:
-                if self.positions_buffer[motorstage][p][prop] != self.positions[motorstage][p][prop]:
+                if self._positions_buffer[motorstage][p][prop] != self.positions[motorstage][p][prop]:
                     return True
 
         return False
@@ -234,16 +239,16 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                     remove.append(p)
                 # We're editing
                 else:
-                    for k in self.positions_buffer[motorstage][p]:
+                    for k in self._positions_buffer[motorstage][p]:
                         if k != 'delete':
-                            self.positions[motorstage][p][k] = self.positions_buffer[motorstage][p][k]
+                            self.positions[motorstage][p][k] = self._positions_buffer[motorstage][p][k]
 
             # If not, we're adding
             else:
                 self.positions[motorstage][p] = {k: self._positions_buffer[motorstage][p][k] for k in self._positions_buffer[motorstage][p] if k != 'delete'}
 
         for p in remove:
-            self._containers[motorstage]['pos'].remove(self._containers[motorstage]['pos'].widgets[p])
+            self._containers[motorstage]['pos'].remove_widget(self._containers[motorstage]['pos'].widgets[p])
             del self.positions[motorstage][p]
             del self._positions_buffer[motorstage][p]
             del self._containers[motorstage]['pos'].widgets[p]
@@ -253,7 +258,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
     def close(self):
 
         for m in self._positions_buffer:
-            r = [k for k in self.positions_buffer[m] if k not in self.positions[m]]
+            r = [k for k in self._positions_buffer[m] if k not in self.positions[m]]
             for k in r:
                 self._containers[m]['pos'].remove_widget(self._containers[m]['pos'].widgets[k])
                 del self._positions_buffer[m][k]
