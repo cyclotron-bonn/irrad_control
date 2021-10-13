@@ -252,7 +252,7 @@ class ItemLinearStage(BaseAxis):
             unit in which speed should be converted. Must be in self.speed_units. If None, return speed in steps / s
         """
 
-        speed, speed_unit = (self.config['speed'][v] for v in ('value', 'unit'))
+        speed, speed_unit = (self.config['axis']['speed'][v] for v in ('value', 'unit'))
 
         speed_mm = self.convert_from_unit(speed, speed_unit)
 
@@ -269,7 +269,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-        self.config['speed'].update({'value': value, 'unit': unit})
+        self.config['axis']['speed'].update({'value': value, 'unit': unit})
 
     def get_range(self, unit=None):
         """
@@ -281,7 +281,7 @@ class ItemLinearStage(BaseAxis):
             unit in which range should be converted. Must be in self.dist_units. If None, return speed in steps
         """
 
-        _range, range_unit = (self.config['range'][v] for v in ('value', 'unit'))
+        _range, range_unit = (self.config['axis']['range'][v] for v in ('value', 'unit'))
 
         _range_mm = [self.convert_from_unit(r_m, range_unit) for r_m in _range]
 
@@ -298,7 +298,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-        self.config['range'].update({'value': value, 'unit': unit})
+        self.config['axis']['range'].update({'value': value, 'unit': unit})
 
     def get_accel(self, unit=None):
         """
@@ -311,7 +311,7 @@ class ItemLinearStage(BaseAxis):
             If None, get acceleration in steps / s^2
         """
 
-        accel, accel_unit = (self.config['accel'][v] for v in ('value', 'unit'))
+        accel, accel_unit = (self.config['axis']['accel'][v] for v in ('value', 'unit'))
 
         accel_mms2 = self.convert_from_unit(accel, accel_unit)
 
@@ -328,7 +328,7 @@ class ItemLinearStage(BaseAxis):
         unit : str, None
             unit in which speed is given. Must be in self.speed_units. If None, set speed in steps / s
         """
-        self.config['accel'].update({'value': value, 'unit': unit})
+        self.config['axis']['accel'].update({'value': value, 'unit': unit})
 
     def _move(self, value, unit, absolute=True):
         """
@@ -343,6 +343,11 @@ class ItemLinearStage(BaseAxis):
             unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
+        actual_move = lambda: self.item_client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
+                                                                              target,
+                                                                              self.get_speed(unit=unit),
+                                                                              self.get_accel(unit=unit)])
+
         # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)
 
@@ -352,16 +357,18 @@ class ItemLinearStage(BaseAxis):
         # Do sanity check whether movement is within axis range and move
         if self._check_move(value=target):
 
-            # Enable for movement
-            #self.enable()
-
-            # This needs to be blocking
-            self.item_client.send_cmd(cmd='MOVETOMM',   data=[self.controller_id,
-                                                              target,
-                                                              self.get_speed(unit=unit),
-                                                              self.get_accel(unit=unit)])
-            # Disable stage
-            #self.disable()
+            if self.blocking:
+                # Enable for movement
+                self.enable()
+                # Start moving
+                actual_move()
+                # While stage moves, block
+                while self._get_property('SPEEDACTUAL') != 0:
+                    time.sleep(0.1)
+                # Disable stage
+                self.disable()
+            else:
+                actual_move()
 
     @base_axis_config_updater
     def move_rel(self, value, unit=None):
@@ -378,20 +385,20 @@ class ItemLinearStage(BaseAxis):
     def move_pos(self, name):
         """
         Method which moves the stage to a given position: Position can either be defined by giving *x* and *y* values
-        with a *unit* or a *name*. If a *name* is given, it must be contained in the self.config['positions']. If a
+        with a *unit* or a *name*. If a *name* is given, it must be contained in the self.config['axis']['positions']. If a
         a name as well as x and y values are given, the name is prioritized.
 
         Parameters
         ----------
         name: str
-            name of position in self.config['positions'] to travel to
+            name of position in self.config['axis']['positions'] to travel to
         """
         # Check if position is in config
-        if name not in self.config['positions']:
-            raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['positions'])))
+        if name not in self.config['axis']['positions']:
+            raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['axis']['positions'])))
 
         # Get values
-        pos, unit = (self.config['positions'][name][v] for v in ('value', 'unit'))
+        pos, unit = (self.config['axis']['positions'][name][v] for v in ('value', 'unit'))
 
         # Do the movement
         self.move_abs(pos, unit)
@@ -399,4 +406,4 @@ class ItemLinearStage(BaseAxis):
     def stop(self):
         """Stop any movement"""
         self.disable()
-        self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
+        self.config['axis']['position']['value'] = self.get_position(unit=self.config['axis']['position']['unit'])
