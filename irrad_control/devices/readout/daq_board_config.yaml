@@ -28,7 +28,7 @@ common:
   input_channel: 6
   input_labels: [ "L", "R", "U", "D", "1", "2" ]
   output_channel: 8
-  output_labels: [ "L", "R", "U", "D", "SUM", "1", "2", "TEMP" ]
+  output_labels: [ "L", "R", "U", "D", "SUM", "1", "2", "NTC" ]
 
 # Version-specific configurations
 version:
@@ -38,7 +38,7 @@ version:
     pins:
       sem: [ 0, 1, 2 ]
       ch12: [ 3, 4, 5 ]
-      temp: [ 8, 9, 10 ]
+      ntc: [ 8, 9, 10 ]
       gpio: [ 6, 7, 11, 12, 13, 14, 15 ]  # These pins are not connected on v0.1
     # Default values
     defaults:
@@ -46,14 +46,14 @@ version:
       output: [ 0, 1, 2, 3, 4, 5, 8, 9, 10 ]
       sem_ifs: 10000
       ch12_ifs: 10000
-      temp_ch: 0
+      ntc_ch: 0
   # Version 0.2
   v0.2:
     # Pin configuration of the interfacing TCA9555 16-bit GPIO expander, steering the multiplexers for gain etc.
     pins:
       sem: [ 7, 8, 9 ]
       ch12: [ 10, 11, 12 ]
-      temp: [ 13, 14, 15 ]
+      ntc: [ 13, 14, 15 ]
       gpio: [ 0, 1, 2, 3, 4, 5, 6 ]
     # Default values
     defaults:
@@ -61,4 +61,4 @@ version:
       output: [ 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
       sem_ifs: 10000
       ch12_ifs: 10000
-      temp_ch: 0
+      ntc_ch: 0
