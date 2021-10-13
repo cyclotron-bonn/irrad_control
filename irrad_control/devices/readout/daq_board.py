@@ -1,8 +1,8 @@
 from threading import Thread, Event
 
 # Package imports
-from . import DAQ_BOARD_CONFIG
-from ..ic.TCA9555.tca9555 import TCA9555
+from irrad_control.devices.readout import DAQ_BOARD_CONFIG
+from irrad_control.devices.ic.TCA9555.tca9555 import TCA9555
 
 
 class IrradDAQBoard(object):
