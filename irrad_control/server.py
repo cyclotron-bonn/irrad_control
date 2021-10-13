@@ -51,6 +51,8 @@ class IrradServer(DAQProcess):
 
     def _init_devices(self):
 
+        self._daq_board_ntc_ro = False
+
         # Loop over server devices and initialize
         for dev in self.setup['server']['devices']:
 
@@ -80,7 +82,9 @@ class IrradServer(DAQProcess):
 
                     if 'ntc' in self.setup['server']['readout']:
                         ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
-                        self.devices[dev].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
+                        self.devices[dev].init_ntc_readout(ntc_channels=ntc_channels)
+                        self.launch_thread(target=self._sync_ntc_readout)
+                        self._daq_board_ntc_ro = True
 
             except (IOError, SerialException, CreationError) as e:
 
@@ -143,10 +147,11 @@ class IrradServer(DAQProcess):
         _data = self.devices['ADCBoard'].read_channels(self.setup['server']['readout']['channels'])
 
         # If we're using the NTC readout of the DAqBoard
-        if 'IrradDAQBoard' in self.devices and 'ntc' in self.setup['server']['readout']:
-            # Expect the temp channel only to be changed programmatically
-            _meta['ntc_ch'] = self.devices['IrradDAQBoard'].get_temp_channel(cached=True)
-
+        if self._daq_board_ntc_ro:
+            _meta['ntc_ch'] = self.devices['IrradDAQBoard'].ntc
+            if self.devices['IrradDAQBoard'].ntc_sync.is_set():
+                self.devices['IrradDAQBoard'].next_ntc()
+                self.devices['IrradDAQBoard'].ntc_sync.clear()
         return _meta, _data
 
     def _daq_temp(self):
@@ -165,6 +170,11 @@ class IrradServer(DAQProcess):
         _data = dict([(temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
 
         return _meta, _data
+
+    def _sync_ntc_readout(self, sync_time=0.2):
+        """Sync ADC readout with switching NTC channels on IrradDAQBoard"""
+        while not self.stop_flags['send'].wait(sync_time):
+            self.devices['IrradDAQBoard'].ntc_sync.set()
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""

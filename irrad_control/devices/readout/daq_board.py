@@ -25,6 +25,7 @@ class IrradDAQBoard(object):
         self._ntc_cycle_thread = None
         self._stop_ntc_cycle_flag = Event()
         self._ntc_idx = 0
+        self.ntc_sync = Event()
 
         # Setup the initial state of the board
         self.restore_defaults()
