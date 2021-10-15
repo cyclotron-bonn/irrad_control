@@ -2,6 +2,7 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 from .util_widgets import GridContainer, NoBackgroundScrollArea
+#TODO: Load stage positions from local config file on demand
 
 
 class MotorstagePositionWindow(QtWidgets.QMainWindow):
@@ -9,12 +10,10 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
     motorstagePosChanged = QtCore.pyqtSignal(dict)
 
-    def __init__(self, motorstages=None, positions=None, parent=None):
+    def __init__(self, parent=None):
         super(MotorstagePositionWindow, self).__init__(parent)
 
-        self.motorstages = motorstages
-
-        self.positions = positions if positions is not None else defaultdict(dict)
+        self.positions = defaultdict(dict)
 
         self._positions_buffer = defaultdict(dict)
 
@@ -28,9 +27,15 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         self._init_ui()
 
-        self.motorstagePosChanged.connect(lambda m: [self._containers[k]['pos'].widgets[v][-2].setStyleSheet('QLabel {color: green;}') for k in m for v in m[k]])
-        self.motorstagePosChanged.connect(
-            lambda m: [self._containers[k]['pos'].widgets[v][-2].setText('Saved') for k in m for v in m[k]])
+        # Connections
+        for x in [lambda idx: self.btn_save.setText(f'Save {self.tabs.tabText(idx)} changes'),
+                  lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx))),
+                  lambda idx: print(self._positions_buffer[self.tabs.tabText(idx)])]:
+            self.tabs.currentChanged.connect(x)
+
+        for x in [lambda m: [self._containers[k]['pos'].widgets[v][-2].setStyleSheet('QLabel {color: green;}') for k in m for v in m[k]],
+                  lambda m: [self._containers[k]['pos'].widgets[v][-2].setText('Saved') for k in m for v in m[k]]]:
+            self.motorstagePosChanged.connect(x)
 
     def _init_ui(self):
 
@@ -47,17 +52,42 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         # Tab widget
         self.tabs = QtWidgets.QTabWidget()
-        self.tabs.currentChanged.connect(lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx))))
         self.main_widget.layout().addWidget(self.tabs)
 
         # Buttons to apply /cancel save
         self._init_buttons()
 
-        #if self.positions:
-        #    for ms in self.positions:
-        #        self.add_motorstage(motorstage=ms, travel_range=self.po)
-        #        tmp_pos = self.positions[name]
-        #        self.add_position(name=name, x_pos=tmp_pos['x'], y_pos=tmp_pos['y'], unit=tmp_pos['unit'], date=tmp_pos['date'], saved=True)
+    def add_motorstage(self, motorstage, config):
+        """Get everything from motorstage configuration"""
+
+        # If motorstage has only one axis
+        if 'positions' in config['axis']:
+            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis']['range']['value']], unit=config['axis']['range']['unit'])
+
+            # Add motorstage positions
+            for p in config['axis']['positions']:
+                pos = config['axis']['positions'][p]
+                self.positions[motorstage][p] = {0: pos['value'], 'unit': pos['unit'], 'date': pos['date']}
+                self._add_position(motorstage=motorstage, name=p, coordinates=[pos['value']], unit=pos['unit'], date=pos['date'], saved=True)
+
+        # Multiple axes
+        else:
+            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis'][i]['axis']['range']['value'] for i in range(len(config['axis']))],
+                                 unit=config['axis'][0]['axis']['range']['unit'])
+
+            # Common positions of all axes of motorstage
+            common_positions = set(pos for a in config['axis'] for pos in config['axis'][a]['axis']['positions'])
+
+            # Add motorstage positions
+            for cp in common_positions:
+                #print(config)
+                coordinates = [config['axis'][i]['axis']['positions'][cp]['value'] for i in range(len(config['axis']))]
+                self.positions[motorstage][cp] = {**{i: coordinates[i] for i in range(len(coordinates))},
+                                                  **{'unit': config['axis'][0]['axis']['positions'][cp]['unit'],
+                                                     'date': config['axis'][0]['axis']['positions'][cp]['date']}}
+                self._add_position(motorstage=motorstage, name=cp, coordinates=coordinates,
+                                   unit=config['axis'][0]['axis']['positions'][cp]['unit'],
+                                   date=config['axis'][0]['axis']['positions'][cp]['date'], saved=True)
 
     def _init_buttons(self):
 
@@ -74,7 +104,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         self.main_widget.layout().addLayout(btn_layout)
 
-    def add_motorstage(self, motorstage, travel_range, unit='mm'):
+    def _add_motorstage(self, motorstage, travel_range, unit='mm'):
 
         if motorstage not in self._ms_widgets:
 
@@ -88,7 +118,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             cols = ('Name', 'Position') + (len(travel_range) - 1) * ('',) + ('Date', 'Status', 'Delete')
 
             # Config is dict with axis id as key; start with axis 0
-            axes = sorted(travel_range.keys())
+            axes = range(len(travel_range))
 
             # Make widget and layout
             ms_widget = QtWidgets.QWidget()
@@ -119,19 +149,20 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             for ax in axes:
                 spx = QtWidgets.QDoubleSpinBox()
                 spx.setPrefix(f'Axis {ax}: ')
-                spx.setSuffix(f' {unit}')
+                spx.setSuffix(f' {unit}' if unit else ' mm')
                 spx.setDecimals(3)
-                spx.setMinimum(travel_range[ax][0])
-                spx.setMaximum(travel_range[ax][-1])
+                if travel_range[ax] is not None:
+                    spx.setMinimum(travel_range[ax][0])
+                    spx.setMaximum(travel_range[ax][-1])
                 spx.wheelEvent = lambda e: None  # Disable wheel event
                 self._ms_spnbxs[motorstage].append(spx)
 
             # Add position to widget
-            btn_add.clicked.connect(lambda _, m=motorstage, n=name_edit: self.add_position(motorstage=m,
-                                                                                           name=n.text(),
-                                                                                           axes_positions=[spx.value() for spx in self._ms_spnbxs[m]],
-                                                                                           unit=unit,
-                                                                                           date=time.asctime()))
+            btn_add.clicked.connect(lambda _, m=motorstage, n=name_edit: self._add_position(motorstage=m,
+                                                                                            name=n.text(),
+                                                                                            coordinates=[spx.value() for spx in self._ms_spnbxs[m]],
+                                                                                            unit=unit,
+                                                                                            date=time.asctime()))
 
             btn_add.clicked.connect(lambda _, n=name_edit: n.setText(""))  # Reset name for next addition
             btn_add.clicked.connect(lambda _, m=motorstage: [_s.setValue(_s.minimum()) for _s in self._ms_spnbxs[m]])  # Reset values for next addition
@@ -146,32 +177,30 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             self._ms_widgets[motorstage] = ms_widget
             self.tabs.addTab(scroll, motorstage)
 
-    def add_position(self, motorstage, name, axes_positions, unit, date=None, saved=False):
+    def _add_position(self, motorstage, name, coordinates, unit, date=None, saved=False):
         """Method to create a set of widgets to allow setting position and name """
 
         if name not in self._positions_buffer[motorstage]:
             # Buffer original position when added
-            self._positions_buffer[motorstage][name] = {**{i: axes_positions[i] for i in range(len(axes_positions))},
+            self._positions_buffer[motorstage][name] = {**{i: coordinates[i] for i in range(len(coordinates))},
                                                         **{'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}}
             # Make spinboxes for position
             spxs = []
-            for i in range(len(axes_positions)):
+            for i in range(len(coordinates)):
                 spx = QtWidgets.QDoubleSpinBox()
                 spx.setPrefix(f'Axis {i}: ')
                 spx.setSuffix(f' {unit}')
                 spx.setDecimals(3)
                 spx.setMinimum(self._ms_spnbxs[motorstage][i].minimum())
                 spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
-                spx.setValue(axes_positions[i])
+                spx.setValue(coordinates[i])
                 spx.wheelEvent = lambda e: None  # Disable wheel event
                 spx.valueChanged.connect(lambda val, axis=i: self._positions_buffer[motorstage][name].update({axis: val}))
                 spx.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
                 spxs.append(spx)
 
             label_status = QtWidgets.QLabel('Saved' if saved else 'Not saved')
-
-            if not saved:
-                label_status.setStyleSheet('QLabel {color: orange;}')
+            label_status.setStyleSheet('QLabel {color: green;}' if saved else 'QLabel {color: orange;}')
 
             # Delete checkboxes
             chbx_del = QtWidgets.QCheckBox('Delete {}'.format(name))
