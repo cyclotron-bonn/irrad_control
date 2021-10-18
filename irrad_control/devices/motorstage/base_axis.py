@@ -389,6 +389,9 @@ class BaseAxisTracker(object):
             logging.warning('Axis {} with ID {} is already tracked.'.format(type(axis), axis_id))
             return
 
+        # Make axis blocking which is needed to track correctly
+        axis.blocking = True
+
         self._zmq_config['axis_pubs'][id(axis)] = {'pub': create_pub_from_ctx(ctx=self.ctx, addr=self.addr),
                                                    'thread_id': get_ident()}
 
