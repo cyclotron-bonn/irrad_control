@@ -2,7 +2,10 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 from .util_widgets import GridContainer, NoBackgroundScrollArea
-#TODO: Load stage positions from local config file on demand
+# TODO: write delete position func
+# TODO: make visible that position is not yet added if apply is not hit via color
+# TODO add btn to get current position
+# TODO: Load stage positions from local config file on demand
 
 
 class MotorstagePositionWindow(QtWidgets.QMainWindow):
@@ -292,9 +295,5 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 self._containers[m]['pos'].remove_widget(self._containers[m]['pos'].widgets[k])
                 del self._positions_buffer[m][k]
                 del self._containers[m]['pos'].widgets[k]
-
-        # TODO: write delete position func
-        # TODO: make visible that position is not yet added if apply is not hit via color
-        # TODO add btn to get current position
 
         super(MotorstagePositionWindow, self).close()
