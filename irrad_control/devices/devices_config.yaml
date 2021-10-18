@@ -15,22 +15,40 @@ IrradDAQBoard:
 
 ScanStage:
   init:
-    port: /dev/ttyUSB1
     config: ./motorstage/scan_stage.yaml
+    port: /dev/ttyUSB1
+    n_axis: 2
+    axis_addrs:
+      - 1
+      - 2
+    invert_axis:
+      - 1
+    axis_init:
+      - step: 0.1953125e-6
+        travel: 300e-3
+        model: LRQ300HL-E01T3A
+      - step: 0.1953125e-6
+        travel: 300e-3
+        model: LRQ300HL-E01T3A
 
 SetupTableStage:
   init:
-    port: /dev/ttyUSB1
     config: ./motorstage/setup_table_stage.yaml
+    port: /dev/ttyUSB1
+    step: 0.1953125e-6
+    travel: 300e-3
+    model: LRQ300HL-E01T3A
 
 ExternalCupStage:
   init:
+    config: ./motorstage/external_cup_stage.yaml
     host: None
     port: 1234
     udp:
       - 1
       - 2
-    config: ./motorstage/external_cup_stage.yaml
+    travel: 716.5e-3
+    model: ITEM-Linear-Stage
 
 ArduinoTempSens:
   init:
