@@ -345,10 +345,10 @@ class ItemLinearStage(BaseAxis):
             unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
-        actual_move = lambda: self.item_client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
-                                                                              target,
-                                                                              self.get_speed(unit=unit),
-                                                                              self.get_accel(unit=unit)])
+        actual_move = lambda t: self.item_client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
+                                                                                t,
+                                                                                int(self.get_speed()),
+                                                                                int(self.get_accel())])
 
         # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)
@@ -363,14 +363,14 @@ class ItemLinearStage(BaseAxis):
                 # Enable for movement
                 self.enable()
                 # Start moving
-                actual_move()
+                actual_move(t=target)
                 # While stage moves, block
                 while self._get_property('SPEEDACTUAL') != 0:
                     time.sleep(0.1)
                 # Disable stage
                 self.disable()
             else:
-                actual_move()
+                actual_move(t=target)
 
     @base_axis_config_updater
     def move_rel(self, value, unit=None):
