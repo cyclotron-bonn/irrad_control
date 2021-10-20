@@ -206,30 +206,35 @@ class IrradServer(DAQProcess):
 
     def _call_device_method(self, device, method, call_data):
 
-        def _call():
+        def _call(call_kwargs, callback=None):
+
             # Make result dict and call
             res = {
-                'call': {'method': method, 'kwargs': call_data['kwargs'], 'device': device},
-                'result': getattr(self.devices[device], method)(**call_data['kwargs'])
+                'call': {'method': method, 'kwargs': call_kwargs, 'device': device},
+                'result': getattr(self.devices[device], method)(**call_kwargs)
             }
 
             # Check for callback
-            if 'callback' in call_data and hasattr(self.devices[device], call_data['callback']['method']):
-                res['callback'] = {**call_data['callback']}
+            if callback and hasattr(self.devices[device], callback['method']):
+                res['callback'] = {**callback}
                 res['callback']['result'] = getattr(self.devices[device], res['callback']['method'])(**res['callback']['kwargs'])
 
             return res
 
-        if call_data['threaded']:
-            self.launch_thread(target=_call)
+        call_kwargs = {} if call_data is None else call_data['kwargs']
+        callback = False if call_data is None or 'callback' not in call_data else call_data['callback']
+        call_threaded = False if call_data is None or 'threaded' not in call_data else call_data['threaded']
+
+        if call_threaded:
+            self.launch_thread(target=_call, args=(call_kwargs, callback))
         else:
-            self._send_reply(reply=method, sender=device, _type='STANDARD', data=_call())
+            self._send_reply(reply=method, sender=device, _type='STANDARD', data=_call(call_kwargs, callback))
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
         # Check if we want to call a devices method directly
-        if target in self.devices and hasattr(self.devices[target], cmd) and data:
+        if target in self.devices and hasattr(self.devices[target], cmd):
             self._call_device_method(device=target, method=cmd, call_data=data)
 
         # Handle server commands
