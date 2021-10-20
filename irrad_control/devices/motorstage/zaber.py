@@ -602,3 +602,20 @@ class ZaberMultiAxis(object):
 
     def __del__(self):
         self.save_config()
+
+    def stop(self, axis=None, emergency=False):
+        """
+        Stop all axes or individual *axis*
+        Parameters
+        ----------
+        axis: int
+            Integer of axis to stop
+        emergency: bool
+            Whether or not to perform emergency stop which cuts off all supply current instead of controlled slowing down
+        """
+        # Stop specific axis
+        if isinstance(axis, int) and axis < len(self.axis):
+            self.axis[axis].stop(emergency=emergency)
+        # Stop all
+        else:
+            _ = [a.stop(emergency=emergency) for a in self.axis]
