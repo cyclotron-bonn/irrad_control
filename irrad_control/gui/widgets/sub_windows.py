@@ -83,7 +83,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
             # Add motorstage positions
             for cp in common_positions:
-                #print(config)
+
                 coordinates = [config['axis'][i]['axis']['positions'][cp]['value'] for i in range(len(config['axis']))]
                 self.positions[motorstage][cp] = {**{i: coordinates[i] for i in range(len(coordinates))},
                                                   **{'unit': config['axis'][0]['axis']['positions'][cp]['unit'],
