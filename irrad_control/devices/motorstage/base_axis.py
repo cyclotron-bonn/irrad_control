@@ -300,9 +300,6 @@ class BaseAxis(object):
     def save_config(self):
         save_base_axis_config(config=self.config)
 
-    def __del__(self):
-        self.save_config()
-
     def convert_to_unit(self, value, unit):
         raise NotImplementedError("{} needs to implement a 'convert_to_unit'-method".format(self.__class__.__name__))
 

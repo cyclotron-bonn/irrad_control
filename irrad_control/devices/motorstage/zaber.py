@@ -604,9 +604,6 @@ class ZaberMultiAxis(object):
         """
         save_base_axis_config(config=self.config)
 
-    def __del__(self):
-        self.save_config()
-
     def stop(self, axis=None, emergency=False):
         """
         Stop all axes or individual *axis*
