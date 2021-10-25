@@ -14,6 +14,8 @@ class ZaberStepAxis(BaseAxis):
 
     def __init__(self, port, axis_addr=1, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
 
+        self.port = port
+
         # If we are not already connected to a serial port, open one
         if not isinstance(port, AsciiSerial):
             self.port = AsciiSerial(port)
@@ -365,7 +367,9 @@ class ZaberMultiAxis(object):
         self._axis_addrs = [i+1 for i in range(n_axis)] if axis_addrs is None else axis_addrs
         self._dev_addrs = [1] * n_axis if dev_addrs is None else dev_addrs  # Default: share multi-axis controller
 
-        # Initialize the zaber device
+        self.port = port
+
+        # If *self.port* is not a AsciiSerial interface, initialize it
         if not isinstance(port, AsciiSerial):
             self.port = AsciiSerial(port)
 
