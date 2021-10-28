@@ -153,7 +153,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             for ax in axes:
                 spx = QtWidgets.QDoubleSpinBox()
                 spx.setPrefix(f'Axis {ax}: ')
-                spx.setSuffix(f' {unit}' if unit else ' mm')
+                spx.setSuffix(f" {unit if unit else ' mm'}")
                 spx.setDecimals(3)
                 if travel_range[ax] is not None:
                     spx.setMinimum(travel_range[ax][0])
@@ -161,11 +161,11 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 self._ms_spnbxs[motorstage].append(spx)
 
             # Add position to widget
-            btn_add.clicked.connect(lambda _, m=motorstage, n=name_edit: self._add_position(motorstage=m,
-                                                                                            name=n.text(),
-                                                                                            coordinates=[spx.value() for spx in self._ms_spnbxs[m]],
-                                                                                            unit=unit,
-                                                                                            date=time.asctime()))
+            btn_add.clicked.connect(lambda _, m=motorstage, n=name_edit, u=unit: self._add_position(motorstage=m,
+                                                                                                    name=n.text(),
+                                                                                                    coordinates=[spx.value() for spx in self._ms_spnbxs[m]],
+                                                                                                    unit=u,
+                                                                                                    date=time.asctime()))
 
             btn_add.clicked.connect(lambda _, n=name_edit: n.setText(""))  # Reset name for next addition
             btn_add.clicked.connect(lambda _, m=motorstage: [_s.setValue(_s.minimum()) for _s in self._ms_spnbxs[m]])  # Reset values for next addition
