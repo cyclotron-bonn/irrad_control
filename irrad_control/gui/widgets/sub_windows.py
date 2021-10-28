@@ -32,8 +32,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         # Connections
         for x in [lambda idx: self.btn_save.setText(f'Save {self.tabs.tabText(idx)} changes'),
-                  lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx))),
-                  lambda idx: print(self._positions_buffer[self.tabs.tabText(idx)])]:
+                  lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx)))]:
             self.tabs.currentChanged.connect(x)
 
         for x in [lambda m: [self._containers[k]['pos'].widgets[v][-2].setStyleSheet('QLabel {color: green;}') for k in m for v in m[k]],
@@ -92,13 +91,15 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                                    unit=config['axis'][0]['axis']['positions'][cp]['unit'],
                                    date=config['axis'][0]['axis']['positions'][cp]['date'], saved=True)
 
+        self._edit(motorstage=motorstage)
+
     def _init_buttons(self):
 
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.addStretch(1)
         self.btn_cancel = QtWidgets.QPushButton('Close / Cancel')
         self.btn_save = QtWidgets.QPushButton('Save')
-        self.btn_save.clicked.connect(lambda _: self._edit(motorstage=self.tabs.tabText(self.tabs.currentIndex())))
+        self.btn_save.clicked.connect(lambda _: self._edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()), interactive=True))
         self.btn_save.setEnabled(False)
         self.btn_save.clicked.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
         self.btn_cancel.clicked.connect(self.close)
@@ -157,7 +158,6 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 if travel_range[ax] is not None:
                     spx.setMinimum(travel_range[ax][0])
                     spx.setMaximum(travel_range[ax][-1])
-                spx.wheelEvent = lambda e: None  # Disable wheel event
                 self._ms_spnbxs[motorstage].append(spx)
 
             # Add position to widget
@@ -241,10 +241,10 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         return False
 
-    def _edit(self, motorstage):
+    def _edit(self, motorstage, interactive=False):
         """Edit the position entries of *motorstage* in our config"""
 
-        if self._are_you_sure:
+        if interactive and self._are_you_sure:
             cb = QtWidgets.QCheckBox("Don't ask me again during this session")
             cb.stateChanged.connect(lambda state: setattr(self, '_are_you_sure', not bool(state)))
             mbox = QtWidgets.QMessageBox()
