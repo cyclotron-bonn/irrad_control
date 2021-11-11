@@ -393,9 +393,10 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.control_tab.enableDAQRec.connect(lambda server, enable: self.daq_info_widget.record_btns[server].setVisible(enable))
         self.control_tab.enableDAQRec.connect(
             lambda server, enable: self.daq_info_widget.record_btns[server].clicked.connect(
-                lambda _, _server=server: self.control_tab.send_cmd(target='interpreter',
-                                                                    cmd='record_data',
-                                                                    cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == 'Resume')))
+                lambda _, _server=server: self.send_cmd(hostname='localhost',
+                                                        target='interpreter',
+                                                        cmd='record_data',
+                                                        cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == 'Resume')))
             if enable else self.daq_info_widget.record_btns[server].clicked.disconnect())  # Pretty crazy connection. Basically connects or disconnects a button
 
         # Make temporary dict for updated tabs
@@ -431,8 +432,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if 'frac_v' in data['data']['sey']:
                 self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
 
-            self.control_tab.beam_current = data['data']['current']['beam_current']
-            self.control_tab.check_no_beam()
+            self.control_tab.check_no_beam(server=server, beam_current=data['data']['current']['beam_current'])
 
         elif data['meta']['type'] == 'hist':
             if 'beam_position_idxs' in data['data']:
@@ -445,8 +445,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Check whether data is interpreted
         elif data['meta']['type'] == 'row':
             self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-            self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
-            self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
+            #self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+            #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
             # FIXME: more precise result would be helpful
             if data['data']['eta_n_scans'] < 0:
@@ -454,30 +454,32 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'damage':
 
-            self.control_tab.update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
+            #update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
+            pass
 
         elif data['meta']['type'] == 'scan':
 
             if data['data']['status'] == 'scan_init':  # Scan is being initialized
 
                 # Disable all record buttons when scan starts
-                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(False)
+                self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(False)
                 self.daq_info_widget.record_btns[server].setEnabled(False)
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
-                self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
+                #self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
 
                 if data['data']['status'] == 'scan_start':
                     # Update control
-                    self.control_tab.update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
-                    self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
+                    #update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
+                    #self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
+                    pass
 
             elif data['data']['status'] == 'scan_finished':
-                self.control_tab.scan_status(data['data']['status'])
+                self.control_tab.scan_status(server=server, status=data['data']['status'])
 
                 # Enable all record buttons when scan is over
-                self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
+                self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
 
         elif data['meta']['type'] == 'temp_arduino':
@@ -603,29 +605,34 @@ class IrradControlWin(QtWidgets.QMainWindow):
             elif sender == 'stage':
 
                 if reply == 'pos':
-                    self.control_tab.update_info(position=reply_data, unit='mm')
+                    #self.control_tab.update_info(position=reply_data, unit='mm')
+                    pass
 
                 elif reply in ['set_speed', 'get_speed']:
-                    self.control_tab.update_info(speed=reply_data, unit='mm/s')
+                    #self.control_tab.update_info(speed=reply_data, unit='mm/s')
+                    pass
 
                 elif reply in ['set_range', 'get_range']:
-                    self.control_tab.update_info(range=reply_data, unit='mm')
+                    #self.control_tab.update_info(range=reply_data, unit='mm')
+                    pass
 
                 elif reply == 'get_pos':
-                    self.control_tab.setup_xy_stage_positions(reply_data)
+                    #self.control_tab.setup_xy_stage_positions(reply_data)
+                    pass
 
                 elif reply == 'add_pos':
-                    dd = self.control_tab.xy_stage_position_win.edit_pos.widgets
-                    for name in dd:
-                        dd[name][-2].setText('Saved')
-                        dd[name][-2].setStyleSheet('QLabel {color: black;}')
+                    #dd = self.control_tab.xy_stage_position_win.edit_pos.widgets
+                    #for name in dd:
+                    #    dd[name][-2].setText('Saved')
+                    #    dd[name][-2].setStyleSheet('QLabel {color: black;}')
+                    pass
 
                 elif reply == 'prepare':
-                    self.control_tab.update_scan_parameters(**reply_data)
+                    #self.control_tab.update_scan_parameters(**reply_data)
                     self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
                                                          'n_rows': reply_data['n_rows']})
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
-                    self.control_tab.scan_status('started')
+                    self.control_tab.scan_status(server=hostname, status='started')
 
                 elif reply == 'finish':
 
