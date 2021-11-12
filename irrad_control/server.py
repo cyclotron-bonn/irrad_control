@@ -293,7 +293,7 @@ class IrradServer(DAQProcess):
                             self.scan.event('no_beam', False)
                     self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
             else:
-                logging.error(f"No scan object initialized for server {self.name} devices. Abort.")
+                logging.error(f"No scan object initialized for server {self.name}. Abort.")
                 self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
     def clean_up(self):
