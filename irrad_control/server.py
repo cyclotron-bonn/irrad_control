@@ -252,71 +252,15 @@ class IrradServer(DAQProcess):
             elif cmd == 'motorstages':
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data={d: self.devices[d].config for d in self._motorstages})
 
-        elif target == 'ro_board':
+        elif target == 'scan':
 
-            ro_board = self.devices['IrradDAQBoard']
-
-            if cmd == 'set_ifs':
-                ro_board.set_ifs(group=data['group'], ifs=data['ifs'])
-                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-            elif cmd == 'get_ifs':
-                _data = {'group': data['group'], 'ifs': ro_board.get_ifs(group=data['group'])}
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-            elif cmd == 'set_temp_ch':
-                if ro_board.is_cycling_temp_channels():
-                    ro_board.stop_cycle_temp_channels()
-                ro_board.set_temp_channel(channel=data['ch'])
-            elif cmd == 'cycle_temp_chs':
-                ro_board.cycle_temp_channels(channels=data['chs'], timeout=data['timeout'])
-            elif cmd == 'set_gpio':
-                ro_board.gpio_value = data['val']
-            elif cmd == 'get_gpio':
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=ro_board.gpio_value)
-
-        elif target == 'stage':
-
-            xy_stage = self.devices['ZaberXYStage']
-
-            if cmd == 'move_rel':
-
-                xy_stage.axis[0 if data['axis'] == 'x' else 1].move_rel(value=data['distance'], unit=data['unit'])
-
-                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
-
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'move_abs':
-
-                xy_stage.axis[0 if data['axis'] == 'x' else 1].move_abs(value=data['distance'], unit=data['unit'])
-
-                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
-
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'set_speed':
-
-                xy_stage.axis[0 if data['axis'] == 'x' else 1].set_speed(value=data['speed'], unit=data['unit'])
-
-                _data = [axis.get_speed(unit='mm/s') for axis in xy_stage.axis]
-
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'set_range':
-
-                xy_stage.axis[0 if data['axis'] == 'x' else 1].set_range(value=data['range'], unit=data['unit'])
-
-                _data = [axis.get_range(unit='mm') for axis in xy_stage.axis]
-
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'prepare':
+            if cmd == 'setup':
                 self.dut_scan.setup_scan(**data)
                 _data = {'n_rows': self.dut_scan.scan_config['n_rows'], 'rows': self.dut_scan.scan_config['rows']}
 
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
-            elif cmd == 'scan':
+            elif cmd == 'start':
 
                 self.dut_scan.scan_device()
 
@@ -327,35 +271,6 @@ class IrradServer(DAQProcess):
             elif cmd == 'finish':
                 if not self.dut_scan.event('finish'):
                     self.dut_scan.event('finish', True)
-
-            elif cmd == 'pos':
-                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'get_pos':
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=xy_stage.config[0]['positions'])  #FIXME!!!
-
-            elif cmd == 'add_pos':
-                xy_stage.add_position(**data)
-
-            elif cmd == 'del_pos':
-                xy_stage.remove_position(data)
-
-            elif cmd == 'move_pos':
-                xy_stage.move_to_position(**data)
-
-            elif cmd == 'get_speed':
-                _data = [axis.get_speed(unit='mm/s') for axis in xy_stage.axis]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'get_range':
-                _data = [axis.get_range(unit='mm') for axis in xy_stage.axis]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-
-            elif cmd == 'home':
-                xy_stage.home_stage()
-                _data = [axis.get_position(unit='mm') for axis in xy_stage.axis]
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
 
             elif cmd == 'no_beam':
                 if data:

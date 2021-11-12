@@ -376,11 +376,11 @@ class ScanControlWidget(ControlWidget):
         btn_start.setToolTip("Start scan.")
         for x in [lambda _: self.send_cmd(hostname='localhost',
                                           target='interpreter',
-                                          cmd='prepare_scan',
+                                          cmd='scan_setup',
                                           cmd_data={'server': self.server, 'setup': self.scan_params}),
                   lambda _: self.send_cmd(hostname=self.server,
                                           target='scan',
-                                          cmd='prepare',
+                                          cmd='setup',
                                           cmd_data=self.scan_params)]:
             btn_start.clicked.connect(x)
 

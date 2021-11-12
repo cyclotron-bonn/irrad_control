@@ -822,7 +822,7 @@ class IrradConverter(DAQProcess):
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
                 self._interpret_event(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
 
-            elif cmd == 'prepare_scan':
+            elif cmd == 'scan_setup':
                 server, irrad_setup = data['server'], data['setup']
                 self._irrad_setup[server] = irrad_setup
 

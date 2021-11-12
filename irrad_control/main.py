@@ -602,6 +602,15 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     # Try to close
                     self.close()
 
+            elif sender == 'scan':
+
+                if reply == 'setup':
+                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
+                                                         'n_rows': reply_data['n_rows']})
+                    self.send_cmd(hostname=hostname, target='scan', cmd='start')
+                    self.control_tab.scan_status(server=hostname, status='started')
+
+
             elif sender == 'stage':
 
                 if reply == 'pos':
