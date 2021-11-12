@@ -23,7 +23,9 @@ class IrradServer(DAQProcess):
         # Hold server devices
         self.devices = {}
 
-        self._motorstages = []
+        self._motorstages = []#
+
+        self.scan = None
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
@@ -126,12 +128,6 @@ class IrradServer(DAQProcess):
         if 'ADCBoard' in self.devices:
             self.devices['ADCBoard'].drate = self.setup['server']['readout']['sampling_rate']
             self.devices['ADCBoard'].setup_channels(self.setup['server']['readout']['ch_numbers'])
-
-        if 'ScanStage' in self.devices:
-
-            self.dut_scan = DUTScan(scan_stage=self.devices['ScanStage'])
-            self.dut_scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'], addr=self._internal_sub_addr,
-                                    sender=self.server)
 
         if 'IrradDAQBoard' in self.devices and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
             # Set initial ro scales
@@ -255,30 +251,43 @@ class IrradServer(DAQProcess):
         elif target == 'scan':
 
             if cmd == 'setup':
-                self.dut_scan.setup_scan(**data)
-                _data = {'n_rows': self.dut_scan.scan_config['n_rows'], 'rows': self.dut_scan.scan_config['rows']}
 
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+                if 'ScanStage' in self.devices:
+                    # Make scan object with ScanStage as stage
+                    self.scan = DUTScan(scan_stage=self.devices['ScanStage'])
+
+                    # Connect to ZMQ
+                    self.scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'],
+                                        addr=self._internal_sub_addr,
+                                        sender=self.server)
+                    # Setup current scan
+                    self.scan.setup_scan(**data)
+
+                    # Make return data
+                    _data = {'n_rows': self.scan.scan_config['n_rows'], 'rows': self.scan.scan_config['rows']}
+
+                    self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
+                else:
+                    logging.error(f"No ScanStage in server {self.name} devices. Abort.")
 
             elif cmd == 'start':
-
-                self.dut_scan.scan_device()
+                self.scan.scan_device()
 
             elif cmd == 'stop':
-                if not self.dut_scan.event('stop'):
-                    self.dut_scan.event('stop', True)
+                if not self.scan.event('stop'):
+                    self.scan.event('stop', True)
 
             elif cmd == 'finish':
-                if not self.dut_scan.event('finish'):
-                    self.dut_scan.event('finish', True)
+                if not self.scan.event('finish'):
+                    self.scan.event('finish', True)
 
             elif cmd == 'no_beam':
                 if data:
-                    if not self.dut_scan.event('no_beam'):
-                        self.dut_scan.event('no_beam', True)
+                    if not self.scan.event('no_beam'):
+                        self.scan.event('no_beam', True)
                 else:
-                    if not self.dut_scan.event('no_beam'):
-                        self.dut_scan.event('no_beam', False)
+                    if not self.scan.event('no_beam'):
+                        self.scan.event('no_beam', False)
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
 
     def clean_up(self):

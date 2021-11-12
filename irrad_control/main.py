@@ -577,11 +577,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     # TODO: pass reply data to control tab
                     print(reply_data)
 
-            elif sender == 'ro_board':
+            elif sender == 'IrradDAQBoard':
 
                 if reply == 'set_ifs':
-                    cmd_data = {'server': hostname}
-                    cmd_data.update(reply_data)
+                    cmd_data = {'server': hostname,
+                                'ifs': reply_data['callback']['result'],
+                                'group': reply_data['call']['kwargs']['group']}
                     self.send_cmd(hostname='localhost', target='interpreter', cmd='update_group_ifs', cmd_data=cmd_data)
                     self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(hostname, True))
 
@@ -609,7 +610,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
                                                          'n_rows': reply_data['n_rows']})
                     self.send_cmd(hostname=hostname, target='scan', cmd='start')
                     self.control_tab.scan_status(server=hostname, status='started')
-
 
             elif sender == 'stage':
 
