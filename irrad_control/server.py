@@ -269,26 +269,32 @@ class IrradServer(DAQProcess):
                     self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
                 else:
                     logging.error(f"No ScanStage in server {self.name} devices. Abort.")
+                    self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
-            elif cmd == 'start':
-                self.scan.scan_device()
+            elif self.scan is not None:
 
-            elif cmd == 'stop':
-                if not self.scan.event('stop'):
-                    self.scan.event('stop', True)
+                if cmd == 'start':
+                    self.scan.scan_device()
 
-            elif cmd == 'finish':
-                if not self.scan.event('finish'):
-                    self.scan.event('finish', True)
+                elif cmd == 'stop':
+                    if not self.scan.event('stop'):
+                        self.scan.event('stop', True)
 
-            elif cmd == 'no_beam':
-                if data:
-                    if not self.scan.event('no_beam'):
-                        self.scan.event('no_beam', True)
-                else:
-                    if not self.scan.event('no_beam'):
-                        self.scan.event('no_beam', False)
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
+                elif cmd == 'finish':
+                    if not self.scan.event('finish'):
+                        self.scan.event('finish', True)
+
+                elif cmd == 'no_beam':
+                    if data:
+                        if not self.scan.event('no_beam'):
+                            self.scan.event('no_beam', True)
+                    else:
+                        if not self.scan.event('no_beam'):
+                            self.scan.event('no_beam', False)
+                    self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
+            else:
+                logging.error(f"No scan object initialized for server {self.name} devices. Abort.")
+                self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
     def clean_up(self):
         """Mandatory clean up - method"""
