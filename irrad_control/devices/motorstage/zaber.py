@@ -324,20 +324,20 @@ class ZaberStepAxis(BaseAxis):
     def move_pos(self, name):
         """
         Method which moves the stage to a given position: Position can either be defined by giving *x* and *y* values
-        with a *unit* or a *name*. If a *name* is given, it must be contained in the self.config['positions']. If a
-        a name as well as x and y values are given, the name is prioritized.
+        with a *unit* or a *name*. If a *name* is given, it must be contained in the self.config['axis']['positions'].
+        If a name as well as x and y values are given, the name is prioritized.
 
         Parameters
         ----------
         name: str
-            name of position in self.config['positions'] to travel to
+            name of position in self.config['axis']['positions'] to travel to
         """
         # Check if position is in config
-        if name not in self.config['positions']:
-            raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['positions'])))
+        if name not in self.config['axis']['positions']:
+            raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['axis']['positions'])))
 
         # Get values
-        pos, unit = (self.config['positions'][name][v] for v in ('value', 'unit'))
+        pos, unit = (self.config['axis']['positions'][name][v] for v in ('value', 'unit'))
 
         # Do the movement
         self.move_abs(pos, unit)
@@ -353,7 +353,7 @@ class ZaberStepAxis(BaseAxis):
             whether to shut off the driver current
         """
         self._send_cmd('stop' if not emergency else 'estop')
-        self.config['position']['value'] = self.get_position(unit=self.config['position']['unit'])
+        self.config['axis']['position']['value'] = self.get_position(unit=self.config['axis']['position']['unit'])
 
 
 class ZaberMultiAxis(object):
