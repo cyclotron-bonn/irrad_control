@@ -71,7 +71,7 @@ class IrradControlTab(QtWidgets.QWidget):
         splitter.addWidget(splitter_lower)
 
         # Add this to tab
-        self.tabs.addTab(splitter, server)
+        self.tabs.addTab(splitter, self.setup[server]['name'])
 
         # Add to container
         self.tab_widgets[server]['motorstage'] = motorstage_widget
