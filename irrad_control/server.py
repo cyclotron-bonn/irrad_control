@@ -222,7 +222,7 @@ class IrradServer(DAQProcess):
         call_threaded = False if call_data is None or 'threaded' not in call_data else call_data['threaded']
 
         if call_threaded:
-            self.launch_thread(target=_call, args=(call_kwargs, callback))
+            self.launch_thread(target=_call, call_kwargs=call_kwargs, callback=callback)
         else:
             self._send_reply(reply=method, sender=device, _type='STANDARD', data=_call(call_kwargs, callback))
 
