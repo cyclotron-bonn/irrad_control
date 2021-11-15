@@ -57,7 +57,7 @@ class IrradServer(DAQProcess):
         # When ever a BaseAxis device is initialized, we want to track the movement
         self.axis_tracker = BaseAxisTracker(context=self.context,
                                             address=self._internal_sub_addr,
-                                            sender=self.name)
+                                            sender=self.server)
 
         # Loop over server devices and initialize
         for dev in self.setup['server']['devices']:
