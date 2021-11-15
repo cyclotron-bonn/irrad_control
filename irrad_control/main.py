@@ -573,9 +573,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     self.close()
 
                 elif reply == 'motorstages':
-
-                    # TODO: pass reply data to control tab
-                    print(reply_data)
+                    for ms, cf in reply_data.items():
+                        self.control_tab.tab_widgets[hostname]['motorstage'].add_motorstage(motorstage=ms, config=cf)
 
             elif sender == 'IrradDAQBoard':
 

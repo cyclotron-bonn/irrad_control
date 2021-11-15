@@ -74,8 +74,8 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         # Multiple axes
         else:
-            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis'][i]['axis']['range']['value'] for i in range(len(config['axis']))],
-                                 unit=config['axis'][0]['axis']['range']['unit'])
+            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis'][f'{i}']['axis']['range']['value'] for i in range(len(config['axis']))],
+                                 unit=config['axis']['0']['axis']['range']['unit'])
 
             # Common positions of all axes of motorstage
             common_positions = set(pos for a in config['axis'] for pos in config['axis'][a]['axis']['positions'])
