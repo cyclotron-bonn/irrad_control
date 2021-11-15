@@ -150,7 +150,7 @@ def base_axis_movement_tracker(axis_movement_func, axis_id, zmq_config, axis_dom
         # Provide everything in the base unit of mm
         _data.update({'position': axis.get_position(unit='mm'),
                       'speed': axis.get_speed(unit='mm/s'),
-                      'accel': axis.get_accel(unit='mm/s2')})
+                      'accel': axis.get_accel(unit='mm/s^2')})
 
         # Publish data
         zmq_config['axis_pubs'][_axis_key]['pub'].send_json({'meta': _meta, 'data': _data})
