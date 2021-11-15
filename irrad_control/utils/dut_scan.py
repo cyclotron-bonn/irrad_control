@@ -68,42 +68,44 @@ class DUTScan(object):
         # Store
         self.zmq_config.update({'ctx': ctx, 'skt': skt, 'addr': addr, 'sender': sender})
 
-    def setup_scan(self, rel_start_point, rel_end_point, speed, step):
+    def setup_scan(self, rel_start, rel_end, scan_speed, row_sep):
         """
         Prepares a scan by storing all needed info in self.scan_config
 
         Parameters
         ----------
-        rel_start_point : tuple, list
+        rel_start : tuple, list
             iterable of starting point (x [mm], y [mm]) relative to current position, defining upper left corner of area
-        rel_end_point : tuple, list
+        rel_end : tuple, list
             iterable of end point (x [mm], y [mm]) relative to current position, defining lower right corner of area
-        speed : float
+        scan_speed : float
             horizontal scan speed in mm / s
-        step : float
+        row_sep : float
             step size of vertical steps in mm
         """
+        # Convert mm to native axis unit
+        axis_mm_to_native = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_to_native(val, unit='mm')
 
         # Store origin of relative coordinate system used for scan
-        self.scan_config['origin'] = tuple(self.scan_stage.axis[i].position() for i in (0, 1))
+        self.scan_config['origin'] = tuple(self.scan_stage.get_position())
 
         # Start position of the scan
-        self.scan_config['start'] = tuple(self.scan_config['origin'][i] - self.scan_stage.convert_to_native(rel_start_point[i], unit='mm') for i in (0, 1))
+        self.scan_config['start'] = tuple(self.scan_config['origin'][i] - axis_mm_to_native(i, rel_start[i]) for i in (0, 1))
 
         # Start position of the scan
-        self.scan_config['end'] = tuple(self.scan_config['origin'][i] - self.scan_stage.convert_to_native(rel_end_point[i], unit='mm') for i in (0, 1))
+        self.scan_config['end'] = tuple(self.scan_config['origin'][i] - axis_mm_to_native(i, rel_end[i]) for i in (0, 1))
 
         # Store scan speed
-        self.scan_config['speed'] = speed
+        self.scan_config['speed'] = scan_speed
 
         # Store step size
-        self.scan_config['step'] = step
+        self.scan_config['step'] = row_sep
 
         # Store number of rows in this scan
-        self.scan_config['n_rows'] = int(abs(self.scan_config['end'][1] - self.scan_config['start'][1]) / self.scan_stage.convert_to_native(step, unit='mm'))
+        self.scan_config['n_rows'] = int(abs(self.scan_config['end'][1] - self.scan_config['start'][1]) / axis_mm_to_native(1, row_sep))
 
         # Make dictionary with absolute position (in steps) of each row
-        self.scan_config['rows'] = dict([(row, self.scan_config['start'][1] - row * self.scan_stage.convert_to_native(step, unit='mm'))
+        self.scan_config['rows'] = dict([(row, self.scan_config['start'][1] - row * axis_mm_to_native(1, row_sep))
                                          for row in range(self.scan_config['n_rows'])])
         
     def _check_scan(self):
