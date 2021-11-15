@@ -678,8 +678,8 @@ class IrradConverter(DAQProcess):
         axis_domain = 'motorstage_{}'.format(data['axis_domain'].lower())
 
         self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
-        self.data_arrays[server][axis_domain]['axis_id'] = data['axis_id']
-        self.data_arrays[server][axis_domain]['movement_status'] = data['status']
+        self.data_arrays[server][axis_domain]['axis'] = data['axis']
+        self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
         self.data_arrays[server][axis_domain]['position'] = data['position']
 
         for prop in ('speed', 'accel', 'travel'):

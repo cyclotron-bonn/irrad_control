@@ -10,8 +10,8 @@ _event_dtype = [('timestamp', '<f4'),
 
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
-                     ('axis_id', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
-                     ('movement_status', 'U10'),  # String stating whether stage starts or stops movement
+                     ('axis', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
+                     ('movement_status', 'S10'),  # String stating whether stage starts or stops movement
                      ('position', '<f4'),  # Position at movement status [mm]
                      ('speed', '<f4'),  # Speed at movement status [mm/s]
                      ('accel', '<f4'),  # Acceleration at movement status [mm/s2]
