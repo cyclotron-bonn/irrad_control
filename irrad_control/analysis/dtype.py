@@ -29,7 +29,6 @@ _beam_dtype = [('timestamp', '<f4'),  # Timestamp of current measurement [s]
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
-               ('n_rows', '<i2'),  # Number of total rows
                ('row_start_timestamp', '<f4'),  # Posix-timestamp when beginning to scan a row [s]
                ('row_stop_timestamp', '<f4'),  # Posix-timestamp when ending to scan a row [s]
                ('row_start_x', '<f4'),  # x component of the starting position of currently-scanned row [mm]
@@ -43,6 +42,7 @@ _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row_tid', '<f4'),  # The TID during scanning current row [Mrad]
                ('row_tid_error', '<f4'),  # Error of the tid [Mrad]
                ('row_scan_speed', '<f4'),  # Speed with which the sample is scanned [mm/s]
+               ('row_scan_accel', '<f4'),  # Acceleration with which scan speed is approached / slowed down [mm/s^2]
                ('row_separation', '<f4')]  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
 
 # Damage data dtype; contains NIEL and TID damage data on a per-scan basis

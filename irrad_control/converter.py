@@ -484,8 +484,7 @@ class IrradConverter(DAQProcess):
 
         if data['status'] == 'scan_init':
 
-            self.data_arrays[server]['scan']['row_separation'] = data['y_step']
-            self.data_arrays[server]['scan']['n_rows'] = data['n_rows']
+            self.data_arrays[server]['scan']['row_separation'] = data['row_sep']
             self._row_fluence_hist[server] = [0] * data['n_rows']
 
             # Make sure we are recoding data when we initialize a scan
@@ -503,6 +502,7 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['scan']['row_start_x'] = data['x_start']
             self.data_arrays[server]['scan']['row_start_y'] = data['y_start']
             self.data_arrays[server]['scan']['row_scan_speed'] = data['speed']
+            self.data_arrays[server]['scan']['row_scan_accel'] = data['accel']
 
         elif data['status'] == 'scan_stop':
 
