@@ -335,7 +335,7 @@ class DUTScan(object):
 
             # Initialize scan
             _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
-            _data = {'status': 'scan_init', 'y_step': self._scan_params['row_sep'], 'n_rows': self._scan_params['n_rows']}
+            _data = {'status': 'scan_init', 'row_sep': self._scan_params['row_sep'], 'n_rows': self._scan_params['n_rows']}
 
             # Put init data
             data_pub.send_json({'meta': _meta, 'data': _data})
