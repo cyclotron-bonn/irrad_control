@@ -12,6 +12,22 @@ class DUTScan(object):
     """Class that handles the scanning of a device-under-test (DUT) through a grid-like scheme by controlling a two-dimensional motor stage.
     Additionally, if set up, the scan progress is published via ZMQ"""
 
+    @property
+    def n_rows(self):
+        return self._scan_params['n_rows']
+
+    @n_rows.setter
+    def n_rows(self, val):
+        raise AttributeError("n_rows is read-only")
+
+    @property
+    def rows(self):
+        return self._scan_params['rows']
+
+    @rows.setter
+    def rows(self, val):
+        raise AttributeError("rows is read-only")
+
     def __init__(self, scan_stage, scan_config):
 
         # Timing-related

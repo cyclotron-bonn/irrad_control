@@ -23,9 +23,7 @@ class IrradServer(DAQProcess):
         # Hold server devices
         self.devices = {}
 
-        self._motorstages = []#
-
-        self.scan = None
+        self._motorstages = []
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
@@ -253,48 +251,27 @@ class IrradServer(DAQProcess):
             if cmd == 'setup':
 
                 if 'ScanStage' in self.devices:
-                    # Make scan object with ScanStage as stage
-                    self.scan = DUTScan(scan_stage=self.devices['ScanStage'])
+
+                    # Add special __scan__ device which from now on can be accessed via the direct device calls
+                    self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'], scan_config=data)
 
                     # Connect to ZMQ
-                    self.scan.setup_zmq(ctx=self.context, skt=self.socket_type['data'],
-                                        addr=self._internal_sub_addr,
-                                        sender=self.server)
-                    # Setup current scan
-                    self.scan.setup_scan(**data)
+                    self.devices['__scan__'].setup_zmq(ctx=self.context,
+                                                       skt=self.socket_type['data'],
+                                                       addr=self._internal_sub_addr,
+                                                       sender=self.server)
 
                     # Make return data
-                    _data = {'n_rows': self.scan.scan_config['n_rows'], 'rows': self.scan.scan_config['rows']}
+                    _data = {'n_rows': self.devices['__scan__'].n_rows, 'rows': self.devices['__scan__'].rows}
 
                     self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
                 else:
                     logging.error(f"No ScanStage in server {self.name} devices. Abort.")
                     self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
-            elif self.scan is not None:
-
-                if cmd == 'start':
-                    self.scan.scan_device()
-
-                elif cmd == 'stop':
-                    if not self.scan.event('stop'):
-                        self.scan.event('stop', True)
-
-                elif cmd == 'finish':
-                    if not self.scan.event('finish'):
-                        self.scan.event('finish', True)
-
-                elif cmd == 'no_beam':
-                    if data:
-                        if not self.scan.event('no_beam'):
-                            self.scan.event('no_beam', True)
-                    else:
-                        if not self.scan.event('no_beam'):
-                            self.scan.event('no_beam', False)
-                    self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=data)
-            else:
-                logging.error(f"No scan object initialized for server {self.name}. Abort.")
-                self._send_reply(reply=cmd, _type='ERROR', sender=target)
+        else:
+            logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
+            self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
     def clean_up(self):
         """Mandatory clean up - method"""
