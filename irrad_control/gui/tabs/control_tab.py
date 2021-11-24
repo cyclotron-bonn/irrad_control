@@ -100,13 +100,13 @@ class IrradControlTab(QtWidgets.QWidget):
                 self._beam_down_timer[server] = time.time()
 
                 if server not in self._beam_down or not self._beam_down[server]:
-                    self.send_cmd(server, 'stage', 'no_beam', True)
+                    self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'beam_down'}})
                     self._beam_down[server] = True
 
             else:
                 if server in self._beam_down and self._beam_down[server]:
                     if time.time() - self._beam_down_timer[server] > 1.0:
-                        self.send_cmd(server, 'stage', 'no_beam', False)
+                        self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'beam_ok'}})
                         self._beam_down[server] = False
 
     def scan_status(self, server, status='started'):
