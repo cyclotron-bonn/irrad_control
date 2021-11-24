@@ -374,15 +374,7 @@ class ScanControlWidget(ControlWidget):
         # Scan
         btn_start = QtWidgets.QPushButton('START')
         btn_start.setToolTip("Start scan.")
-        for x in [lambda _: self.send_cmd(hostname='localhost',
-                                          target='interpreter',
-                                          cmd='scan_setup',
-                                          cmd_data={'server': self.server, 'setup': self.scan_params}),
-                  lambda _: self.send_cmd(hostname=self.server,
-                                          target='scan',
-                                          cmd='setup',
-                                          cmd_data=self.scan_params)]:
-            btn_start.clicked.connect(x)
+        btn_start.clicked.connect(lambda _: self.send_cmd(hostname=self.server, target='scan', cmd='setup', cmd_data=self.scan_params))
 
         btn_finish = QtWidgets.QPushButton('FINISH')
         btn_finish.setToolTip("Finish the scan. Allow remaining rows to be scanned before finishing.")

@@ -325,20 +325,8 @@ class DUTScan(object):
 
         """
 
-        data_pub = None
-
-        # If we can use zmq
-        if self.zmq_config:
-
-            # Initialize zmq data publisher
-            data_pub = create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
-
-            # Initialize scan
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
-            _data = {'status': 'scan_init', 'row_sep': self._scan_params['row_sep'], 'n_rows': self._scan_params['n_rows']}
-
-            # Put init data
-            data_pub.send_json({'meta': _meta, 'data': _data})
+        # Initialize zmq data publisher if zmq is setup
+        data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
 
         # Move to start point
         self.scan_stage.move_abs(axis=0, value=self._scan_params['start'][0])
@@ -346,6 +334,20 @@ class DUTScan(object):
 
         # Set the scan speed
         self.scan_stage.set_speed(value=self._scan_params['scan_speed'], axis=0, unit='mm/s')
+
+        if data_pub is not None:
+
+            # Initialize scan
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
+            _data = {'status': 'scan_init', 'row_sep': self._scan_params['row_sep'], 'n_rows': self._scan_params['n_rows'],
+                     'aim_damage': self.scan_config['aim_damage'], 'aim_value': self.scan_config['aim_value'],
+                     'min_current': self.scan_config['min_current'],
+                     'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
+                     'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
+                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)]}
+
+            # Put init data
+            data_pub.send_json({'meta': _meta, 'data': _data})
 
         # Start actual scan: each scan is counted as one coverage of the entire area
         try:
