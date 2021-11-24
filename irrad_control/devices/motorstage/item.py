@@ -144,7 +144,7 @@ class ItemLinearStage(BaseAxis):
 
     props = {'position': 'POSACTUAL'}
 
-    def __init__(self, host, port, udp, travel=716.5e-3, config=None):
+    def __init__(self, host, port, udp, travel=716.5e-3, model=None, config=None):
 
         self.udp = udp
 
@@ -158,7 +158,7 @@ class ItemLinearStage(BaseAxis):
         self.item_client.send_cmd(cmd='CONNECT udp', data=udp)
 
         self.controller_id = self.get_id()
-
+        self.model = model
         self.travel = travel  # meter
 
         super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
