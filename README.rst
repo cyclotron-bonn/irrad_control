@@ -1,5 +1,5 @@
 =============================
-Irrad_Control |travis-status|
+Irrad_Control |`https://github.com/Silab-Bonn/pylandau/actions/workflows/tests.yml/badge.svg?branch=master`_|
 =============================
 
 Introduction
