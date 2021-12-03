@@ -133,10 +133,12 @@ class IrradServer(DAQProcess):
                                                   ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
             self.devices['IrradDAQBoard'].set_ifs(group='ch12',
                                                   ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
-
+            self._daq_board_ntc_ro = False
             if 'ntc' in self.setup['server']['readout']:
                 ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
-                self.devices['IrradDAQBoard'].cycle_temp_channels(channels=ntc_channels, timeout=0.2)
+                self.devices[dev].init_ntc_readout(ntc_channels=ntc_channels)
+                self.launch_thread(target=self._sync_ntc_readout)
+                self._daq_board_ntc_ro = True
 
     def daq_thread(self, daq_func):
         """
@@ -175,11 +177,17 @@ class IrradServer(DAQProcess):
         _data = self.devices['ADCBoard'].read_channels(self.setup['server']['readout']['channels'])
 
         # If we're using the NTC readout of the DAqBoard
-        if 'IrradDAQBoard' in self.devices and 'ntc' in self.setup['server']['readout']:
-            # Expect the temp channel only to be changed programmatically
-            _meta['ntc_ch'] = self.devices['IrradDAQBoard'].get_temp_channel(cached=True)
-
+        if self._daq_board_ntc_ro:
+            _meta['ntc_ch'] = self.devices['IrradDAQBoard'].ntc
+            if self.devices['IrradDAQBoard'].ntc_sync.is_set():
+                self.devices['IrradDAQBoard'].next_ntc()
+                self.devices['IrradDAQBoard'].ntc_sync.clear()
         return _meta, _data
+
+    def _sync_ntc_readout(self, sync_time=0.2):
+        """Sync ADC readout with switching NTC channels on IrradDAQBoard"""
+        while not self.stop_flags['send'].wait(sync_time):
+            self.devices['IrradDAQBoard'].ntc_sync.set()
 
     def _daq_temp(self):
         """

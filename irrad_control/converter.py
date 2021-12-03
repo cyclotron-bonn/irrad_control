@@ -106,7 +106,8 @@ class IrradConverter(DAQProcess):
                 try:
                     dtype = self.dtypes[dname.lower()]
                 except KeyError:  # Raw and RawOffset data
-                    dtype = self.dtypes.generic_dtype(names=['timestamp']+self.readout_setup[server]['channels'])
+                    names = ['timestamp'] + self.readout_setup[server]['channels']
+                    dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8']+['<f4']*(len(names)-1))
 
                 # Create and store tables
                 self.data_tables[server][dname.lower()] = self.output_table.create_table('/{}'.format(server_setup['name']),
@@ -144,7 +145,7 @@ class IrradConverter(DAQProcess):
             if 'ntc' in server_setup['readout']:
 
                 dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
-                                                  dtypes=['<f4', '<S{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
+                                                  dtypes=['<f8', '<S{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
                 dname = 'temp_daq_board'
                 node_name = 'DAQBoard'
 
@@ -162,8 +163,8 @@ class IrradConverter(DAQProcess):
                 self.data_flags[server][dname] = False
 
             if 'ArduinoTempSens' in server_setup['devices']:
-
-                dtype = self.dtypes.generic_dtype(names=['timestamp'] + list(server_setup['devices']['ArduinoTempSens']['setup'].values()))
+                names = ['timestamp'] + list(server_setup['devices']['ArduinoTempSens']['setup'].values())
+                dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8']+['<f4']*(len(names)-1))
                 dname = 'temp_arduino'
                 node_name = 'ArduinoTempSens'
 
