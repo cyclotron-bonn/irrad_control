@@ -47,7 +47,7 @@ jobs:
         run: |
           conda info -a
           conda install numpy pyyaml pyzmq pytables pyqt pyqtgraph matplotlib paramiko nose
-          pip install -r reqirements.txt
+          pip install -r requirements.txt
 
       - name: Package installation
         shell: bash -l {0}
