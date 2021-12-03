@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 
 # Event dtype; used to log events such as beam current shutdowns, state changes etc
-_event_dtype = [('timestamp', '<f4'),
+_event_dtype = [('timestamp', '<f8'),
                 ('event', '<S64'),
                 ('parameters', '<S256')]
 
 # Motorstage data type; contains motorstage positions and parameters
-_motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
+_motorstage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
                      ('axis_id', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
                      ('movement_status', 'U10'),  # String stating whether stage starts or stops movement
                      ('position', '<f4'),  # Position at movement status
@@ -18,7 +18,7 @@ _motorstage_dtype = [('timestamp', '<f4'),  # Timestamp [s]
                      ('travel', '<f4')]  # Travel
 
 # Beam data type: contains info about beam current and position from primary and secondary signals
-_beam_dtype = [('timestamp', '<f4'),  # Timestamp of current measurement [s]
+_beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
                ('beam_current', '<f4'),  # Beam current value [A]
                ('beam_current_error', '<f4'),  # Error of the beam current e.g. measurement error [A]
                ('reconstructed_beam_current', '<f4'),  # Beam current value reconstructed from signal after ADC instead of analog signal [A]
@@ -30,8 +30,8 @@ _beam_dtype = [('timestamp', '<f4'),  # Timestamp of current measurement [s]
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
                ('n_rows', '<i2'),  # Number of total rows
-               ('row_start_timestamp', '<f4'),  # Posix-timestamp when beginning to scan a row [s]
-               ('row_stop_timestamp', '<f4'),  # Posix-timestamp when ending to scan a row [s]
+               ('row_start_timestamp', '<f8'),  # Posix-timestamp when beginning to scan a row [s]
+               ('row_stop_timestamp', '<f8'),  # Posix-timestamp when ending to scan a row [s]
                ('row_start_x', '<f4'),  # x component of the starting position of currently-scanned row [mm]
                ('row_start_y', '<f4'),  # y component of the starting position of currently-scanned row [mm]
                ('row_stop_x', '<f4'),  # x component of the stopping position of currently-scanned row [mm]
@@ -46,7 +46,7 @@ _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row_separation', '<f4')]  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
 
 # Damage data dtype; contains NIEL and TID damage data on a per-scan basis
-_damage_dtype = [('timestamp', '<f4'), # Timestamp [s]
+_damage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
                  ('scan', '<i2'),  # Number of *completed* scans,
                  ('scan_proton_fluence', '<f8'),  # Proton fluence delivered in this scan [protons/cm^2]
                  ('scan_proton_fluence_error', '<f8'),  # Error of proton fluence delivered in this scan [protons/cm^2]
@@ -55,7 +55,7 @@ _damage_dtype = [('timestamp', '<f4'), # Timestamp [s]
 
 
 # Result data type: contains proton as well as neutron fluence and scaling factor
-_result_dtype = [('timestamp', '<f4'),
+_result_dtype = [('timestamp', '<f8'),
                  ('proton_fluence', '<f8'),
                  ('proton_fluence_error', '<f8'),
                  ('neutron_fluence', '<f8'),
