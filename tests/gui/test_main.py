@@ -1,9 +1,9 @@
 import sys
 import logging
 import unittest
-import time
 
 from PyQt5 import QtWidgets
+
 from irrad_control.main import IrradControlWin
 
 
@@ -17,16 +17,27 @@ class TestMain(unittest.TestCase):
 
         # Create complete window which can be accessed after launch
         cls.irrad_window = IrradControlWin()
+        cls.irrad_window.show()
 
-        time.sleep(10)  # Workaround for threaded launch
+        # Exit app after finding servers
+        cls.irrad_window.setup_tab.session_setup.setup_widgets['network'].serverIPsFound.connect(cls.test_app.exit)
+
+        # Execute app; After server finding returns, main window is setup and can be tested
+        cls.test_app.exec_()
 
     @classmethod
     def tearDownClass(cls):
         pass
 
-    def test_main_window_tabs(self):
+    def test_setup_main_state(self):
 
-        self.assertListEqual(list(self.irrad_window.tab_order), list(self.irrad_window.tabs.tabText(i) for i in range(self.irrad_window.tabs.count())))
+        # Check if we have 3 tabs: ('Setup', 'Control', 'Monitor')
+        assert self.irrad_window.tabs.count() == 3
+
+        # Check if we have setup enabled, nothing else tabs: ('Setup', 'Control', 'Monitor')
+        assert self.irrad_window.tabs.isTabEnabled(0)
+        assert not self.irrad_window.tabs.isTabEnabled(1)
+        assert not self.irrad_window.tabs.isTabEnabled(2)
 
 
 if __name__ == '__main__':

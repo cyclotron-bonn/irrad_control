@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
-from collections import Iterable
+from collections.abc import Iterable
 
 
 class GridContainer(QtWidgets.QGroupBox):
