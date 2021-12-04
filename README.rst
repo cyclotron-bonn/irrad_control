@@ -1,5 +1,5 @@
 =============================
-Irrad_Control |`https://github.com/Silab-Bonn/pylandau/actions/workflows/tests.yml/badge.svg?branch=master`_|
+Irrad_Control |test-status|
 =============================
 
 Introduction
@@ -37,6 +37,12 @@ To install the `uncertainties` package use `pip`
 
   pip install uncertainties
 
+To be able to run the tests locallay, install the `pytest` package
+
+.. code-block::
+
+  pip install pytest
+
 To finally install ``irrad_control`` on the DAQ PC run the setup script
 
 .. code-block:: bash
@@ -68,6 +74,6 @@ Furthermore, several NTCs are located inside the cooling box which is cooled via
 For more information please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
 
 
-.. |travis-status| image:: https://api.travis-ci.com/SiLab-Bonn/irrad_control.svg?branch=development
-    :target: https://travis-ci.com/SiLab-Bonn/irrad_control
+.. |test-status| image:: https://github.com/Silab-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=development
+    :target: https://github.com/SiLab-Bonn/irrad_control/actions
     :alt: Build status

@@ -46,7 +46,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda info -a
-          conda install numpy pyyaml pyzmq pytables pyqt pyqtgraph matplotlib paramiko nose
+          conda install numpy pyyaml pyzmq pytables pyqt pyqtgraph matplotlib paramiko pytest
           pip install -r requirements.txt
 
       - name: Package installation
@@ -63,4 +63,4 @@ jobs:
 
       - name: Testing
         shell: bash -l {0}
-        run: nosetests
+        run: pytest
