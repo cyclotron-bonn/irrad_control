@@ -644,8 +644,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
-                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows']})
+                    self.monitor_tab.add_fluence_hist(kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      n_rows=reply_data['n_rows'],
+                                                      server=hostname)
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
 
