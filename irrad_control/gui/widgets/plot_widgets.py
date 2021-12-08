@@ -48,7 +48,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
     """Widget that wraps PlotWidgets and implements some additional features which allow to control the PlotWidgets content.
     Also adds button to show the respective PlotWidget in a QMainWindow"""
 
-    def __init__(self, plot=None, plot_path=None, parent=None):
+    def __init__(self, plot=None, plot_path=None, file_name=None, parent=None):
         super(PlotWrapperWidget, self).__init__(parent=parent)
 
         # Set a reasonable minimum size
@@ -63,8 +63,10 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QVBoxLayout())
         self.plot_options = GridContainer(name='Plot options' if not hasattr(self.pw, 'name') else '{} options'.format(self.pw.name))
 
-        # Output path for screenshots
-        self.plot_path = plot_path
+        # Output path and file_name for screenshots
+        self.plot_path = os.getcwd() if plot_path is None else plot_path
+        self.file_name = type(plot).__name__ if file_name is None else file_name
+        self.file_format = 'png'
 
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
@@ -198,13 +200,12 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Generate filename
         number = 0
-        out_file = lambda pw, n: os.path.join(os.getcwd() if self.plot_path is None else self.plot_path,
-                                              '{}_{}.png'.format(type(pw).__name__, n))
-        while os.path.isfile(out_file(self.pw, number)):
+        out_file = lambda n: os.path.join(self.plot_path, f'{self.file_name}_{n}.{self.file_format}')
+        while os.path.isfile(out_file(number)):
             number += 1
 
-        exporter.export(out_file(self.pw, number))
-        logging.info("Saved plot to {}".format(out_file(self.pw, number)))
+        exporter.export(out_file(number))
+        logging.info(f"Saved plot to {out_file(number)}")
 
 
 class MultiPlotWidget(QtWidgets.QScrollArea):

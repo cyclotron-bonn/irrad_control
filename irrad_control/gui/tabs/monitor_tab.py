@@ -18,6 +18,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
         self.daq_tabs = QtWidgets.QTabWidget()
         self.monitor_tabs = {}
+        self.monitor_widgets = {}
 
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().addWidget(self.daq_tabs)
@@ -36,6 +37,8 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
             # Tabs per server
             self.monitor_tabs[server] = QtWidgets.QTabWidget()
+
+            self.monitor_widgets[server] = {}
 
             for monitor in self.monitors:
 
@@ -112,6 +115,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
                 if monitor_widget is not None:
+                    self.monitor_widgets[server][monitor] = monitor_widget
                     self.monitor_tabs[server].addTab(monitor_widget, monitor)
 
             self.daq_tabs.addTab(self.monitor_tabs[server], self.setup[server]['name'])
@@ -124,3 +128,15 @@ class IrradMonitorTab(QtWidgets.QWidget):
             monitor_widget = plots.PlotWrapperWidget(self.plots[server]['fluence_plot'],
                                                      plot_path=self.plot_path)
             self.monitor_tabs[server].addTab(monitor_widget, 'Fluence')
+
+    def save_plots(self):
+
+        for server, monitor in self.monitor_widgets.items():
+            if isinstance(monitor, plots.PlotWrapperWidget):
+                monitor.save_plot()
+            elif isinstance(monitor, plots.MultiPlotWidget):
+                for plot in monitor.individual_plots:
+                    if isinstance(plot, plots.PlotWrapperWidget):
+                        plot.save_plot()
+            else:
+                logging.warning(f'{monitor.capitalize()} plot of server {server} cannot be saved')

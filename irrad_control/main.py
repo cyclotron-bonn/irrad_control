@@ -755,6 +755,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.stop_recv_log.set()
         self.close_timer.stop()
 
+        # Store all plots on close; AttributeError when app was not launched fully
+        try:
+            self.monitor_tab.save_plots()
+        except AttributeError:
+            pass
+
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)
 
