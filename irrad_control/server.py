@@ -136,7 +136,7 @@ class IrradServer(DAQProcess):
             self._daq_board_ntc_ro = False
             if 'ntc' in self.setup['server']['readout']:
                 ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
-                self.devices[dev].init_ntc_readout(ntc_channels=ntc_channels)
+                self.devices['IrradDAQBoard'].init_ntc_readout(ntc_channels=ntc_channels)
                 self.launch_thread(target=self._sync_ntc_readout)
                 self._daq_board_ntc_ro = True
 
