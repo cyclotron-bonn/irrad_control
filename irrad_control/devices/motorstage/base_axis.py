@@ -220,7 +220,7 @@ class BaseAxis(object):
     def _read_config(self, base_unit='mm'):
 
         for prop in self.init_props:
-            _unit = ('{}/s' if prop == 'speed' else '{}/s^2' if prop == 'accel' else '{}').format(base_unit)
+            _unit = self._get_physical_prop_unit(prop=prop, base_unit=base_unit)
             self.config['axis'][prop].update({'value': getattr(self, 'get_{}'.format(prop))(_unit), 'unit': _unit})
 
     def _apply_config(self):
@@ -246,6 +246,36 @@ class BaseAxis(object):
             unit = self.units[unit_type][0]
 
         return unit
+
+    def _get_physical_prop_unit(self, prop, base_unit):
+        """
+        Method returning unit string for physical property *prop* for *base_unit*
+        """
+        return ('{}/s' if prop == 'speed' else '{}/s^2' if prop == 'accel' else '{}').format(base_unit)
+
+    def get_physical_props(self, base_unit='mm'):
+        """
+        Convenience method which returns all physical properties of the motorstage such as positon, speed, range and acceleration in *base_unit*
+
+        Parameters
+        ----------
+        base_unit: str
+            base unit in which properties are given; anything in *self.units[self._dist]*
+
+        Returns
+        -------
+        Dict holding physical properties
+        """
+        physical_properties = {'position': None, 'range': None, 'speed': None, 'accel': None}
+        for prop in physical_properties:
+            physical_properties[prop] = getattr(self, f'get_{prop}')(unit=self._get_physical_prop_unit(prop=prop, base_unit=base_unit))
+        return physical_properties
+
+    def get_positions(self):
+        """
+        Method returning all known positions
+        """
+        return self.config['axis']['positions']
 
     def add_position(self, name, unit, value=None, date=None):
         """

@@ -435,10 +435,21 @@ class ZaberMultiAxis(object):
         else:
             _ = [getattr(a, f'set_{prop}')(value=value, unit=unit) for a in self.axis]
 
+    def get_physical_props(self, base_unit='mm'):
+        return [a.get_physical_props(base_unit=base_unit) for a in self.axis]
+
     def home_stage(self):
         """Send all axis to their lower limit"""
         for axis in reversed(self.axis):
             axis.move_abs(axis.config['range']['value'][0], unit=axis.config['range']['unit'])
+
+    def get_positions(self):
+
+        axes_positions = [a.get_positions() for a in self.axis]
+        common_positions = set(pos for ap in axes_positions for pos in ap)
+        axes_positions = [{cp: axes_positions[i][cp] for cp in common_positions} for i in range(len(self.axis))]
+
+        return axes_positions
 
     def get_position(self, unit=None):
         """
