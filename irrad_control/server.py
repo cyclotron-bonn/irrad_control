@@ -252,7 +252,8 @@ class IrradServer(DAQProcess):
                 self.shutdown()
 
             elif cmd == 'motorstages':
-                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data={d: self.devices[d].config for d in self._motorstages})
+                reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
+                self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
 
         elif target == 'scan':
 

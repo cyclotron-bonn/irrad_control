@@ -59,37 +59,40 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         # Buttons to apply /cancel save
         self._init_buttons()
 
-    def add_motorstage(self, motorstage, config):
+    def add_motorstage(self, motorstage, positions, properties):
         """Get everything from motorstage configuration"""
 
-        # If motorstage has only one axis
-        if 'positions' in config['axis']:
-            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis']['range']['value']], unit=config['axis']['range']['unit'])
-
+        # We have only one axis
+        if isinstance(positions, dict):
+            self._add_motorstage(motorstage=motorstage, travel_range=[properties['range']], unit='mm')
+            
             # Add motorstage positions
-            for p in config['axis']['positions']:
-                pos = config['axis']['positions'][p]
-                self.positions[motorstage][p] = {0: pos['value'], 'unit': pos['unit'], 'date': pos['date']}
-                self._add_position(motorstage=motorstage, name=p, coordinates=[pos['value']], unit=pos['unit'], date=pos['date'], saved=True)
+            for pos_name, pos in positions.items():
+                self.positions[motorstage][pos_name] = {'value': pos['value'], 'unit': pos['unit'], 'date': pos['date']}
+                self._add_position(motorstage=motorstage,
+                                   name=pos_name,
+                                   coordinates=[pos['value']],
+                                   unit=[pos['unit']],
+                                   date=pos['date'],
+                                   saved=True)
+
 
         # Multiple axes
-        else:
-            self._add_motorstage(motorstage=motorstage, travel_range=[config['axis'][f'{i}']['axis']['range']['value'] for i in range(len(config['axis']))],
-                                 unit=config['axis']['0']['axis']['range']['unit'])
-
-            # Common positions of all axes of motorstage
-            common_positions = set(pos for a in config['axis'] for pos in config['axis'][a]['axis']['positions'])
+        elif isinstance(positions, list):
+            self._add_motorstage(motorstage=motorstage, travel_range=[p['range'] for p in properties], unit='mm')
 
             # Add motorstage positions
-            for cp in common_positions:
+            for pos_name in positions[0]:
 
-                coordinates = [config['axis'][i]['axis']['positions'][cp]['value'] for i in range(len(config['axis']))]
-                self.positions[motorstage][cp] = {**{i: coordinates[i] for i in range(len(coordinates))},
-                                                  **{'unit': config['axis'][0]['axis']['positions'][cp]['unit'],
-                                                     'date': config['axis'][0]['axis']['positions'][cp]['date']}}
-                self._add_position(motorstage=motorstage, name=cp, coordinates=coordinates,
-                                   unit=config['axis'][0]['axis']['positions'][cp]['unit'],
-                                   date=config['axis'][0]['axis']['positions'][cp]['date'], saved=True)
+                coordinates = [pos[pos_name]['value'] for pos in positions]
+                units = [pos[pos_name]['unit'] for pos in positions]
+                self.positions[motorstage][pos_name] = {'value': coordinates, 'unit': units, 'date': positions[0][pos_name]['date']}
+                self._add_position(motorstage=motorstage, 
+                                   name=pos_name,
+                                   coordinates=coordinates,
+                                   unit=units,
+                                   date=positions[0][pos_name]['date'],
+                                   saved=True)
 
         self._edit(motorstage=motorstage)
 
@@ -185,20 +188,20 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         if name not in self._positions_buffer[motorstage]:
             # Buffer original position when added
-            self._positions_buffer[motorstage][name] = {**{i: coordinates[i] for i in range(len(coordinates))},
-                                                        **{'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}}
+            self._positions_buffer[motorstage][name] = {'value': coordinates, 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
+            
             # Make spinboxes for position
             spxs = []
             for i in range(len(coordinates)):
                 spx = QtWidgets.QDoubleSpinBox()
                 spx.setPrefix(f'Axis {i}: ')
-                spx.setSuffix(f' {unit}')
+                spx.setSuffix(f' {unit[i]}')
                 spx.setDecimals(3)
                 spx.setMinimum(self._ms_spnbxs[motorstage][i].minimum())
                 spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
                 spx.setValue(coordinates[i])
                 spx.wheelEvent = lambda e: None  # Disable wheel event
-                spx.valueChanged.connect(lambda val, axis=i: self._positions_buffer[motorstage][name].update({axis: val}))
+                spx.valueChanged.connect(lambda val, axis=i: self._positions_buffer[motorstage][name]['value'].__setitem__(axis, val))
                 spx.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
                 spxs.append(spx)
 

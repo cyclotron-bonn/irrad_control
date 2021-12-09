@@ -22,7 +22,7 @@ class ControlWidget(GridContainer):
 
 class MotorStageControlWidget(ControlWidget):
 
-    motorstagePropertiesUpdated = QtCore.pyqtSignal()
+    motorstagePropertiesUpdated = QtCore.pyqtSignal(str)
 
     def __init__(self, server, parent=None):
         super(MotorStageControlWidget, self).__init__(name='Motorstage Control', parent=parent)
@@ -62,7 +62,42 @@ class MotorStageControlWidget(ControlWidget):
         # self.add_widget(master_btn_stop)
         self.add_widget(master_btn_positions)
 
-    def add_motorstage(self, motorstage, config):
+    def _get_n_axis(self, motorstage):
+        try:
+            n_axis = DEVICES_CONFIG[motorstage]['init']['n_axis']
+        except KeyError:
+            n_axis = 1
+        return n_axis
+
+    def _update_ui_elements(self, motorstage, elements, axis):
+
+        spxs_range, spx_speed, spx_abs = elements
+        
+        if axis == 1:
+            spxs_range[0].setValue(self.motorstage_properties[motorstage]['range'][0])
+            spxs_range[1].setValue(self.motorstage_properties[motorstage]['range'][1])
+            spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
+            spx_abs.setRange(*self.motorstage_properties[motorstage]['range'])
+            spx_abs.setValue(*self.motorstage_properties[motorstage]['range'][0])
+        else:
+            spxs_range[0].setValue(self.motorstage_properties[motorstage][axis]['range'][0])
+            spxs_range[1].setValue(self.motorstage_properties[motorstage][axis]['range'][1])
+            spx_speed.setValue(self.motorstage_properties[motorstage][axis]['speed'])
+            spx_abs.setRange(*self.motorstage_properties[motorstage][axis]['range'])
+            spx_abs.setValue(*self.motorstage_properties[motorstage][axis]['range'][0])
+
+    def update_motorstage_properties(self, motorstage, properties):
+
+        if motorstage in self.motorstage_properties:
+            if 'n_axis' in DEVICES_CONFIG[motorstage]['init']:
+                for i in range(DEVICES_CONFIG[motorstage]['init']['n_axis']):
+                    self.motorstage_properties[motorstage][i].update(properties[i])
+            else:
+                self.motorstage_properties[motorstage].update(properties)
+
+            self.motorstagePropertiesUpdated.emit(motorstage)
+
+    def add_motorstage(self, motorstage, positions, properties):
 
         # Add only if not already a tab
         if motorstage not in self.motorstage_properties:
@@ -130,12 +165,12 @@ class MotorStageControlWidget(ControlWidget):
             # Get number of axis
             n_axis = 1 if 'n_axis' not in DEVICES_CONFIG[motorstage]['init'] else DEVICES_CONFIG[motorstage]['init']['n_axis']
 
-            # Fill properties; base unit always mm
-            for a in range(n_axis):
-                self.motorstage_properties[motorstage][a] = {'range': [0, 1000], 'speed': 50, 'accel': 3000}
-
             # Handle multiple axes by combobox
             if n_axis > 1:
+
+                # Fill properties; base unit always mm
+                for a in range(n_axis):
+                    self.motorstage_properties[motorstage][a] = {prop: properties[a][prop] for prop in properties[a]}
 
                 # Axis selection
                 label_axis = QtWidgets.QLabel('Axis selection: ')
@@ -164,25 +199,25 @@ class MotorStageControlWidget(ControlWidget):
                 spxs_range[1].setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
             else:
+                # Only one axis
+                for prop in properties:
+                    self.motorstage_properties[motorstage][prop] = properties[prop]
+
                 spxs_range[1].setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
                 spxs_range[1].setValue(spxs_range[1].maximum())
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
-                spx_speed.setValue(self.motorstage_properties[motorstage][0]['speed'])
+                spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
 
             # Get axis index; also for 1 axis
             axis_idx = lambda: 0 if n_axis == 1 else cbx_axis.currentIndex()
 
             ### Connections ###
             ### Connect widgets ###
-            # Update motorstage properties
-            btn_range.clicked.connect(lambda _: self.motorstage_properties[motorstage][axis_idx()].update(
-                {'range': [s.value() for s in spxs_range]}))
-            btn_speed.clicked.connect(lambda _: self.motorstage_properties[motorstage][axis_idx()].update(
-                {'speed': spx_speed.value()}))
-            btn_range.clicked.connect(
-                lambda _: spx_abs.setRange(*self.motorstage_properties[motorstage][axis_idx()]['range']))
-            btn_range.clicked.connect(
-                lambda _: spx_abs.setValue(self.motorstage_properties[motorstage][axis_idx()]['range'][0]))
+
+            # Update UI elements for the motorstage
+            self.motorstagePropertiesUpdated.connect(
+                lambda motorstage, axis=axis_idx, elements=(spxs_range, spx_speed, spx_abs):
+                self._update_ui_elements(motorstage, elements, axis))
 
             # Update combobox items
             self.motorstage_positions_window.motorstagePosChanged.connect(
@@ -204,8 +239,8 @@ class MotorStageControlWidget(ControlWidget):
                                                                              cmd_data={'kwargs': axis_kwargs({'value': [s.value() for s in spxs_range],
                                                                                                               'unit': 'mm'}),
                                                                                        'callback':
-                                                                                           {'method': 'get_range',
-                                                                                            'kwargs': {'unit': 'mm'}}}))
+                                                                                           {'method': 'get_physical_props',
+                                                                                            'kwargs': {'base_unit': 'mm'}}}))
             # Speed
             btn_speed.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
                                                                              target=ms,
@@ -213,8 +248,8 @@ class MotorStageControlWidget(ControlWidget):
                                                                              cmd_data={'kwargs': axis_kwargs({'value': spx_speed.value(),
                                                                                                               'unit': 'mm/s'}),
                                                                                        'callback':
-                                                                                           {'method': 'get_speed',
-                                                                                            'kwargs': {'unit': 'mm/s'}}}))
+                                                                                           {'method': 'get_physical_props',
+                                                                                            'kwargs': {'base_unit': 'mm'}}}))
             # Rel. movement
             btn_rel.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
                                                                            target=ms,
@@ -250,7 +285,7 @@ class MotorStageControlWidget(ControlWidget):
             container.add_widget(widget=[label_pos, cbx_pos, btn_pos])
 
             self.tabs.addTab(container, motorstage)
-            self.motorstage_positions_window.add_motorstage(motorstage=motorstage, config=config)
+            self.motorstage_positions_window.add_motorstage(motorstage=motorstage, positions=positions, properties=properties)
 
 
 class ScanControlWidget(ControlWidget):
