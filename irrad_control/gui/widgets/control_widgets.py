@@ -52,7 +52,12 @@ class MotorStageControlWidget(ControlWidget):
         master_btn_positions.setToolTip('View/edit motorstage positions')
 
         ### Connections ###
-        master_btn_stop.clicked.connect(lambda _: [self.send_cmd(hostname=self.server, target=ms, cmd='stop') for ms in self.motorstage_properties])
+        master_btn_stop.clicked.connect(lambda _: [self.send_cmd(hostname=self.server,
+                                                                 target=ms,
+                                                                 cmd='stop',
+                                                                 cmd_data={'callback': {'method': 'get_physical_props',
+                                                                                        'kwargs': {'base_unit': 'mm'}}})
+                                                    for ms in self.motorstage_properties])
 
         # Open positionswindow and switch to respective motorstage tab
         for x in [lambda _: self.motorstage_positions_window.show(),
@@ -231,7 +236,9 @@ class MotorStageControlWidget(ControlWidget):
             # Send stop to all axes of motorstage
             btn_stop.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
                                                                             target=ms,
-                                                                            cmd='stop'))
+                                                                            cmd='stop',
+                                                                            cmd_data={'callback': {'method': 'get_physical_props',
+                                                                                                   'kwargs': {'base_unit': 'mm'}}}))
             # Range
             btn_range.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
                                                                              target=ms,
