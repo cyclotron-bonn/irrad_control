@@ -271,6 +271,22 @@ class MotorStageControlWidget(ControlWidget):
                                                                            cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
                                                                                      'threaded': True}))  # Movement in separate thread
 
+            # Rel. movement
+            btn_rel.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
+                                                                                     cmd='move_rel',
+                                                                                     cmd_data={'kwargs': axis_kwargs({'value': spx_rel.value(), 'unit': 'mm'}),
+                                                                                               'threaded': True}))  # Movement in separate thread
+            # Abs. movement
+            btn_abs.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
+                                                                                     cmd='move_abs',
+                                                                                     cmd_data={'kwargs': axis_kwargs({'value': spx_abs.value(), 'unit': 'mm'}),
+                                                                                               'threaded': True}))  # Movement in separate thread
+            # Abs. movement
+            btn_pos.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
+                                                                                     cmd='move_pos',
+                                                                                     cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
+                                                                                               'threaded': True}))  # Movement in separate thread
+
             # Add everything to container
             container = GridContainer(name='')
             container.grid.addWidget(label_stop, container.grid.rowCount(), 0)
@@ -286,6 +302,85 @@ class MotorStageControlWidget(ControlWidget):
 
             self.tabs.addTab(container, motorstage)
             self.motorstage_positions_window.add_motorstage(motorstage=motorstage, positions=positions, properties=properties)
+
+    def _send_movement_cmd(self, motorstage, mov_cmd, cmd_data):
+        
+        restricted = ('SetupTableStage', 'ExternalCupStage')
+        restricted_controllable = [r in self.motorstage_properties for r in restricted]
+        move = False
+
+        # Do checks on restricted movement
+        if motorstage in restricted:
+            
+            # We have control over all stages which is nice
+            if all(restricted_controllable):
+
+                if motorstage == restricted[0] and self.motorstage_properties[restricted[1]]['position'] > 1:
+                    # We need to move restricted[1] to 0 first to allow movement of restricted[0]
+                    restricting_ms = restricted[1]
+                elif motorstage == restricted[1] and self.motorstage_properties[restricted[0]]['position'] > 1:
+                    # We need to move restricted[0] to 0 first to allow movement of restricted[1]
+                    restricting_ms = restricted[0]
+                else:
+                    restricting_ms = None        
+                
+                # If no restriction, move
+                if restricting_ms is None:
+                    move = True
+                
+                else:
+                    # Construct message for user
+                    msg = f"Movement of {motorstage} is currently restricted due to {restricting_ms} position being not 0 mm"
+                    msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']} mm)."
+                    msg += f"Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
+                    msg += f"Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
+                    msg += f"You can always stop {restricting_ms}s movement using the 'Stop' button."
+
+                    # Make MessageBox
+                    mbox = QtWidgets.QMessageBox()
+                    mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                    mbox.setWindowTitle(f"Movement of {motorstage} restricted by {restricting_ms}")
+                    mbox.setText(msg)
+                    mbox.addButton(QtWidgets.QMessageBox.Ok)
+                    mbox.addButton(QtWidgets.QMessageBox.Abort)
+
+                    # Move restricting motorstage first
+                    if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                        self.send_cmd(hostname=self.server,
+                                      target=restricting_ms,
+                                      cmd='move_abs',
+                                      cmd_data={'kwargs': {'value': 0, 'unit': 'mm'},
+                                                'threaded': True})
+            
+            # We have control over *motorstage* but not the other one        
+            else:
+
+                missing_ms = [restricted[i] for i, k in enumerate(restricted_controllable) if not k]
+                
+                # Construct message for user
+                msg = f"Movement of {motorstage} may be restricted due to {missing_ms} not being at 0 position."
+                msg += f" {missing_ms} is currently not controlled by irrad_control and its position can not be checked."
+                msg += f"Do you wish to move {motorstage} anyway? Make sure that {missing_ms} is not restricting {motorstage}s movement!"
+                msg += f"Press 'OK' to move {motorstage}, press 'Abort' to cancel."
+                msg += f"You can always stop {motorstage}s movement using the 'Stop' button."
+
+                # Make MessageBox
+                mbox = QtWidgets.QMessageBox()
+                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setWindowTitle(f"Movement of {motorstage} may be restricted by {missing_ms}")
+                mbox.setText(msg)
+                mbox.addButton(QtWidgets.QMessageBox.Ok)
+                mbox.addButton(QtWidgets.QMessageBox.Abort)
+
+                # Move anyway
+                if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                    move = True
+        # Target motorstage is not restricted, just move
+        else:
+            move = True
+        
+        if move:
+            self.send_cmd(hostname=self.server, target=motorstage, cmd=mov_cmd, cmd_data=cmd_data)
 
 
 class ScanControlWidget(ControlWidget):
