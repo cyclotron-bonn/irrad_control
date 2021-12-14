@@ -11,7 +11,7 @@ from irrad_control.utils.daq_proc import DAQProcess
 class BaseDAQProcess(DAQProcess):
 
     def __init__(self):
-        super(BaseDAQProcess, self).__init__(name='TestDAQProcess', commands={})
+        super(BaseDAQProcess, self).__init__(name='TestDAQProcess')
 
     # Define clean up
     def clean_up(self):
