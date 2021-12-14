@@ -584,7 +584,7 @@ class ZaberMultiAxis(object):
         ----------
         name: str
             name of the position
-        pos: iterable, None
+        value: iterable, None
             iterable of position, if None, call get position
         unit: str
             string of metric unit
