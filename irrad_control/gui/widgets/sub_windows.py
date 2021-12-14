@@ -1,9 +1,10 @@
+import logging
 import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
-from .util_widgets import GridContainer, NoBackgroundScrollArea
-# TODO: write delete position func
-# TODO: make visible that position is not yet added if apply is not hit via color
+from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
+from irrad_control.devices import DEVICES_CONFIG
+
 # TODO add btn to get current position
 # TODO: Load stage positions from local config file on demand
 
@@ -11,6 +12,8 @@ from .util_widgets import GridContainer, NoBackgroundScrollArea
 class MotorstagePositionWindow(QtWidgets.QMainWindow):
     """Sub window for adding and editing known motorstage positions"""
 
+    motorstagePosAdded = QtCore.pyqtSignal(str, dict)
+    motorstagePosRemoved = QtCore.pyqtSignal(str, list)
     motorstagePosChanged = QtCore.pyqtSignal(dict)
 
     def __init__(self, parent=None):
@@ -28,16 +31,14 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         self._are_you_sure = True
 
+        self._edit_initiated = {}
+
         self._init_ui()
 
         # Connections
         for x in [lambda idx: self.btn_save.setText(f'Save {self.tabs.tabText(idx)} changes'),
                   lambda idx: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(idx)))]:
             self.tabs.currentChanged.connect(x)
-
-        for x in [lambda m: [self._containers[k]['pos'].widgets[v][-2].setStyleSheet('QLabel {color: green;}') for k in m for v in m[k]],
-                  lambda m: [self._containers[k]['pos'].widgets[v][-2].setText('Saved') for k in m for v in m[k]]]:
-            self.motorstagePosChanged.connect(x)
 
     def _init_ui(self):
 
@@ -59,50 +60,13 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         # Buttons to apply /cancel save
         self._init_buttons()
 
-    def add_motorstage(self, motorstage, positions, properties):
-        """Get everything from motorstage configuration"""
-
-        # We have only one axis
-        if isinstance(positions, dict):
-            self._add_motorstage(motorstage=motorstage, travel_range=[properties['range']], unit='mm')
-            
-            # Add motorstage positions
-            for pos_name, pos in positions.items():
-                self.positions[motorstage][pos_name] = {'value': pos['value'], 'unit': pos['unit'], 'date': pos['date']}
-                self._add_position(motorstage=motorstage,
-                                   name=pos_name,
-                                   coordinates=[pos['value']],
-                                   unit=[pos['unit']],
-                                   date=pos['date'],
-                                   saved=True)
-
-
-        # Multiple axes
-        elif isinstance(positions, list):
-            self._add_motorstage(motorstage=motorstage, travel_range=[p['range'] for p in properties], unit='mm')
-
-            # Add motorstage positions
-            for pos_name in positions[0]:
-
-                coordinates = [pos[pos_name]['value'] for pos in positions]
-                units = [pos[pos_name]['unit'] for pos in positions]
-                self.positions[motorstage][pos_name] = {'value': coordinates, 'unit': units, 'date': positions[0][pos_name]['date']}
-                self._add_position(motorstage=motorstage, 
-                                   name=pos_name,
-                                   coordinates=coordinates,
-                                   unit=units,
-                                   date=positions[0][pos_name]['date'],
-                                   saved=True)
-
-        self._edit(motorstage=motorstage)
-
     def _init_buttons(self):
 
         btn_layout = QtWidgets.QHBoxLayout()
         btn_layout.addStretch(1)
         self.btn_cancel = QtWidgets.QPushButton('Close / Cancel')
         self.btn_save = QtWidgets.QPushButton('Save')
-        self.btn_save.clicked.connect(lambda _: self._edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()), interactive=True))
+        self.btn_save.clicked.connect(lambda _: self._init_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()), interactive=True))
         self.btn_save.setEnabled(False)
         self.btn_save.clicked.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
         self.btn_cancel.clicked.connect(self.close)
@@ -120,6 +84,11 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 h_line.setFrameShape(QtWidgets.QFrame.HLine)
                 h_line.setFrameShadow(QtWidgets.QFrame.Sunken)
                 return h_line
+
+            self._edit_initiated[motorstage] = False
+
+            # Check if we only have single axis
+            travel_range = travel_range if isinstance(travel_range, list) else [travel_range]
 
             # Make column names
             cols = ('Name', 'Position') + (len(travel_range) - 1) * ('',) + ('Date', 'Status', 'Delete')
@@ -187,9 +156,17 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         """Method to create a set of widgets to allow setting position and name """
 
         if name not in self._positions_buffer[motorstage]:
-            # Buffer original position when added
-            self._positions_buffer[motorstage][name] = {'value': coordinates, 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
-            
+
+            coordinates = coordinates if isinstance(coordinates, list) else [coordinates]
+            unit = unit if isinstance(unit, list) else [unit]
+            date = date if isinstance(date, list) else [date]
+
+            if len(coordinates) == 1:
+                # Buffer original position when added
+                self._positions_buffer[motorstage][name] = {'value': coordinates[0], 'unit': unit[0], 'date': date[0] if date is not None else time.asctime(), 'delete': False}
+            else:
+                self._positions_buffer[motorstage][name] = {'value': coordinates, 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
+
             # Make spinboxes for position
             spxs = []
             for i in range(len(coordinates)):
@@ -211,7 +188,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             # Delete checkboxes
             chbx_del = QtWidgets.QCheckBox('Delete {}'.format(name))
 
-            _widgets = [QtWidgets.QLabel(name)] + spxs + [QtWidgets.QLabel("Last updated: {}".format(self._positions_buffer[motorstage][name]['date'])),
+            _widgets = [QtWidgets.QLabel(name)] + spxs + [QtWidgets.QLabel("Last updated: {}".format(date[0])),
                                                           label_status,
                                                           chbx_del]
 
@@ -244,26 +221,29 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         return False
 
-    def _edit(self, motorstage, interactive=False):
-        """Edit the position entries of *motorstage* in our config"""
+    def _init_edit(self, motorstage, interactive=False):
+        """Emit signals to edit the position entries of *motorstage*"""
 
         if interactive and self._are_you_sure:
             cb = QtWidgets.QCheckBox("Don't ask me again during this session")
             cb.stateChanged.connect(lambda state: setattr(self, '_are_you_sure', not bool(state)))
             mbox = QtWidgets.QMessageBox()
             mbox.setCheckBox(cb)
-            mbox.setWindowTitle("Write changes to file?")
-            mbox.setText("Are you sure you want to write changes to XY-Stage config file?")
+            mbox.setWindowTitle("Apply changes?")
+            mbox.setText("Are you sure you want to apply changes? Changes are written to the {} configuration file".format(motorstage))
             mbox.addButton(QtWidgets.QMessageBox.Yes)
             mbox.addButton(QtWidgets.QMessageBox.Cancel)
 
             if mbox.exec_() == QtWidgets.QMessageBox.Yes:
-                self.statusBar().showMessage('Write changes...', 4000)
+                self.statusBar().showMessage('Apply changes...', 4000)
             else:
-                self.statusBar().showMessage('Aborted. No changes written to file', 4000)
+                self.statusBar().showMessage('Cancel', 2000)
                 return
 
         remove = []
+        add = {}
+
+        # Loop over buffer
         for p in self._positions_buffer[motorstage]:
 
             # If its in the aim dict, we're editing or removing
@@ -274,26 +254,102 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                     remove.append(p)
                 # We're editing
                 else:
-                    for k in self._positions_buffer[motorstage][p]:
-                        if k != 'delete':
-                            self.positions[motorstage][p][k] = self._positions_buffer[motorstage][p][k]
+                    add[p] = {k: v for k, v in self._positions_buffer[motorstage][p].items() if k != 'delete'}
 
             # If not, we're adding
             else:
-                self.positions[motorstage][p] = {k: self._positions_buffer[motorstage][p][k] for k in self._positions_buffer[motorstage][p] if k != 'delete'}
+                add[p] = {k: v for k, v in self._positions_buffer[motorstage][p].items() if k != 'delete'}
 
-        for p in remove:
-            self._containers[motorstage]['pos'].remove_widget(self._containers[motorstage]['pos'].widgets[p])
-            del self.positions[motorstage][p]
-            del self._positions_buffer[motorstage][p]
-            del self._containers[motorstage]['pos'].widgets[p]
+        if remove:
+            self.motorstagePosRemoved.emit(motorstage, remove)
+        
+        if add:
+            self.motorstagePosAdded.emit(motorstage, add)
 
-        self.motorstagePosChanged.emit({motorstage: self.positions[motorstage]})
+        self._edit_initiated[motorstage] = True
+
+    def add_motorstage(self, motorstage, positions, properties):
+        """Get everything from motorstage configuration"""
+
+        # We have multiple axes
+        if 'n_axis' in DEVICES_CONFIG[motorstage]['init']:
+            
+            self._add_motorstage(motorstage=motorstage, travel_range=[p['range'] for p in properties], unit='mm')
+
+        # We have only one axis
+        else:
+            self._add_motorstage(motorstage=motorstage, travel_range=properties['range'], unit='mm')
+            
+        # Add motorstage positions
+        for pos_name, pos in positions.items():
+            self.positions[motorstage][pos_name] = {'value': pos['value'], 'unit': pos['unit'], 'date': pos['date']}
+            self._add_position(motorstage=motorstage,
+                                name=pos_name,
+                                coordinates=pos['value'],
+                                unit=pos['unit'],
+                                date=pos['date'],
+                                saved=True)
+
+        self._init_edit(motorstage=motorstage)
+
+    def validate(self, motorstage, positions, validate):
+        """
+        Validates addition/update or removal of a motorstage position by looking at feedback from server that controls the motorstage
+
+        Parameters
+        ----------
+        motorstage: str
+            name of the motorstage (must be in self._positions_buffer[motorstage])
+        positions: dict
+            dict of position(s) that the motorstage has after the command
+        validate: str:
+            operation to validate; either *add* for addiation/update or *remove* for removal
+        """
+
+        # Check if the motorstage has more than one axis
+
+        if validate == 'remove':
+            
+            # These should not exist
+            remove = [name for name, pos in self._positions_buffer[motorstage].items() if pos['delete']]
+
+            # Buffer should have all the positions, check that the right ones were deleted
+            if any(pos in positions for pos in remove):
+                logging.error(f"Position deletion unsuccessful")
+                return
+                
+            for pos in remove:
+                self._containers[motorstage]['pos'].remove_widget(self._containers[motorstage]['pos'].widgets[pos])
+                del self.positions[motorstage][pos]
+                del self._positions_buffer[motorstage][pos]
+                del self._containers[motorstage]['pos'].widgets[pos]
+
+        elif validate == 'add':
+            
+            # Loop over buffer and check if positions are the same; if so add to self.positions
+            for name, pos in self._positions_buffer[motorstage].items():
+
+                # Loop over content
+                for entry, val in pos:
+                    if entry != 'delete':
+                        if positions[name][entry] == val:
+                                self.positions[motorstage][name] = entry
+                                self._containers[motorstage]['pos'].widgets[name][-2].setStyleSheet('QLabel {color: green;}')
+                                self._containers[motorstage]['pos'].widgets[name][-2].setText('Saved')
+                        else:
+                            logging.error(f"Postion {name} returned from server and in buffer are different")
+
+        else:
+            logging.info(f"Unknown validation '{validate}'")
+            return
+
+        self.motorstagePosChanged.emit(self.positions[motorstage])
+        self._edit_initiated[motorstage] = False
 
     def close(self):
 
         for m in self._positions_buffer:
-            r = [k for k in self._positions_buffer[m] if k not in self.positions[m]]
+            r = [k for k in self._positions_buffer[m] if k not in self.positions[m] and not self._edit_initiated[m]]
             for k in r:
                 self._containers[m]['pos'].remove_widget(self._containers[m]['pos'].widgets[k])
                 del self._positions_buffer[m][k]
