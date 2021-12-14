@@ -447,9 +447,13 @@ class ZaberMultiAxis(object):
 
         axes_positions = [a.get_positions() for a in self.axis]
         common_positions = set(pos for ap in axes_positions for pos in ap)
-        axes_positions = [{cp: axes_positions[i][cp] for cp in common_positions} for i in range(len(self.axis))]
 
-        return axes_positions
+        positions = {}
+        for cp in common_positions:
+            coordinates, units, dates = ([pos[cp][x] for pos in axes_positions] for x in ('value', 'unit', 'date'))
+            positions[cp] = {'value': coordinates, 'unit': units, 'date': dates} 
+
+        return positions
 
     def get_position(self, unit=None):
         """
