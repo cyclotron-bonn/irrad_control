@@ -612,48 +612,26 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     self.send_cmd(hostname=hostname, target='scan', cmd='start')
                     self.control_tab.scan_status(server=hostname, status='started')
 
-            elif sender == 'stage':
+            # Get motorstage responses
+            elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
-                if reply == 'pos':
-                    #self.control_tab.update_info(position=reply_data, unit='mm')
-                    pass
+                if reply in ('set_speed', 'set_range', 'set_accel', 'stop'):
+                    # Callback is get_physical_props
+                    self.control_tab.tab_widgets[hostname]['motorstage'].update_motorstage_properties(motorstage=sender,
+                                                                                                      properties=reply_data['callback']['result'])
+                elif reply in ['get_speed', 'get_range', 'get_accel', 'get_position']:
+                    prop = reply.split('_')[-1]
+                    prop = {prop: reply_data['result']} if not isinstance(reply_data['result'], list) else [{prop: r} for r in reply_data['result']]
+                    self.control_tab.tab_widgets[hostname]['motorstage'].update_motorstage_properties(motorstage=sender,
+                                                                                                      properties=prop)
+                elif reply == 'get_physical_props':
+                    self.control_tab.tab_widgets[hostname]['motorstage'].update_motorstage_properties(motorstage=sender,
+                                                                                                      properties=reply_data['result'])
 
-                elif reply in ['set_speed', 'get_speed']:
-                    #self.control_tab.update_info(speed=reply_data, unit='mm/s')
-                    pass
-
-                elif reply in ['set_range', 'get_range']:
-                    #self.control_tab.update_info(range=reply_data, unit='mm')
-                    pass
-
-                elif reply == 'get_pos':
-                    #self.control_tab.setup_xy_stage_positions(reply_data)
-                    pass
-
-                elif reply == 'add_pos':
-                    #dd = self.control_tab.xy_stage_position_win.edit_pos.widgets
-                    #for name in dd:
-                    #    dd[name][-2].setText('Saved')
-                    #    dd[name][-2].setStyleSheet('QLabel {color: black;}')
-                    pass
-
-                elif reply == 'prepare':
-                    #self.control_tab.update_scan_parameters(**reply_data)
-                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows']})
-                    self.send_cmd(hostname=hostname, target='stage', cmd='scan')
-                    self.control_tab.scan_status(server=hostname, status='started')
-
-                elif reply == 'finish':
-
-                    logging.info("Finishing scan!")
-
-                elif reply == 'no_beam':
-
-                    if reply_data:
-                        logging.debug("No beam event set")
-                    else:
-                        logging.debug("No beam event cleared")
+                elif reply in ('add_position', 'remove_position'):
+                    self.control_tab.tab_widgets[hostname]['motorstage'].motorstage_positions_window.validate(motorstage=sender,
+                                                                                                              positions=reply_data['callback']['result'],
+                                                                                                              validate=reply.split('_')[0])
 
             # Debug
             msg = 'Standard {} reply received: {}'.format(sender.capitalize(), reply)
