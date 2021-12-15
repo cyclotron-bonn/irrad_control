@@ -88,7 +88,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             self._edit_initiated[motorstage] = False
 
             # Check if we only have single axis
-            travel_range = travel_range if isinstance(travel_range, list) else [travel_range]
+            travel_range = travel_range if isinstance(travel_range[0], list) else [travel_range]
 
             # Make column names
             cols = ('Name', 'Position') + (len(travel_range) - 1) * ('',) + ('Date', 'Status', 'Delete')
