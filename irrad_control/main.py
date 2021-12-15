@@ -644,8 +644,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
-                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows']})
+                    self.monitor_tab.add_fluence_hist(kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      n_rows=reply_data['n_rows'],
+                                                      server=hostname)
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
 
@@ -754,6 +755,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.stop_recv_data.set()
         self.stop_recv_log.set()
         self.close_timer.stop()
+
+        # Store all plots on close; AttributeError when app was not launched fully
+        try:
+            self.monitor_tab.save_plots()
+        except AttributeError:
+            pass
 
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)
