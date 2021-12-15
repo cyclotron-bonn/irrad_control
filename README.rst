@@ -10,6 +10,8 @@ It consists of few Python-scripts which are running on a host PC (GUI-based arou
 Communication and DAQ is done via `pyZMQ <https://pyzmq.readthedocs.io/en/latest/>`_, all data is recorded and stored as binary data in `HDF5 <https://www.pytables.org/>`_.
 For more information on the irradiation site at Bonn University please visit the `homepage <https://silab-bonn.github.io/irrad_control/>`_
 
+.. _ImageLink: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
+
 Installation
 ============
 
@@ -51,18 +53,23 @@ To finally install ``irrad_control`` on the DAQ PC run the setup script
 
 Once you start the application the server(s) are set up automatically. To add servers, they need to be prepared as stated below and added in the setup tab of ``irrad_control``.
 
-Setup Control
-=============
+Server Setup
+============
 
-The irradiation setup is controlled and monitored from one (or multiple) Raspberry Pi server(s). For this,
-``ssh key`` of the host PC must be copied to each server Raspberry Pi. Create and copy a key via
+The data acquisition and control of irradiation setup is done by one (or multiple) Raspberry Pi (RPi) server. Before first usage with `irrad_control`,
+each server RPi needs to be aware of the ``ssh key`` of the host PC. Therefore, copy the hosts ``ssh key`` to each RPi server via
+
+.. code-block::
+
+   ssh-copy-id pi@ip-address-of-rpi
+
+where ``ip-address-of-rpi`` is the IP address of the RPi within the network. In case you need to create a ``ssh key`` of the host PC first, you can do so by
 
 .. code-block::
 
    ssh-keygen -b 2048 -t rsa
-   ssh-copy-id pi@ip
 
-where ``ip`` is the ip of the Raspberry Pi within the network. The server is then automatically set up on first use with ``irrad_control``.
+After launching ``irrad_control``, you can perform a first-time-setup of the server by adding it via its IP address. Aftr that,  you can add the server via its IP addressThe server is then automatically set up on first use with ``irrad_control``.
 
 DAQ
 ===
