@@ -127,13 +127,14 @@ class IrradServer(DAQProcess):
             self.devices['ADCBoard'].drate = self.setup['server']['readout']['sampling_rate']
             self.devices['ADCBoard'].setup_channels(self.setup['server']['readout']['ch_numbers'])
 
+        self._daq_board_ntc_ro = False
         if 'IrradDAQBoard' in self.devices and self.setup['server']['readout']['device'] == RO_DEVICES.DAQBoard:
             # Set initial ro scales
             self.devices['IrradDAQBoard'].set_ifs(group='sem',
                                                   ifs=self.setup['server']['readout']['ro_group_scales']['sem'])
             self.devices['IrradDAQBoard'].set_ifs(group='ch12',
                                                   ifs=self.setup['server']['readout']['ro_group_scales']['ch12'])
-            self._daq_board_ntc_ro = False
+
             if 'ntc' in self.setup['server']['readout']:
                 ntc_channels = [int(ntc) for ntc in self.setup['server']['readout']['ntc']]
                 self.devices['IrradDAQBoard'].init_ntc_readout(ntc_channels=ntc_channels)
