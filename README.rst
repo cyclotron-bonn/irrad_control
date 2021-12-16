@@ -15,7 +15,7 @@ The setup control and data acquisition is provided by a (or multiple) Raspberry 
 all acquired data is stored in the binary `HDF5 <https://www.pytables.org/>`_ format. The software furthermore provides a set of analysis methods
 for irradiation datasets. For more information on the irradiation site  and its characteristics please visit the `homepage <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one/>`_
 
-.. _ImageLink: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
+.. _ImageLink:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
 
 Installation
 ============
