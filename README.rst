@@ -16,7 +16,8 @@ all acquired data is stored in the binary `HDF5 <https://www.pytables.org/>`_ fo
 for irradiation datasets. For more information on the irradiation site  and its characteristics please visit the `homepage <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one/>`_
 
 .. image:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
-   :width: 600
+   :width: 800
+   :align: center
 
 Installation
 ============
