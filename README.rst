@@ -11,11 +11,12 @@ located at the Helmholtz Institut für Strahlen- und Kernphysik (`HISKP <https:/
 The software features a graphical user interface (GUI), based on `PyQt <https://riverbankcomputing.com/software/pyqt/intro>`_, 
 from which the individual setup components can be managed and irradiations can be conducted. Furthermore, the GUI offers online data
 visualization of proton beam characteristics and irradiation-specific quantities such as e.g. proton fluence.
-The setup control and data acquisition is provided by a (or multiple) Raspberry Pi (RPi) server which is managed by ``irrad_control`,
+The setup control and data acquisition is provided by a (or multiple) Raspberry Pi (RPi) server which is managed by ``irrad_control``,
 all acquired data is stored in the binary `HDF5 <https://www.pytables.org/>`_ format. The software furthermore provides a set of analysis methods
 for irradiation datasets. For more information on the irradiation site  and its characteristics please visit the `homepage <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one/>`_
 
-.. _ImageLink:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
+.. image:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
+   :width: 600
 
 Installation
 ============
