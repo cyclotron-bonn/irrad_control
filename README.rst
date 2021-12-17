@@ -13,11 +13,7 @@ from which the individual setup components can be managed and irradiations can b
 visualization of proton beam characteristics and irradiation-specific quantities such as e.g. proton fluence.
 The setup control and data acquisition is provided by a (or multiple) Raspberry Pi (RPi) server which is managed by ``irrad_control``,
 all acquired data is stored in the binary `HDF5 <https://www.pytables.org/>`_ format. The software furthermore provides a set of analysis methods
-for irradiation datasets. For more information on the irradiation site  and its characteristics please visit the `homepage <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one/>`_
-
-.. image:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
-   :width: 800
-   :align: center
+for irradiation datasets which produce comprehensive plots.
 
 Installation
 ============
@@ -62,7 +58,7 @@ To finally install ``irrad_control`` run the setup script
 When you start the application you can add RPi servers in the **setup** tab. Each server needs to be set up before usage.
 The procedure is explained in the following section.
 
-RPi Server Setup
+Quick Setup
 ============
 
 The data acquisition and control of irradiation setup is done by one (or multiple) Raspberry Pi (RPi) server. Before first usage with `irrad_control`,
@@ -81,10 +77,22 @@ where ``ip-address-of-rpi`` is the IP address of the RPi within the network. In 
 After launching ``irrad_control``, you can perform a first-time-setup of the server by adding it via its IP address.
 The server is then automatically set up on first use with ``irrad_control``.
 
-Usage
-=====
+Documentation
+=============
 
-Please see the wiki for a step-by-step guide (TBD)
+For information on the software structure, data formats and general usage please see the wiki. (TBD)
+
+Proton Irradiation Site
+=======================
+
+The proton irradiation site for silicon devices at Bonn University is in operation since early 2020. Typically, a proton beam of 14 MeV kinetic energy, a current of 1 µA and a diameter of a few mm
+is used to irradiate devices-under-test (DUTs) in a temperature-controlled box. To achieve homogeneous irradiation, the DUT is scanned through the beam in a row-wise grid, using a two-dimensional 
+motorstage. The fluence is determined via online measurement of the beam current at extraction to the DUT during the irradiation procedure. A picture of the setup can be seen below. For further
+information on the setup, the irradiation procedure & characteristics or addiational material please visit the `homepage <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one/>`_
+
+.. image:: https://www.zyklotron.hiskp.uni-bonn.de/zyklo/images/hsr_exp_1_low.JPG
+   :width: 800
+   :align: center
 
 
 .. |test-status| image:: https://github.com/Silab-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=development
