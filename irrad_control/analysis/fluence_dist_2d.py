@@ -79,12 +79,27 @@ def calc_row_bin_times(row_bin_times, row_bin_edges, scan_speed, scan_accel):
         current_speed += scan_accel * row_bin_times[i]
 
 @njit
-def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigma_x, sigma_y, amplitude, normalized=False):
+def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigma_x, sigma_y, amplitude, normalized, skip_sigma=6):
+
+    if skip_sigma < 3:
+        raise ValueError('No')
 
     for j in range(map_2d.shape[0]):
+        
+        y_coord = bin_centers_y[j]
+
+        if abs(y_coord-mu_y) > skip_sigma * sigma_y:
+            continue
+
         for i in range(map_2d.shape[1]):
-            map_2d[j, i] += gauss_2d_pdf(x=bin_centers_x[i],
-                                         y=bin_centers_y[j],
+            
+            x_coord = bin_centers_x[i]
+
+            if abs(x_coord-mu_x) > skip_sigma * sigma_x:
+                continue
+
+            map_2d[j, i] += gauss_2d_pdf(x=x_coord,
+                                         y=y_coord,
                                          mu_x=mu_x,
                                          mu_y=mu_y,
                                          sigma_x=sigma_x,
@@ -310,24 +325,26 @@ if __name__ == '__main__':
                 # Make figure for 3D
                 #_x, _y = np.meshgrid(map_x, map_y)
                 fig, ax = plt.subplots(figsize=(8, 6), tight_layout=True, subplot_kw={"projection": "3d"})
-                surf = ax.plot_surface(map_x, map_y, _map, antialiased=True, cmap='viridis')
+                surf = ax.plot_surface(map_x, map_y, _map, antialiased=False, cmap='viridis')
                 ax.view_init(azim=-115, elev=25)
                 if i==0:
                     xlabel = 'Scan area horizontal [mm]'
                     ylabel = 'Scan area vertical [mm]'
                     title = r"Fluence scan area for $\sigma_\mathrm{beam}$ = "+"({}, {}) mm".format(*sigma)
-                    fname_3d = "fluence_scan_area_3d_beam_sigma_{}_{}.pdf".format(*sigma)
-                    fname_2d = "fluence_scan_area_2d_beam_sigma_{}_{}.pdf".format(*sigma)
+                    fname_3d = "fluence_scan_area_3d_beam_sigma_fasta_{}_{}.pdf".format(*sigma)
+                    fname_2d = "fluence_scan_area_2d_beam_sigma_fasta_{}_{}.pdf".format(*sigma)
                     extent = (0, 50, 40, 0)
-                    ax.contourf(x, y, fluence_map, zdir='z', levels=10, offset=-1e14, cmap='viridis')
+                    cs = ax.contourf(x, y, fluence_map, zdir='z', levels=10, offset=-1e14, cmap='viridis')
                     ax.set_zlim(-(0.05*_map.max()), _map.max())
+                    plt.clabel(cs, fontsize=15, inline=True)
                 else:
                     xlabel = 'DUT area horizontal [mm]'
                     ylabel = 'DUT area vertical [mm]'
                     title = r"Fluence DUT area for $\sigma_\mathrm{beam}$ = "+"({}, {}) mm".format(*sigma)
-                    fname_3d = "fluence_dut_area_3d_beam_sigma_{}_{}.pdf".format(*sigma)
-                    fname_2d = "fluence_dut_area_2d_beam_sigma_{}_{}.pdf".format(*sigma)
+                    fname_3d = "fluence_dut_area_3d_beam_sigma_fasta_{}_{}.pdf".format(*sigma)
+                    fname_2d = "fluence_dut_area_2d_beam_sigma_fasta_{}_{}.pdf".format(*sigma)
                     extent = (0, 20, 11.5, 0)
+                    ax.set_zlim(map_mean-(6*map_std + 0.01*map_mean), map_mean+(6*map_std + 0.01*map_mean))
                 ax.set_xlabel(xlabel)
                 ax.set_ylabel(ylabel)
                 ax.set_zlabel('Fluence [n$_\mathrm{eq}$ / cm$^2$]')
