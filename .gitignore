@@ -13,3 +13,5 @@ irrad_control.egg-info/
 irrad_control/devices/stage/xy_stage_config.yaml
 # PID file
 irrad_control/config/.irrad.pid
+# macOS stuff
+.DS_Store
