@@ -1,33 +1,51 @@
 #include <Wire.h> //i2c
 
-uint8_t RO_ADDRESS = 0x20;
+/*
+ * Initialize global variables and arrays
+ * -> Char array to hold data from Serial port
+ * 
+ * -> i2c address of slave device
+ * -> 8 bit ints for data sent via i2c
+ */
+char command[16];
 
-//Char array to hold data from Serial port
-char command[8];
-
+uint8_t RO_ADDRESS;
 uint8_t regAdd;
 uint8_t data;
 
 void setup() {
-  Wire.begin(); //initialize i2c communication as master
-  Serial.begin(9600); //initialize Serial communication with baudrate 9600
- // regAddStr.reserve(32); //reserve memory for strings of size 32 bytes (should be enough for the communication)
- // dataStr.reserve(32); //is done to prevent memory
+  /*
+   * initiliaze i2c commication as master
+   * initialize Serial communication with baudrate Serial.begin(<baudrate>)
+   * delay 500ms to let connections and possible setups to be established
+   */
+  Wire.begin();
+  Serial.begin(115200); 
   delay(500);
   
 }
 
-uint8_t writeData(uint8_t _regAdd, uint8_t _data){
-  Wire.beginTransmission(RO_ADDRESS); //begin transmission to R/O-Board with adress 0x20
-  Wire.write(_regAdd); //transmit which register to write to
-  Wire.write(_data); //send data
-  //actually send the data, 
-  return Wire.endTransmission(); //return errorcode
+uint8_t writeData(uint8_t _reg, uint8_t _data){
+  /*
+   * transmit data via i2c to device on RO_ADDRESS
+   * write register _reg to be written on and write _data on it
+   * end transmission and return the errorcode (0 is success) see documentation for further info
+   */
+  Wire.beginTransmission(RO_ADDRESS);
+  Wire.write(_reg);
+  Wire.write(_data);
+  return Wire.endTransmission();
 }
 
-uint8_t readData(uint8_t _regAdd){
+uint8_t readData(uint8_t _reg){
+  /*
+   * read data via i2c from device in RO_ADDRESS
+   * write register to be read from
+   * request data from device
+   * read the received data from device RO_ADDRESS register _reg and return it
+   */
   Wire.beginTransmission(RO_ADDRESS);
-  Wire.write(_regAdd);
+  Wire.write(_reg);
   Wire.endTransmission();
   Wire.requestFrom(RO_ADDRESS, 0x1U); //request 1 byte (Unsigned) from Adress RO_ADDRESS
   return Wire.read();
@@ -36,31 +54,38 @@ uint8_t readData(uint8_t _regAdd){
 void loop() {
   uint8_t _transErr;
   if(Serial.available()){
-    size_t cmdlen = Serial.readBytesUntil('\n',command, 8);
+    /*
+     * decode the received command and store different parts in variables
+     * commands have structure: '<what to do>:<register>:<value>\n'
+     * 
+     */
+    size_t cmdlen = Serial.readBytesUntil('\n',command, 16);
     char cmd = command[0];
-    if(cmdlen>1){
-      size_t dataLen = cmdlen - 2;
-      regAdd = command[1]-'0';
+    
+    regAdd = command[2]-'0';
+    if(cmdlen>4){
+      size_t dataLen = cmdlen - 4;
       char dataArr[dataLen];
       for(size_t c = 0; c < dataLen; c++){
-        dataArr[c] = command[2+c];
+        dataArr[c] = command[c+4];
       }
       data = atoi(dataArr);
     }
-    //regAdd = regAddStr.toInt(); //convert to uint8_t
-    //data = dataStr.toInt();
+
+    /*   
+     *    Clear input buffer
+     */
     while(Serial.available()){
-      Serial.read(); //clear input buffer
+      Serial.read();
     }
+
+    /*
+     * execute command i.e. read/write data, check connection or change i2c device address
+     */
     if(cmd == 'T'){
       Wire.beginTransmission(RO_ADDRESS);
       _transErr = Wire.endTransmission();
-      if(_transErr == 0){
-        Serial.println("success");
-      }
-      else{
-        Serial.println("noi2c");
-      }
+      Serial.println(_transErr);
     }
     if(cmd == 'R'){
       Serial.println(readData(regAdd));
@@ -69,8 +94,12 @@ void loop() {
       Serial.println(writeData(regAdd, data));
     }
     if(cmd == 'A'){
-      RO_ADDRESS = regAdd;
+      RO_ADDRESS = data;
+      Serial.println(RO_ADDRESS);
     }
   }
-  delay(500);
+  /*
+   * delay 100µs between cycles
+   */
+  delayMicroseconds(100);
 }
