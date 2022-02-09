@@ -7,15 +7,14 @@ from irrad_control.devices.ic.TCA9555.tca9555 import TCA9555
 
 class IrradDAQBoard(object):
 
-    def __init__(self, version='v0.1', address=0x20):
+    def __init__(self, port, version='v0.1', address=0x20):
 
         # Check for version support
         if version not in DAQ_BOARD_CONFIG['version']:
             raise ValueError("{} not supported. Supported versions are {}".format(version, ', '.join(DAQ_BOARD_CONFIG['version'].keys())))
 
         # Initialize the interface to the board via I2C
-        self._intf = TCA9555(address=address)
-
+        self._intf = TCA9555(port=port, address=address)
         self.version = version
 
         # Related to ntc channel cycling
