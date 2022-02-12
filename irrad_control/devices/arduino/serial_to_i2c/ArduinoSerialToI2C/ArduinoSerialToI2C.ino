@@ -13,12 +13,15 @@ uint8_t RO_ADDRESS;
 uint8_t regAdd;
 uint8_t data;
 
+String message;
+
 void setup() {
   /*
    * initiliaze i2c commication as master
    * initialize Serial communication with baudrate Serial.begin(<baudrate>)
    * delay 500ms to let connections and possible setups to be established
    */
+  message.reserve(32);
   Wire.begin();
   Serial.begin(115200); 
   delay(500);
@@ -53,25 +56,28 @@ uint8_t readData(uint8_t _reg){
 
 void loop() {
   uint8_t _transErr;
-  if(Serial.available()){
+    if(Serial.available()){
     /*
      * decode the received command and store different parts in variables
      * commands have structure: '<what to do>:<register>:<value>\n'
      * 
      */
-    size_t cmdlen = Serial.readBytesUntil('\n',command, 16);
-    char cmd = command[0];
-    
-    regAdd = command[2]-'0';
-    if(cmdlen>4){
-      size_t dataLen = cmdlen - 4;
-      char dataArr[dataLen];
-      for(size_t c = 0; c < dataLen; c++){
-        dataArr[c] = command[c+4];
-      }
-      data = atoi(dataArr);
-    }
+    uint8_t pos1, pos2, pos3;
+    String arg1, arg2, arg3;
+    message = Serial.readStringUntil('\n');
+    pos1 = message.indexOf(':',0);
+    pos2 = message.indexOf(':', pos1+1);
+    pos3 = message.indexOf(':', pos2+1);
 
+    arg1 = message.substring(0,pos1);
+    arg2 = message.substring(pos1+1,pos2);
+    arg3 = message.substring(pos2+1,pos3);
+
+    regAdd = arg2.toInt();
+    data = arg3.toInt();
+
+    Serial.println(arg1+"-"+arg2+"-"+arg3+"-");
+    
     /*   
      *    Clear input buffer
      */
@@ -82,18 +88,18 @@ void loop() {
     /*
      * execute command i.e. read/write data, check connection or change i2c device address
      */
-    if(cmd == 'T'){
+    if(arg1 == "T"){
       Wire.beginTransmission(RO_ADDRESS);
       _transErr = Wire.endTransmission();
       Serial.println(_transErr);
     }
-    if(cmd == 'R'){
+    if(arg1 == "R"){
       Serial.println(readData(regAdd));
     }
-    if(cmd == 'W'){
+    if(arg1 == "W"){
       Serial.println(writeData(regAdd, data));
     }
-    if(cmd == 'A'){
+    if(arg1 == "A"){
       RO_ADDRESS = data;
       Serial.println(RO_ADDRESS);
     }
