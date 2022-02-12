@@ -16,9 +16,10 @@ class ArdSer:
         Args:
             _msg (encoded string (binary)): [what you want to send to arduino]
         """
-        self.interface.reset_input_buffer()
-        self.interface.reset_output_buffer()
-        self.interface.write(_msg)
+        self._intf.reset_input_buffer()
+        self._intf.reset_output_buffer()
+        self._intf.write(_msg)
+        return self._intf.readline().decode().strip()
     
     def create_command(self, arg1, arg2='', arg3=''):
         """create a command the arduino can process
@@ -29,4 +30,4 @@ class ArdSer:
             arg2 (any type) optional
             arg3 (any type) optional
         """
-        return ''.join([str(arg1), self._DELIM, str(arg2), self._DELIM, str(arg3), self._DELIM, self._END])
+        return ''.join([str(arg1), self._DELIM, str(arg2), self._DELIM, str(arg3), self._DELIM, self._END]).encode()
