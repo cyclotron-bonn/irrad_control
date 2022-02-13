@@ -1,6 +1,6 @@
-from irrad_control.devices.arduino import ArdSer
+from irrad_control.devices.arduino import ardser
 
-class ArdRO(ArdSer.ArdSer):
+class ArdRO(ardser.ArdSer):
     def __init__(self, port, address=0x20, baudrate=115200, timeout = 1.):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
         cmd = super().create_command('A',32)
