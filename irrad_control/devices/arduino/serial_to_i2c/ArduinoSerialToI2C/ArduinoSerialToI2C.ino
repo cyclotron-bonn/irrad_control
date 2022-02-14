@@ -1,19 +1,21 @@
 #include <Wire.h> //i2c
+#include "ArdSer.h" //Serial-Comm
 
+interface _intf;
 /*
  * Initialize global variables and arrays
- * -> Char array to hold data from Serial port
  * 
+ * -> what to do
  * -> i2c address of slave device
+ * -> register of i2c device
  * -> 8 bit ints for data sent via i2c
  */
-char command[16];
+
 
 uint8_t RO_ADDRESS;
-uint8_t regAdd;
+String command;
+uint8_t address;
 uint8_t data;
-
-String message;
 
 void setup() {
   /*
@@ -21,7 +23,6 @@ void setup() {
    * initialize Serial communication with baudrate Serial.begin(<baudrate>)
    * delay 500ms to let connections and possible setups to be established
    */
-  message.reserve(32);
   Wire.begin();
   Serial.begin(115200); 
   delay(500);
@@ -56,52 +57,30 @@ uint8_t readData(uint8_t _reg){
 
 void loop() {
   uint8_t _transErr;
-    if(Serial.available()){
-    /*
-     * decode the received command and store different parts in variables
-     * commands have structure: '<what to do>:<register>:<value>\n'
-     * 
-     */
-    uint8_t pos1, pos2, pos3;
-    String arg1, arg2, arg3;
-    message = Serial.readStringUntil('\n');
-    pos1 = message.indexOf(':',0);
-    pos2 = message.indexOf(':', pos1+1);
-    pos3 = message.indexOf(':', pos2+1);
+  if(Serial.available()){
+    _intf.receive();
 
-    arg1 = message.substring(0,pos1);
-    arg2 = message.substring(pos1+1,pos2);
-    arg3 = message.substring(pos2+1,pos3);
-
-    regAdd = arg2.toInt();
-    data = arg3.toInt();
-
-    Serial.println(arg1+"-"+arg2+"-"+arg3+"-");
-    
-    /*   
-     *    Clear input buffer
-     */
-    while(Serial.available()){
-      Serial.read();
-    }
+    command = _intf.arg1;
+    address = _intf.arg2.toInt();
+    data = _intf.arg3.toInt();
 
     /*
      * execute command i.e. read/write data, check connection or change i2c device address
      */
-    if(arg1 == "T"){
+    if(command == "T"){
       Wire.beginTransmission(RO_ADDRESS);
       _transErr = Wire.endTransmission();
-      Serial.println(_transErr);
+      _intf.transmit(String(_transErr));
     }
-    if(arg1 == "R"){
-      Serial.println(readData(regAdd));
+    if(command == "R"){
+      _intf.transmit(String(readData(address)));
     }
-    if(arg1 == "W"){
-      Serial.println(writeData(regAdd, data));
+    if(command == "W"){
+      _intf.transmit(String(writeData(address, data)));
     }
-    if(arg1 == "A"){
-      RO_ADDRESS = data;
-      Serial.println(RO_ADDRESS);
+    if(command == "A"){
+      RO_ADDRESS = address;
+      _intf.transmit(String(RO_ADDRESS));
     }
   }
   /*

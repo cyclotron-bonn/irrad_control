@@ -3,7 +3,7 @@ from collections import Iterable
 from functools import wraps
 from threading import Event
 
-from irrad_control.devices.arduino.serial_to_i2c.SerI2C import SerI2C
+from irrad_control.devices.arduino.serial_to_i2c.ard_readout import ArdRO
 
 
 def _event_lock(io_func):
@@ -87,7 +87,7 @@ class TCA9555(object):
         self.address = address
 
         # Use arduino to communicate via I2C
-        self._intf = SerI2C(port=port, address = address)
+        self._intf = ArdRO(port=port, address = address)
 
         # Flag which indicates writing or reading condition
         self._device_available = Event()
@@ -167,7 +167,7 @@ class TCA9555(object):
         -------
         Integer indicating successful write
         """
-        return self._intf.write_data(reg=reg, value=data)
+        return self._intf.write_data(reg=reg, data=data)
 
     def _read_reg(self, reg):
         """
@@ -182,7 +182,7 @@ class TCA9555(object):
         -------
         8 bit of data read from *reg*
         """
-        return self._intf.read_data(reg)
+        return self._intf.read_data(reg = reg)
 
     def _create_state(self, state, bit_length):
         """
