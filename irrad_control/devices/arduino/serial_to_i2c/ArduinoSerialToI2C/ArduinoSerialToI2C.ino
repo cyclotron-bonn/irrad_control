@@ -1,22 +1,23 @@
 #include <Wire.h> //i2c
-#include "ArdSer.h" //Serial-Comm
 
-interface _intf;
 /*
  * Initialize global variables and arrays
- * 
- * -> what to do
- * -> i2c address of slave device
- * -> register of i2c device
- * -> 8 bit ints for data sent via i2c
+ * -> 8 bit i2c address of bus device
+ * number of arguments to read
+ * lenght of these arguments
+ * (argnum x arglen)-array to hold all data
+ * some chars for serial communication (argument seperator and end-character)
  */
 
 
 uint8_t RO_ADDRESS;
-String command;
-uint8_t address;
-uint8_t data;
 
+const size_t argnum = 3;
+const size_t arglen = 16;
+char args[argnum][arglen];
+
+const uint8_t _END = int('\r');
+const char _DELIM = ':';
 void setup() {
   /*
    * initiliaze i2c commication as master
@@ -27,6 +28,32 @@ void setup() {
   Serial.begin(115200); 
   delay(500);
   
+}
+
+
+void receive(){
+   /*
+   * reads data from serial buffer and seperates at given _DELIM delimiter.
+   * halts reading when _END character is found or args cant fit any more data (argnum)
+   * empties serial buffer at the end
+   */
+    int peek;
+    size_t i = 0;
+    do{
+        Serial.readBytesUntil(_DELIM, args[i], arglen);
+        peek = Serial.peek();
+        i++;
+    }while (i<argnum && peek != _END);
+    resetInputBuffer();
+}
+
+void resetInputBuffer(void){
+  /*
+   * reads all data serial buffer and discharges them
+   */
+    while(Serial.available()){
+        Serial.read();
+    }
 }
 
 uint8_t writeData(uint8_t _reg, uint8_t _data){
@@ -58,29 +85,34 @@ uint8_t readData(uint8_t _reg){
 void loop() {
   uint8_t _transErr;
   if(Serial.available()){
-    _intf.receive();
+    /*
+     * declare some constants and fill them according to their use
+     */
+    char command;
+    uint8_t address;
+    uint8_t data;
+    receive();
 
-    command = _intf.arg1;
-    address = _intf.arg2.toInt();
-    data = _intf.arg3.toInt();
+    command = args[0][0];
+    address = atoi(args[1]);
+    data = atoi(args[2]);
 
     /*
      * execute command i.e. read/write data, check connection or change i2c device address
      */
-    if(command == "T"){
+    if(command == 'T'){
       Wire.beginTransmission(RO_ADDRESS);
       _transErr = Wire.endTransmission();
-      _intf.transmit(String(_transErr));
+      Serial.println(_transErr);
     }
-    if(command == "R"){
-      _intf.transmit(String(readData(address)));
+    if(command == 'R'){
+      Serial.println(readData(address));
     }
-    if(command == "W"){
-      _intf.transmit(String(writeData(address, data)));
+    if(command == 'W'){
+      writeData(address, data);
     }
-    if(command == "A"){
+    if(command == 'A'){
       RO_ADDRESS = address;
-      _intf.transmit(String(RO_ADDRESS));
     }
   }
   /*
