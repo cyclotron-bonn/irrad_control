@@ -3,31 +3,56 @@ import time
 
 class ArdSer:
     _DELIM = ':'
-    _END = '\n'
+    _END = "\r\n"
 
     def __init__(self, port, baudrate = 115200, timeout = 1.):
         self._intf = serial.Serial(port = port, baudrate = baudrate, timeout = timeout) 
         time.sleep(2)
     
+    def write(self, _msg):
+        """resets output buffer and writes data via serial
+
+        Args:
+            _msg (any type): the data to send via serial
+        """
+        if isinstance(_msg, bytes):
+            pass
+        elif isinstance(msg, str):
+            msg = msg.encode()
+        else:
+            msg = str(msg).encode()
+        self._intf.reset_output_buffer()
+        self._intf.write(_msg.encode())
+
+    def read(self):
+        """reads serial buffer until ’\n' and resets input buffer
+        returns:
+            encoded string of received message
+        """
+        msg = self._intf.read_until('\n').decode().strip()
+        self._intf.reset_input_buffer()
+        return msg
+
     def query(self, _msg):
         """writes a message in binary via serial to arduino and reads the answer
 
         Args:
-            _msg (encoded string (binary)): [what you want to send to arduino]
+            _msg (any): [what you want to send to arduino]
+        
         """
-        self._intf.reset_input_buffer()
-        self._intf.reset_output_buffer()
-        self._intf.write(_msg)
-        time.sleep(0.1)
-        return self._intf.readline().decode().strip()
+        self.write(_msg)
+        return self.read()
     
-    def create_command(self, arg1, arg2='', arg3=''):
+    def create_command(self, *args, sep = self._DELIM, end = self._END):
         """create a command the arduino can process
-        returned command has structure 'arg1:arg2:arg3:\n'
+        args are seperated by sep (default is ':') ends with ':\r\n:
 
         Args:
-            arg1 (any type)
-            arg2 (any type) optional
-            arg3 (any type) optional
+            args (any type)
+            sep (string) optional
+            end (string) optional
+        returns:
+            encoded message in given structure
         """
-        return ''.join([str(arg1), self._DELIM, str(arg2), self._DELIM, str(arg3), self._DELIM, self._END]).encode()
+        msg = sep.join(str(arg) for arg in args) + sep + end
+        return msg.encode()
