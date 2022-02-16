@@ -1,8 +1,8 @@
-from irrad_control.devices.arduino import serard
+from irrad_control.devices.arduino import serial_arduino
 from time import sleep
 
-class ArdRO(serard.SerArd):
-    def __init__(self, port, address=0x20, baudrate= 2000000, timeout = 1.0):
+class ArduinoSerial(serial_arduino.ArduinoToI2C):
+    def __init__(self, port, address=0x20, baudrate= 115200, timeout = 1.):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
         self.set_i2c_address(address)
 

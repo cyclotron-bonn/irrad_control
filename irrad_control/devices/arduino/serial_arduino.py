@@ -1,11 +1,11 @@
 import serial
 from time import sleep
 
-class SerArd:
+class ArduinoToI2C:
     _DELIM = ':'
     _END = "\n"
 
-    def __init__(self, port, baudrate = 512000, timeout = 0.5):
+    def __init__(self, port, baudrate = 115200, timeout = 1.):
         self._intf = serial.Serial(port = port, baudrate = baudrate, timeout = timeout) 
         sleep(3)
     
@@ -22,7 +22,7 @@ class SerArd:
         else:
             msg = str(msg).encode()
         #self._intf.reset_output_buffer()
-        sleep(0.2)
+        sleep(0.3)
         self._intf.write(_msg)
 
     def read(self):
@@ -30,10 +30,8 @@ class SerArd:
         returns:
             encoded string of received message
         """
-        msg = self._intf.read_until(b'\r\n').decode().strip()
-        #msg = self._intf.readline().decode().strip("\r\n")
-        #sleep(0.2)
-        #self._intf.reset_input_buffer()
+        msg = self._intf.read_until(b':\r\n').decode().strip(":\r\n")
+        self._intf.reset_input_buffer()
         return msg
 
     def query(self, _msg):
@@ -47,7 +45,7 @@ class SerArd:
         sleep(0.3)
         return self.read()
     
-    def create_command(self, *args, sep = _DELIM, end = _END):
+    def create_command(self, *args):
         """create a command the arduino can process
         args are seperated by sep (default is ':') ends with ':\n:
 
@@ -58,5 +56,7 @@ class SerArd:
         returns:
             encoded message in given structure
         """
+        sep = self._DELIM
+        end = self._END
         msg = sep.join(str(arg) for arg in args) + sep + end
         return msg.encode()

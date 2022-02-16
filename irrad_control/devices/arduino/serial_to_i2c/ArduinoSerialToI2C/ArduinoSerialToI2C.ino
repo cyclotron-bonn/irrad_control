@@ -25,7 +25,7 @@ void setup() {
    * delay 500ms to let connections and possible setups to be established
    */
   Wire.begin();
-  Serial.begin(2000000);
+  Serial.begin(115200);
   delay(1000);
 }
 
@@ -110,10 +110,12 @@ void loop() {
     if(command == 'T'){
       Wire.beginTransmission(RO_ADDRESS);
       _transErr = Wire.endTransmission();
-      Serial.println(_transErr);
+      Serial.print(_transErr);
+      Serial.println(":");
     }
     if(command == 'R'){
-      Serial.println(readData(address));
+      Serial.print(readData(address));
+      Serial.println(":");
     }
     if(command == 'W'){
       writeData(address, data);
@@ -126,5 +128,5 @@ void loop() {
   /*
    * delay 100µs between cycles
    */
-  delayMicroseconds(500);
+  delayMicroseconds(1000);
 }
