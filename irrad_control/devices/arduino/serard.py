@@ -30,7 +30,8 @@ class SerArd:
         returns:
             encoded string of received message
         """
-        msg = self._intf.readline().decode().strip("\r\n")
+        msg = self._intf.read_until(b'\r\n').decode().strip()
+        #msg = self._intf.readline().decode().strip("\r\n")
         #sleep(0.2)
         #self._intf.reset_input_buffer()
         return msg
