@@ -3,7 +3,7 @@ from collections import Iterable
 from functools import wraps
 from threading import Event
 
-from irrad_control.devices.arduino.serial_to_i2c.ard_i2c import ArduinoSerial
+from irrad_control.devices.arduino.serial_to_i2c.ard_i2c import ArduinoToI2C
 
 
 def _event_lock(io_func):
@@ -87,7 +87,7 @@ class TCA9555(object):
         self.address = address
 
         # Use arduino to communicate via I2C
-        self._intf = ArduinoSerial(port=port, address = address)
+        self._intf = ArduinoToI2C(port=port, address = address)
 
         # Flag which indicates writing or reading condition
         self._device_available = Event()

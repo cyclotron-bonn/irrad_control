@@ -1,7 +1,7 @@
 import serial
 from time import sleep
 
-class ArduinoToI2C:
+class ArduinoSerial:
     _DELIM = ':'
     _END = "\n"
 
