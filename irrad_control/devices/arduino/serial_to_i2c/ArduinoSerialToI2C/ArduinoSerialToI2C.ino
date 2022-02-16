@@ -16,7 +16,7 @@ const size_t argnum = 3;
 const size_t arglen = 16;
 char args[argnum][arglen];
 
-const uint8_t _END = int('\r');
+const uint8_t _END = int('\n');
 const char _DELIM = ':';
 void setup() {
   /*
@@ -25,9 +25,8 @@ void setup() {
    * delay 500ms to let connections and possible setups to be established
    */
   Wire.begin();
-  Serial.begin(115200); 
-  delay(500);
-  
+  Serial.begin(2000000);
+  delay(1000);
 }
 
 
@@ -38,10 +37,18 @@ void receive(){
    * empties serial buffer at the end
    */
     int peek;
+    char curarg[arglen];
+    size_t curarglen;
     size_t i = 0;
     do{
-        Serial.readBytesUntil(_DELIM, args[i], arglen);
+        curarglen = Serial.readBytesUntil(_DELIM, curarg, arglen);
         peek = Serial.peek();
+        for(size_t j = 0; j<curarglen; j++){
+          args[i][j] = curarg[j];
+        }
+        for(size_t j = curarglen; j<arglen; j++){
+          args[i][j] = '\0';
+        }
         i++;
     }while (i<argnum && peek != _END);
     resetInputBuffer();
@@ -96,7 +103,7 @@ void loop() {
     command = args[0][0];
     address = atoi(args[1]);
     data = atoi(args[2]);
-
+    
     /*
      * execute command i.e. read/write data, check connection or change i2c device address
      */
@@ -114,9 +121,10 @@ void loop() {
     if(command == 'A'){
       RO_ADDRESS = address;
     }
+    resetInputBuffer();
   }
   /*
    * delay 100µs between cycles
    */
-  delayMicroseconds(100);
+  delayMicroseconds(500);
 }
