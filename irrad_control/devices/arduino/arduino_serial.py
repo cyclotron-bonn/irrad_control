@@ -26,12 +26,12 @@ class ArduinoSerial:
         self._intf.write(_msg)
 
     def read(self):
-        """reads serial buffer until ’\n' and resets input buffer
+        """reads serial buffer until ’:\r\n'
         returns:
             encoded string of received message
         """
+        sleep(0.3)
         msg = self._intf.read_until(b':\r\n').decode().strip(":\r\n")
-        self._intf.reset_input_buffer()
         return msg
 
     def query(self, _msg):
@@ -39,10 +39,11 @@ class ArduinoSerial:
 
         Args:
             _msg (any): [what you want to send to arduino]
+        returns:
+            answer (see <read()>)
         
         """
         self.write(_msg)
-        sleep(0.3)
         return self.read()
     
     def create_command(self, *args):

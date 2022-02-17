@@ -3,7 +3,7 @@ from collections import Iterable
 from functools import wraps
 from threading import Event
 
-from irrad_control.devices.arduino.serial_to_i2c.ard_i2c import ArduinoToI2C
+from irrad_control.devices.arduino.serial_to_i2c.arduino_i2c import ArduinoToI2C
 
 
 def _event_lock(io_func):
