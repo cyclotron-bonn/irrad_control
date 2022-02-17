@@ -34,7 +34,7 @@ def _event_lock(io_func):
 
 class TCA9555(object):
     """
-    This class implements a thread-safe interface to the 16-bit IO expander using the I2C-interface of a Raspberry Pi
+    This class implements a thread-safe interface to the 16-bit IO expander using the I2C-interface of an Arduino
 
     The TCA9555 consists of two 8-bit Configuration (input or output selection), Input Port, Output Port and
     Polarity Inversion (active high or active low operation) registers which are also referred to as ports:
@@ -77,6 +77,8 @@ class TCA9555(object):
         """
         Initialize the connection to the chip and set the a configuration if given
 
+        port: str
+            file descriptor of serial port under which the Arduino sits
         address: int
             integer of the I2C address of the TCA9555 (default is 0x20 e.g. 32)
         config: dict
@@ -87,7 +89,7 @@ class TCA9555(object):
         self.address = address
 
         # Use arduino to communicate via I2C
-        self._intf = ArduinoToI2C(port=port, address = address)
+        self._intf = ArduinoToI2C(port=port, address=address)
 
         # Flag which indicates writing or reading condition
         self._device_available = Event()
@@ -182,7 +184,7 @@ class TCA9555(object):
         -------
         8 bit of data read from *reg*
         """
-        return self._intf.read_register(reg = reg)
+        return self._intf.read_register(reg=reg)
 
     def _create_state(self, state, bit_length):
         """
