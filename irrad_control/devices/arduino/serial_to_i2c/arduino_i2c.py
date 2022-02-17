@@ -7,7 +7,7 @@ class ArduinoToI2C(arduino_serial.ArduinoSerial):
         self.set_i2c_address(address)
 
 
-    def read_data(self, reg):
+    def read_register(self, reg):
         """
         reads data from a given register
         """
@@ -16,7 +16,7 @@ class ArduinoToI2C(arduino_serial.ArduinoSerial):
         ans = self.query(msg)
         return int(ans)
 
-    def write_data(self, reg, data):
+    def write_register(self, reg, data):
         """
         writes data to a given register
         """

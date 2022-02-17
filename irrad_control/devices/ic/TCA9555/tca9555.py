@@ -167,7 +167,7 @@ class TCA9555(object):
         -------
         Integer indicating successful write
         """
-        return self._intf.write_data(reg=reg, data=data)
+        return self._intf.write_register(reg=reg, data=data)
 
     def _read_reg(self, reg):
         """
@@ -182,7 +182,7 @@ class TCA9555(object):
         -------
         8 bit of data read from *reg*
         """
-        return self._intf.read_data(reg = reg)
+        return self._intf.read_register(reg = reg)
 
     def _create_state(self, state, bit_length):
         """
