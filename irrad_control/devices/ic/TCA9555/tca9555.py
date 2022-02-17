@@ -1,8 +1,9 @@
-import wiringpi as wp
 import bitstring as bs
 from collections import Iterable
 from functools import wraps
 from threading import Event
+
+from irrad_control.devices.arduino.serial_to_i2c.arduino_i2c import ArduinoToI2C
 
 
 def _event_lock(io_func):
@@ -72,7 +73,7 @@ class TCA9555(object):
     # Number of ports of TCA9555
     _n_ports = 2
 
-    def __init__(self, address=0x20, config=None):
+    def __init__(self, port, address=0x20, config=None):
         """
         Initialize the connection to the chip and set the a configuration if given
 
@@ -85,14 +86,8 @@ class TCA9555(object):
         # I2C-bus address; 0x20 (32 in decimal) if all address pins A0=A1=A2 are low
         self.address = address
 
-        # Setup I2C-bus communication using wiringpi library
-        self.device_id = wp.wiringPiI2CSetup(self.address)
-
-        # Quick check; if self.device_id == -1 an error occurred
-        if self.device_id == -1:
-            raise IOError(
-                "Failed to establish connection on I2C-bus address {}".format(hex(self.address))
-            )
+        # Use arduino to communicate via I2C
+        self._intf = ArduinoToI2C(port=port, address = address)
 
         # Flag which indicates writing or reading condition
         self._device_available = Event()
@@ -154,6 +149,12 @@ class TCA9555(object):
         for reg, val in config.items():
             self._set_state(reg, val)
 
+    def _check_con(self):
+        """
+        Check the connection from arduino to port
+        """
+        return self._intf.check_i2c_con(self)
+
     def _write_reg(self, reg, data):
         """
         Writes one byte of *data* to register *reg*
@@ -166,7 +167,7 @@ class TCA9555(object):
         -------
         Integer indicating successful write
         """
-        return wp.wiringPiI2CWriteReg8(self.device_id, reg, data)
+        return self._intf.write_register(reg=reg, data=data)
 
     def _read_reg(self, reg):
         """
@@ -181,7 +182,7 @@ class TCA9555(object):
         -------
         8 bit of data read from *reg*
         """
-        return wp.wiringPiI2CReadReg8(self.device_id, reg)
+        return self._intf.read_register(reg = reg)
 
     def _create_state(self, state, bit_length):
         """
