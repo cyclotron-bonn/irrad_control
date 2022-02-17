@@ -1,9 +1,10 @@
-from irrad_control.devices.arduino import arduino_serial
-from time import sleep
+from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 
-class ArduinoToI2C(arduino_serial.ArduinoSerial):
-    def __init__(self, port, address=0x20, baudrate= 115200, timeout = 1.):
+class ArduinoToI2C(ArduinoSerial):
+
+    def __init__(self, port, address=0x20, baudrate=115200, timeout=1):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
+        self.check_i2c_con()
         self.set_i2c_address(address)
 
 

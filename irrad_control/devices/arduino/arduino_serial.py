@@ -3,38 +3,33 @@ from time import sleep
 
 class ArduinoSerial:
     _DELIM = ':'
-    _END = "\n"
+    _END = '\n'
 
-    def __init__(self, port, baudrate = 115200, timeout = 1.):
-        self._intf = serial.Serial(port = port, baudrate = baudrate, timeout = timeout) 
-        sleep(3)
+    def __init__(self, port, baudrate=115200, timeout=1):
+        self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
+        sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
     
-    def write(self, _msg):
+    def write(self, msg):
         """resets output buffer and writes data via serial
 
         Args:
-            _msg (any type): the data to send via serial
+            msg (any type): the data to send via serial
         """
-        if isinstance(_msg, bytes):
-            pass
-        elif isinstance(msg, str):
-            msg = msg.encode()
-        else:
+        if not isinstance(msg, bytes):
             msg = str(msg).encode()
-        #self._intf.reset_output_buffer()
-        sleep(0.3)
-        self._intf.write(_msg)
+
+        sleep(0.1)  # TODO: figure out if this is needed
+        self._intf.write(msg)
 
     def read(self):
-        """reads serial buffer until ’:\r\n'
+        """reads serial buffer until ':\r\n'
         returns:
             encoded string of received message
         """
-        sleep(0.3)
-        msg = self._intf.read_until(b':\r\n').decode().strip(":\r\n")
-        return msg
+        sleep(0.1) # TODO: figure out if this is needed
+        return self._intf.read_until(b':\r\n').decode().strip(":\r\n")  # TODO: Stop having separator before \n and after
 
-    def query(self, _msg):
+    def query(self, msg):
         """writes a message in binary via serial to arduino and reads the answer
 
         Args:
@@ -43,12 +38,12 @@ class ArduinoSerial:
             answer (see <read()>)
         
         """
-        self.write(_msg)
+        self.write(msg)
         return self.read()
     
     def create_command(self, *args):
         """create a command the arduino can process
-        args are seperated by sep (default is ':') ends with ':\n:
+        args are seperated by sep (default is ':') ends with ':\n:  # TODO: Stop having separator before \n and after
 
         Args:
             args (any type)
@@ -57,7 +52,4 @@ class ArduinoSerial:
         returns:
             encoded message in given structure
         """
-        sep = self._DELIM
-        end = self._END
-        msg = sep.join(str(arg) for arg in args) + sep + end
-        return msg.encode()
+        return f'{self._DELIM.join(str(a) for a in args)}{self._DELIM}{self._END}'.encode()
