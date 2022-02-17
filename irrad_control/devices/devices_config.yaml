@@ -10,6 +10,7 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
+    port: /dev/ttyUSB2
     version: v0.2
     address: 0x20
 
