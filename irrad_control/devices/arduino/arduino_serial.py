@@ -10,10 +10,13 @@ class ArduinoSerial:
         sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
     
     def write(self, msg):
-        """resets output buffer and writes data via serial
+        """
+        Write *msg* on the serial port. If necessary, convert to string and encode
 
-        Args:
-            msg (any type): the data to send via serial
+        Parameters
+        ----------
+        msg : str, bytes
+            Message to be written on the serial port
         """
         if not isinstance(msg, bytes):
             msg = str(msg).encode()
@@ -22,34 +25,48 @@ class ArduinoSerial:
         self._intf.write(msg)
 
     def read(self):
-        """reads serial buffer until ':\r\n'
-        returns:
-            encoded string of received message
+        """
+        Reads from serial port until self._END byte is encountered.
+        This is equivalent to serial.Serial.readline() but respects timeouts
+
+        Returns
+        -------
+        str
+            Decoded, stripped string, read from serial port
         """
         sleep(0.1) # TODO: figure out if this is needed
-        return self._intf.read_until(b':\r\n').decode().strip(":\r\n")  # TODO: Stop having separator before \n and after
+        return self._intf.read_until(self._END.encode()).decode().strip()
 
     def query(self, msg):
-        """writes a message in binary via serial to arduino and reads the answer
+        """
+        Queries a message *msg* and reads the answer
 
-        Args:
-            _msg (any): [what you want to send to arduino]
-        returns:
-            answer (see <read()>)
-        
+        Parameters
+        ----------
+        msg : str, bytes
+            Message to be queried
+
+        Returns
+        -------
+        str
+            Decoded, stripped string, read from serial port
         """
         self.write(msg)
         return self.read()
     
     def create_command(self, *args):
-        """create a command the arduino can process
-        args are seperated by sep (default is ':') ends with ':\n:  # TODO: Stop having separator before \n and after
+        """
+        Create command string according to specified format.
+        Arguments to this function are formatted and separated using self._DELIM
+        
+        Examples:
+        
+        self.create_command('W', 0x03, 0xFF) -> 'W:3:255:\n'
+        self.create_command('R', 0x03) -> 'R:3:\n'
 
-        Args:
-            args (any type)
-            sep (string) optional
-            end (string) optional
-        returns:
-            encoded message in given structure
+        Returns
+        -------
+        str
+            Formatted command string
         """
         return f'{self._DELIM.join(str(a) for a in args)}{self._DELIM}{self._END}'.encode()
