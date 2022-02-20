@@ -9,6 +9,14 @@ class ArduinoSerial:
         self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
         sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
     
+    def reset_buffers(self):
+        """
+        Sleep for a bit and reset buffers to reset serial
+        """
+        sleep(0.5)
+        self._intf.reset_input_buffer()
+        self._intf.reset_output_buffer()
+
     def write(self, msg):
         """
         Write *msg* on the serial port. If necessary, convert to string and encode
