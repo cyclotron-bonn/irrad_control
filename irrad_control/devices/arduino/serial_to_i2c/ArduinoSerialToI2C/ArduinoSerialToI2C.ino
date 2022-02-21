@@ -165,7 +165,7 @@ void loop(){
         var_reg = atoi(serialBuffer);
         processIncoming();
         var_data = atoi(serialBuffer);
-        Serial.println(writeReg(var_reg, var_data))
+        Serial.println(writeReg(var_reg, var_data));
 
       }
       
