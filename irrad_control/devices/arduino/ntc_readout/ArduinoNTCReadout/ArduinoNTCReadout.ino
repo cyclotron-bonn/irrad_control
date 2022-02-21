@@ -8,37 +8,50 @@ Every analog pin is connected to read the voltage over a thermistor, therefore u
 temperature values can be recorded.
 */
 
-// Define resistance of thermistor at 25 degrees C
-#define NTCNOMINAL 10000
-// Nominal temperature for above resistance (almost always 25 C)
-#define TEMPNOMINAL 25
-// Average each temperature value over 10 analog readS
-#define NSAMPLES 5
-// The beta coefficient of the thermistor (usually 3000-4000); EPC B57891-M103 NTC Thermistor
-#define BETACOEFF 3950
-// Resistivity of the resistors in series to the NTC, forming voltage divider
-#define RESISTOR 10000
-// Kelvin
-#define KELVIN 273.15
-// Array of analog input pins on Arduino
-const int THERMISTORPINS [] = {A0, A1, A2, A3, A4, A5, A6, A7};
+// Define constants
+const float NTC_NOMINAL_RES = 10000.0; // Resistance of NTC at 25 degrees C
+const float RESISTOR_RES = 10000.0; // Resistance of the resistors in series to the NTC, forming voltage divider
+const float TEMP_NOMINAL = 25.0; // Nominal temperature for above resistance (almost always 25 C)
+const float BETA_COEFF = 3950.0; // The beta coefficient of the NTC (usually 3000-4000); EPC B57891-M103 NTC Thermistor
+const float KELVIN = 273.15; // Kelvin
+const int SAMPLE_DELAY_US = 50; // Microseconds delay between two measurement samples
+const int NTC_PINS [] = {A0, A1, A2, A3, A4, A5, A6, A7}; // Array of analog input pins on Arduino
 
 
-// Setup
-void setup(void) {
-  // Initialize serial connection
-  Serial.begin(115200);
+// Serial related
+const char END = '\n';
+const uint8_t END_PEEK = int(END); // Serial.peek returns byte as dtype int
+const char DELIM = ':';
+const char NULL_TERM = '\0';
+size_t nProcessedBytes;
+const size_t BUF_SIZE = 32;
+char serialBuffer[BUF_SIZE]; // Max buffer 32 bytes in incoming serial data
 
-  // Set 3.3V as external reference voltage instead of internal 5V reference
-  analogReference(EXTERNAL);
-}
 
-// Steinhart-Hart equation for NTC: 1/T = 1/T_0 + 1/B * ln(R/R_0)
-float steinhart_NTC(float r) {
-  float temperature;
+// Commands
+const char TEMP_CMD = 'T';
+const char DELAY_CMD = 'D';
+const char SAMPLE_CMD = 'S';
+
+
+// Define variables to be used for calculation
+float temperature;
+float resistance;
+int ntc_pin;
+char serialBuffer[BUF_SIZE];
+
+// Define vars potentially coming in from serial
+int nSamples = 5; // Average each temperature value over N_SAMPLES analog reads
+int roDelay = 100; // Delay between Serial.available() checks
+
+
+float steinhartHartNTC(float res){
+  /*
+  Steinhart-Hart equation for NTC: 1/T = 1/T_0 + 1/B * ln(R/R_0)  
+  */
 
   // Do calculation
-  temperature = 1.0 / (1.0 / (TEMPNOMINAL + KELVIN) + 1.0 / BETACOEFF * log(r / NTCNOMINAL));
+  temperature = 1.0 / (1.0 / (TEMP_NOMINAL + KELVIN) + 1.0 / BETA_COEFF * log(res / NTC_NOMINAL_RES));
 
   // To Kelvin
   temperature -= KELVIN;
@@ -46,64 +59,121 @@ float steinhart_NTC(float r) {
   return temperature;
 }
 
-// Takes integer analog pin to read temperature from
-float get_temp(int T_PIN) {
 
-  // Store resitance value
-  float ohm = 0;
+float getTemp(int ntc){
+  /*
+  Reads the voltage from analog pin *ntc_pin* in ADC units and converts them to resistance.
+  Returns the temperature calculated from Steinhart-Hart-Equation
+  */
 
-  float temp_celsius;
+  // Reset resitance
+  resistance = 0;
 
   // take N samples in a row, with a slight delay
-  for (int i=0; i< NSAMPLES; i++) {
-    ohm += analogRead(T_PIN);
-    delayMicroseconds(50);
+  for (int i=0; i< nSamples; i++){
+    resistance += analogRead(ntc);
+    delayMicroseconds(SAMPLE_DELAY_US);
   }
 
   // Do the average
-  ohm /= NSAMPLES;
+  resistance /= n_samples;
 
   // Convert  ADC resistance value to resistance in Ohm
-  ohm = 1023 / ohm - 1 ;
-  ohm = RESISTOR / ohm;
+  resistance = 1023 / resistance - 1 ;
+  resistance = RESISTOR_RES / resistance;
 
-  temp_celsius = steinhart_NTC(ohm);
-
-  return temp_celsius;
+  return steinhartHartNTC(resistance);
 }
 
-// Main loop
-void loop(void) {
-  // Needed variables
-  char c;
-  char delimiter = 'T';
-  int temp_pin;
-  float temp_celsius;
 
-  // Get input from serial connection
-  if (Serial.available()) {
-    // Read from serial
-    c = Serial.read();
+uint8_t processIncoming(){
 
-    // If serial input c is delimiter, which is 'T', it is followed by integer pin number
-    while (c == delimiter) {
-      // Get pin number of analog pin from which temperature should be read
-      temp_pin = Serial.parseInt();
+  // We have reached the end of the transmission; clear serial by calling read
+  if (Serial.peek() == END_PEEK){
+    Serial.read();
+    serialBuffer[0] = NULL_TERM;
+    return 0;
+  }
+  else {
+    // Read to buffer until delimiter
+    nProcessedBytes = Serial.readBytesUntil(DELIM, serialBuffer, BUF_SIZE);
 
-      // We only have 8 analog pins
-      if (0 <= temp_pin && temp_pin < 8) {
-        // Get temperature as degrees Celsius
-        temp_celsius = get_temp(THERMISTORPINS[temp_pin]);
+    // Null-terminate string
+    serialBuffer[nProcessedBytes] = NULL_TERM;
+    return 1;
+  }
+}
 
-        // Send out, two decimal places, wait
-        Serial.println(temp_celsius, 2);
-        delayMicroseconds(50);
-      }
-      else {
-        // An Oooopsie happened
-        Serial.println(999);
-       }
-      c = Serial.read();
+
+void printNTCTemps(){
+  /*
+  Read the input buffer, read pins to read and print the respective temp to serial
+  */
+  
+  while (processIncoming()){
+  
+    ntc_pin = atoi(serialBuffer);
+
+    // We only have 8 analog pins
+    if (0 <= ntc_pin && ntc_pin < 8) {
+      // Send out, two decimal places, wait
+      Serial.println(getTemp(NTC_PINS[ntc_pin]), 2);
+    }
+    else {
+      // Pin out of range
+      Serial.println(999);
     }
   }
+}
+
+
+void resetIncoming(){
+  // Wait 500 ms and clear the incoming data
+  delay(500);
+  while(Serial.available()){
+    Serial.read();
+  }
+}
+
+
+void setup(void){
+  Serial.begin(115200); // Initialize serial connection
+  analogReference(EXTERNAL); // Set 3.3V as external reference voltage instead of internal 5V reference
+}
+
+
+void loop(void){
+
+  // Get input from serial connection
+  if (Serial.available()){
+
+    processIncoming();
+
+    // First processing should yield a single char because it the cmd
+    if (strlen(serialBuffer) == 1){
+
+      if (serialBuffer[0] == TEMP_CMD){
+        printNTCTemps();
+      }
+
+      if (serialBuffer[0] == DELAY_CMD){
+        processIncoming();
+        roDelay = atoi(serialBuffer);
+        processIncoming();
+        Serial.println(roDelay);
+      }
+
+      if (serialBuffer[0] == SAMPLE_CMD){
+        processIncoming();
+        nSamples = atoi(serialBuffer);
+        processIncoming();
+        Serial.println(nSamples);
+      }
+
+    } else{
+      Serial.println("error")
+      resetIncoming();
+    }
+  }
+  delay(roDelay);
 }
