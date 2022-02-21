@@ -8,7 +8,7 @@ from .readout.adc_board import ADCBoard
 from .stage.xystage import ZaberXYStage
 
 # Arduino
-from .temp.arduino_temp_sens import ArduinoTempSens
+from .arduino.ntc_readout.arduino_ntc import ArduinoNTCReadout
 
 # Integrated circuits
 from .ic.ADS1256.pipyadc import ADS1256

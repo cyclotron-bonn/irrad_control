@@ -78,7 +78,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'ntc' in self.setup[server]['readout'] or 'ArduinoTempSens' in self.setup[server]['devices']:
+                if 'ntc' in self.setup[server]['readout'] or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
                         plot_wrappers = []
@@ -88,9 +88,9 @@ class IrradMonitorTab(QtWidgets.QWidget):
                             self.plots[server]['temp_daq_board_plot'] = plots.TemperatureDataPlot(channels=channels, daq_device='DAQBoard')
                             plot_wrappers.append(self._create_plot_wrapper(plot_name='temp_daq_board_plot', server=server))
 
-                        if 'ArduinoTempSens' in self.setup[server]['devices']:
-                            channels = list(self.setup[server]['devices']['ArduinoTempSens']['setup'].values())
-                            self.plots[server]['temp_arduino_plot'] = plots.TemperatureDataPlot(channels=channels, daq_device='ArduinoTempSens')
+                        if 'ArduinoNTCReadout' in self.setup[server]['devices']:
+                            channels = list(self.setup[server]['devices']['ArduinoNTCReadout']['setup'].values())
+                            self.plots[server]['temp_arduino_plot'] = plots.TemperatureDataPlot(channels=channels, daq_device='ArduinoNTCReadout')
                             plot_wrappers.append(self._create_plot_wrapper(plot_name='temp_arduino_plot', server=server))
 
                         if len(plot_wrappers) == 1:

@@ -137,7 +137,7 @@ class IrradConverter(DAQProcess):
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
 
         # We have temperature data
-        if 'ntc' in server_setup['readout'] or 'ArduinoTempSens' in server_setup['devices']:
+        if 'ntc' in server_setup['readout'] or 'ArduinoNTCReadout' in server_setup['devices']:
 
             # Make temperature measurement group in outfile
             # Create group at root
@@ -163,11 +163,11 @@ class IrradConverter(DAQProcess):
                 # Add flag
                 self.data_flags[server][dname] = False
 
-            if 'ArduinoTempSens' in server_setup['devices']:
-                names = ['timestamp'] + list(server_setup['devices']['ArduinoTempSens']['setup'].values())
+            if 'ArduinoNTCReadout' in server_setup['devices']:
+                names = ['timestamp'] + list(server_setup['devices']['ArduinoNTCReadout']['setup'].values())
                 dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8']+['<f4']*(len(names)-1))
                 dname = 'temp_arduino'
-                node_name = 'ArduinoTempSens'
+                node_name = 'ArduinoNTCReadout'
 
                 # Create and store tables
                 self.data_tables[server][dname] = self.output_table.create_table('/{}/Temperature'.format(server_setup['name']),

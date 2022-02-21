@@ -133,7 +133,7 @@ class IrradServer(DAQProcess):
             if dev == 'ADCBoard':
                 self.launch_thread(target=self.daq_thread, daq_func=self._daq_adc)
 
-            elif dev == 'ArduinoTempSens':
+            elif dev == 'ArduinoNTCReadout':
                 self.launch_thread(target=self.daq_thread, daq_func=self._daq_temp)
 
     def _daq_adc(self):
@@ -162,10 +162,10 @@ class IrradServer(DAQProcess):
         # Add meta data and data
         _meta = {'timestamp': time(), 'name': self.server, 'type': 'temp'}
 
-        temp_setup = self.setup['server']['devices']['ArduinoTempSens']['setup']
+        temp_setup = self.setup['server']['devices']['ArduinoNTCReadout']['setup']
 
         # Read raw temp data
-        raw_temp = self.devices['ArduinoTempSens'].get_temp(sorted(temp_setup.keys()))
+        raw_temp = self.devices['ArduinoNTCReadout'].get_temp(sorted(temp_setup.keys()))
 
         _data = dict([(temp_setup[sens], raw_temp[sens]) for sens in raw_temp])
 
