@@ -17,7 +17,7 @@ class ArduinoNTCReadout(ArduinoSerial):
         'error': "Serial transmission error"  # Custom return code for unsuccesful serial communciation
     }
 
-    def __init__(self, port="/dev/ttyUSB0", baudrate=115200, timeout=5, ntc_lim=(-55, 125)):
+    def __init__(self, port="/dev/ttyUSB0", baudrate=115200, timeout=1, ntc_lim=(-55, 125)):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
 
         self.ntc_lim = ntc_lim  # Store temperature limits of NTC thermistor
