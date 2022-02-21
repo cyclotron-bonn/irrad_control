@@ -79,7 +79,10 @@ class ArduinoToI2C(ArduinoSerial):
             raise NotImplementedError(f"Unknown return code {return_code}")
 
         if return_code != '0':
-            raise I2CTransmissionError(self.RETURN_CODES[return_code])
+            if return_code == 'error':
+                self.reset_buffers()  # Serial error, just reset buffers
+            else:
+                raise I2CTransmissionError(self.RETURN_CODES[return_code])
 
     def read_register(self, reg):
         """

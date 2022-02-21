@@ -108,6 +108,15 @@ void processIncoming(){
 }
 
 
+void resetIncoming(){
+  // Wait 500 ms and clear the incoming data
+  delay(500);
+  while(Serial.available()){
+    Serial.read();
+  }
+}
+
+
 void setup() {
   /*
    * initiliaze i2c commication as master
@@ -167,6 +176,7 @@ void loop(){
     }
     else {
       Serial.println("error");
+      resetIncoming();
     }
 
   }
