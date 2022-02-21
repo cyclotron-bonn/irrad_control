@@ -29,7 +29,6 @@ class ArduinoSerial:
         if not isinstance(msg, bytes):
             msg = str(msg).encode()
 
-        sleep(0.1)  # TODO: figure out if this is needed
         self._intf.write(msg)
 
     def read(self):
@@ -42,7 +41,6 @@ class ArduinoSerial:
         str
             Decoded, stripped string, read from serial port
         """
-        sleep(0.1) # TODO: figure out if this is needed
         return self._intf.read_until(self._END.encode()).decode().strip()
 
     def query(self, msg):
