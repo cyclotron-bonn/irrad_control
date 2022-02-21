@@ -37,8 +37,7 @@ const char SAMPLE_CMD = 'S';
 // Define variables to be used for calculation
 float temperature;
 float resistance;
-int ntc_pin;
-char serialBuffer[BUF_SIZE];
+int ntcPin;
 
 // Define vars potentially coming in from serial
 int nSamples = 5; // Average each temperature value over N_SAMPLES analog reads
@@ -76,7 +75,7 @@ float getTemp(int ntc){
   }
 
   // Do the average
-  resistance /= n_samples;
+  resistance /= nSamples;
 
   // Convert  ADC resistance value to resistance in Ohm
   resistance = 1023 / resistance - 1 ;
@@ -112,12 +111,12 @@ void printNTCTemps(){
   
   while (processIncoming()){
   
-    ntc_pin = atoi(serialBuffer);
+    ntcPin = atoi(serialBuffer);
 
     // We only have 8 analog pins
-    if (0 <= ntc_pin && ntc_pin < 8) {
+    if (0 <= ntcPin && ntcPin < 8) {
       // Send out, two decimal places, wait
-      Serial.println(getTemp(NTC_PINS[ntc_pin]), 2);
+      Serial.println(getTemp(NTC_PINS[ntcPin]), 2);
     }
     else {
       // Pin out of range
@@ -171,7 +170,7 @@ void loop(void){
       }
 
     } else{
-      Serial.println("error")
+      Serial.println("error");
       resetIncoming();
     }
   }
