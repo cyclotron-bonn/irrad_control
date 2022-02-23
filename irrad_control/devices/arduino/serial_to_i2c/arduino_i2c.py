@@ -1,45 +1,126 @@
-from irrad_control.devices.arduino import arduino_serial
-from time import sleep
+from functools import wraps
+import re
+from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 
-class ArduinoToI2C(arduino_serial.ArduinoSerial):
-    def __init__(self, port, address=0x20, baudrate= 115200, timeout = 1.):
+class I2CTransmissionError(RuntimeError):
+    pass
+
+
+class ArduinoToI2C(ArduinoSerial):
+
+    CMDS = {
+        'write': 'W',
+        'read': 'R',
+        'address': 'A',
+        'check': 'T'
+    }
+    
+    # Check https://www.arduino.cc/en/Reference/WireEndTransmission
+    RETURN_CODES = {
+        '0': "Success",
+        '1': "Rata too long to fit in transmit buffer",
+        '2': "Received NACK on transmit of address",
+        '3': "Received NACK on transmit of data",
+        '4': "Other error",
+        'error': "Serial transmission error"  # Custom return code for unsuccesful serial communciation
+    }
+
+    @property
+    def i2c_address(self):
+        return self._i2c_addr
+
+    @i2c_address.setter
+    def i2c_address(self, addr):
+        """
+        Set the I2C address of the device on the bus to talk to
+
+        Parameters
+        ----------
+        addr : int
+            I2C address
+
+        Raises
+        ------
+        I2CTransmissionError
+            If the set address on the Arduino does not match with what has been sent
+        """
+        return_address = int(self.query(self.create_command(self.CMDS['address'], addr)))
+        if return_address != addr:
+            raise I2CTransmissionError(f"I2C address could not be set to {addr}. Got {return_address} instead.")
+        self._i2c_addr = return_address
+
+    def __init__(self, port, address=0x20, baudrate=115200, timeout=1):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
-        self.set_i2c_address(address)
+        
+        self._i2c_addr = None
 
+        self.i2c_address = address
+        
+        self.check_i2c_connection()
+
+    def _check_return_code(self, return_code):
+        """
+        Checks the return code of the Arduino Wire endTransmission 
+
+        Parameters
+        ----------
+        return_code : str
+            Return code of Wire.endTransmission as dtype str
+
+        Raises
+        ------
+        NotImplementedError
+            return_code is unknown
+        I2CTransmissionError
+            dedicated error code from Wire library
+        """
+
+        if return_code not in self.RETURN_CODES:
+            raise NotImplementedError(f"Unknown return code {return_code}")
+
+        if return_code != '0':
+            if return_code == 'error':
+                self.reset_buffers()  # Serial error, just reset buffers
+            else:
+                raise I2CTransmissionError(self.RETURN_CODES[return_code])
 
     def read_register(self, reg):
         """
-        reads data from a given register
+        Read data from register *reg*
+
+        Parameters
+        ----------
+        reg : int
+            Register to read from
+
+        Returns
+        -------
+        int
+            Data read from *reg*
         """
-        #transmit data to get the value from a certain register reg
-        msg = self.create_command('R', reg)
-        ans = self.query(msg)
-        return int(ans)
+        self.write(self.create_command(self.CMDS['read'], reg))
+        return_code = self.read()
+        reg_data = self.read()
+        self._check_return_code(return_code=return_code)
+        return int(reg_data)
 
     def write_register(self, reg, data):
         """
-        writes data to a given register
-        """
-        #transmit data to set the value val of a certain register reg
-        msg = self.create_command('W', reg, data)
-        self.write(msg)
-    
-    def check_i2c_con(self):
-        """checks the i2c connection from arduino to bus device
-        Raises:
-            RuntimeError: the arduino should return a 0 if the test was successful,
-                          anything else is an error
-        """
-        cmd = self.create_command('T')
-        check = self.query(cmd)
-        if int(check) != 0:
-            raise RuntimeError("I2C connection to bus device unsuccessful")
-    
-    def set_i2c_address(self, add):
-        """sets a new i2c address
+        Write *data* to register *reg*
 
-        Args:
-            add (int): new address
+        Parameters
+        ----------
+        reg : _type_
+            _description_
+        data : _type_
+            _description_
         """
-        cmd = self.create_command("A", add)
-        self.write(cmd)
+        return_code = self.query(self.create_command(self.CMDS['write'], reg, data))
+        self._check_return_code(return_code=return_code)
+    
+    def check_i2c_connection(self):
+        """
+        Checks the i2c connection from arduino to bus device
+        """
+        return_code = self.query(self.create_command(self.CMDS['check']))
+        self._check_return_code(return_code=return_code)

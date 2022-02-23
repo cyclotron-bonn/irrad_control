@@ -3,61 +3,76 @@ from time import sleep
 
 class ArduinoSerial:
     _DELIM = ':'
-    _END = "\n"
+    _END = '\n'
 
-    def __init__(self, port, baudrate = 115200, timeout = 1.):
-        self._intf = serial.Serial(port = port, baudrate = baudrate, timeout = timeout) 
-        sleep(3)
+    def __init__(self, port, baudrate=115200, timeout=1):
+        self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
+        sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
     
-    def write(self, _msg):
-        """resets output buffer and writes data via serial
-
-        Args:
-            _msg (any type): the data to send via serial
+    def reset_buffers(self):
         """
-        if isinstance(_msg, bytes):
-            pass
-        elif isinstance(msg, str):
-            msg = msg.encode()
-        else:
+        Sleep for a bit and reset buffers to reset serial
+        """
+        sleep(0.5)
+        self._intf.reset_input_buffer()
+        self._intf.reset_output_buffer()
+
+    def write(self, msg):
+        """
+        Write *msg* on the serial port. If necessary, convert to string and encode
+
+        Parameters
+        ----------
+        msg : str, bytes
+            Message to be written on the serial port
+        """
+        if not isinstance(msg, bytes):
             msg = str(msg).encode()
-        #self._intf.reset_output_buffer()
-        sleep(0.3)
-        self._intf.write(_msg)
+
+        self._intf.write(msg)
 
     def read(self):
-        """reads serial buffer until ’:\r\n'
-        returns:
-            encoded string of received message
         """
-        sleep(0.3)
-        msg = self._intf.read_until(b':\r\n').decode().strip(":\r\n")
-        return msg
+        Reads from serial port until self._END byte is encountered.
+        This is equivalent to serial.Serial.readline() but respects timeouts
 
-    def query(self, _msg):
-        """writes a message in binary via serial to arduino and reads the answer
-
-        Args:
-            _msg (any): [what you want to send to arduino]
-        returns:
-            answer (see <read()>)
-        
+        Returns
+        -------
+        str
+            Decoded, stripped string, read from serial port
         """
-        self.write(_msg)
+        return self._intf.read_until(self._END.encode()).decode().strip()
+
+    def query(self, msg):
+        """
+        Queries a message *msg* and reads the answer
+
+        Parameters
+        ----------
+        msg : str, bytes
+            Message to be queried
+
+        Returns
+        -------
+        str
+            Decoded, stripped string, read from serial port
+        """
+        self.write(msg)
         return self.read()
     
     def create_command(self, *args):
-        """create a command the arduino can process
-        args are seperated by sep (default is ':') ends with ':\n:
-
-        Args:
-            args (any type)
-            sep (string) optional
-            end (string) optional
-        returns:
-            encoded message in given structure
         """
-        sep = self._DELIM
-        end = self._END
-        msg = sep.join(str(arg) for arg in args) + sep + end
-        return msg.encode()
+        Create command string according to specified format.
+        Arguments to this function are formatted and separated using self._DELIM
+        
+        Examples:
+        
+        self.create_command('W', 0x03, 0xFF) -> 'W:3:255:\n'
+        self.create_command('R', 0x03) -> 'R:3:\n'
+
+        Returns
+        -------
+        str
+            Formatted command string
+        """
+        return f'{self._DELIM.join(str(a) for a in args)}{self._DELIM}{self._END}'.encode()

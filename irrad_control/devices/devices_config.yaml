@@ -18,7 +18,7 @@ ZaberXYStage:
   init:
     serial_port: /dev/ttyUSB1
 
-ArduinoTempSens:
+ArduinoNTCReadout:
   init:
     port: /dev/ttyUSB0
     baudrate: 115200

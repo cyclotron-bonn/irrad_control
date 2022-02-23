@@ -10,14 +10,113 @@
  */
 
 
-uint8_t RO_ADDRESS;
+uint8_t i2cAddress; // Store I2C address
 
-const size_t argnum = 3;
-const size_t arglen = 16;
-char args[argnum][arglen];
+const char END = '\n';
+const uint8_t END_PEEK = int(END); // Serial.peek returns byte as dtype int
+const char DELIM = ':';
+const char NULL_TERM = '\0';
 
-const uint8_t _END = int('\n');
-const char _DELIM = ':';
+size_t nProcessedBytes;
+const size_t BUF_SIZE = 32;
+char serialBuffer[BUF_SIZE]; // Max buffer 32 bytes in incoming serial data
+
+// Commands
+const char ADDR_CMD = 'A';
+const char CHECK_CMD = 'T';
+const char READ_CMD = 'R';
+const char WRITE_CMD = 'W';
+
+// Variables coming in over serial
+uint8_t var_reg;
+uint8_t var_data;
+
+
+uint8_t writeReg(uint8_t reg, uint8_t data){
+  /*
+   * transmit data via i2c to device on i2cAddress
+   * write register _reg to be written on and write _data on it
+   * end transmission and return the errorcode (0 is success) see documentation for further info
+   */
+  Wire.beginTransmission(i2cAddress);
+  Wire.write(reg);
+  Wire.write(data);
+  return Wire.endTransmission();
+}
+
+
+uint8_t pointToReg(uint8_t reg){
+  /*
+   * point to register
+   */
+  Wire.beginTransmission(i2cAddress);
+  Wire.write(reg);
+  return Wire.endTransmission();
+}
+
+
+uint8_t readCurrentReg(){
+  /*
+   * read from currently pointed-to register
+   */
+  Wire.requestFrom(i2cAddress, 0x1U); //request 1 byte (Unsigned) from Adress i2cAddress
+  return Wire.read();
+}
+
+
+uint8_t readReg(uint8_t reg){
+  /*
+   * read data via i2c from device in i2cAddress
+   * write register to be read from
+   * request data from device
+   * read the received data from device i2cAddress register _reg and return it
+   */
+  pointToReg(reg);
+  return readCurrentReg();
+}
+
+
+uint8_t checkWire(){
+  /*
+   * Checks the wire connection at i2cAddress
+   * Return value of Wire.endTransmission:
+   * 0:success
+   * 1:data too long to fit in transmit buffer
+   * 2:received NACK on transmit of address
+   * 3:received NACK on transmit of data
+   * 4:other error  
+   */
+   Wire.beginTransmission(i2cAddress);
+   return Wire.endTransmission();
+}
+
+
+void processIncoming(){
+
+  // We have reached the end of the transmission; clear serial by calling read
+  if (Serial.peek() == END_PEEK){
+    Serial.read();
+    serialBuffer[0] = NULL_TERM;
+  }
+  else {
+    // Read to buffer until delimiter
+    nProcessedBytes = Serial.readBytesUntil(DELIM, serialBuffer, BUF_SIZE);
+
+    // Null-terminate string
+    serialBuffer[nProcessedBytes] = NULL_TERM;
+  }
+}
+
+
+void resetIncoming(){
+  // Wait 500 ms and clear the incoming data
+  delay(500);
+  while(Serial.available()){
+    Serial.read();
+  }
+}
+
+
 void setup() {
   /*
    * initiliaze i2c commication as master
@@ -26,107 +125,59 @@ void setup() {
    */
   Wire.begin();
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
 }
 
 
-void receive(){
-   /*
-   * reads data from serial buffer and seperates at given _DELIM delimiter.
-   * halts reading when _END character is found or args cant fit any more data (argnum)
-   * empties serial buffer at the end
-   */
-    int peek;
-    char curarg[arglen];
-    size_t curarglen;
-    size_t i = 0;
-    do{
-        curarglen = Serial.readBytesUntil(_DELIM, curarg, arglen);
-        peek = Serial.peek();
-        for(size_t j = 0; j<curarglen; j++){
-          args[i][j] = curarg[j];
-        }
-        for(size_t j = curarglen; j<arglen; j++){
-          args[i][j] = '\0';
-        }
-        i++;
-    }while (i<argnum && peek != _END);
-    resetInputBuffer();
-}
+void loop(){
 
-void resetInputBuffer(void){
-  /*
-   * reads all data serial buffer and discharges them
-   */
-    while(Serial.available()){
-        Serial.read();
-    }
-}
+  if (Serial.available()){
 
-uint8_t writeData(uint8_t _reg, uint8_t _data){
-  /*
-   * transmit data via i2c to device on RO_ADDRESS
-   * write register _reg to be written on and write _data on it
-   * end transmission and return the errorcode (0 is success) see documentation for further info
-   */
-  Wire.beginTransmission(RO_ADDRESS);
-  Wire.write(_reg);
-  Wire.write(_data);
-  return Wire.endTransmission();
-}
+    processIncoming();
 
-uint8_t readData(uint8_t _reg){
-  /*
-   * read data via i2c from device in RO_ADDRESS
-   * write register to be read from
-   * request data from device
-   * read the received data from device RO_ADDRESS register _reg and return it
-   */
-  Wire.beginTransmission(RO_ADDRESS);
-  Wire.write(_reg);
-  Wire.endTransmission();
-  Wire.requestFrom(RO_ADDRESS, 0x1U); //request 1 byte (Unsigned) from Adress RO_ADDRESS
-  return Wire.read();
-}
+    // First processing should yield a single char because it the cmd
+    if (strlen(serialBuffer) == 1){
 
-void loop() {
-  uint8_t _transErr;
-  if(Serial.available()){
-    /*
-     * declare some constants and fill them according to their use
-     */
-    char command;
-    uint8_t address;
-    uint8_t data;
-    receive();
+      // Set I2C address
+      if (serialBuffer[0] == ADDR_CMD){
+        processIncoming();
+        i2cAddress = atoi(serialBuffer);
+        Serial.println(i2cAddress);
+      }
 
-    command = args[0][0];
-    address = atoi(args[1]);
-    data = atoi(args[2]);
-    
-    /*
-     * execute command i.e. read/write data, check connection or change i2c device address
-     */
-    if(command == 'T'){
-      Wire.beginTransmission(RO_ADDRESS);
-      _transErr = Wire.endTransmission();
-      Serial.print(_transErr);
-      Serial.println(":");
+      // Check I2C connection
+      if (serialBuffer[0] == CHECK_CMD){
+        Serial.println(checkWire());
+      }
+
+      // Read
+      if (serialBuffer[0] == READ_CMD){
+        processIncoming();
+        var_reg = atoi(serialBuffer);
+        Serial.println(pointToReg(var_reg));
+        Serial.println(readCurrentReg());
+
+      }
+      
+      // Write
+      if (serialBuffer[0] == WRITE_CMD){
+        processIncoming();
+        var_reg = atoi(serialBuffer);
+        processIncoming();
+        var_data = atoi(serialBuffer);
+        Serial.println(writeReg(var_reg, var_data));
+
+      }
+      
+      // At this point command should have been processed
+      // This last call to processIncoming should just remove the END char from serial buffer
+      processIncoming();
+
     }
-    if(command == 'R'){
-      Serial.print(readData(address));
-      Serial.println(":");
+    else {
+      Serial.println("error");
+      resetIncoming();
     }
-    if(command == 'W'){
-      writeData(address, data);
-    }
-    if(command == 'A'){
-      RO_ADDRESS = address;
-    }
-    resetInputBuffer();
+
   }
-  /*
-   * delay 100µs between cycles
-   */
-  delayMicroseconds(1000);
 }
