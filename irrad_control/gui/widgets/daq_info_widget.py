@@ -1,10 +1,6 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
-from irrad_control.devices.adc import ads1256
+from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
-from collections import OrderedDict
-
-_ro_scales = OrderedDict([(1000.0, '1 %sA' % u'\u03bc'), (330.0, '0.33 %sA' % u'\u03bc'),
-                          (100.0, '0.1 %sA' % u'\u03bc'), (33.0, '33 nA'), (10.0, '10 nA'), (3.3, '3.3 nA')])
 
 
 class DaqInfoWidget(QtWidgets.QWidget):
@@ -21,11 +17,10 @@ class DaqInfoWidget(QtWidgets.QWidget):
         self.setup = setup
 
         # Data related per server
-        self.servers = self.setup.keys()
+        self.servers = list(self.setup.keys())
         self.channels = {}
         self.ch_types = {}
         self.n_channels = {}
-        self.ro_scales = {}
         self.tables = {}
 
         # Timestamps per ADC
@@ -37,11 +32,10 @@ class DaqInfoWidget(QtWidgets.QWidget):
 
         # Check number of DAQ ADCs
         for server in self.servers:
-            if 'adc' in self.setup[server]['devices']:
-                self.channels[server] = self.setup[server]['devices']['adc']['channels']
-                self.ro_scales[server] = self.setup[server]['devices']['adc']['ro_scales']
-                self.ch_types[server] = self.setup[server]['devices']['adc']['types']
-                self.n_channels[server] = len(self.setup[server]['devices']['adc']['channels'])
+            if 'readout' in self.setup[server]:
+                self.channels[server] = self.setup[server]['readout']['channels']
+                self.ch_types[server] = self.setup[server]['readout']['types']
+                self.n_channels[server] = len(self.channels[server])
 
         # Info related per ADC
         self.n_digits = dict(zip(self.servers, [3] * len(self.servers)))
@@ -89,14 +83,14 @@ class DaqInfoWidget(QtWidgets.QWidget):
         # Loop over all servers and check whether we have an ADC
         for server in self.servers:
 
-            if 'adc' not in self.setup[server]['devices']:
+            if 'readout' not in self.setup[server]:
                 continue
 
             info_widget = GridContainer(name='Info')
 
             # Fill info layout with labels and widgets
             # Check info in daq_setup
-            _cnfg = self.setup[server]['devices']['adc']
+            _cnfg = self.setup[server]['readout']
             _srate_lbl = '' if 'sampling_rate' not in _cnfg else _cnfg['sampling_rate']
             _avgs_lbl = '' if 'sampling_rate' not in _cnfg else ads1256['avgs'][_cnfg['sampling_rate']]
 
@@ -211,7 +205,6 @@ class DaqInfoWidget(QtWidgets.QWidget):
                 table.item(0, j).setTextAlignment(QtCore.Qt.AlignCenter)
                 table.item(0, j).setFlags(QtCore.Qt.ItemIsEnabled)
                 table.item(0, j).setFont(self.table_value_font)
-                table.item(0, j).setToolTip("R/O scale I_FS: {}".format(_ro_scales[self.ro_scales[server][j]].encode('utf-8')))
                 table.resizeColumnToContents(j)
 
             # Set minimum widths and stretch policies
@@ -280,7 +273,9 @@ class DaqInfoWidget(QtWidgets.QWidget):
 
             # Update latest value of beam current
             if server in self._beam_current_vals:
-                self.beam_current_labels[server].setText('Beam current: {:.2f} nA'.format(self._beam_current_vals[server]))
+                self.beam_current_labels[server].setText('Beam current: ({:.2f} {} {:.2f}) nA'.format(self._beam_current_vals[server][0],
+                                                                                                      u'\u00B1',
+                                                                                                      self._beam_current_vals[server][1]))
 
             # Update refresh timestamp
             self.refresh_timestamp[server] = timestamp
@@ -300,8 +295,10 @@ class DaqInfoWidget(QtWidgets.QWidget):
                     table.item(0, i).setText(format(float(table.item(0, i).text()), '.{}f'.format(self.n_digits[server])))
                 # Update table entries with new data
                 else:
-                    if data_header in ch_data:
-                        table.item(0, i).setText(format(self._calc(server, ch_data, data_header), '.{}f'.format(self.n_digits[server])))
+                    measure = 'voltage' if self.unit[server] == 'V' else 'current'
+                    scale = 1 if measure == 'voltage' else 1e9  # nA
+                    val = 'NaN' if data_header not in ch_data[measure] else format(scale * ch_data[measure][data_header], '.{}f'.format(self.n_digits[server]))
+                    table.item(0, i).setText(val)
 
     def _update_tables(self, ch_data=None):
         """Helper func to update all tables at once"""
@@ -310,7 +307,8 @@ class DaqInfoWidget(QtWidgets.QWidget):
 
     def update_beam_current(self, beam_data):
         server, actual_data = beam_data['meta']['name'], beam_data['data']
-        self._beam_current_vals[server] = actual_data['current']['analog'] * 1e9
+        self._beam_current_vals[server] = (actual_data['current']['beam_current'] * 1e9,
+                                           actual_data['current']['beam_current_error'] * 1e9)
 
     def update_digits(self, server, digits):
         """Update the digits to display in table data"""
@@ -336,15 +334,3 @@ class DaqInfoWidget(QtWidgets.QWidget):
     def update_num_avg(self, server, num_avg):
         """Update the average number label"""
         self.num_avg_labels[server].setText('Averages: {}'.format(num_avg))
-
-    def _calc(self, server, data, channel):
-        # Get index of channel
-        _idx = self.channels[server].index(channel)
-
-        # Get data, scale and type of channel
-        val, scale, _type = data[channel], self.ro_scales[server][_idx], self.ch_types[server][_idx]
-
-        # Adjust scale in case we're looking at SEM's sum signal; in this case current is multiplied by factor of 4
-        scale *= 1 if _type != 'sem_sum' else 4
-
-        return val if self.unit[server] == 'V' else (val / 5.0 * scale)

@@ -1,0 +1,28 @@
+#ADS1256:
+#  init: None
+
+#TCA9555:
+#  init:
+#    address: 0x20
+
+ADCBoard:
+  init: None
+
+IrradDAQBoard:
+  init:
+    port: /dev/ttyUSB2
+    version: v0.2
+    address: 0x20
+
+ZaberXYStage:
+  init:
+    serial_port: /dev/ttyUSB1
+
+ArduinoNTCReadout:
+  init:
+    port: /dev/ttyUSB0
+    baudrate: 115200
+    timeout: 5
+    ntc_lim:
+      - -55
+      - 125

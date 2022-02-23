@@ -7,24 +7,12 @@ sem:
     - SEM-39-deg
     - SEM-15-deg
 
-# Descriptor of hardware-related output behind digitized voltage signal or channel
-adc_channels:
-  - sem_left
-  - sem_right
-  - sem_up
-  - sem_down
-  - sem_sum
-  - sem_h_shift
-  - sem_v_shift
-  - cup_integrated
-  - none
-
 # Proportionality constant(s) of the SEMs for online measurements of the HISKP proton beam current.
 # The beam current I_Beam is calculated by the SEM sum signal U_SEM in [V], the 5V full-scale scale I_fs
 # of the custom readout electronics (3.3,10,33,100,330,1000) in [nA] and the proportionality constant lambda in [1/V] like:
 # I_Beam(U_SEM) = lambda * I_fs * U_SEM
 lambda:
-  default: lambda_4
+  default: lambda_5
   all:
     lambda_1:
       nominal: 770.97e-3
@@ -62,13 +50,27 @@ lambda:
       particle: proton
       energy: 14 MeV
       date: Wed Oct 16 15:45:00 2019
+    lambda_5:
+      nominal: 1.358
+      sigma: 0.014
+      hv_sem: 100 V
+      unit: 1/V
+      device: SEM-15-deg
+      particle: proton
+      energy: 14 MeV
+      date: Wed Jun 16 14:00:00 2021
 
 # Proton hardness factors
 kappa:
-  default: kappa_1
+  default: kappa_2
   all:
     kappa_1:
       nominal: 3.0
       sigma: 0
       energy: 12.26
       date: Thu Jan 23 00:00:00 2019
+    kappa_2:
+      nominal: 4.1
+      sigma: 0.6
+      energy: 12.26
+      date: Wed Jul 15 13:30:00 2020

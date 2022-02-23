@@ -64,9 +64,9 @@ class ProcessManager(object):
             # Something went wrong
             except (paramiko.BadHostKeyException, paramiko.AuthenticationException, paramiko.SSHException) as e:
                 # We need to add key, let user know
-                msg = "Server's host key could not be verified. Try creating key on host PC via" \
-                      " ssh-keygen and copy to server via ssh-copy-id!"
-                raise e(msg)
+                msg = f"Connecting to {username}@{hostname} failed. This is usually due to an unknown host ssh-key. Try creating a ssh-key on host PC via" \
+                      f" ssh-keygen and copy to {username}@{hostname} via ssh-copy-id!"
+                raise Exception(msg) from e
 
             # Success
             logging.info('Successfully connected to server {}@{}!'.format(username, hostname))
@@ -253,7 +253,7 @@ class ProcessManager(object):
 
         for host in self.active_pids:
 
-            host_pids = self.check_process_status(hostname=host, pid=self.active_pids[host].keys())
+            host_pids = self.check_process_status(hostname=host, pid=list(self.active_pids[host].keys()))
 
             for pid in self.active_pids[host]:
 

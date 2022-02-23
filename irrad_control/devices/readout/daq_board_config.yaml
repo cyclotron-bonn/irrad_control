@@ -1,0 +1,64 @@
+# Configuration yaml for the IrradDAQBoard
+# Common configuration independent of version
+common:
+  # Voltages present on the board; need to be MEASURED once
+  voltages:
+    Vp: 15.10
+    Vm: -15.10
+    2V5p: 2.57
+    2V5m: -2.61
+    5Vp: 5.10
+  # Number of channels of the used MUX508IPWR 3-bit multiplexer
+  mux_channel: 8
+  # Groups of different MUXes
+  mux_groups: [ sem, ch12, ntc ]
+  gain_groups: [ sem, ch12 ]
+  # Input full-current scale corresponding to +-5 V (2x2V5p to 2x2V5m) readout board output; INDEX corresponds to VALUE
+  # Full current scale 7 gives unity gain, therefore only goes 2V5p - 2V5m; set to 0
+  ifs_scales: [ 10000, 5000, 1000, 500, 100, 50, 10, 0 ]
+  # Unit of current scale
+  ifs_unit: nA
+  # Scales the current scale for the respective input channel; either 1 or 10 depending on jumper setting
+  jumper_scale: 1
+  # Labels for printing
+  ifs_labels: [ "10 \u03bcA", "5 \u03bcA", "1 \u03bcA", "500 nA", "100 nA", "50 nA", "10 nA", "UG" ]
+  ifs_labels_10: [ "100 \u03bcA", "50 \u03bcA", "10 \u03bcA", "5 \u03bcA", "1 \u03bcA", "500 nA", "100 nA", "UG" ]
+  # Gain factors for the respective MUX channel
+  gain_factors: [ 2, 4, 20,40, 200, 400, 2000, 1 ]
+  input_channel: 6
+  input_labels: [ "L", "R", "U", "D", "1", "2" ]
+  output_channel: 8
+  output_labels: [ "L", "R", "U", "D", "SUM", "1", "2", "NTC" ]
+
+# Version-specific configurations
+version:
+  # Version 0.1
+  v0.1:
+    # Pin configuration of the interfacing TCA9555 16-bit GPIO expander, steering the multiplexers for gain etc.
+    pins:
+      sem: [ 0, 1, 2 ]
+      ch12: [ 3, 4, 5 ]
+      ntc: [ 8, 9, 10 ]
+      gpio: [ 6, 7, 11, 12, 13, 14, 15 ]  # These pins are not connected on v0.1
+    # Default values
+    defaults:
+      input: [ 6, 7, 11, 12, 13, 14, 15 ]
+      output: [ 0, 1, 2, 3, 4, 5, 8, 9, 10 ]
+      sem_ifs: 10000
+      ch12_ifs: 10000
+      ntc_ch: 0
+  # Version 0.2
+  v0.2:
+    # Pin configuration of the interfacing TCA9555 16-bit GPIO expander, steering the multiplexers for gain etc.
+    pins:
+      sem: [ 7, 8, 9 ]
+      ch12: [ 10, 11, 12 ]
+      ntc: [ 13, 14, 15 ]
+      gpio: [ 0, 1, 2, 3, 4, 5, 6 ]
+    # Default values
+    defaults:
+      input: [ 0, 1, 2, 3, 4, 5, 6 ]
+      output: [ 7, 8, 9, 10, 11, 12, 13, 14, 15 ]
+      sem_ifs: 10000
+      ch12_ifs: 10000
+      ntc_ch: 0

@@ -3,9 +3,10 @@ import logging
 from PyQt5 import QtCore
 
 try:
-    log_levels = logging._levelToName  #py3
+    log_levels = dict(logging._levelToName)  # Py3
+    log_levels.update({k: v for (v, k) in log_levels.items()})
 except AttributeError:
-    log_levels = logging._levelNames  #py2
+    log_levels = logging._levelNames  # Py2
 
 
 class LoggingStream(QtCore.QObject):

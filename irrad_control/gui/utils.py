@@ -1,4 +1,5 @@
 import subprocess
+from PyQt5 import QtWidgets
 
 
 def fill_combobox_items(cbx, fill_dict):
@@ -41,7 +42,7 @@ def get_host_ip():
     """Returns the host IP address on UNIX systems. If not UNIX, returns None"""
 
     try:
-        host_ip = subprocess.check_output(['hostname', '-I'])
+        host_ip = str(subprocess.check_output(['hostname', '-I']))
     except (OSError, subprocess.CalledProcessError):
         host_ip = None
 
@@ -76,3 +77,48 @@ def check_unique_input(edits, ignore=''):
             if name_i == name_j:
                 return False
     return True
+
+
+def remove_widget(widget, layout, replace_with=None):
+    """
+    Removes *widget* from *layout* by looping over layout contents. Optionally replaces *widget* with replace_with*
+
+    Parameters
+    ----------
+    widget:
+        QtWidget
+    layout:
+        QLayout
+    replace_with:
+        QtWidget
+    """
+
+    if not isinstance(widget, QtWidgets.QWidget):
+        raise TypeError('*widget* must be QWidget, is {}'.format(type(widget)))
+
+    if not isinstance(layout, QtWidgets.QLayout):
+        raise TypeError('*layout* must be QLayout, is {}'.format(type(layout)))
+
+    if replace_with:
+        if not isinstance(replace_with, QtWidgets.QWidget):
+            raise TypeError('*replace_with* must be QWidget, is {}'.format(type(replace_with)))
+
+    # Loop over layout count
+    for i in reversed(range(layout.count())):
+
+        current_item = layout.takeAt(i)
+
+        # We found the widget to remove
+        if current_item.widget() == widget:
+
+            # Remove
+            layout.removeWidget(widget)
+            current_item.widget().deleteLater()
+
+            # Replace
+            if replace_with:
+                layout.insertWidget(i, replace_with)
+
+            break
+    else:
+        raise AttributeError('*layout* does not contain *widget*')

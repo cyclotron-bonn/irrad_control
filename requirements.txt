@@ -4,4 +4,6 @@ paramiko  # SSH API in python
 pyyaml  # yaml
 tables  # pytables HDF5 library in Python
 pyqtgraph  # Fast plotting
+matplotlib  # Plotting colors
+uncertainties  # Error propagation
 # pyqt  # Qt library in Python; needs to be installed via conda / manually; does not work with pip / easy_install

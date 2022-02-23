@@ -59,7 +59,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
         # Server process and hardware that can receive commands using self.send_cmd method
-        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter')
+        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board')
 
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()
@@ -164,7 +164,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
             if name == 'Setup':
                 self.setup_tab = IrradSetupTab(parent=self)
-                self.setup_tab.irrad_setup.setup_widgets['session'].widgets['logging_combo'].currentTextChanged.connect(lambda lvl: self.log_widget.change_level(lvl))
+                self.setup_tab.session_setup.setup_widgets['session'].widgets['logging_combo'].currentTextChanged.connect(lambda lvl: self.log_widget.change_level(lvl))
                 self.setup_tab.setupCompleted.connect(lambda setup: self._init_setup(setup))
                 tw[name] = self.setup_tab
             else:
@@ -227,7 +227,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Store loglevel of remote processes; subprocesses send log level and message separately
         self._remote_loglevel = 0
-        self._loglevel_names = [lvl for lvl in log_levels.keys() if isinstance(lvl, str)]
+        self._loglevel_names = [lvl for lvl in log_levels if isinstance(lvl, str)]
 
         # Set logging level
         logging.getLogger().setLevel(loglevel)
@@ -269,7 +269,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='master', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='development', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -388,7 +388,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Create missing tabs
         self.control_tab = IrradControlTab(setup=self.setup['server'], parent=self.tabs)
-        self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs)
+        self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs,
+                                           plot_path=self.setup['session']['outfolder'])
 
         # Connect control tab
         self.control_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))
@@ -404,7 +405,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
 
         for tab in self.tab_order:
-            if tab in tmp_tw.keys():
+            if tab in tmp_tw:
 
                 # Remove old tab, insert updated tab at same index and set status
                 self.tabs.removeTab(self.tab_order.index(tab))
@@ -419,37 +420,44 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         # Check whether data is interpreted
         if data['meta']['type'] == 'raw':
-
             self.daq_info_widget.update_raw_data(data)
-            self.monitor_tab.plots[server]['raw_plot'].set_data(data)
+            self.monitor_tab.plots[server]['raw_plot'].set_data(meta=data['meta'], data=data['data'])
 
         # Check whether data is interpreted
         elif data['meta']['type'] == 'beam':
             self.daq_info_widget.update_beam_current(data)
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
-            _data = {'meta': data['meta'], 'data': data['data']['current']}
-            self.monitor_tab.plots[server]['current_plot'].set_data(_data)
-            self.control_tab.beam_current = data['data']['current']['analog']
+            self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
+
+            if 'frac_h' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
+            if 'frac_v' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
+
+            self.control_tab.beam_current = data['data']['current']['beam_current']
             self.control_tab.check_no_beam()
 
+        elif data['meta']['type'] == 'hist':
+            if 'beam_position_idxs' in data['data']:
+                self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
+            if 'sey_horizontal_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['sey_horizontal_idx'])
+            if 'sey_vertical_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
+
         # Check whether data is interpreted
-        elif data['meta']['type'] == 'fluence':
+        elif data['meta']['type'] == 'scan':
             self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
+            self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+            self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
-            hist, hist_err = (data['data'][x] for x in ('hist', 'hist_err'))
-
-            lower_mean_f = sum([hist[i] - hist_err[i] for i in range(len(hist))]) / float(len(hist))
-
-            if lower_mean_f >= self.control_tab.aim_fluence:
+            # FIXME: more precise result would be helpful
+            if data['data']['eta_n_scans'] < 0:
                 self.send_cmd(server, 'stage', 'finish')
 
-            self.control_tab.update_info(row=hist[self.control_tab.scan_params['row']], unit='p/cm^2')
+        elif data['meta']['type'] == 'damage':
 
-            if self.control_tab.scan_params['row'] in (0, self.control_tab.scan_params['n_rows'] - 1):
-                mean_fluence = sum(hist) / len(hist)
-                self.control_tab.update_info(scan=mean_fluence, unit='p/cm^2')
-                est_n_scans = (self.control_tab.aim_fluence - mean_fluence) / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                self.control_tab.update_info(nscan=int(est_n_scans))
+            self.control_tab.update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
 
         elif data['meta']['type'] == 'stage':
 
@@ -494,14 +502,17 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 self.control_tab.daq_widget.widgets['rec_btns'][server].setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
 
-        elif data['meta']['type'] == 'temp':
+        elif data['meta']['type'] == 'temp_arduino':
 
-            self.monitor_tab.plots[server]['temp_plot'].set_data(data)
+            self.monitor_tab.plots[server]['temp_arduino_plot'].set_data(meta=data['meta'], data=data['data'])
 
-        elif data['meta']['type'] == 'counter':
+        elif data['meta']['type'] == 'temp_daq_board':
+            self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'counter_arduino':
             self.monitor_tab.plots[server]['rad_counter_plot'].set_data(data)
             
-    def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True):
+    def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
         The command can have respective data *cmd_data*. Targets must be listed in self._targets."""
 
@@ -511,7 +522,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             return
 
         cmd_dict = {'target': target, 'cmd': cmd, 'data': cmd_data}
-        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict)
+        cmd_worker = QtWorker(self._send_cmd_get_reply, hostname, cmd_dict, timeout)
 
         # Make connections
         self._connect_worker_exception(worker=cmd_worker)
@@ -523,25 +534,40 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Start
         self.threadpool.start(cmd_worker)
 
-    def _send_cmd_get_reply(self, hostname, cmd_dict):
+    def _send_cmd_get_reply(self, hostname, cmd_dict, timeout=None):
         """Sending a command to the server / interpreter and waiting for its reply. This runs on a separate QThread due
         to the blocking nature of the recv() method of sockets. *cmd_dict* contains the target, cmd and cmd_data."""
 
         # Spawn socket to send request to server / interpreter and connect
         req = self.context.socket(zmq.REQ)
         req_port = self.setup['server'][hostname]['ports']['cmd'] if hostname in self.setup['server'] else self.setup['ports']['cmd']
+
+        if timeout:
+            req.setsockopt(zmq.RCVTIMEO, int(timeout))
+            req.setsockopt(zmq.LINGER, 0)
+
         req.connect(self._tcp_addr(req_port, hostname))
 
         # Send command dict and wait for reply
         req.send_json(cmd_dict)
-        reply = req.recv_json()
 
-        # Update reply dict by the servers IP address
-        reply['hostname'] = hostname
+        try:
+            reply = req.recv_json()
 
-        # Emit the received reply in pyqt signal and close socket
-        self.reply_received.emit(reply)
-        req.close()
+            # Update reply dict by the servers IP address
+            reply['hostname'] = hostname
+
+            # Emit the received reply in pyqt signal and close socket
+            self.reply_received.emit(reply)
+
+        except zmq.Again:
+            msg = 'Command {} with target {} timed out after {} seconds: no reply from server {}'
+            logging.error(msg.format(cmd_dict['cmd'],
+                                     cmd_dict['target'],
+                                     timeout // 1000,
+                                     self.setup['server'][hostname]['name']))
+        finally:
+            req.close()
 
     def handle_reply(self, reply_dict):
 
@@ -560,7 +586,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
 
                     # Send command to find where stage is and what the speeds are
-                    if 'stage' in self.setup['server'][hostname]['devices']:
+                    if 'ZaberXYStage' in self.setup['server'][hostname]['devices']:
                         self.send_cmd(hostname, 'stage', 'pos')
                         self.send_cmd(hostname, 'stage', 'get_speed')
                         self.send_cmd(hostname, 'stage', 'get_range')
@@ -573,6 +599,14 @@ class IrradControlWin(QtWidgets.QMainWindow):
                     # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
                     # Try to close
                     self.close()
+
+            elif sender == 'ro_board':
+
+                if reply == 'set_ifs':
+                    cmd_data = {'server': hostname}
+                    cmd_data.update(reply_data)
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='update_group_ifs', cmd_data=cmd_data)
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(hostname, True))
 
             elif sender == 'interpreter':
 
@@ -613,13 +647,16 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
+<<<<<<< HEAD
                     self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['devices']['daq']['kappa'],
                                                          'n_rows': reply_data['n_rows'], 'server': hostname})
+=======
+                    self.monitor_tab.add_fluence_hist(kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      n_rows=reply_data['n_rows'],
+                                                      server=hostname)
+>>>>>>> development
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
-
-                    est_n_scans = self.control_tab.aim_fluence / (self.control_tab.beam_current / (1.60217733e-19 * self.control_tab.scan_params['scan_speed'] * self.control_tab.scan_params['step_size'] * 1e-2))
-                    self.control_tab.update_info(nscan=int(est_n_scans))
 
                 elif reply == 'finish':
 
@@ -657,30 +694,13 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
 
-        data_sub.setsockopt(zmq.SUBSCRIBE, '')
-        
-        data_timestamps = {}
+        data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
 
-            data = data_sub.recv_json()
-            dtype = data['meta']['type']
-            server = data['meta']['name']
-
-            if server not in data_timestamps:
-                data_timestamps[server] = {}
-
-            if dtype not in data_timestamps[server]:
-                data_timestamps[server][dtype] = time.time()
-            else:
-                now = time.time()
-                drate = 1. / (now - data_timestamps[server][dtype])
-                data_timestamps[server][dtype] = now
-                data['meta']['data_rate'] = drate
-
-            self.data_received.emit(data)
+            self.data_received.emit(data_sub.recv_json())
             
     def recv_log(self):
         
@@ -695,7 +715,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Connect to interpreter data stream
         log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
 
-        log_sub.setsockopt(zmq.SUBSCRIBE, '')
+        log_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
         
         logging.info('Log receiver ready')
         
@@ -703,6 +723,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
             log = log_sub.recv()
             if log:
                 log_dict = {}
+
+                # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+                # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+                # therefore this will work in Py2 and Py3
+                log = log.decode()
 
                 if log.upper() in self._loglevel_names:
                     log_dict['level'] = getattr(logging, log.upper(), None)
@@ -738,6 +763,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.stop_recv_data.set()
         self.stop_recv_log.set()
         self.close_timer.stop()
+
+        # Store all plots on close; AttributeError when app was not launched fully
+        try:
+            self.monitor_tab.save_plots()
+        except AttributeError:
+            pass
 
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)
