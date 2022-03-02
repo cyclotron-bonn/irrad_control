@@ -11,6 +11,7 @@
 
 
 uint8_t i2cAddress; // Store I2C address
+uint8_t i2cRetCode; // Store I2C return code
 
 const char END = '\n';
 const uint8_t END_PEEK = int(END); // Serial.peek returns byte as dtype int
@@ -138,40 +139,56 @@ void loop(){
     // First processing should yield a single char because it the cmd
     if (strlen(serialBuffer) == 1){
 
-      // Set I2C address
-      if (serialBuffer[0] == ADDR_CMD){
-        processIncoming();
-        i2cAddress = atoi(serialBuffer);
-        Serial.println(i2cAddress);
-      }
-
-      // Check I2C connection
-      if (serialBuffer[0] == CHECK_CMD){
-        Serial.println(checkWire());
-      }
-
-      // Read
-      if (serialBuffer[0] == READ_CMD){
-        processIncoming();
-        var_reg = atoi(serialBuffer);
-        Serial.println(pointToReg(var_reg));
-        Serial.println(readCurrentReg());
-
-      }
+      // Lowercase means we want to set some value and print back that value on the serial bus
+      if (isLowerCase(serialBuffer[0])){
+        
+        // Set I2C address
+        if (serialBuffer[0] == toupper(ADDR_CMD)){
+          processIncoming();
+          i2cAddress = atoi(serialBuffer);
+          Serial.println(i2cAddress);
+        }
       
-      // Write
-      if (serialBuffer[0] == WRITE_CMD){
-        processIncoming();
-        var_reg = atoi(serialBuffer);
-        processIncoming();
-        var_data = atoi(serialBuffer);
-        Serial.println(writeReg(var_reg, var_data));
-
       }
-      
-      // At this point command should have been processed
-      // This last call to processIncoming should just remove the END char from serial buffer
-      processIncoming();
+
+      // Here we want to read something or interact with the I2C bus
+      else {
+        // Return I2C address
+        if (serialBuffer[0] == ADDR_CMD){
+          Serial.println(i2cAddress);
+        }
+
+        // Check I2C connection
+        if (serialBuffer[0] == CHECK_CMD){
+          i2cRetCode = checkWire();
+          Serial.println(i2cRetCode);
+        }
+
+        // Read
+        if (serialBuffer[0] == READ_CMD){
+          processIncoming();
+          var_reg = atoi(serialBuffer);
+          i2cRetCode = pointToReg(var_reg);
+          Serial.println(i2cRetCode);
+          Serial.println(readCurrentReg());
+
+        }
+        
+        // Write
+        if (serialBuffer[0] == WRITE_CMD){
+          processIncoming();
+          var_reg = atoi(serialBuffer);
+          processIncoming();
+          var_data = atoi(serialBuffer);
+          i2cRetCode = writeReg(var_reg, var_data);
+          Serial.println(i2cRetCode);
+
+        }
+        
+        // At this point command should have been processed
+        // This last call to processIncoming should just remove the END char from serial buffer
+        processIncoming();
+      }
 
     }
     else {
