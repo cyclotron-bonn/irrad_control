@@ -1,6 +1,7 @@
 from time import sleep
 from irrad_control.devices.serial_device import SerialDevice
 
+
 class ArduinoSerial(SerialDevice):
     
     CMD_DELIMITER = ':'

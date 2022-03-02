@@ -1,6 +1,7 @@
 import serial
 from time import sleep
 
+
 class SerialDevice(object):
 
     WRITE_TERMINATION = '\n'
