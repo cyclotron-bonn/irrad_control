@@ -15,7 +15,7 @@ class ArduinoToI2C(ArduinoSerial):
     }
     
     # Check https://www.arduino.cc/en/Reference/WireEndTransmission
-    RETURN_CODES = {
+    ERRORS = {
         '0': "Success",
         '1': "Rata too long to fit in transmit buffer",
         '2': "Received NACK on transmit of address",
@@ -26,12 +26,24 @@ class ArduinoToI2C(ArduinoSerial):
 
     @property
     def i2c_address(self):
-        return self._i2c_addr
+        """
+        Read back the I2C address property from the firmware.
+        Uses super().query because instance query always returns i2c return code
+        but i2c bus is not involved in this query
+
+        Returns
+        -------
+        int
+            I2C address
+        """
+        return int(super().query(self.create_command(self.CMDS['address'])))
 
     @i2c_address.setter
     def i2c_address(self, addr):
         """
-        Set the I2C address of the device on the bus to talk to
+        Set the I2C address of the device on the bus to talk to.
+        Uses super().query because instance query always returns i2c return code
+        but i2c bus is not involved in this query
 
         Parameters
         ----------
@@ -43,18 +55,11 @@ class ArduinoToI2C(ArduinoSerial):
         I2CTransmissionError
             If the set address on the Arduino does not match with what has been sent
         """
-        return_address = int(self.query(self.create_command(self.CMDS['address'], addr)))
-        if return_address != addr:
-            raise I2CTransmissionError(f"I2C address could not be set to {addr}. Got {return_address} instead.")
-        self._i2c_addr = return_address
+        super()._set_and_retrieve(cmd='address', val=int(addr), exception_=I2CTransmissionError)
 
     def __init__(self, port, address=0x20, baudrate=115200, timeout=1):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
-        
-        self._i2c_addr = None
-
         self.i2c_address = address
-        
         self.check_i2c_connection()
 
     def _check_return_code(self, return_code):
@@ -74,14 +79,32 @@ class ArduinoToI2C(ArduinoSerial):
             dedicated error code from Wire library
         """
 
-        if return_code not in self.RETURN_CODES:
-            raise NotImplementedError(f"Unknown return code {return_code}")
-
         if return_code != '0':
-            if return_code == 'error':
-                self.reset_buffers()  # Serial error, just reset buffers
+            if return_code not in self.ERRORS:
+                raise NotImplementedError(f"Unknown return code {return_code}")
             else:
-                raise I2CTransmissionError(self.RETURN_CODES[return_code])
+                if return_code == 'error':
+                    self.reset_buffers()  # Serial error, just reset buffers
+                else:
+                    raise I2CTransmissionError(self.ERRORS[return_code])
+
+    def query(self, msg):
+        """
+        Queries a message *msg* and reads the i2c return code.
+        Additional data after the query can be retrive using a self.read
+
+        Parameters
+        ----------
+        msg : str, bytes
+            Message to be queried
+
+        Returns
+        -------
+        str
+            Decoded, stripped string, read from serial port
+        """
+        i2c_return_code = super().query(msg)
+        self._check_return_code(return_code=i2c_return_code)
 
     def read_register(self, reg):
         """
@@ -97,11 +120,8 @@ class ArduinoToI2C(ArduinoSerial):
         int
             Data read from *reg*
         """
-        self.write(self.create_command(self.CMDS['read'], reg))
-        return_code = self.read()
-        reg_data = self.read()
-        self._check_return_code(return_code=return_code)
-        return int(reg_data)
+        self.query(self.create_command(self.CMDS['read'], reg))
+        return int(self.read())
 
     def write_register(self, reg, data):
         """
@@ -109,17 +129,15 @@ class ArduinoToI2C(ArduinoSerial):
 
         Parameters
         ----------
-        reg : _type_
-            _description_
-        data : _type_
-            _description_
+        reg : int
+            Register to write to
+        data : int
+            Data to write to register *reg*
         """
-        return_code = self.query(self.create_command(self.CMDS['write'], reg, data))
-        self._check_return_code(return_code=return_code)
+        self.query(self.create_command(self.CMDS['write'], reg, data))
     
     def check_i2c_connection(self):
         """
         Checks the i2c connection from arduino to bus device
         """
-        return_code = self.query(self.create_command(self.CMDS['check']))
-        self._check_return_code(return_code=return_code)
+        self.query(self.create_command(self.CMDS['check']))
