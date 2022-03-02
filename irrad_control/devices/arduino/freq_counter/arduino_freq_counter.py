@@ -1,107 +1,69 @@
-import serial
-import logging
-import time
-
-logging.getLogger().setLevel('INFO')
+from itertools import count
+from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 
 
-def _check_cmd_fail(func):
-    
-    def wrapper(self, samplingtime=None):
-        
-        res = func(self) if samplingtime is None else func(self, samplingtime)
-        
-        if res == -1:
-            raise ValueError('Method {} failed with return value -1'.format(func.__name__))
-        
-        return res
-    
-    return wrapper
 
-
-class ArduinoFreqCount(object):
-    """Class to read from Arduino temperature sensor setup"""
+class ArduinoFreqCounter(ArduinoSerial):
 
     # Command references
-    cmds = {'get_frequency': 'gf',
-            'get_samplingtime': 'gt',
-            'get_counts': 'gc',
-            'set_samplingtime': 'st{}',
-            'failure_cmd': 'fh'}
+    CMDS = {'sampling_time': 'G',
+            'counts': 'C',
+            'frequency': 'F',
+            'restart': 'R'}
     
+    ERROR_CODES = {
+        'error': "An error occured"
+    }
 
-    def __init__(self, port="/dev/ttyACM0", baudrate=9600, timeout=5):
+    @property
+    def sampling_time(self):
+        """
+        Sampling time during which is counted in ms 
 
-        #super() helps with multiple inheritage
-        super(ArduinoFreqCount, self).__init__()
+        Returns
+        -------
+        int
+            Sampling time in milliseconds
+        """
+        return int(self.query(self.create_command(self.CMDS['sampling_time'])))
 
-        # Make nice serial interface
-        self.interface = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-        time.sleep(2)  # Sleep to allow Arduino to reboot caused by serial connection
+    @sampling_time.setter
+    def sampling_time(self, sampling_time):
+        """
+        Setter of the sampling time property
 
-        # Check connection by writing invalid data and receiving answer
-        self.interface.write(self.cmds['failure_cmd'].encode())
-        test_res = int(self.interface.readline().strip())
-        
-        if test_res == -1:
-            logging.debug("Serial connection to Arduino temperature sensor established.")
-        else:
-            logging.error("No reply on serial connection to Arduino FreqCounter.")
-            
-    def write_and_read(self, msg):
-        self.interface.reset_input_buffer()
-        self.interface.reset_output_buffer()
-        self.interface.write(msg.encode())
-        return self.interface.readline().strip()
-    
-    @_check_cmd_fail
-    def get_samplingtime(self):
-        """Gets the samplingtime of the Arduino"""
-        return int(self.write_and_read(self.cmds['get_samplingtime']))
-        #writes the command to the arduino
-        #self.interface.write(self.cmds['get_samplingtime'].encode())
-        # read the answer from the arduino
-        #return int(self.interface.readline().strip())
-    
-    @_check_cmd_fail
-    def get_frequency(self):
-        """Gets the current frequency"""
-        
-        #writing the command to the arduino
-        #self.interface.write(self.cmds['get_frequency'].encode())
-        # read the answer from the arduino
-        try:
-            #a = self.interface.readline().strip()
-            return int(self.write_and_read(self.cmds['get_frequency']))
-        except ValueError:
-            print(a)
-    
-    @_check_cmd_fail
-    def get_counts(self):
-        """Gets the current frequency"""
-        
-        #writing the command to the arduino
-        #self.interface.write(self.cmds['get_counts'].encode())
-        # read the answer from the arduino
-        return int(self.write_and_read(self.cmds['get_counts']))
-    
-    @_check_cmd_fail
-    def set_samplingtime(self, samplingtime):
-        """Sets the samplingtime"""
-        if samplingtime < 0:
-            raise ValueError('Sampling time must be positive integer')
-        #sending the command of setting the samplingtime to the arduino
-        self.write_and_read(self.cmds['set_samplingtime'].format(int(samplingtime)))
-        
-    def test_serial_connection(self):
-        self.interface.write('t'.encode())
-        return self.interface.readline().strip()
+        Parameters
+        ----------
+        sampling_time : int
+            Sampling time in milliseconds
 
-    def continous_read(self, prop='frequency'):
-        #testing the frequency measurements
-        read_func = self.get_frequency if prop == 'frequency' else self.get_counts
-        try:
-            while True:
-                logging.info('{} Hz'.format(read_func()))
-        except KeyboardInterrupt:
-            pass
+        Raises
+        ------
+        RuntimeError
+            Set sampling time and retrieved sampling are unequal
+        """
+        self._set_and_retrieve(cmd='sampling_time', val=int(sampling_time))
+
+    @property
+    def counts(self):
+        return int(self.query(self.create_command(self.CMDS['counts'])))
+
+    @counts.setter
+    def counts(self, val):
+        raise AttributeError("Attribute is read-only")
+
+    @property
+    def frequency(self):
+        return int(self.query(self.create_command(self.CMDS['frequency'])))
+
+    @frequency.setter
+    def frequency(self, val):
+        raise AttributeError("Attribute is read-only")
+
+    def __init__(self, port, baudrate=115200, timeout=1):
+        super().__init__(port, baudrate, timeout)
+        self.CMDS.update(ArduinoSerial.CMDS)
+        self.ERRORS.update(ArduinoSerial.ERRORS)
+
+    def restart(self):
+        return self.write(self.create_command(self.CMDS['restart']))
