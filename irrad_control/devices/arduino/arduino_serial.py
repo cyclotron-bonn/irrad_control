@@ -1,64 +1,13 @@
-import serial
 from time import sleep
+from irrad_control.devices.serial_device import SerialDevice
 
-class ArduinoSerial:
-    _DELIM = ':'
-    _END = '\n'
+class ArduinoSerial(SerialDevice):
+    
+    CMD_DELIMITER = ':'
 
     def __init__(self, port, baudrate=115200, timeout=1):
-        self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
-        sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
-    
-    def reset_buffers(self):
-        """
-        Sleep for a bit and reset buffers to reset serial
-        """
-        sleep(0.5)
-        self._intf.reset_input_buffer()
-        self._intf.reset_output_buffer()
-
-    def write(self, msg):
-        """
-        Write *msg* on the serial port. If necessary, convert to string and encode
-
-        Parameters
-        ----------
-        msg : str, bytes
-            Message to be written on the serial port
-        """
-        if not isinstance(msg, bytes):
-            msg = str(msg).encode()
-
-        self._intf.write(msg)
-
-    def read(self):
-        """
-        Reads from serial port until self._END byte is encountered.
-        This is equivalent to serial.Serial.readline() but respects timeouts
-
-        Returns
-        -------
-        str
-            Decoded, stripped string, read from serial port
-        """
-        return self._intf.read_until(self._END.encode()).decode().strip()
-
-    def query(self, msg):
-        """
-        Queries a message *msg* and reads the answer
-
-        Parameters
-        ----------
-        msg : str, bytes
-            Message to be queried
-
-        Returns
-        -------
-        str
-            Decoded, stripped string, read from serial port
-        """
-        self.write(msg)
-        return self.read()
+        super().__init__(port=port, baudrate=baudrate, timeout=timeout) 
+        sleep(1)  # Allow Arduino to reboot; serial connection resets the Arduino
     
     def create_command(self, *args):
         """
@@ -67,12 +16,12 @@ class ArduinoSerial:
         
         Examples:
         
-        self.create_command('W', 0x03, 0xFF) -> 'W:3:255:\n'
-        self.create_command('R', 0x03) -> 'R:3:\n'
+        self.create_command('W', 0x03, 0xFF) -> 'W:3:255:'
+        self.create_command('R', 0x03) -> 'R:3:'
 
         Returns
         -------
         str
             Formatted command string
         """
-        return f'{self._DELIM.join(str(a) for a in args)}{self._DELIM}{self._END}'.encode()
+        return f'{self.CMD_DELIMITER.join(str(a) for a in args)}{self.CMD_DELIMITER}'.encode()
