@@ -24,8 +24,7 @@ class ArduinoSerial(SerialDevice):
         int
             Communication delay in milliseconds
         """
-        # The self.CMDS['cmd'].lower() invokes the getter, self.CMDS['cmd'] the setter 
-        return int(self.query(self.create_command(self.CMDS['communication_delay'].lower())))
+        return int(self.query(self.create_command(self.CMDS['communication_delay'])))
 
     @communication_delay.setter
     def communication_delay(self, comm_delay):
@@ -62,7 +61,8 @@ class ArduinoSerial(SerialDevice):
         exception_
             Exception is raised when set and retrieved values differ
         """
-        ret_val = self.query(self.create_command(self.CMDS[cmd], val))
+        # The self.CMDS['cmd'].lower() invokes the setter, self.CMDS['cmd'] the getter 
+        ret_val = self.query(self.create_command(self.CMDS[cmd].lower(), val))
         if ret_val != str(val):
             raise exception_(f"Retrieved value for command {cmd} ({ret_val}) different from set value ({val})")
 
