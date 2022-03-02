@@ -42,6 +42,28 @@ class ArduinoSerial(SerialDevice):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout) 
         sleep(1)  # Allow Arduino to reboot; serial connection resets the Arduino
 
+    def read(self):
+        """
+        Overwrites read method to check whether the read value is contained in self.ERRORS.
+        If so, raise a RuntimeError. If not just return read value
+
+        Returns
+        -------
+        str
+            Value read from serial bus
+
+        Raises
+        ------
+        RuntimeError
+            Value read from serial bus is an error
+        """
+        read_value = super().read()
+        
+        if read_value in self.ERRORS:
+            raise RuntimeError(self.ERRORS[read_value])
+        
+        return read_value
+
     def _set_and_retrieve(self, cmd, val, exception_=RuntimeError):
         """
         Sets and retrieves a value on the Arduino firmware, represented by self.CMDS[cmd]
