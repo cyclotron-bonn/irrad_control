@@ -29,8 +29,8 @@ const char READ_CMD = 'R';
 const char WRITE_CMD = 'W';
 
 // Variables coming in over serial
-uint8_t var_reg;
-uint8_t var_data;
+uint8_t varReg;
+uint8_t varData;
 
 
 uint8_t writeReg(uint8_t reg, uint8_t data){
@@ -167,8 +167,8 @@ void loop(){
         // Read
         if (serialBuffer[0] == READ_CMD){
           processIncoming();
-          var_reg = atoi(serialBuffer);
-          i2cRetCode = pointToReg(var_reg);
+          varReg = atoi(serialBuffer);
+          i2cRetCode = pointToReg(varReg);
           Serial.println(i2cRetCode);
           Serial.println(readCurrentReg());
 
@@ -177,10 +177,10 @@ void loop(){
         // Write
         if (serialBuffer[0] == WRITE_CMD){
           processIncoming();
-          var_reg = atoi(serialBuffer);
+          varReg = atoi(serialBuffer);
           processIncoming();
-          var_data = atoi(serialBuffer);
-          i2cRetCode = writeReg(var_reg, var_data);
+          varData = atoi(serialBuffer);
+          i2cRetCode = writeReg(varReg, varData);
           Serial.println(i2cRetCode);
 
         }
