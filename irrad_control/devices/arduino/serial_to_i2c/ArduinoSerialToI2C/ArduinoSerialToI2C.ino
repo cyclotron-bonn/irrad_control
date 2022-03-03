@@ -198,11 +198,11 @@ void loop(){
           Serial.println(i2cRetCode);
 
         }
-        
-        // At this point command should have been processed
-        // This last call to processIncoming should just remove the END char from serial buffer
-        processIncoming();
       }
+
+      // At this point command should have been processed
+      // This last call to processIncoming should just remove the END char from serial buffer
+      processIncoming();
 
     }
     else {
