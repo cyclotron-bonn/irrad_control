@@ -27,10 +27,12 @@ const char ADDR_CMD = 'A';
 const char CHECK_CMD = 'T';
 const char READ_CMD = 'R';
 const char WRITE_CMD = 'W';
+const char DELAY_CMD = 'D';
 
 // Variables coming in over serial
 uint8_t varReg;
 uint8_t varData;
+uint16_t serialDelayMillis = 1; // Delay between Serial.available() checks
 
 
 uint8_t writeReg(uint8_t reg, uint8_t data){
@@ -148,6 +150,13 @@ void loop(){
           i2cAddress = atoi(serialBuffer);
           Serial.println(i2cAddress);
         }
+
+        // Set serial dealy in millis
+        if (toupper(serialBuffer[0]) == DELAY_CMD){
+          processIncoming();
+          serialDelayMillis = atoi(serialBuffer);
+          Serial.println(serialDelayMillis);
+        }
       
       }
 
@@ -156,6 +165,11 @@ void loop(){
         // Return I2C address
         if (serialBuffer[0] == ADDR_CMD){
           Serial.println(i2cAddress);
+        }
+
+        // Return serial delay millis
+        if (serialBuffer[0] == DELAY_CMD){
+          Serial.println(serialDelayMillis);
         }
 
         // Check I2C connection
@@ -197,4 +211,5 @@ void loop(){
     }
 
   }
+  delay(serialDelayMillis);
 }
