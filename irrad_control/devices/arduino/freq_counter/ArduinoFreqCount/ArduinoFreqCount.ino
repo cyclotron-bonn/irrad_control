@@ -1,100 +1,155 @@
-#include <FreqCount.h>
+#include <FreqCount.h>  // Actual freqency counting library
+
+/*
+Enables frequency determination by counting 5V logic pulses in fixed time window
+*/
 
 
-unsigned int sample_time = 1000;  // Time window in which pulses are counted in ms
-const char operations[] = {'s', 'g', 'x'};  // Start, Get and Stop operations
-const char properties[] = {'t', 'f', 'c'};  // Properties on which at least one operation is valid; Time and Frequency
-unsigned int current_int; // Stores a parsed integer
-unsigned long current_count;  // Store counts
-unsigned long current_freq;  // Store frequency
-String cmd_string;  // Declare command string
+const char END = '\n';
+const uint8_t END_PEEK = int(END); // Serial.peek returns byte as dtype int
+const char DELIM = ':';
+const char NULL_TERM = '\0';
 
 
-unsigned long frequency(unsigned long counts, unsigned int s_time) {
-  float scale = (float)1000 / (float)s_time;
-  return counts * scale;
+size_t nProcessedBytes;
+const size_t BUF_SIZE = 32;
+char serialBuffer[BUF_SIZE]; // Max buffer 32 bytes in incoming serial data
+
+// Commands
+const char SAMPLINGTIME_CMD = 'S';
+const char COUNTS_CMD = 'C';
+const char FREQUENCY_CMD = 'F';
+const char DELAY_CMD = 'D';
+const char RESTART_CMD = 'R';
+
+
+// Define vars potentially coming in from serial
+uint16_t samplingTimeMillis = 1000; // Time window in which pulses are counted in ms
+uint16_t serialDelayMillis = 1; // Delay between Serial.available() checks
+
+
+float frequency(uint32_t counts, uint16_t sampling_time_ms){
+  return (float)counts * 1000.0f / (float)sampling_time_ms;
 }
 
 
-void failure() {
-  Serial.println(-1);
+void waitForResult(){
+  while (!FreqCount.available()){
+    delay(1);
+  }
+}
+
+void restartCounter(){
+  FreqCount.end();
+  delay(1);
+  FreqCount.begin(samplingTimeMillis);
 }
 
 
-void test() {
-  Serial.println(1);
+void processIncoming(){
+
+  // We have reached the end of the transmission; clear serial by calling read
+  if (Serial.peek() == END_PEEK){
+    Serial.read();
+    serialBuffer[0] = NULL_TERM;
+  }
+  else {
+    // Read to buffer until delimiter
+    nProcessedBytes = Serial.readBytesUntil(DELIM, serialBuffer, BUF_SIZE);
+
+    // Null-terminate string
+    serialBuffer[nProcessedBytes] = NULL_TERM;
+  }
 }
 
-void write_res(unsigned long res) {
-  Serial.println(res);  // Write result
-  delayMicroseconds(50);  // Wait a little bit
+
+void resetIncoming(){
+  // Wait 500 ms and clear the incoming data
+  delay(500);
+  while(Serial.available()){
+    Serial.read();
+  }
 }
 
 
-void setup() {
-  Serial.begin(9600);
-  delay(1000);  // Wait for Serial setup
-  FreqCount.begin(sample_time);
+void setup(){
+  /*
+   * initialize Serial communication with baudrate Serial.begin(<baudrate>)
+   * delay 500ms to let connections and possible setups to be established
+   * initiliaze FreqCounter
+   */
+  Serial.begin(115200);
+  delay(500);  // Wait for Serial setup
+  FreqCount.begin(samplingTimeMillis);
 }
 
 
 void loop() {
 
-  // Check if something is being send
-  if(Serial.available()) {
+  if (Serial.available()){
 
-    // Read entire command at once (until new line), this waits until timeout (defaults to 1000 ms)
-    cmd_string = Serial.readStringUntil('\n');
+    processIncoming();
 
-    // We're setting sth
-    if(cmd_string[0] == operations[0]) {
-      // Setting the sampling time
-      if(cmd_string[1] == properties[0]) {
-        // Remaining characters in queue are sampling time
-        current_int = cmd_string.substring(2).toInt();
-        if(current_int < 0){
-          failure();
+    if (strlen(serialBuffer) == 1){
+
+      // Lowercase means we want to set some value and print back that value on the serial bus
+      if (isLowerCase(serialBuffer[0])){
+        
+        // Set sampling time millis
+        if (toupper(serialBuffer[0]) == SAMPLINGTIME_CMD){
+          processIncoming();
+          samplingTimeMillis = atoi(serialBuffer);
+          Serial.println(samplingTimeMillis);
+          restartCounter();
         }
-        else {
-          sample_time = current_int;
-          FreqCount.begin(sample_time);
-        }
-      }
-    }
-    // We're getting something
-    else if(cmd_string[0] == operations[1]) {
-      // Getting the sampling time
-      if(cmd_string[1] == properties[0]) {
-        write_res(sample_time);
-      } 
-      // Getting the Frequency
-      else if(cmd_string[1] == properties[1]) {
 
-        if(FreqCount.available()){
-          current_count = FreqCount.read();
-          current_freq = frequency(current_count, sample_time);
-          write_res(current_freq);
+        // Set serial dealy in millis
+        if (toupper(serialBuffer[0]) == DELAY_CMD){
+          processIncoming();
+          serialDelayMillis = atoi(serialBuffer);
+          Serial.println(serialDelayMillis);
         }
       }
-      // Getting the counts
-      else if(cmd_string[1] == properties[2]) {
 
-        if(FreqCount.available()){
-          current_count = FreqCount.read();
-          write_res(current_count);
+      // Here we want to read something or interact with the counter
+      else {
+
+        // Return sampling time millis
+        if (serialBuffer[0] == SAMPLINGTIME_CMD){
+          Serial.println(samplingTimeMillis);
+        }
+
+        // Read counts
+        if (serialBuffer[0] == COUNTS_CMD){
+          waitForResult();
+          Serial.println(FreqCount.read());
+        }
+
+        // Read frequency
+        if (serialBuffer[0] == FREQUENCY_CMD){
+          waitForResult();
+          Serial.println(frequency(FreqCount.read(), samplingTimeMillis), 2);
+        }
+
+        // Restart counter
+        if (serialBuffer[0] == RESTART_CMD){
+          restartCounter();
+        }
+
+        // Return serial delay millis
+        if (serialBuffer[0] == DELAY_CMD){
+          Serial.println(serialDelayMillis);
         }
       }
-    }
-    // We're stopping the frequency reading
-    else if(cmd_string[0] == operations[2]) {
-      FreqCount.end();
-    }
-    // We're testing the connection
-    else if(cmd_string[0] == 't') {
-      test();
-    }
-    else {
-      failure();
+
+      // At this point command should have been processed
+      // This last call to processIncoming should just remove the END char from serial buffer
+      processIncoming();
+
+    } else {
+      Serial.println("error");
+      resetIncoming();
     }
   }
+  delay(serialDelayMillis);
 }
