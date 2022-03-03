@@ -8,7 +8,6 @@ class ArduinoNTCReadout(ArduinoSerial):
 
     CMDS = {
         'temp': 'T',
-        'delay': 'D',
         'samples': 'S'
     }
     
