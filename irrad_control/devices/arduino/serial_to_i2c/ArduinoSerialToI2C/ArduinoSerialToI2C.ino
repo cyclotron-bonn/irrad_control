@@ -143,7 +143,7 @@ void loop(){
       if (isLowerCase(serialBuffer[0])){
         
         // Set I2C address
-        if (serialBuffer[0] == toupper(ADDR_CMD)){
+        if (toupper(serialBuffer[0]) == ADDR_CMD){
           processIncoming();
           i2cAddress = atoi(serialBuffer);
           Serial.println(i2cAddress);
