@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 from irrad_control.devices.serial_device import SerialDevice
 
 
@@ -55,13 +54,12 @@ class ISEGHighVoltagePS(SerialDevice):
         raise NotImplementedError
 
     @property
-    def slew_rate(self):
+    def ramp_speed(self):
         raise NotImplementedError
 
-    @slew_rate.setter
-    def slew_rate(self, sr):
+    @ramp_speed.setter
+    def ramp_speed(self, rs):
         raise NotImplementedError
-
 
     def __init__(self, port, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
@@ -109,6 +107,12 @@ class ISEGHighVoltagePS(SerialDevice):
             raise RuntimeError(self.ERRORS[read_value])
         
         return read_value
+
+    def output_on(self):
+        raise NotImplementedError
+
+    def output_off(self):
+        raise NotImplementedError
 
     def hv_on(self):
         self.voltage = self.high_voltage
