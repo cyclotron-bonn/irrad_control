@@ -11,7 +11,7 @@ class ArduinoFreqCounter(ArduinoSerial):
             'frequency': 'F',
             'restart': 'R'}
     
-    ERROR_CODES = {
+    ERRORS = {
         'error': "An error occured"
     }
 
@@ -62,8 +62,6 @@ class ArduinoFreqCounter(ArduinoSerial):
 
     def __init__(self, port, baudrate=115200, timeout=1):
         super().__init__(port, baudrate, timeout)
-        self.CMDS.update(ArduinoSerial.CMDS)
-        self.ERRORS.update(ArduinoSerial.ERRORS)
 
     def restart(self):
         return self.write(self.create_command(self.CMDS['restart']))
