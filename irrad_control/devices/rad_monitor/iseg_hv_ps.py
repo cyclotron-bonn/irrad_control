@@ -115,7 +115,11 @@ class ISEGHighVoltagePS(SerialDevice):
         raise NotImplementedError
 
     def hv_on(self):
-        self.voltage = self.high_voltage
+        try:
+            _ = float(self.high_voltage)
+            self.voltage = self.high_voltage
+        except TypeError:
+            raise ValueError("High voltage is not set. Set *high_voltage* attribute to numerical value")
 
     def hv_off(self):
         self.voltage = 0
