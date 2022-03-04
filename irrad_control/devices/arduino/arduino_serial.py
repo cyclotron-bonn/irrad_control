@@ -41,6 +41,8 @@ class ArduinoSerial(SerialDevice):
     def __init__(self, port, baudrate=115200, timeout=1):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout) 
         sleep(1)  # Allow Arduino to reboot; serial connection resets the Arduino
+        self.CMDS.update(ArduinoSerial.CMDS)
+        self.ERRORS.update(ArduinoSerial.ERRORS)
 
     def read(self):
         """
