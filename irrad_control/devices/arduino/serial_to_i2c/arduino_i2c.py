@@ -1,7 +1,7 @@
 from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 
 
-class I2CTransmissionError(RuntimeError):
+class I2CTransmissionError(ValueError):
     pass
 
 
