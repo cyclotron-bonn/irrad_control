@@ -1,19 +1,33 @@
 from irrad_control.devices.serial_device import SerialDevice
 
 
-class ISEGHighVoltagePS(SerialDevice):
+class IsegNHQx0xx(SerialDevice):
 
     # Command references from protocol
     CMDS = {
-        'set_voltage': 'D1={}',
-        'set_delay': 'W={}',
-        'get_voltage': 'U1',
-        'get_delay' : 'W',
-        'confirm': 'G1'
+        'set_break_time': 'W={value}',
+        'get_break_time': 'W',
+        'get_voltage_meas': 'U{channel}',
+        'get_current_meas': 'I{channel}',
+        'get_v_limit': 'M{channel}',
+        'get_i_limit': 'N{channel}',
+        'get_voltage_set': 'D{channel}',
+        'set_voltage': 'D{channel}={value}',
+        'get_ramp_speed': 'V{channel}',
+        'set_ramp_speed': 'V{channel}={value}',
+        'start_voltage_change': 'G{channel}}',
+        'set_current_trip': 'L{channel}={value}',
+        'get_current_trip': 'L{channel}',
+        'get_status_word': 'S{channel}',
+        'get_module_status': 'T{channel}',
+        'set_autostart': 'A{channel}={}',
+        'get_autostart': 'A{channel}'
         }
 
     ERRORS = {
-        '????': 'Command rejected'
+        '????': 'Syntax error in command',
+        '?WCN': 'Wrong channel number',
+        '?TOT': 'Timeout error (Unit will re-initialise)'
     }
 
     # Maximum voltage that is allowed for this power supply
