@@ -36,7 +36,7 @@ class ArduinoSerial(SerialDevice):
         comm_delay : int
             Communication delay in milliseconds
         """
-        self._set_and_retrieve(cmd='set_delay', val=comm_delay)
+        self._set_and_retrieve(cmd='communication_delay', val=comm_delay)
 
     def __init__(self, port, baudrate=115200, timeout=1):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout) 
