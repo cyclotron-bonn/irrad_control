@@ -7,6 +7,8 @@ class SerialDevice(object):
     WRITE_TERMINATION = '\n'
     READ_TERMINATION = '\n'
 
+    ERRORS = {}
+
     def __init__(self, port, baudrate=9600, timeout=1):
         self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
         sleep(0.5)  # Allow connections to be made
@@ -37,13 +39,25 @@ class SerialDevice(object):
         """
         Reads from serial port until self.READ_TERMINATION byte is encountered.
         This is equivalent to serial.Serial.readline() but respects timeouts
+        If the rad value is found in self.ERROS dict, raise a RuntimeError. If not just return read value
 
         Returns
         -------
         str
             Decoded, stripped string, read from serial port
+
+        Raises
+        ------
+        RuntimeError
+            Value read from serial bus is an error
         """
-        return self._intf.read_until(self.READ_TERMINATION.encode()).decode().strip()
+
+        read_value = self._intf.read_until(self.READ_TERMINATION.encode()).decode().strip()
+
+        if read_value in self.ERRORS:
+            raise RuntimeError(self.ERRORS[read_value])
+        
+        return read_value
 
     def query(self, msg):
         """
