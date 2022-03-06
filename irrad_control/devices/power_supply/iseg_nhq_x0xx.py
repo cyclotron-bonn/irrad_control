@@ -213,7 +213,7 @@ class IsegNHQx0xx(SerialDevice):
     def module_status(self):
         """
         Read module status of self.channel
-        Return value is uint8
+        Return value is uint8, use '{:08b}'.format(value) to get bits
 
         Returns
         -------
