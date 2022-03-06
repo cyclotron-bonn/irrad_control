@@ -24,11 +24,11 @@ const char RESTART_CMD = 'R';
 
 
 // Define vars potentially coming in from serial
-uint16_t samplingTimeMillis = 1000; // Time window in which pulses are counted in ms
+uint16_t gateIntervalMillis = 1000; // Time window in which pulses are counted in ms
 uint16_t serialDelayMillis = 1; // Delay between Serial.available() checks
 
 
-float frequency(uint32_t counts, uint16_t sampling_time_ms){
+float frequency(unsigned long counts, uint16_t sampling_time_ms){
   return (float)counts * 1000.0f / (float)sampling_time_ms;
 }
 
@@ -42,7 +42,7 @@ void waitForResult(){
 void restartCounter(){
   FreqCount.end();
   delay(1);
-  FreqCount.begin(samplingTimeMillis);
+  FreqCount.begin(gateIntervalMillis);
 }
 
 
@@ -80,7 +80,7 @@ void setup(){
    */
   Serial.begin(115200);
   delay(500);  // Wait for Serial setup
-  FreqCount.begin(samplingTimeMillis);
+  FreqCount.begin(gateIntervalMillis);
 }
 
 
@@ -98,8 +98,8 @@ void loop() {
         // Set sampling time millis
         if (toupper(serialBuffer[0]) == SAMPLINGTIME_CMD){
           processIncoming();
-          samplingTimeMillis = atoi(serialBuffer);
-          Serial.println(samplingTimeMillis);
+          gateIntervalMillis = atoi(serialBuffer);
+          Serial.println(gateIntervalMillis);
           restartCounter();
         }
 
@@ -116,7 +116,7 @@ void loop() {
 
         // Return sampling time millis
         if (serialBuffer[0] == SAMPLINGTIME_CMD){
-          Serial.println(samplingTimeMillis);
+          Serial.println(gateIntervalMillis);
         }
 
         // Read counts
@@ -128,7 +128,7 @@ void loop() {
         // Read frequency
         if (serialBuffer[0] == FREQUENCY_CMD){
           waitForResult();
-          Serial.println(frequency(FreqCount.read(), samplingTimeMillis), 2);
+          Serial.println(frequency(FreqCount.read(), gateIntervalMillis), 2);
         }
 
         // Restart counter

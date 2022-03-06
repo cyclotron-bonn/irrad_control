@@ -1,12 +1,9 @@
-from itertools import count
 from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
-
-
 
 class ArduinoFreqCounter(ArduinoSerial):
 
     # Command references
-    CMDS = {'sampling_time': 'G',
+    CMDS = {'gate_interval': 'G',
             'counts': 'C',
             'frequency': 'F',
             'restart': 'R'}
@@ -16,7 +13,7 @@ class ArduinoFreqCounter(ArduinoSerial):
     }
 
     @property
-    def sampling_time(self):
+    def gate_interval(self):
         """
         Sampling time during which is counted in ms 
 
@@ -25,40 +22,32 @@ class ArduinoFreqCounter(ArduinoSerial):
         int
             Sampling time in milliseconds
         """
-        return int(self.query(self.create_command(self.CMDS['sampling_time'])))
+        return int(self.query(self.create_command(self.CMDS['gate_interval'])))
 
-    @sampling_time.setter
-    def sampling_time(self, sampling_time):
+    @gate_interval.setter
+    def gate_interval(self, gate_interval):
         """
-        Setter of the sampling time property
+        Setter of the gate interval property
 
         Parameters
         ----------
-        sampling_time : int
-            Sampling time in milliseconds
+        gate_interval : int
+            Gate interval in milliseconds
 
         Raises
         ------
         RuntimeError
-            Set sampling time and retrieved sampling are unequal
+            Set gate interval and retrieved interval are unequal
         """
-        self._set_and_retrieve(cmd='sampling_time', val=int(sampling_time))
+        self._set_and_retrieve(cmd='gate_interval', val=int(gate_interval))
 
     @property
     def counts(self):
         return int(self.query(self.create_command(self.CMDS['counts'])))
 
-    @counts.setter
-    def counts(self, val):
-        raise AttributeError("Attribute is read-only")
-
     @property
     def frequency(self):
         return int(self.query(self.create_command(self.CMDS['frequency'])))
-
-    @frequency.setter
-    def frequency(self, val):
-        raise AttributeError("Attribute is read-only")
 
     def __init__(self, port, baudrate=115200, timeout=1):
         super().__init__(port, baudrate, timeout)
