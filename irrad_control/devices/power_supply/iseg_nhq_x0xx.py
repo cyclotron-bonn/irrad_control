@@ -1,3 +1,4 @@
+from curses.ascii import isdigit
 from xml.etree.ElementPath import prepare_parent
 from irrad_control.devices.serial_device import SerialDevice
 
@@ -260,11 +261,11 @@ class IsegNHQx0xx(SerialDevice):
 
     @property
     def V_MAX(self):
-        return int(self.identifier.split(';')[2])
+        return int(''.join(s for s in self.identifier.split(';')[2] if s.isdigit()))
     
     @property
     def I_MAX(self):
-        return int(self.identifier.split(';')[3])
+        return int(''.join(s for s in self.identifier.split(';')[3] if s.isdigit()))
 
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
