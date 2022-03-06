@@ -1,0 +1,13 @@
+PIPSCounter:
+  high_voltage: 30
+  hv_channel: 1
+  ramp_speed: 6  # V/s
+  gate_interval: 500
+  dose_rate_calibration: 0.911  # uSv/h / Hz
+
+GasCounter:
+  high_voltage: 450
+  hv_channel: 1
+  ramp_speed: 90  # V/s
+  gate_interval: 500
+  dose_rate_calibration: 0.911  # uSv/h / Hz
