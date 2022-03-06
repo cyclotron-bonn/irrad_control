@@ -201,6 +201,23 @@ class IrradConverter(DAQProcess):
                 # Add flag
                 self.data_flags[server][dname] = False
 
+        if 'RadiationMonitor' in server_setup['devices']:
+            
+            names = ['timestamp', 'dose_rate', 'frequency']
+            dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8', '<f4', '<f4'])
+            dname = 'rad_monitor'
+            node_name = 'RadMonitor'
+
+            # Create and store tables
+            self.data_tables[server][dname] = self.output_table.create_table('/{}'.format(server_setup['name']),
+                                                                                description=dtype,
+                                                                                name=node_name)
+            # Create arrays
+            self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+
+            # Add flag
+            self.data_flags[server][dname] = False
+            
     def _calc_drate(self, server, meta):
 
         # Check if we have incoming data timing stored
@@ -669,6 +686,14 @@ class IrradConverter(DAQProcess):
 
         return temp_data
 
+    def _write_rad_monitor_data(self, server, data, meta):
+
+        self.data_arrays[server]['rad_monitor']['timestamp'] = meta['timestamp']
+        self.data_arrays[server]['rad_monitor']['dose_rate'] = data['dose_rate']
+        self.data_arrays[server]['rad_monitor']['frequency'] = data['frequency']
+
+        self.data_flags[server]['rad_monitor'] = True
+
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -721,6 +746,9 @@ class IrradConverter(DAQProcess):
 
             temp_data = self._interpret_arduino_temp_data(server=server, data=data, meta=meta_data)
             interpreted_data.append(temp_data)
+
+        elif meta_data['type'] == 'rad_monitor':
+            self._write_rad_monitor_data(server=server, data=data, meta=meta_data)
 
         # If event is not set, store data to hdf5 file
         if not self.interaction_flags[server]['write'].is_set():
