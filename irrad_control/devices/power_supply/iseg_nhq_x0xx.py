@@ -1,5 +1,3 @@
-from curses.ascii import isdigit
-from xml.etree.ElementPath import prepare_parent
 from irrad_control.devices.serial_device import SerialDevice
 
 
