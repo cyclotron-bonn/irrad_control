@@ -686,13 +686,19 @@ class IrradConverter(DAQProcess):
 
         return temp_data
 
-    def _write_rad_monitor_data(self, server, data, meta):
+    def _interpret_rad_monitor_data(self, server, data, meta):
 
+        rad_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'dose_rate'},
+                     'data': {}}
+                     
         self.data_arrays[server]['rad_monitor']['timestamp'] = meta['timestamp']
-        self.data_arrays[server]['rad_monitor']['dose_rate'] = data['dose_rate']
-        self.data_arrays[server]['rad_monitor']['frequency'] = data['frequency']
+        
+        for rad in data:
+            self.data_arrays[server]['rad_monitor'][rad] = rad_data['data'][rad] = data[rad]
 
         self.data_flags[server]['rad_monitor'] = True
+
+        return rad_data
 
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
@@ -748,7 +754,8 @@ class IrradConverter(DAQProcess):
             interpreted_data.append(temp_data)
 
         elif meta_data['type'] == 'rad_monitor':
-            self._write_rad_monitor_data(server=server, data=data, meta=meta_data)
+            rad_data = self._interpret_rad_monitor_data(server=server, data=data, meta=meta_data)
+            interpreted_data.append(rad_data)
 
         # If event is not set, store data to hdf5 file
         if not self.interaction_flags[server]['write'].is_set():
