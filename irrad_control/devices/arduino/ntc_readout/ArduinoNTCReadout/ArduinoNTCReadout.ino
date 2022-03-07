@@ -41,7 +41,7 @@ int ntcPin;
 
 // Define vars potentially coming in from serial
 int nSamples = 5; // Average each temperature value over N_SAMPLES analog reads
-int roDelay = 100; // Delay between Serial.available() checks
+uint16_t serialDelayMillis = 1; // Delay between Serial.available() checks
 
 
 float steinhartHartNTC(float res){
@@ -151,22 +151,40 @@ void loop(void){
     // First processing should yield a single char because it the cmd
     if (strlen(serialBuffer) == 1){
 
-      if (serialBuffer[0] == TEMP_CMD){
-        printNTCTemps();
+      // Lowercase means we want to set some value and print back that value on the serial bus
+      if (isLowerCase(serialBuffer[0])){
+
+        // Set numper of samples
+        if (toupper(serialBuffer[0]) == SAMPLE_CMD){
+          processIncoming();
+          nSamples = atoi(serialBuffer);
+          processIncoming();
+          Serial.println(nSamples);
+        }
+
+        // Set serial dealy in millis
+        if (toupper(serialBuffer[0]) == DELAY_CMD){
+          processIncoming();
+          serialDelayMillis = atoi(serialBuffer);
+          Serial.println(serialDelayMillis);
+        }
       }
 
-      if (serialBuffer[0] == DELAY_CMD){
-        processIncoming();
-        roDelay = atoi(serialBuffer);
-        processIncoming();
-        Serial.println(roDelay);
-      }
+      else {
 
-      if (serialBuffer[0] == SAMPLE_CMD){
-        processIncoming();
-        nSamples = atoi(serialBuffer);
-        processIncoming();
-        Serial.println(nSamples);
+        if (serialBuffer[0] == TEMP_CMD){
+          printNTCTemps();
+        }
+
+        // Return serial delay millis
+        if (serialBuffer[0] == DELAY_CMD){
+          Serial.println(serialDelayMillis);
+        }
+
+        if (serialBuffer[0] == SAMPLE_CMD){
+          Serial.println(nSamples);
+        }
+
       }
 
     } else{
@@ -174,5 +192,5 @@ void loop(void){
       resetIncoming();
     }
   }
-  delay(roDelay);
+  delay(serialDelayMillis);
 }
