@@ -38,6 +38,8 @@ const char SAMPLE_CMD = 'S';
 float temperature;
 float resistance;
 int ntcPin;
+bool oneLastProcess;
+
 
 // Define vars potentially coming in from serial
 int nSamples = 5; // Average each temperature value over N_SAMPLES analog reads
@@ -147,6 +149,7 @@ void loop(void){
   if (Serial.available()){
 
     processIncoming();
+    oneLastProcess = true;
 
     // First processing should yield a single char because it the cmd
     if (strlen(serialBuffer) == 1){
@@ -174,6 +177,7 @@ void loop(void){
 
         if (serialBuffer[0] == TEMP_CMD){
           printNTCTemps();
+          oneLastProcess = false;
         }
 
         // Return serial delay millis
@@ -185,6 +189,10 @@ void loop(void){
           Serial.println(nSamples);
         }
 
+      }
+
+      if (oneLastProcess){
+        processIncoming();
       }
 
     } else{
