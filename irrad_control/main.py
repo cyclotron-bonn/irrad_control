@@ -509,8 +509,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif data['meta']['type'] == 'temp_daq_board':
             self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
 
-        elif data['meta']['type'] == 'counter_arduino':
-            self.monitor_tab.plots[server]['rad_counter_plot'].set_data(data)
+        elif data['meta']['type'] == 'dose_rate':
+            self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
