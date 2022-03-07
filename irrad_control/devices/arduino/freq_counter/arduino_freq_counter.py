@@ -39,6 +39,13 @@ class ArduinoFreqCounter(ArduinoSerial):
         RuntimeError
             Set gate interval and retrieved interval are unequal
         """
+        
+        gate_seconds = gate_interval / 1000.0
+        
+        # If the gate_interval is the same as the serial timeout, we have to increase it
+        if self._intf.timeout <= gate_seconds:
+            self._intf.timeout = gate_seconds * 1.5
+            
         self._set_and_retrieve(cmd='gate_interval', val=int(gate_interval))
 
     @property

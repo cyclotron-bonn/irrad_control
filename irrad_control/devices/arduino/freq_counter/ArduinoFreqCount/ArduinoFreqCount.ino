@@ -16,7 +16,7 @@ const size_t BUF_SIZE = 32;
 char serialBuffer[BUF_SIZE]; // Max buffer 32 bytes in incoming serial data
 
 // Commands
-const char SAMPLINGTIME_CMD = 'S';
+const char GATE_INTERVAL_CMD = 'G';
 const char COUNTS_CMD = 'C';
 const char FREQUENCY_CMD = 'F';
 const char DELAY_CMD = 'D';
@@ -96,7 +96,7 @@ void loop() {
       if (isLowerCase(serialBuffer[0])){
         
         // Set sampling time millis
-        if (toupper(serialBuffer[0]) == SAMPLINGTIME_CMD){
+        if (toupper(serialBuffer[0]) == GATE_INTERVAL_CMD){
           processIncoming();
           gateIntervalMillis = atoi(serialBuffer);
           Serial.println(gateIntervalMillis);
@@ -115,7 +115,7 @@ void loop() {
       else {
 
         // Return sampling time millis
-        if (serialBuffer[0] == SAMPLINGTIME_CMD){
+        if (serialBuffer[0] == GATE_INTERVAL_CMD){
           Serial.println(gateIntervalMillis);
         }
 
