@@ -14,7 +14,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
         self.setup = setup
 
-        self.monitors = ('Raw', 'Beam', 'SEM', 'Fluence', 'Temp')
+        self.monitors = ('Raw', 'Beam', 'SEM', 'Fluence', 'Temp', 'DoseRate')
 
         self.daq_tabs = QtWidgets.QTabWidget()
         self.monitor_tabs = {}
@@ -97,6 +97,13 @@ class IrradMonitorTab(QtWidgets.QWidget):
                             monitor_widget = plot_wrappers[0]
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
+
+                if 'RadiationMonitor' in self.setup['devices'] and monitor == 'DoseRate':
+                    
+                    channels = ('dose_rate',)
+                    daq_device = self.setup['devices']['RadiationMonitor']['init']['counter_type']
+                    self.plots[server]['dose_rate_plot'] = plots.RadMonitorDataPlot(channels=channels, daq_device=daq_device)
+                    monitor_widget = self._create_plot_wrapper(plot_name='dose_rate_plot', server=server)
 
                 if monitor_widget is not None:
                     self.monitor_tabs[server].addTab(monitor_widget, monitor)

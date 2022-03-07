@@ -745,18 +745,23 @@ class TemperatureDataPlot(ScrollingIrradDataPlot):
         self.plt.setLabel('right', text='Temperature', units='C')
 
 
-class RadCounterDataPlot(ScrollingIrradDataPlot):
+class RadMonitorDataPlot(ScrollingIrradDataPlot):
 
-    def __init__(self, daq_device=None, parent=None):
+    def __init__(self, channels, daq_device=None, parent=None):
 
-        super(RadCounterDataPlot, self).__init__(channels=['counts'], units={'right': 'Hz', 'left': 'Hz'},
+        dose_rate_hour = '{}Sv/h'.format(u'\u00B5')
+
+        super(RadMonitorDataPlot, self).__init__(channels=channels, units={'right': dose_rate_hour, 'left': dose_rate_hour},
                                                  name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
                                                  parent=parent)
 
-        self.plt.setLabel('left', text='Counts', units='Hz')
+        self.plt.setLabel('left', text='Dose Rate', units=dose_rate_hour)
         self.plt.hideAxis('left')
         self.plt.showAxis('right')
-        self.plt.setLabel('right', text='Counts', units='Hz')
+        self.plt.setLabel('right', text='Dose Rate', units=dose_rate_hour)
+
+    def set_data(self, meta, data):
+        return super().set_data(meta=meta, data={'dose_rate': data['dose_rate']})
 
 
 class CrosshairItem:
