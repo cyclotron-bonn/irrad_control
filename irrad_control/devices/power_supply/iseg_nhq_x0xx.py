@@ -251,7 +251,7 @@ class IsegNHQx0xx(SerialDevice):
 
     @property
     def UNIT_NUMBER(self):
-        return int(self.identifier.split(';')[0])
+        return self.identifier.split(';')[0]
 
     @property
     def SOFTWARE_REL(self):
@@ -259,11 +259,11 @@ class IsegNHQx0xx(SerialDevice):
 
     @property
     def V_MAX(self):
-        return int(''.join(s for s in self.identifier.split(';')[2] if s.isdigit()))
+        return self.identifier.split(';')[2]
     
     @property
     def I_MAX(self):
-        return int(''.join(s for s in self.identifier.split(';')[3] if s.isdigit()))
+        return self.identifier.split(';')[3]
 
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
@@ -274,8 +274,8 @@ class IsegNHQx0xx(SerialDevice):
         # Therefore, setting the break_time as first thing in the __init__ is absolutely REQUIRED
         self.break_time = 1  # ms
         
-        # Add error response for attemting to set voltage too high
-        self.ERRORS[f'? UMAX={self.V_MAX}'] = "Set voltage exceeds voltage limit"
+        # Add error response for attempting to set voltage too high
+        self.ERRORS[f'? UMAX={self.voltage_limit}'] = "Set voltage exceeds voltage limit"
 
         # Voltage which is considered the high voltage
         self.high_voltage = high_voltage
