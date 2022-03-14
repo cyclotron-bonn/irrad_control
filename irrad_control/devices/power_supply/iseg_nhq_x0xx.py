@@ -205,7 +205,11 @@ class IsegNHQx0xx(SerialDevice):
         str
             Status description
         """
-        return self.STATUS[self.status_word]
+        status_word = self.status_word
+        for status in self.STATUS:
+            if status in status_word:
+                return f"{status_word}: {self.STATUS[status]}"
+        return 'No description'
         
     @property
     def module_status(self):
@@ -218,7 +222,7 @@ class IsegNHQx0xx(SerialDevice):
         int
             Value of status
         """
-        return int(self._get_set_property(prop='get_module_status'))
+        return '{:08b}'.format(int(self._get_set_property(prop='get_module_status')))
 
     @property
     def autostart(self):
