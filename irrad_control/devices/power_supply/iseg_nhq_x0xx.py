@@ -268,8 +268,6 @@ class IsegNHQx0xx(SerialDevice):
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
         
-        self.sync()
-
         # Add error response for attemting to set voltage too high
         self.ERRORS[f'? UMAX={self.V_MAX}'] = "Set voltage exceeds voltage limit"
 
@@ -295,11 +293,6 @@ class IsegNHQx0xx(SerialDevice):
             cmd = self.CMDS[prop]
         
         return self.query(cmd)
-
-    def sync(self):
-        # Device needs to be synced after serial connection by sending \r\n
-        # Writing empty string effectively writes self.WRITE_TERMINATION
-        self.write('')
 
     def query(self, msg):
         """
