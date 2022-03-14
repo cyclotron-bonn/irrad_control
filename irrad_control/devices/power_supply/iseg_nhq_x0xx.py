@@ -225,6 +225,33 @@ class IsegNHQx0xx(SerialDevice):
         return '{:08b}'.format(int(self._get_set_property(prop='get_module_status')))
 
     @property
+    def module_description(self):
+        """
+        Read module status and print out desciptive string from it
+
+        Returns
+        -------
+        str
+            Module description string
+        """
+        module_msg = lambda bit, prefix, t_msg, f_msg='': f'{prefix} ' + (t_msg if bit == '1' else f_msg)
+        _description = {
+            0: lambda b: module_msg(bit=b, prefix='', t_msg="Quality of output voltage not given at present"),
+            1: lambda b: module_msg(bit=b, prefix='', t_msg="V_MAX or I_MAX is / was exceeded"),
+            2: lambda b: module_msg(bit=b, prefix='INHIBIT signal', t_msg="is / was active", f_msg="inactive"),
+            3: lambda b: module_msg(bit=b, prefix="KILL_ENABLE is", t_msg="on", f_msg="off"),
+            4: lambda b: module_msg(bit=b, prefix="Front-panel HV-ON switch is", t_msg="OFF", f_msg="ON"),
+            5: lambda b: module_msg(bit=b, prefix="Polarity set to", t_msg="positive", f_msg="negative"),
+            6: lambda b: module_msg(bit=b, prefix="Control via", t_msg="manual", f_msg="RS-232 interface"),
+            7: lambda b: module_msg(bit=b, prefix="Display dialled to", t_msg="voltage measurement", f_msg="current measurement")
+        }
+        module_status = self.module_status
+        module_description = ''
+        for i, bit in enumerate(module_status):
+            module_description += _description[i](bit) + '\n'
+        return module_description
+
+    @property
     def autostart(self):
         """
         Whether output voltage changes automatically after setting value via self.voltage property.
