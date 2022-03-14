@@ -119,7 +119,7 @@ class IsegNHQx0xx(SerialDevice):
         float
             Output current in A
         """
-        return float(self._get_set_property(prop='get_current'))
+        return float(self._get_set_property(prop='get_current_meas'))
 
     @property
     def voltage_limit(self):
@@ -245,7 +245,7 @@ class IsegNHQx0xx(SerialDevice):
 
     @channel.setter
     def channel(self, ch):
-        if 1 <= ch <= self.n_channel:
+        if not 1 <= ch <= self.n_channel:
             raise ValueError(f"Channel number must be 1 <= channel <= {self.n_channel}")
         self._channel = ch
 
@@ -267,6 +267,12 @@ class IsegNHQx0xx(SerialDevice):
 
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
+
+        # Important: The manual states that the default break time is 3 ms.
+        # When querying the break_time property, it returns 0 although only values in between 1 and 255 ms are valid.
+        # Queries take very long which leads to serial timeouts. I suspect the default value on firmware side is in fact 255 ms (not 3 ms).
+        # Therefore, setting the break_time as first thing in the __init__ is absolutely REQUIRED
+        self.break_time = 1  # ms
         
         # Add error response for attemting to set voltage too high
         self.ERRORS[f'? UMAX={self.V_MAX}'] = "Set voltage exceeds voltage limit"
