@@ -126,11 +126,6 @@ class IrradMonitorTab(QtWidgets.QWidget):
         monitor_widget = self._create_plot_wrapper(plot_name='fluence_plot', server=server)
         self.monitor_tabs[server].addTab(monitor_widget, 'Fluence')
 
-    def add_rad_counter_plot(self, server):
-        self.plots[server]['rad_counter_plot'] = plots.RadCounterDataPlot()
-        monitor_widget = self._create_plot_wrapper(plot_name='rad_counter_plot', server=server)
-        self.monitor_tabs[server].addTab(monitor_widget, 'RadMonitor')
-
     def save_plots(self):
         for _, plot_wrappers in self._plot_wrapper_widgets.items():
             for _, wrapper in plot_wrappers.items():
