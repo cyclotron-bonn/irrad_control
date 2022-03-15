@@ -16,7 +16,7 @@ class IsegNHQx0xx(SerialDevice):
         'set_voltage': 'D{channel}={value}',
         'get_ramp_speed': 'V{channel}',
         'set_ramp_speed': 'V{channel}={value}',
-        'start_voltage_change': 'G{channel}}',
+        'start_voltage_change': 'G{channel}',
         'set_current_trip': 'L{channel}={value}',
         'get_current_trip': 'L{channel}',
         'get_status_word': 'S{channel}',
@@ -32,7 +32,7 @@ class IsegNHQx0xx(SerialDevice):
     }
 
     STATUS = {
-        'ON ': "Output voltage according to set voltage",
+        'ON': "Output voltage according to set voltage",
         'OFF': "Channel front panel switch off",
         'MAN': "Channel is on, set to manual mode",
         'ERR': "V_MAX or I_MAX was exceeded",
@@ -92,8 +92,8 @@ class IsegNHQx0xx(SerialDevice):
 
     @voltage.setter
     def voltage(self, voltage):
-        if voltage > self.V_MAX:
-            raise ValueError(f"Value too high! Maximum allowed voltage is {self.V_MAX} V")
+        if voltage > self.voltage_limit:
+            raise ValueError(f"Value too high! Maximum allowed voltage is {self.voltage_limit} V")
         self._get_set_property(prop='set_voltage', value=voltage)
 
     @property
@@ -132,7 +132,7 @@ class IsegNHQx0xx(SerialDevice):
             Voltage limit in V
         """
         # Property get_v_lim returns voltage limit as percentage of max voltage 
-        return int(self._get_set_property(prop='get_v_lim')) / 100.0 * self.V_MAX
+        return int(self._get_set_property(prop='get_v_lim')) / 100.0 * float(self.V_MAX[:-1])
 
     @property
     def current_limit(self):
@@ -145,7 +145,7 @@ class IsegNHQx0xx(SerialDevice):
             Current limit in A
         """
         # Property get_i_lim returns voltage limit as percentage of max current 
-        return int(self._get_set_property(prop='get_i_lim')) / 100.0 * self.I_MAX
+        return int(self._get_set_property(prop='get_i_lim')) / 100.0 * float(self.I_MAX[:-2])
 
     @property
     def ramp_speed(self):
@@ -299,6 +299,12 @@ class IsegNHQx0xx(SerialDevice):
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
 
+        # Store current channel number; default to channel 1
+        self._channel = None
+        # Store number of channels
+        self.n_channel = n_channel
+        self.channel = 1
+
         # Important: The manual states that the default break time is 3 ms.
         # When querying the break_time property, it returns 0 although only values in between 1 and 255 ms are valid.
         # Queries take very long which leads to serial timeouts. I suspect the default value on firmware side is in fact 255 ms (not 3 ms).
@@ -310,13 +316,6 @@ class IsegNHQx0xx(SerialDevice):
 
         # Voltage which is considered the high voltage
         self.high_voltage = high_voltage
-
-        # Store number of channels
-        self.n_channel = n_channel
-
-        # Store current channel number; default to channel 1
-        self._channel = None
-        self.channel = 1
 
     def _get_set_property(self, prop, value=None):
         
