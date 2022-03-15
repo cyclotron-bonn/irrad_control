@@ -2,6 +2,8 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import OrderedDict
 
+from setuptools import setup
+
 # Pacakage imports
 import irrad_control.devices.readout as ro
 from irrad_control.gui.widgets import GridContainer, XYStagePositionWindow
@@ -412,6 +414,17 @@ class IrradControlTab(QtWidgets.QWidget):
             ]:
                 btn_ro_scale.clicked.connect(action)
 
+
+            # Start / Stop RadMonitor readout
+            label_rad_monitor = QtWidgets.QLabel("Start/Stop RadMonitor:")
+            btn_start_stop_rad_mon = QtWidgets.QPushButton("Start")
+            btn_start_stop_rad_mon.clicked.connect(lambda _, btn=btn_start_stop_rad_mon, s=server: self.sendCmd.emit({
+                'hostname': s,
+                'target': 'rad_monitor',
+                'cmd': btn.text().lower()
+            }))
+            btn_start_stop_rad_mon.clicked.connect(lambda btn=btn_start_stop_rad_mon: btn.setText('Start' if btn.text() == 'Stop' else 'Stop'))
+
             # Add spacer layout
             spacer = QtWidgets.QVBoxLayout()
             spacer.addStretch()
@@ -421,6 +434,8 @@ class IrradControlTab(QtWidgets.QWidget):
             grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
             if 'readout' in self.setup[server] and self.setup[server]['readout']['device'] == ro.RO_DEVICES.DAQBoard:
                 grid.add_widget(widget=[label_ro_scale, cbx_group, cbx_scale, btn_ro_scale])
+            if 'RadiationMonitor'in self.setup[server]['devices']:
+                grid.add_widget(widget=[label_rad_monitor, btn_start_stop_rad_mon])
             grid.add_layout(spacer)
 
             tab_widget.addTab(grid, self.setup[server]['name'])

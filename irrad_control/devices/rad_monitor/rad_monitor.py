@@ -22,7 +22,6 @@ class RadiationMonitor(ArduinoFreqCounter):
         # Set correct HV supply parameters
         self.hv.channel = self.config['hv_channel']
         self.hv.ramp_speed = self.config['ramp_speed']
-        self.hv.break_time = 1  # Delay between character output to serial bus from PS
         self.hv.autostart = True  # Automatically start voltage change when new voltage is set
 
         # Gate interval in which pulses are counted in ms
