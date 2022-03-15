@@ -43,6 +43,7 @@ class RadiationMonitor(ArduinoFreqCounter):
 
         while self.hv.voltage not in aim_volt or not n_seconds_to_ramp:
             sleep(1)
+            logging.info(f"Ramping {direction} HV to {aim_volt[0]} V (Current value: {self.hv.voltage} V)")
             n_seconds_to_ramp -= 1
 
         if n_seconds_to_ramp == 0:
