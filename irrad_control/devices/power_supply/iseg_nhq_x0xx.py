@@ -256,15 +256,15 @@ class IsegNHQx0xx(SerialDevice):
         """
         Whether output voltage changes automatically after setting value via self.voltage property.
         Alternatively, call self.start_voltage_change method to initaite voltagte change manually.
-        self._get_set_property(prop='get_autostart') -> 8: autostart is active
-        self._get_set_property(prop='get_autostart') -> 0: autostart is inactive
+        self._get_set_property(prop='get_autostart') -> 008: autostart is active
+        self._get_set_property(prop='get_autostart') -> 000: autostart is inactive
 
         Returns
         -------
         bool
             Wheter autostart is active
         """
-        return self._get_set_property(prop='get_autostart') == '8'
+        return self._get_set_property(prop='get_autostart') == '008'
 
     @autostart.setter
     def autostart(self, state):
