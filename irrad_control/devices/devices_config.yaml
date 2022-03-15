@@ -31,4 +31,4 @@ RadiationMonitor:
   init:
     counter_type: GasCounter
     counter_port: '/dev/ttyACM1'
-    hv_port: '/dev/ttyUSB3'
+    hv_port: '/dev/ttyUSB1'
