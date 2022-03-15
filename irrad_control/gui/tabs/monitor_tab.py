@@ -78,7 +78,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'ntc' in self.setup[server]['readout'] or 'ArduinoNTCReadout' in self.setup[server]['devices']:
+                if 'readout' in self.setup[server] and 'ntc' in self.setup[server]['readout'] or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
                         plot_wrappers = []
@@ -98,10 +98,10 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'RadiationMonitor' in self.setup['devices'] and monitor == 'DoseRate':
+                if 'RadiationMonitor' in self.setup[server]['devices'] and monitor == 'DoseRate':
                     
                     channels = ('dose_rate',)
-                    daq_device = self.setup['devices']['RadiationMonitor']['init']['counter_type']
+                    daq_device = self.setup[server]['devices']['RadiationMonitor']['init']['counter_type']
                     self.plots[server]['dose_rate_plot'] = plots.RadMonitorDataPlot(channels=channels, daq_device=daq_device)
                     monitor_widget = self._create_plot_wrapper(plot_name='dose_rate_plot', server=server)
 
