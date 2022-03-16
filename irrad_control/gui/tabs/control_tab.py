@@ -423,7 +423,7 @@ class IrradControlTab(QtWidgets.QWidget):
                 'target': 'rad_monitor',
                 'cmd': btn.text().lower()
             }))
-            btn_start_stop_rad_mon.clicked.connect(lambda btn=btn_start_stop_rad_mon: btn.setText('Start' if btn.text() == 'Stop' else 'Stop'))
+            btn_start_stop_rad_mon.clicked.connect(lambda _, btn=btn_start_stop_rad_mon: btn.setText('Start' if btn.text() == 'Stop' else 'Stop'))
 
             # Add spacer layout
             spacer = QtWidgets.QVBoxLayout()
