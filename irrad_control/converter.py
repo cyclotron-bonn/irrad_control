@@ -83,9 +83,15 @@ class IrradConverter(DAQProcess):
         # Create group at root
         self.output_table.create_group(self.output_table.root, server_setup['name'])
 
+        # Dedicated flag for NTC readout of DAQ Board
+        has_ntc_daq_board_ro = False
+
         if 'readout' in server_setup:
 
             self.readout_setup[server] = server_setup['readout']
+
+            if 'ntc' in server_setup['readout']:
+                has_ntc_daq_board_ro = True
 
             # Fill lookup dicts
             self._lookups[server]['ro_type_idx'] = {rt: server_setup['readout']['types'].index(rt) for rt in ro.RO_TYPES
@@ -137,13 +143,13 @@ class IrradConverter(DAQProcess):
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
 
         # We have temperature data
-        if 'ntc' in server_setup['readout'] or 'ArduinoNTCReadout' in server_setup['devices']:
+        if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in server_setup['devices']:
 
             # Make temperature measurement group in outfile
             # Create group at root
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Temperature')
 
-            if 'ntc' in server_setup['readout']:
+            if has_ntc_daq_board_ro:
 
                 dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
                                                   dtypes=['<f8', '<S{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])

@@ -21,6 +21,7 @@ class IrradServer(DAQProcess):
         commands = {'adc': [],
                     'temp': [],
                     'server': ['start', 'shutdown'],
+                    'rad_monitor': ['start', 'stop'],
                     'ro_board': ['set_ifs', 'get_ifs', 'set_temp_ch', 'cycle_temp_chs', 'get_gpio', 'set_gpio'],
                     'stage': ['move_rel', 'move_abs', 'prepare', 'scan', 'finish', 'stop', 'pos', 'home',
                               'set_speed', 'get_speed', 'no_beam', 'set_range', 'get_range', 'add_pos', 'del_pos', 'move_pos', 'get_pos']

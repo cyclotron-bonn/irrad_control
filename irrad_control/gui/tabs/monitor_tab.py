@@ -40,7 +40,13 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 monitor_widget = None
 
+                # Dedicated flag for NTC readout of DAQ Board
+                has_ntc_daq_board_ro = False
+
                 if 'readout' in self.setup[server]:
+
+                    if 'ntc' in self.setup[server]['readout']:
+                        has_ntc_daq_board_ro = True
 
                     if monitor == 'Raw':
 
@@ -78,7 +84,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'readout' in self.setup[server] and 'ntc' in self.setup[server]['readout'] or 'ArduinoNTCReadout' in self.setup[server]['devices']:
+                if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
                         plot_wrappers = []
