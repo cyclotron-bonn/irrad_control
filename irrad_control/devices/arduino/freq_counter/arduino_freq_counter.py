@@ -54,7 +54,7 @@ class ArduinoFreqCounter(ArduinoSerial):
 
     @property
     def frequency(self):
-        return int(self.query(self.create_command(self.CMDS['frequency'])))
+        return float(self.query(self.create_command(self.CMDS['frequency'])))
 
     def __init__(self, port, baudrate=115200, timeout=1):
         super().__init__(port, baudrate, timeout)
