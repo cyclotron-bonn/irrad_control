@@ -59,7 +59,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
         # Server process and hardware that can receive commands using self.send_cmd method
-        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board')
+        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board', 'rad_monitor')
 
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()

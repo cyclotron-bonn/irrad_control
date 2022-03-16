@@ -30,5 +30,5 @@ ArduinoNTCReadout:
 RadiationMonitor:
   init:
     counter_type: GasCounter
-    counter_port: '/dev/ttyACM1'
+    counter_port: '/dev/ttyACM0'
     hv_port: '/dev/ttyUSB1'
