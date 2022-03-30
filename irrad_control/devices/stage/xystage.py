@@ -97,7 +97,7 @@ class ZaberXYStage(object):
         self.model = 'X-XY-LRQ300BL-E01-KX14C-SQ3'
 
         # Important parameters of each stage
-        self.microstep = 0.49609375e-6  # meter
+        self.microstep = 0.1953125e-6  # meter
         self.linear_motion_per_rev = 6.35e-3  # meter
         self.steps_per_rev = 200  # steps
 
