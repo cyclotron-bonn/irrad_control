@@ -429,11 +429,12 @@ class IrradControlTab(QtWidgets.QWidget):
             spacer = QtWidgets.QVBoxLayout()
             spacer.addStretch()
 
-            grid.add_widget(widget=[label_offset, btn_offset])
-            grid.add_widget(widget=[label_record, btn_record])
-            grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
-            if 'readout' in self.setup[server] and self.setup[server]['readout']['device'] == ro.RO_DEVICES.DAQBoard:
-                grid.add_widget(widget=[label_ro_scale, cbx_group, cbx_scale, btn_ro_scale])
+            if 'readout' in self.setup[server]:
+                grid.add_widget(widget=[label_offset, btn_offset])
+                grid.add_widget(widget=[label_record, btn_record])
+                grid.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+                if self.setup[server]['readout']['device'] == ro.RO_DEVICES.DAQBoard:
+                    grid.add_widget(widget=[label_ro_scale, cbx_group, cbx_scale, btn_ro_scale])
             if 'RadiationMonitor'in self.setup[server]['devices']:
                 grid.add_widget(widget=[label_rad_monitor, btn_start_stop_rad_mon])
             grid.add_layout(spacer)
