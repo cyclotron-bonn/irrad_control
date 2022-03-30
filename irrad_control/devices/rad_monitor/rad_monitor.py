@@ -36,18 +36,22 @@ class RadiationMonitor(ArduinoFreqCounter):
         if direction == 'up':
             self.hv.hv_on()
             aim_volt = (self.hv.high_voltage, )
+            logging.info(f"Ramping voltage up to {self.hv.high_voltage} V...")
         # We are ramping down
         else:
             self.hv.hv_off()
             aim_volt = (0, 1)  # Outut sometimes remains 1 V when shutting down
+            logging.info(f"Ramping voltage down to 0 V...")
 
         while self.hv.voltage not in aim_volt or not n_seconds_to_ramp:
             sleep(1)
-            logging.info(f"Ramping {direction} HV to {aim_volt[0]} V (Current value: {self.hv.voltage} V)")
+            logging.debug(f"Ramping {direction} HV to {aim_volt[0]} V (Current value: {self.hv.voltage} V)")
             n_seconds_to_ramp -= 1
 
         if n_seconds_to_ramp == 0:
             logging.warning(f"Ramping {direction} voltage resulted in output voltage of {self.hv.voltage} V, ecpected is {aim_volt} V")
+        else:
+            logging.info(f"Ramping voltage completed")
 
     def ramp_up(self):
         self._ramp(direction='up')
