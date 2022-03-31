@@ -106,7 +106,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 if 'RadiationMonitor' in self.setup[server]['devices'] and monitor == 'DoseRate':
                     
-                    channels = ('dose_rate',)
+                    channels = ('rad_monitor',)
                     daq_device = self.setup[server]['devices']['RadiationMonitor']['init']['counter_type']
                     self.plots[server]['dose_rate_plot'] = plots.RadMonitorDataPlot(channels=channels, daq_device=daq_device)
                     monitor_widget = self._create_plot_wrapper(plot_name='dose_rate_plot', server=server)

@@ -677,6 +677,45 @@ class RawDataPlot(ScrollingIrradDataPlot):
         super(RawDataPlot, self).set_data(meta=meta, data=raw_data)
 
 
+class RadMonitorDataPlot(ScrollingIrradDataPlot):
+
+    unitChanged = QtCore.pyqtSignal(str)
+
+    def __init__(self, channels, daq_device=None, parent=None):
+
+        self.uSv = '{}Sv/h'.format(u'\u00B5')
+
+        self.use_unit = self.uSv
+
+        super(RadMonitorDataPlot, self).__init__(channels=channels, units={'left': self.use_unit},
+                                                 name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+                                                 parent=parent)
+
+        # Make in-plot button to switch between units
+        unit_btn = PlotPushButton(plotitem=self.plt, text='Switch unit ({})'.format('Hz'))
+        unit_btn.clicked.connect(self.change_unit)
+
+        # Connect to signal
+        for con in [lambda u: self.plt.getAxis('left').setLabel(text='Frequency' if u == 'Hz' else 'Dose Rate', units=u),
+                    lambda u: unit_btn.setText('Switch unit ({})'.format('Hz' if u == self.uSv else self.uSv))]:
+            self.unitChanged.connect(con)
+
+        # Add
+        self.add_plot_button(unit_btn)
+
+    def change_unit(self):
+        self.use_unit = 'Hz' if self.use_unit == self.uSv else self.uSv
+        self.unitChanged.emit(self.use_unit)
+
+        # Restart the time of incoming data
+        self._time, self._idx = None, 0
+
+    def set_data(self, meta, data):
+        """Overwrite set_data method in order to show raw data in Ampere and Volt"""
+        raw_data = data['frequency'] if self.use_unit == 'Hz' else data['dose_rate']
+        super(RadMonitorDataPlot, self).set_data(meta=meta, data={'rad_monitor': raw_data})
+
+
 class PlotPushButton(pg.TextItem):
     """Implements a in-plot push button for a PlotItem"""
 
@@ -743,25 +782,6 @@ class TemperatureDataPlot(ScrollingIrradDataPlot):
         self.plt.hideAxis('left')
         self.plt.showAxis('right')
         self.plt.setLabel('right', text='Temperature', units='C')
-
-
-class RadMonitorDataPlot(ScrollingIrradDataPlot):
-
-    def __init__(self, channels, daq_device=None, parent=None):
-
-        dose_rate_hour = '{}Sv/h'.format(u'\u00B5')
-
-        super(RadMonitorDataPlot, self).__init__(channels=channels, units={'right': dose_rate_hour, 'left': dose_rate_hour},
-                                                 name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
-                                                 parent=parent)
-
-        self.plt.setLabel('left', text='Dose Rate', units=dose_rate_hour)
-        self.plt.hideAxis('left')
-        self.plt.showAxis('right')
-        self.plt.setLabel('right', text='Dose Rate', units=dose_rate_hour)
-
-    def set_data(self, meta, data):
-        return super().set_data(meta=meta, data={'dose_rate': data['dose_rate']})
 
 
 class CrosshairItem:
