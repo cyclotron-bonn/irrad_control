@@ -18,7 +18,7 @@ for irradiation datasets which produce comprehensive plots.
 Installation
 ============
 
-You have to have Python >= 3.7 with the following packages installed:
+You have to have Python >= 3.7  with the following packages installed:
 
 - numpy
 - pyyaml
@@ -39,9 +39,9 @@ After installation you can use the package manager ``conda`` to install the requ
 
 To install the required packages that are not available via ``conda``, use `pip`
 
-.. code-block::
+.. code-block:: bash
 
-  pip install uncertainties bitstring pytest
+  pip install uncertainties pytest
 
 To finally install ``irrad_control`` run the setup script
 
