@@ -35,19 +35,13 @@ After installation you can use the package manager ``conda`` to install the requ
 
 .. code-block:: bash
 
-   conda install numpy pyyaml pytables pyqt pyzmq pyqtgraph paramiko matplotlib
+   conda install numpy pyyaml pytables pyqt pyzmq pyserial pyqtgraph paramiko matplotlib
 
-To install the `uncertainties` package use `pip`
-
-.. code-block::
-
-  pip install uncertainties
-
-To be able to run the tests locallay, install the `pytest` package
+To install the required packages that are not available via ``conda``, use `pip`
 
 .. code-block::
 
-  pip install pytest
+  pip install uncertainties bitstring pytest
 
 To finally install ``irrad_control`` run the setup script
 

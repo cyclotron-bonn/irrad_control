@@ -27,7 +27,7 @@ function conda_env_installer {
 
       # Install python packages
       conda config --set always_yes yes
-      conda install pyzmq pip pyyaml
+      conda install pyzmq pip pyyaml pyserial
       
       # Upgrade pip and install needed packages from pip
       pip install --upgrade pip
