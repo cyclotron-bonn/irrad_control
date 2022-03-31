@@ -10,13 +10,13 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
-    port: /dev/ttyUSB2
+    port: /dev/ttyACM1
     version: v0.2
     address: 0x20
 
 ZaberXYStage:
   init:
-    serial_port: /dev/ttyUSB1
+    serial_port: /dev/ttyACM2
 
 ArduinoNTCReadout:
   init:
