@@ -142,6 +142,15 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             spinbox_refresh.valueChanged.connect(lambda v: self.pw.update_refresh_rate(v))
             _sub_layout_1.addWidget(spinbox_refresh)
 
+        # Button to reset the contents of the self.pw
+        if hasattr(self.pw, 'reset_plot'):
+            self.btn_reset = QtWidgets.QPushButton()
+            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.SP_BrowserReload))
+            self.btn_reset.setToolTip('Reset plot')
+            self.btn_reset.setFixedSize(25, 25)
+            self.btn_reset.clicked.connect(self.pw.reset_plot)
+            _sub_layout_1.addWidget(self.btn_reset)
+
         # Button to save contents of self.pw.plt instance
         self.btn_save = QtWidgets.QPushButton()
         self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
@@ -520,6 +529,9 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
+    def reset_plot(self):
+        self._idx, self._time, self._data_is_set = 0, None, False
+
     def set_data(self, meta, data):
         """Set the data of the plot. Input data is data plus meta data"""
 
@@ -669,7 +681,7 @@ class RawDataPlot(ScrollingIrradDataPlot):
         self.unitChanged.emit(self.use_unit)
 
         # Restart the time of incoming data
-        self._time, self._idx = None, 0
+        self.reset_plot()
 
     def set_data(self, meta, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
@@ -708,7 +720,7 @@ class RadMonitorDataPlot(ScrollingIrradDataPlot):
         self.unitChanged.emit(self.use_unit)
 
         # Restart the time of incoming data
-        self._time, self._idx = None, 0
+        self.reset_plot()
 
     def set_data(self, meta, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
