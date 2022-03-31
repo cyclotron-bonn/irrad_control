@@ -97,7 +97,7 @@ class ZaberXYStage(object):
         self.model = 'X-XY-LRQ300BL-E01-KX14C-SQ3'
 
         # Important parameters of each stage
-        self.microstep = 0.49609375e-6  # meter
+        self.microstep = 0.1953125e-6  # meter
         self.linear_motion_per_rev = 6.35e-3  # meter
         self.steps_per_rev = 200  # steps
 
@@ -105,12 +105,13 @@ class ZaberXYStage(object):
         port = AsciiSerial(serial_port)
 
         # Devices
-        self.x_device = AsciiDevice(port, 1)
-        self.y_device = AsciiDevice(port, 2)
+        #self.x_device = AsciiDevice(port, 1)
+        #self.y_device = AsciiDevice(port, 2)
+        device = AsciiDevice(port, 1)
 
         # Axes
-        self.x_axis = self.x_device.axis(1)
-        self.y_axis = self.y_device.axis(1)
+        self.x_axis = device.axis(1)  # self.x_device.axis(1)
+        self.y_axis = device.axis(2)  # self.y_device.axis(1)
 
         # Travel ranges in microsteps
         self.x_range_steps = [int(self.x_axis.send("get limit.min").data), int(self.x_axis.send("get limit.max").data)]
