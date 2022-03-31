@@ -105,12 +105,13 @@ class ZaberXYStage(object):
         port = AsciiSerial(serial_port)
 
         # Devices
-        self.x_device = AsciiDevice(port, 1)
-        self.y_device = AsciiDevice(port, 2)
+        #self.x_device = AsciiDevice(port, 1)
+        #self.y_device = AsciiDevice(port, 2)
+        device = AsciiDevice(port, 1)
 
         # Axes
-        self.x_axis = self.x_device.axis(1)
-        self.y_axis = self.y_device.axis(1)
+        self.x_axis = device.axis(1)  # self.x_device.axis(1)
+        self.y_axis = device.axis(2)  # self.y_device.axis(1)
 
         # Travel ranges in microsteps
         self.x_range_steps = [int(self.x_axis.send("get limit.min").data), int(self.x_axis.send("get limit.max").data)]

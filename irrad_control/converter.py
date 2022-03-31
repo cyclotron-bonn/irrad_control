@@ -83,9 +83,15 @@ class IrradConverter(DAQProcess):
         # Create group at root
         self.output_table.create_group(self.output_table.root, server_setup['name'])
 
+        # Dedicated flag for NTC readout of DAQ Board
+        has_ntc_daq_board_ro = False
+
         if 'readout' in server_setup:
 
             self.readout_setup[server] = server_setup['readout']
+
+            if 'ntc' in server_setup['readout']:
+                has_ntc_daq_board_ro = True
 
             # Fill lookup dicts
             self._lookups[server]['ro_type_idx'] = {rt: server_setup['readout']['types'].index(rt) for rt in ro.RO_TYPES
@@ -137,13 +143,13 @@ class IrradConverter(DAQProcess):
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
 
         # We have temperature data
-        if 'ntc' in server_setup['readout'] or 'ArduinoNTCReadout' in server_setup['devices']:
+        if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in server_setup['devices']:
 
             # Make temperature measurement group in outfile
             # Create group at root
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Temperature')
 
-            if 'ntc' in server_setup['readout']:
+            if has_ntc_daq_board_ro:
 
                 dtype = self.dtypes.generic_dtype(names=['timestamp', 'ntc_channel', 'temperature'],
                                                   dtypes=['<f8', '<S{}'.format(np.max([len(s) for s in server_setup['readout']['ntc'].values()])), '<f2'])
@@ -201,6 +207,23 @@ class IrradConverter(DAQProcess):
                 # Add flag
                 self.data_flags[server][dname] = False
 
+        if 'RadiationMonitor' in server_setup['devices']:
+            
+            names = ['timestamp', 'dose_rate', 'frequency']
+            dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8', '<f4', '<f4'])
+            dname = 'rad_monitor'
+            node_name = 'RadMonitor'
+
+            # Create and store tables
+            self.data_tables[server][dname] = self.output_table.create_table('/{}'.format(server_setup['name']),
+                                                                                description=dtype,
+                                                                                name=node_name)
+            # Create arrays
+            self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+
+            # Add flag
+            self.data_flags[server][dname] = False
+            
     def _calc_drate(self, server, meta):
 
         # Check if we have incoming data timing stored
@@ -669,6 +692,20 @@ class IrradConverter(DAQProcess):
 
         return temp_data
 
+    def _interpret_rad_monitor_data(self, server, data, meta):
+
+        rad_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'dose_rate'},
+                     'data': {}}
+                     
+        self.data_arrays[server]['rad_monitor']['timestamp'] = meta['timestamp']
+        
+        for rad in data:
+            self.data_arrays[server]['rad_monitor'][rad] = rad_data['data'][rad] = data[rad]
+
+        self.data_flags[server]['rad_monitor'] = True
+
+        return rad_data
+
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -721,6 +758,10 @@ class IrradConverter(DAQProcess):
 
             temp_data = self._interpret_arduino_temp_data(server=server, data=data, meta=meta_data)
             interpreted_data.append(temp_data)
+
+        elif meta_data['type'] == 'rad_monitor':
+            rad_data = self._interpret_rad_monitor_data(server=server, data=data, meta=meta_data)
+            interpreted_data.append(rad_data)
 
         # If event is not set, store data to hdf5 file
         if not self.interaction_flags[server]['write'].is_set():

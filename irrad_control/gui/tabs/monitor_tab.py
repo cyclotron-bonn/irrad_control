@@ -14,7 +14,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
         self.setup = setup
 
-        self.monitors = ('Raw', 'Beam', 'SEM', 'Fluence', 'Temp')
+        self.monitors = ('Raw', 'Beam', 'SEM', 'Fluence', 'Temp', 'DoseRate')
 
         self.daq_tabs = QtWidgets.QTabWidget()
         self.monitor_tabs = {}
@@ -40,7 +40,13 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 monitor_widget = None
 
+                # Dedicated flag for NTC readout of DAQ Board
+                has_ntc_daq_board_ro = False
+
                 if 'readout' in self.setup[server]:
+
+                    if 'ntc' in self.setup[server]['readout']:
+                        has_ntc_daq_board_ro = True
 
                     if monitor == 'Raw':
 
@@ -78,7 +84,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
-                if 'ntc' in self.setup[server]['readout'] or 'ArduinoNTCReadout' in self.setup[server]['devices']:
+                if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 
                     if monitor == 'Temp':
                         plot_wrappers = []
@@ -97,6 +103,13 @@ class IrradMonitorTab(QtWidgets.QWidget):
                             monitor_widget = plot_wrappers[0]
                         elif plot_wrappers:
                             monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
+
+                if 'RadiationMonitor' in self.setup[server]['devices'] and monitor == 'DoseRate':
+                    
+                    channels = ('rad_monitor',)
+                    daq_device = self.setup[server]['devices']['RadiationMonitor']['init']['counter_type']
+                    self.plots[server]['dose_rate_plot'] = plots.RadMonitorDataPlot(channels=channels, daq_device=daq_device)
+                    monitor_widget = self._create_plot_wrapper(plot_name='dose_rate_plot', server=server)
 
                 if monitor_widget is not None:
                     self.monitor_tabs[server].addTab(monitor_widget, monitor)

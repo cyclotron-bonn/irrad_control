@@ -21,6 +21,7 @@ class IrradServer(DAQProcess):
         commands = {'adc': [],
                     'temp': [],
                     'server': ['start', 'shutdown'],
+                    'rad_monitor': ['start', 'stop'],
                     'ro_board': ['set_ifs', 'get_ifs', 'set_temp_ch', 'cycle_temp_chs', 'get_gpio', 'set_gpio'],
                     'stage': ['move_rel', 'move_abs', 'prepare', 'scan', 'finish', 'stop', 'pos', 'home',
                               'set_speed', 'get_speed', 'no_beam', 'set_range', 'get_range', 'add_pos', 'del_pos', 'move_pos', 'get_pos']
@@ -67,6 +68,10 @@ class IrradServer(DAQProcess):
                 if dev == 'ADCBoard':
                     self.devices[dev].drate = self.setup['server']['readout']['sampling_rate']
                     self.devices[dev].setup_channels(self.setup['server']['readout']['ch_numbers'])
+
+                if dev == 'RadiationMonitor':
+                    self.on_demand_events['stop_rad_monitor']
+                    self.on_demand_events['rad_monitor_idle'].set()
 
                 if dev == 'ZaberXYStage':
                     # Setup zmq for the stage to publish data
@@ -171,6 +176,35 @@ class IrradServer(DAQProcess):
 
         return _meta, _data
 
+    def _daq_rad_monitor(self):
+        
+        # Check if another thread is running this method, if so, make the other thread stop and wait for it
+        if not self.on_demand_events['rad_monitor_idle'].is_set():
+            self.on_demand_events['stop_rad_monitor'].set()
+            self.on_demand_events['rad_monitor_idle'].wait()
+
+
+        self.on_demand_events['stop_rad_monitor'].clear()
+        self.on_demand_events['rad_monitor_idle'].clear()
+        self.devices['RadiationMonitor'].ramp_up()
+        
+        internal_data_pub = self.create_internal_data_pub()
+
+        # Acquire data if not stop signal is set
+        while not self.on_demand_events['stop_rad_monitor'].is_set():
+
+            dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
+
+            # Add meta data and data
+            meta = {'timestamp': time(), 'name': self.server, 'type': 'rad_monitor'}
+            data = {'dose_rate': dose_rate, 'frequency': frequency}
+
+            # Put data into outgoing queue
+            internal_data_pub.send_json({'meta': meta, 'data': data})
+
+        self.devices['RadiationMonitor'].ramp_down()
+        self.on_demand_events['rad_monitor_idle'].set()
+
     def _sync_ntc_readout(self, sync_time=0.2):
         """Sync ADC readout with switching NTC channels on IrradDAQBoard"""
         while not self.stop_flags['send'].wait(sync_time):
@@ -190,6 +224,14 @@ class IrradServer(DAQProcess):
 
             elif cmd == 'shutdown':
                 self.shutdown()
+
+        elif target == 'rad_monitor':
+
+            if cmd == 'start':
+                self.launch_thread(target=self._daq_rad_monitor)
+
+            elif cmd == 'stop':
+                self.on_demand_events['stop_rad_monitor'].set()
 
         elif target == 'ro_board':
 
