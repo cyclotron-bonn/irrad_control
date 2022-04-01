@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, ubuntu-latest]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: 3.8
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -46,7 +46,8 @@ jobs:
         shell: bash -l {0}
         run: |
           conda info -a
-          conda install numpy pyyaml pyzmq pytables pyqt pyqtgraph matplotlib paramiko pytest
+          conda install numpy pyyaml pyzmq pytables matplotlib paramiko pytest
+          pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
           pip install -r requirements.txt
 
       - name: Package installation

@@ -18,30 +18,36 @@ for irradiation datasets which produce comprehensive plots.
 Installation
 ============
 
-You have to have Python >= 3.7  with the following packages installed:
+Due due dependencies, you have to have Python 3.8  with the following packages installed:
 
 - numpy
 - pyyaml
 - pyzmq
 - pytables
-- pyqt
-- `pyqtgraph <http://pyqtgraph.org/>`_
 - matplotlib
 - paramiko
 - uncertainties
+- pyqt (version 5)
+- `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.10/0.11)
 
 It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
-After installation you can use the package manager ``conda`` to install the required packages
+After installation you can use the package manager ``conda`` to install the required packages. To create a new Python 3.8 environment with the name `irrad` type
 
 .. code-block:: bash
 
-   conda install numpy pyyaml pytables pyqt pyzmq pyserial pyqtgraph paramiko matplotlib
+   conda create -n irrad Python=3.8
 
-To install the required packages that are not available via ``conda``, use `pip`
+Run ``conda activate irrad`` to activate the Python environment. To install the dependencies, run
 
 .. code-block:: bash
 
-  pip install uncertainties pytest
+   conda install numpy pyyaml pytables pyzmq pyserial paramiko matplotlib
+
+To install the required packages that are not available via ``conda``, use ``pip``
+
+.. code-block:: bash
+
+  pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
 
 To finally install ``irrad_control`` run the setup script
 
