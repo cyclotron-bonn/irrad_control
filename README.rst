@@ -72,6 +72,13 @@ where ``ip-address-of-rpi`` is the IP address of the RPi within the network. In 
 After launching ``irrad_control``, you can perform a first-time-setup of the server by adding it via its IP address.
 The server is then automatically set up on first use with ``irrad_control``.
 
+Versions
+========
+
+-v1.2.0: Latest, stable version with partial support for updated irradiation setup
+-v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
+-v1.0.1: Initial release with semantic verisoning
+
 Documentation
 =============
 
