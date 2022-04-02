@@ -362,10 +362,10 @@ class IrradServer(DAQProcess):
 
     def clean_up(self):
         """Mandatory clean up - method"""
-        try:
-            del self.xy_stage
-        except AttributeError:
-            pass
+         # Check if we want to store configs
+        for dev in self.devices:
+            if hasattr(self.devices[dev], 'save_config'):
+                self.devices[dev].save_config()
 
 
 def main():
