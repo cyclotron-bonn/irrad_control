@@ -48,7 +48,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
     """Widget that wraps PlotWidgets and implements some additional features which allow to control the PlotWidgets content.
     Also adds button to show the respective PlotWidget in a QMainWindow"""
 
-    def __init__(self, plot=None, plot_path=None, parent=None):
+    def __init__(self, plot=None, plot_path=None, file_name=None, parent=None):
         super(PlotWrapperWidget, self).__init__(parent=parent)
 
         # Set a reasonable minimum size
@@ -63,8 +63,10 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         self.setLayout(QtWidgets.QVBoxLayout())
         self.plot_options = GridContainer(name='Plot options' if not hasattr(self.pw, 'name') else '{} options'.format(self.pw.name))
 
-        # Output path for screenshots
-        self.plot_path = plot_path
+        # Output path and file_name for screenshots
+        self.plot_path = os.getcwd() if plot_path is None else plot_path
+        self.file_name = type(plot).__name__ if file_name is None else file_name
+        self.file_format = 'png'
 
         # Setup widget if class instance was initialized with plot
         if self.pw is not None:
@@ -140,6 +142,15 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             spinbox_refresh.valueChanged.connect(lambda v: self.pw.update_refresh_rate(v))
             _sub_layout_1.addWidget(spinbox_refresh)
 
+        # Button to reset the contents of the self.pw
+        if hasattr(self.pw, 'reset_plot'):
+            self.btn_reset = QtWidgets.QPushButton()
+            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.SP_BrowserReload))
+            self.btn_reset.setToolTip('Reset plot')
+            self.btn_reset.setFixedSize(25, 25)
+            self.btn_reset.clicked.connect(self.pw.reset_plot)
+            _sub_layout_1.addWidget(self.btn_reset)
+
         # Button to save contents of self.pw.plt instance
         self.btn_save = QtWidgets.QPushButton()
         self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
@@ -198,13 +209,12 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Generate filename
         number = 0
-        out_file = lambda pw, n: os.path.join(os.getcwd() if self.plot_path is None else self.plot_path,
-                                              '{}_{}.png'.format(type(pw).__name__, n))
-        while os.path.isfile(out_file(self.pw, number)):
+        out_file = lambda n: os.path.join(self.plot_path, f'{self.file_name}_{n}.{self.file_format}')
+        while os.path.isfile(out_file(number)):
             number += 1
 
-        exporter.export(out_file(self.pw, number))
-        logging.info("Saved plot to {}".format(out_file(self.pw, number)))
+        exporter.export(out_file(number))
+        logging.info(f"Saved plot to {out_file(number)}")
 
 
 class MultiPlotWidget(QtWidgets.QScrollArea):
@@ -519,6 +529,9 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
+    def reset_plot(self):
+        self._idx, self._time, self._data_is_set = 0, None, False
+
     def set_data(self, meta, data):
         """Set the data of the plot. Input data is data plus meta data"""
 
@@ -668,12 +681,51 @@ class RawDataPlot(ScrollingIrradDataPlot):
         self.unitChanged.emit(self.use_unit)
 
         # Restart the time of incoming data
-        self._time, self._idx = None, 0
+        self.reset_plot()
 
     def set_data(self, meta, data):
         """Overwrite set_data method in order to show raw data in Ampere and Volt"""
         raw_data = data['current'] if self.use_unit == 'A' else data['voltage']
         super(RawDataPlot, self).set_data(meta=meta, data=raw_data)
+
+
+class RadMonitorDataPlot(ScrollingIrradDataPlot):
+
+    unitChanged = QtCore.pyqtSignal(str)
+
+    def __init__(self, channels, daq_device=None, parent=None):
+
+        self.uSv = '{}Sv/h'.format(u'\u00B5')
+
+        self.use_unit = self.uSv
+
+        super(RadMonitorDataPlot, self).__init__(channels=channels, units={'left': self.use_unit},
+                                                 name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+                                                 parent=parent)
+
+        # Make in-plot button to switch between units
+        unit_btn = PlotPushButton(plotitem=self.plt, text='Switch unit ({})'.format('Hz'))
+        unit_btn.clicked.connect(self.change_unit)
+
+        # Connect to signal
+        for con in [lambda u: self.plt.getAxis('left').setLabel(text='Frequency' if u == 'Hz' else 'Dose Rate', units=u),
+                    lambda u: unit_btn.setText('Switch unit ({})'.format('Hz' if u == self.uSv else self.uSv))]:
+            self.unitChanged.connect(con)
+
+        # Add
+        self.add_plot_button(unit_btn)
+
+    def change_unit(self):
+        self.use_unit = 'Hz' if self.use_unit == self.uSv else self.uSv
+        self.unitChanged.emit(self.use_unit)
+
+        # Restart the time of incoming data
+        self.reset_plot()
+
+    def set_data(self, meta, data):
+        """Overwrite set_data method in order to show raw data in Ampere and Volt"""
+        raw_data = data['frequency'] if self.use_unit == 'Hz' else data['dose_rate']
+        super(RadMonitorDataPlot, self).set_data(meta=meta, data={'rad_monitor': raw_data})
 
 
 class PlotPushButton(pg.TextItem):

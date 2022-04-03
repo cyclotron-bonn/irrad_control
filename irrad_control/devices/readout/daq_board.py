@@ -1,27 +1,30 @@
 from threading import Thread, Event
 
 # Package imports
-from . import DAQ_BOARD_CONFIG
-from ..ic.TCA9555.tca9555 import TCA9555
+from irrad_control.devices.readout import DAQ_BOARD_CONFIG
+from irrad_control.devices.ic.TCA9555.tca9555 import TCA9555
 
 
 class IrradDAQBoard(object):
 
-    def __init__(self, version='v0.1', address=0x20):
+    def __init__(self, port, version='v0.1', address=0x20):
 
         # Check for version support
         if version not in DAQ_BOARD_CONFIG['version']:
             raise ValueError("{} not supported. Supported versions are {}".format(version, ', '.join(DAQ_BOARD_CONFIG['version'].keys())))
 
         # Initialize the interface to the board via I2C
-        self._intf = TCA9555(address=address)
-
+        self._intf = TCA9555(port=port, address=address)
         self.version = version
 
-        # Related to temperature channel cycling
-        self.temp_channel = None
-        self._temp_channel_cycle_thread = None
-        self._stop_temp_channel_cycle_flag = Event()
+        # Related to ntc channel cycling
+        # NTC readouts; iterable of ints corresponding to pin header number
+        self.ntc_channels = None
+        self.ntc = None
+        self._ntc_cycle_thread = None
+        self._stop_ntc_cycle_flag = Event()
+        self._ntc_idx = 0
+        self.ntc_sync = Event()
 
         # Setup the initial state of the board
         self.restore_defaults()
@@ -37,7 +40,12 @@ class IrradDAQBoard(object):
         # Set the input current scale
         self.set_ifs(group='ch12', ifs=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ch12_ifs'])
 
-        self.set_temp_channel(channel=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['temp_ch'])
+        self.set_ntc_channel(channel=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ntc_ch'])
+
+    def init_ntc_readout(self, ntc_channels):
+        self.ntc_channels = [ntc_channels] if isinstance(ntc_channels, int) else ntc_channels
+        # Set first channel
+        self.set_ntc_channel(self.ntc_channels[self._ntc_idx])
 
     @property
     def jumper_scale(self):
@@ -75,18 +83,18 @@ class IrradDAQBoard(object):
 
         return self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins'][group])
 
-    def get_temp_channel(self, cached=False):
+    def get_ntc_channel(self, cached=False):
 
-        if self.temp_channel is None or not cached:
-            self.temp_channel = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['temp'])
+        if self.ntc is None or not cached:
+            self.ntc = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'])
 
-        return self.temp_channel
+        return self.ntc
 
-    def set_temp_channel(self, channel):
+    def set_ntc_channel(self, channel):
 
-        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['temp'], val=channel)
+        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'], val=channel)
 
-        self.temp_channel = channel
+        self.ntc = channel
 
     def set_ifs(self, group, ifs):
         # FIXME
@@ -131,31 +139,36 @@ class IrradDAQBoard(object):
 
         self._intf.unset_bits(bits=self._check_and_map_gpio(pins=pins))
 
-    def is_cycling_temp_channels(self):
-        return False if self._temp_channel_cycle_thread is None else self._temp_channel_cycle_thread.is_alive()
+    def is_cycling_ntc_channels(self):
+        return False if self._ntc_cycle_thread is None else self._ntc_cycle_thread.is_alive()
 
-    def stop_cycle_temp_channels(self):
-        if not self.is_cycling_temp_channels():
+    def stop_cycle_ntc_channels(self):
+        if not self.is_cycling_ntc_channels():
             return
-        self._stop_temp_channel_cycle_flag.set()
-        self._temp_channel_cycle_thread.join()
-        self._stop_temp_channel_cycle_flag.clear()
-        self._temp_channel_cycle_thread = None
+        self._stop_ntc_cycle_flag.set()
+        self._ntc_cycle_thread.join()
+        self._stop_ntc_cycle_flag.clear()
+        self._ntc_cycle_thread = None
 
-    def cycle_temp_channels(self, channels, timeout=None):
+    def cycle_ntc_channels(self, timeout=None):
 
         # In case of restart
-        if self.is_cycling_temp_channels():
-            self.stop_cycle_temp_channels()
+        if self.is_cycling_ntc_channels():
+            self.stop_cycle_ntc_channels()
 
-        self._temp_channel_cycle_thread = Thread(target=self._cycle_temp_channels, args=(channels, timeout))
-        self._temp_channel_cycle_thread.start()
+        self._ntc_cycle_thread = Thread(target=self._cycle_ntc_channels, args=(timeout, ))
+        self._ntc_cycle_thread.start()
 
-    def _cycle_temp_channels(self, channels, timeout=None):
+    def _cycle_ntc_channels(self, timeout=None):
 
-        n_channels = len(channels)
-        ch_idx = 0
-        while not self._stop_temp_channel_cycle_flag.wait(timeout=timeout):
+        while not self._stop_ntc_cycle_flag.wait(timeout=timeout):
+            self.next_ntc()
 
-            self.set_temp_channel(channel=channels[ch_idx])
-            ch_idx = ch_idx + 1 if ch_idx != n_channels - 1 else 0
+    def next_ntc(self):
+
+        # If there are not ntc channels or there is only one, do nothing
+        if self.ntc_channels is None or len(self.ntc_channels) == 1:
+            return
+
+        self.set_ntc_channel(channel=self.ntc_channels[self._ntc_idx])
+        self._ntc_idx = self._ntc_idx + 1 if self._ntc_idx != len(self.ntc_channels) - 1 else 0

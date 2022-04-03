@@ -2,6 +2,9 @@
 import os
 import yaml
 
+# Version
+__version__ = '1.2.0'
+
 # Paths
 package_path = os.path.dirname(__file__)
 config_path = os.path.join(package_path, 'config')

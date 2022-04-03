@@ -429,7 +429,7 @@ class ServerSetupWidget(QtWidgets.QWidget):
         serv_device_sel = ServerDeviceSelection(name='Server devices')
         daq_setup = DAQSetup(name='Data acquisition')
         ro_device_setup = ReadoutDeviceSetup('Readout', device=ro.RO_DEVICES.DAQBoard)
-        arduino_temp_setup = NTCSetup(name='ArduinoTempSens')
+        arduino_temp_setup = NTCSetup(name='ArduinoNTCReadout')
 
         ro_device_sel.setupChanged.connect(lambda state, _ip=ip, _l=_layout:
                                            (self._update_readout_widget(_ip, state, _l),
@@ -450,7 +450,7 @@ class ServerSetupWidget(QtWidgets.QWidget):
                                             ))
 
         # TODO: make this generic for server devices that have a dedicated setup widget
-        serv_device_sel.widgets['ArduinoTempSens'].stateChanged.connect(lambda state: arduino_temp_setup.setVisible(bool(state)))
+        serv_device_sel.widgets['ArduinoNTCReadout'].stateChanged.connect(lambda state: arduino_temp_setup.setVisible(bool(state)))
 
         # Add to layout
         _layout.addWidget(ro_device_sel)
@@ -484,8 +484,8 @@ class ServerSetupWidget(QtWidgets.QWidget):
 
         # Select defaults
         ro_device_sel.widgets[ro.RO_DEVICES.DAQBoard].toggle()
-        serv_device_sel.widgets['ArduinoTempSens'].setChecked(True)
-        serv_device_sel.widgets['ArduinoTempSens'].setChecked(False)
+        serv_device_sel.widgets['ArduinoNTCReadout'].setChecked(True)
+        serv_device_sel.widgets['ArduinoNTCReadout'].setChecked(False)
         ro_device_sel.setupChanged.emit(ro_device_sel.setup())
 
     def _validate_setup(self):
@@ -509,7 +509,7 @@ class ServerSetupWidget(QtWidgets.QWidget):
                     self.isSetup = False
                     return
 
-                if self.setup_widgets[ip]['device'].widgets['ArduinoTempSens'].isChecked() and not any(tcb.isChecked() for tcb in self.setup_widgets[ip]['temp'].widgets['ntc_chbxs']):
+                if self.setup_widgets[ip]['device'].widgets['ArduinoNTCReadout'].isChecked() and not any(tcb.isChecked() for tcb in self.setup_widgets[ip]['temp'].widgets['ntc_chbxs']):
                     logging.warning("Select temperature sensors for server {} or remove from devices.".format(ip))
                     self.isSetup = False
                     return

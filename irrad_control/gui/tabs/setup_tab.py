@@ -149,7 +149,7 @@ class IrradSetupTab(QtWidgets.QWidget):
                 server_setup['devices'][device] = {}
                 server_setup['devices'][device]['init'] = DEVICES_CONFIG[device]['init']
 
-                if device == 'ArduinoTempSens':
+                if device == 'ArduinoNTCReadout':
                     server_setup['devices'][device]['setup'] = self.server_setup.setup_widgets[server_ip]['temp'].setup()
 
             # Add

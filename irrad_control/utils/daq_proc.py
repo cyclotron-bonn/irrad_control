@@ -9,6 +9,7 @@ from threading import Event
 from zmq.log import handlers
 from irrad_control import config_path
 from irrad_control.utils.worker import ThreadWorker
+from collections import defaultdict
 
 
 class DAQProcess(Process):
@@ -47,6 +48,7 @@ class DAQProcess(Process):
         # Events to handle sending / receiving of data and commands
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
         self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
+        self.on_demand_events = defaultdict(Event)  # Create events in subclasses on demand
 
         # Ports/sockets used by this process
         self.ports = {'log': None, 'cmd': None, 'data': None}

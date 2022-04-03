@@ -10,14 +10,15 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
+    port: /dev/ttyACM1
     version: v0.2
     address: 0x20
 
 ZaberXYStage:
   init:
-    serial_port: /dev/ttyUSB1
+    serial_port: /dev/ttyACM2
 
-ArduinoTempSens:
+ArduinoNTCReadout:
   init:
     port: /dev/ttyUSB0
     baudrate: 115200
@@ -25,3 +26,9 @@ ArduinoTempSens:
     ntc_lim:
       - -55
       - 125
+
+RadiationMonitor:
+  init:
+    counter_type: GasCounter
+    counter_port: '/dev/ttyACM0'
+    hv_port: '/dev/ttyUSB1'

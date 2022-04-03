@@ -59,7 +59,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.threadpool = QtCore.QThreadPool()
 
         # Server process and hardware that can receive commands using self.send_cmd method
-        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board')
+        self._targets = ('server', 'adc', 'stage', 'temp', 'interpreter', 'ro_board', 'rad_monitor')
 
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()
@@ -508,6 +508,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'temp_daq_board':
             self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'dose_rate':
+            self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
@@ -644,8 +647,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 elif reply == 'prepare':
                     self.control_tab.update_scan_parameters(**reply_data)
-                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows']})
+                    self.monitor_tab.add_fluence_hist(kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      n_rows=reply_data['n_rows'],
+                                                      server=hostname)
                     self.send_cmd(hostname=hostname, target='stage', cmd='scan')
                     self.control_tab.scan_status('started')
 
@@ -754,6 +758,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self.stop_recv_data.set()
         self.stop_recv_log.set()
         self.close_timer.stop()
+
+        # Store all plots on close; AttributeError when app was not launched fully
+        try:
+            self.monitor_tab.save_plots()
+        except AttributeError:
+            pass
 
         # Wait 1 second for all threads to finish
         self.threadpool.waitForDone(1000)

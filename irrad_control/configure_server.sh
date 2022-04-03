@@ -27,7 +27,7 @@ function conda_env_installer {
 
       # Install python packages
       conda config --set always_yes yes
-      conda install pyzmq pip pyyaml
+      conda install pyzmq pip pyyaml pyserial
       
       # Upgrade pip and install needed packages from pip
       pip install --upgrade pip
@@ -56,7 +56,7 @@ IRRAD_URL="https://github.com/SiLab-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
 IRRAD_INSTALL=false
-REQ_PKGS=(pyzmq pyyaml pip wiringpi zaber.serial bitstring)
+REQ_PKGS=(pyzmq pyyaml pyserial pip wiringpi zaber.serial bitstring)
 
 # Parse command line arguments
 for CMD in "$@"; do
