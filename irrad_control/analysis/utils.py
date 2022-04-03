@@ -62,8 +62,8 @@ def load_irrad_data(data_file, config_file, specify_entries=None, subtract_raw_o
                 data_depth = leaf._v_pathname.split('/')[2:]
 
                 # Skip this leaf if it belongs to a top-level node that is not specified to be read
-                if specify_entries:
-                    if data_depth[0] not in specify_entries:
+                if entries_to_load:
+                    if data_depth[0] not in entries_to_load:
                         continue
 
                 # Make data dict with all nested levels needed
