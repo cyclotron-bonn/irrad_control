@@ -46,7 +46,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda info -a
-          conda install numpy pyyaml pyzmq pytables matplotlib paramiko pytest
+          conda install numpy pyyaml pyzmq pytables matplotlib paramiko pytest numba tqdm
           pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
           pip install -r requirements.txt
 
