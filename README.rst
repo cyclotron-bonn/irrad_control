@@ -27,6 +27,8 @@ Due due dependencies, you have to have Python 3.8  with the following packages i
 - matplotlib
 - paramiko
 - uncertainties
+- tqdm
+- numba
 - pyqt (version 5)
 - `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.11)
 
@@ -36,7 +38,7 @@ and required dependencies, type
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib
+   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib tqdm numba
 
 Run ``conda activate irrad`` to activate the Python environment. To install the required packages that are not available via ``conda``, use ``pip``
 
@@ -75,6 +77,7 @@ The server is then automatically set up on first use with ``irrad_control``.
 Versions
 ========
 
+- v1.3.0: Latest, stable version with included data analysis
 - v1.2.0: Latest, stable version with partial support for updated irradiation setup
 - v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
 - v1.0.1: Initial release with semantic verisoning

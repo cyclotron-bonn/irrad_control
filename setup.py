@@ -9,7 +9,7 @@ _server = 'server' in sys.argv
 if _server:
     sys.argv.remove('server')
 
-version = '1.2.0'
+version = '1.3.0'
 author = 'Pascal Wolf'
 author_email = 'wolf@physik.uni-bonn.de'
 
@@ -34,7 +34,7 @@ setup_kwargs = {'name': 'irrad_control',
                 'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
                 'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
                 'platforms': 'any',
-                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control')]}
+                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control'), 'irrad_analyse = irrad_control.analysis.analyse:main']}
                 }
 
 # Setup
