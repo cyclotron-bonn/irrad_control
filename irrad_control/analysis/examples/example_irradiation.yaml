@@ -27,7 +27,7 @@ server:
       ZaberXYStage:
         init:
           serial_port: /dev/ttyUSB0
-    name: HSR
+    name: Hochstromraum2
     readout:
       ch_groups:
       - sem
