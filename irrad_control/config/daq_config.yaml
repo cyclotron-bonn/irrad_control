@@ -12,64 +12,24 @@ sem:
 # of the custom readout electronics (3.3,10,33,100,330,1000) in [nA] and the proportionality constant lambda in [1/V] like:
 # I_Beam(U_SEM) = lambda * I_fs * U_SEM
 lambda:
-  default: lambda_5
+  default: lambda_1
   all:
     lambda_1:
-      nominal: 770.97e-3
-      sigma: 4.93e-3
-      hv_sem: 70 V
-      unit: 1/V
-      device: SEM-39-deg
-      particle: proton
-      energy: 14 MeV
-      date: Thu Jan 23 00:00:00 2019
-    lambda_2:
-      nominal: 837.70e-3
-      sigma: 2.267e-4
-      hv_sem: 100 V
-      unit: 1/V
-      device: SEM-39-deg
-      particle: proton
-      energy: 14 MeV
-      date: Tue Feb 5 14:50:03 2019
-    lambda_3:
-      nominal: 850.50e-3
-      sigma: 3.634e-4
-      hv_sem: 100 V
-      unit: 1/V
-      device: SEM-39-deg
-      particle: proton
-      energy: 14 MeV
-      date: Thu Aug 8 14:00:00 2019
-    lambda_4:
-      nominal: 512.70e-3
-      sigma: 24.14e-3  # Larger error due to capacitive coupling of external cup to insulating surface
+      nominal: 0.937
+      sigma: 0.009
       hv_sem: 100 V
       unit: 1/V
       device: SEM-15-deg
       particle: proton
       energy: 14 MeV
-      date: Wed Oct 16 15:45:00 2019
-    lambda_5:
-      nominal: 1.358
-      sigma: 0.014
-      hv_sem: 100 V
-      unit: 1/V
-      device: SEM-15-deg
-      particle: proton
-      energy: 14 MeV
-      date: Wed Jun 16 14:00:00 2021
+      date: Wed Feb 23 14:00:00 2022
+
 
 # Proton hardness factors
 kappa:
-  default: kappa_2
+  default: kappa_1
   all:
     kappa_1:
-      nominal: 3.0
-      sigma: 0
-      energy: 12.26
-      date: Thu Jan 23 00:00:00 2019
-    kappa_2:
       nominal: 4.1
       sigma: 0.6
       energy: 12.26
