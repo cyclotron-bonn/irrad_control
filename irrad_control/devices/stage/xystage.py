@@ -137,6 +137,7 @@ class ZaberXYStage(object):
 
         # Set the scan accel
         self.set_accel(2500, self.x_axis, unit='mm/s2')
+        self.set_accel(500, self.y_axis, unit='mm/s2')
 
         # Attributes related to ZMQ data publishing
         self.zmq_config = {}
