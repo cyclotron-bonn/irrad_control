@@ -1,9 +1,5 @@
 """
 This script contains the functions used for analysis of irradiation tables
-CAUTION: the current version of this file operates on a version of
-irradiation tables which is deprecated but was need to develop the analysis
-due to a bug in storing timestamps in the current development state
-(see https://github.com/SiLab-Bonn/irrad_control/issues/59).
 """
 
 import numpy as np
@@ -15,7 +11,7 @@ from irrad_control.analysis.constants import elementary_charge
 
 
 # This is the main function
-def generate_fluence_map(beam_data, scan_data, bins=(200, 200), beam_sigma=(2.01, 1.37)):
+def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.01, 1.37)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
     
@@ -37,8 +33,8 @@ def generate_fluence_map(beam_data, scan_data, bins=(200, 200), beam_sigma=(2.01
     
     # Get scan area; FIXME: get scan area from *Irrad* data
     # Everything in base unit mm
-    scan_area_start = (scan_data[0]['x_start'], scan_data[n_rows]['y_start'])
-    scan_area_end = (scan_data[0]['x_stop'], scan_data[0]['y_start'])
+    scan_area_start = (scan_data[0]['row_start_x'], scan_data[n_rows]['row_start_y'])
+    scan_area_end = (scan_data[0]['row_stop_x'], scan_data[0]['row_start_y'])
 
     # Fluence map
     fluence_map = np.zeros(shape=bins)
@@ -303,13 +299,13 @@ def _process_row_wait(row_data, row_wait_currents, fluence_map, map_bin_edges_x,
     
     # Determine the mean of the beam
     wait_mu_x = map_bin_edges_x[-1 if row_data['row'] % 2 else 0]
-    wait_mu_y = row_data['y_start'] - scan_y_offset
+    wait_mu_y = row_data['row_start_y'] - scan_y_offset
     
     # Loop over currents and apply Gauss kernel at given position
     for i in range(row_wait_currents.shape[0] - 1):
 
         # Get beam current measurement
-        wait_current = row_wait_currents[i]['current_analog']
+        wait_current = row_wait_currents[i]['beam_current']
 
         # Calculate how many seconds this current was present while waiting
         wait_interval = row_wait_currents[i+1]['timestamp'] - row_wait_currents[i]['timestamp']
@@ -359,13 +355,13 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
     """
 
     # Update row bin times
-    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['speed'], scan_accel=2500)  # FIXME: get accel from Irrad data
+    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=2500)  # FIXME: get accel from Irrad data
 
     # Determine communication timing overhead; assume symmetric dead time at row start and end
-    row_start_overhead = (row_data['timestamp_stop'] - row_data['timestamp_start'] - row_bin_transit_times.sum()) / 2.0
+    row_start_overhead = (row_data['row_stop_timestamp'] - row_data['row_start_timestamp'] - row_bin_transit_times.sum()) / 2.0
     
     # Get the timestamp from which to check for beam currents, adjusted by the overhead
-    actual_row_start_timestamp = row_data['timestamp_start'] + row_start_overhead
+    actual_row_start_timestamp = row_data['row_start_timestamp'] + row_start_overhead
 
     # Calculate the timstamps which correspond to being in the map_bin_centers_x 
     row_bin_center_timestamps = actual_row_start_timestamp + np.cumsum(row_bin_transit_times) - row_bin_transit_times / 2.0
@@ -381,7 +377,7 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
         
         # Update mean location of the distribution
         mu_x = map_bin_centers_x[(-(i+1) if row_data['row'] % 2 else i)]
-        mu_y = row_data['y_start'] - scan_y_offset
+        mu_y = row_data['row_start_y'] - scan_y_offset
         
         # Apply Gaussian kernel
         apply_gauss_2d_kernel(map_2d=fluence_map,
@@ -435,11 +431,11 @@ def _process_row(row_data, beam_data, fluence_map, row_bin_transit_times, map_bi
     current_beam_data = beam_data[current_row_idx:]
 
     # Get indice limits of beam currents measured during scanning of current row
-    row_start_idx = np.searchsorted(current_beam_data['timestamp'], row_data['timestamp_start'], side='left')
-    row_stop_idx = np.searchsorted(current_beam_data['timestamp'], row_data['timestamp_stop'], side='right')
+    row_start_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_start_timestamp'], side='left')
+    row_stop_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_stop_timestamp'], side='right')
 
     # Get beam current measurements and corresponding timestamps of this row scan
-    row_scan_currents = current_beam_data['current_analog'][row_start_idx:row_stop_idx]
+    row_scan_currents = current_beam_data['beam_current'][row_start_idx:row_stop_idx]
     row_scan_timestamps = current_beam_data['timestamp'][row_start_idx:row_stop_idx]
 
     # If this is not the first row, we want to process the waiting / switching row

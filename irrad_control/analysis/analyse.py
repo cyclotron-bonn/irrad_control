@@ -87,7 +87,7 @@ def main():
             if parsed['damage']:
                 
                 res = analyse_damage(beam_data=data[content['name']]['Beam'],
-                                     scan_data=data[content['name']]['Fluence'],
+                                     scan_data=data[content['name']]['Scan'],
                                      hardness_factor=content['daq']['kappa'])
 
                 for fig in res:
