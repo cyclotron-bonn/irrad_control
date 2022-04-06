@@ -89,7 +89,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                     if monitor == 'Temp':
                         plot_wrappers = []
 
-                        if 'ntc' in self.setup[server]['readout']:
+                        if has_ntc_daq_board_ro:
                             channels = list(self.setup[server]['readout']['ntc'].values())
                             self.plots[server]['temp_daq_board_plot'] = plots.TemperatureDataPlot(channels=channels, daq_device='DAQBoard')
                             plot_wrappers.append(self._create_plot_wrapper(plot_name='temp_daq_board_plot', server=server))
