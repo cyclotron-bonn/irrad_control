@@ -1,33 +1,39 @@
-host: 127.0.0.1
+host: 131.220.221.83
 server:
-  127.0.0.1:
+  131.220.221.101:
     daq:
       kappa: 4.1
-      lambda: 1.358
+      lambda: 0.937
       sem: SEM-15-deg
     devices:
       ADCBoard:
         init: None
-      ArduinoTempSens:
+      ArduinoNTCReadout:
         init:
           baudrate: 115200
           ntc_lim:
           - -55
           - 125
-          port: /dev/ttyUSB2
+          port: /dev/ttyUSB0
           timeout: 5
         setup:
-          0: BLM
-          2: FC
-          4: DUT
+          0: FC
+          2: BLM
+          7: DUT
       IrradDAQBoard:
         init:
           address: 32
+          port: /dev/ttyACM1
           version: v0.2
+      RadiationMonitor:
+        init:
+          counter_port: /dev/ttyACM0
+          counter_type: GasCounter
+          hv_port: /dev/ttyUSB1
       ZaberXYStage:
         init:
-          serial_port: /dev/ttyUSB0
-    name: Hochstromraum2
+          serial_port: /dev/ttyACM2
+    name: HSR
     readout:
       ch_groups:
       - sem
@@ -36,6 +42,7 @@ server:
       - sem
       - sem
       - ch12
+      - ch12
       ch_numbers:
       - 0
       - 1
@@ -43,6 +50,7 @@ server:
       - 3
       - 4
       - 5
+      - 6
       channels:
       - Left
       - Right
@@ -50,11 +58,12 @@ server:
       - Down
       - Sum
       - BLM
+      - FC
       device: DAQBoard
       ro_group_scales:
         ch12: 1000
         sem: 500
-      sampling_rate: 100.0
+      sampling_rate: 500.0
       types:
       - sem_left
       - sem_right
@@ -62,8 +71,9 @@ server:
       - sem_down
       - sem_sum
       - blm
+      - cup
       x10_jumper: false
 session:
   loglevel: NOTSET
-  outfile: /example/path/to/folder/file
-  outfolder: /example/path/to/folder
+  outfile: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/LF_Monopix/LF_monopix_1e15
+  outfolder: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/LF_Monopix
