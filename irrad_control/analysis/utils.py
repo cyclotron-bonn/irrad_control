@@ -44,7 +44,7 @@ def load_irrad_data(data_file, config_file, specify_entries=None, subtract_raw_o
     entries_to_load = [specify_entries] if isinstance(specify_entries, str) else specify_entries
 
     # Open actual HDF5 file
-    with tb.open_file(data_file) as dfile:
+    with tb.open_file(data_file, 'r') as dfile:
 
         # Loop over DAQ servers and load data
         for server in irrad_config['server']:
