@@ -18,7 +18,7 @@ for irradiation datasets which produce comprehensive plots.
 Installation
 ============
 
-Due due dependencies, you have to have Python 3.8  with the following packages installed:
+Due to dependencies, you have to have Python 3.8  with the following packages installed:
 
 - numpy
 - pyyaml
@@ -77,8 +77,8 @@ The server is then automatically set up on first use with ``irrad_control``.
 Versions
 ========
 
-- v1.3.0: Latest, stable version with included data analysis
-- v1.2.0: Latest, stable version with partial support for updated irradiation setup
+- v1.3.0: Included module for offline analysis of irradiation data
+- v1.2.0: First version with partial support for updated irradiation setup running on Python 3 
 - v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
 - v1.0.1: Initial release with semantic verisoning
 
