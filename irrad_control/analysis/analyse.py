@@ -1,9 +1,17 @@
 import sys
 import os
+import logging
 import argparse
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
 import irrad_control.analysis as irrad_analysis
+
+logging.getLogger().setLevel('INFO')
+
+
+# Different types of analysis that can be performed
+ANALYSIS_TYPES = ('damage', 'beam', 'irradiation', 'calibration', 'full')
 
 
 def analyse_damage(beam_data, scan_data, hardness_factor, stopping_power=irrad_analysis.constants.p_stop_Si):
@@ -14,6 +22,28 @@ def analyse_damage(beam_data, scan_data, hardness_factor, stopping_power=irrad_a
     
     tid_map = irrad_analysis.formulas.tid_scan(proton_fluence=fluence_map, stopping_power=stopping_power)
     neq_map = fluence_map * hardness_factor
+
+    map_centers_y_reversed = map_centers_y[::-1]
+
+    # Extract scan dimensions
+    scan_dim_x = map_centers_x[-1] + (map_centers_x[1] - map_centers_x[0])/2.
+    scan_dim_y = map_centers_y[-1] + (map_centers_y[1] - map_centers_y[0])/2.
+    
+    # Extract default 2x2 cm center region of scan; FIXME: use actual DUT dimensions from *Irrad* data
+    dut_dim_idxs = (np.searchsorted(map_centers_y, (scan_dim_y-20.)/2.),
+                    np.searchsorted(map_centers_y, scan_dim_y-(scan_dim_y-20.)/2., side='left'),
+                    np.searchsorted(map_centers_x, (scan_dim_x-20.)/2.),
+                    np.searchsorted(map_centers_x, scan_dim_x-(scan_dim_x-20.)/2., side='left'))
+
+    # Generate mesh for plotting entire scan area
+    map_mesh = np.meshgrid(map_centers_x, map_centers_y_reversed)  # Reverse Y axis to put origin to upper left
+
+    dut_slice = np.s_[dut_dim_idxs[0]:dut_dim_idxs[1], dut_dim_idxs[-2]:dut_dim_idxs[-1]]
+
+    dut_tid_map, dut_neq_map = tid_map[dut_slice], neq_map[dut_slice]
+    
+    # Generate mesh for plotting DUT area
+    dut_mesh = (map_mesh[0][dut_slice], map_mesh[1][dut_slice])
 
 
     neq_3d_fig, _ = irrad_analysis.plotting.plot_damage_map_3d(damage_map=neq_map, map_centers_x=map_centers_x, map_centers_y=map_centers_y)
@@ -71,7 +101,8 @@ def main():
     session_data = os.path.join(file_folder, session_name + '.h5')
 
     # Make output pdf
-    out_pdf = os.path.join(file_folder, session_name + '.pdf') if parsed['outpdf'] is None else parsed['outpdf']  
+    analysis_out_pdf = f"{session_name}_analysis_{'_'.join(x for x in ANALYSIS_TYPES if parsed[x])}.pdf"
+    analysis_out_pdf = os.path.join(file_folder, analysis_out_pdf) if parsed['outpdf'] is None else parsed['outpdf']  
 
     assert os.path.isfile(session_config), f"Configuration YAML file '{session_config}' cannot be found"
     assert os.path.isfile(session_data), f"Data file '{session_data}' cannot be found"
@@ -79,7 +110,9 @@ def main():
     # Load data
     data, config = irrad_analysis.utils.load_irrad_data(data_file=session_data, config_file=session_config)
 
-    with PdfPages(out_pdf) as _pdf:
+    logging.info(f"Opening {analysis_out_pdf}")
+
+    with PdfPages(analysis_out_pdf) as _pdf:
 
         # Loop over different irradiation server and perform analysis
         for _, content in config['server'].items():
