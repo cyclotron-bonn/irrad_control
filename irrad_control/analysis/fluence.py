@@ -2,6 +2,7 @@
 This script contains the functions used for analysis of irradiation tables
 """
 
+import logging
 import numpy as np
 from numba import njit  # Make analysis go brrrrr
 from tqdm import tqdm  # Show progress
@@ -11,7 +12,7 @@ from irrad_control.analysis.constants import elementary_charge
 
 
 # This is the main function
-def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.01, 1.37)):
+def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.35*2.01, 2.35*1.37)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
     
@@ -46,12 +47,16 @@ def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.01
     # Create fluence map bin centers
     map_bin_centers_y = 0.5 * (map_bin_edges_y[:-1] + map_bin_edges_y[1:])
     map_bin_centers_x = 0.5 * (map_bin_edges_x[:-1] + map_bin_edges_x[1:])
+
+    logging.info(f"Initializing fluence map of ({map_bin_edges_x[-1]:.2f}x{map_bin_edges_y[-1]:.2f}) mm² scan area in {bins[1]}x{bins[0]} bins")
     
     # Row bin times
     row_bin_transit_times = np.zeros_like(map_bin_centers_x)
 
     # Index that keeps track how far we have advanced trough the beam data
     current_row_idx = 0
+
+    logging.info(f"Generating fluence distribution...")
 
     # Loop over scanned rows
     for row_data in tqdm(scan_data, unit='rows'):
@@ -66,6 +71,8 @@ def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.01
                                        beam_sigma=beam_sigma,
                                        scan_y_offset=scan_area_end[-1],
                                        current_row_idx=current_row_idx)
+
+    logging.info(f"Finished generating fluence distribution.")                                       
 
     # Scale from protons / mm² (intrinsic unit) to neutrons / cm²
     fluence_map *= 100 
