@@ -1,5 +1,5 @@
 """
-This script contains the functions used for analysis of irradiation tables
+This script contains the functions used for analysis of fluence distribution
 """
 
 import logging
@@ -12,7 +12,7 @@ from irrad_control.analysis.constants import elementary_charge
 
 
 # This is the main function
-def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.35*2.01, 2.35*1.37)):
+def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
     
@@ -22,11 +22,11 @@ def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.35
         Beam data of irradiation
     scan_data : np.array, pytables.Table
         Scan data of irradiation
+    beam_sigma : tuple
+        Beam sigma of the 2D Gaussian beam profile in mm
     bins : tuple, optional
         Binning of the generated fluence map, by default (100, 100)
         CAUTION: the binning is numpy shape, therefore bins are (Y, X)
-    beam_sigma : tuple, optional
-        Beam sigma of the 2D Gaussian beam profile in mm, by default (2.01, 1.37)
     """
 
     # Get number of rows; FIXME: get n_rows from *Irrad* data
@@ -56,7 +56,7 @@ def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.35
     # Index that keeps track how far we have advanced trough the beam data
     current_row_idx = 0
 
-    logging.info(f"Generating fluence distribution...")
+    logging.info("Generating fluence distribution for Gaussian beam with {}_x={}mm, {}_y={}mm...".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
 
     # Loop over scanned rows
     for row_data in tqdm(scan_data, unit='rows'):
@@ -78,6 +78,67 @@ def generate_fluence_map(beam_data, scan_data, bins=(100, 100), beam_sigma=(2.35
     fluence_map *= 100 
 
     return fluence_map, map_bin_centers_x, map_bin_centers_y
+
+
+def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, dut_rectangle, center_symm=False):
+    """
+    Extracts the DUT region from the fluence map.
+
+    Parameters
+    ----------
+    fluence_map : 2D np.ndarray
+        Fluence map
+    map_bin_centers_x : np.ndarray
+        Bin centers of the fluence map in x a.k.a scan direction
+    map_bin_centers_y : np.ndarray
+        Bin centers of the fluence map in y a.k.a row direction
+    dut_rectangle : tuple
+        Relative position of the DUT rectangle in the form of (x_min, y_min, x_max, y_max) or (x_width, y_width) if *center_symm* is True
+    center_symm: bool
+        If True, the *dut_rectangle* has the form of (x_width, y_width) and the exctracted map is centered symmetrically
+
+        (0, 0)-----------------------------------------------------------------------------     
+             |                               Fluence map                                   |
+             |                                                                             |
+             |    --- (x_min, y_min) -----------------------------                         |
+             |     |                 |                           |                         |
+             |     |                 |                           |                         |
+             |     | y_width         |         DUT map           |                         |
+             |     |                 |                           |                         |
+             |     |                 |                           |                         |
+             |     |                 |                           |                         |
+             |    ---                ----------------------------- (x_max, y_max)          |
+             |                                                                             |
+             |                       |----------x_width----------|                         |
+              ------------------------------------------------------------------------------
+    Returns
+    -------
+    tuple
+        (2D np.ndarray, 1D np.ndarray, 1D np.ndarray) -> (DUT_fluence_map, DUT_map_bins_x, DUT_map_bins_y)
+    """
+
+    if center_symm and len(dut_rectangle) != 2:
+        raise ValueError("*dut_rectangle* needs to be in the form of (x_width, y_width)")
+    
+    if not center_symm and len(dut_rectangle) != 4:
+        raise ValueError("*dut_rectangle needs to be in the form of (x_min, y_min, x_max, y_max)")
+
+    scan_area_x = map_bin_centers_x[-1] + (map_bin_centers_x[1] - map_bin_centers_x[0])/2.
+    scan_area_y = map_bin_centers_y[-1] + (map_bin_centers_y[1] - map_bin_centers_y[0])/2.
+
+    # Make map edges
+    map_bin_edges_x = np.linspace(0, scan_area_x, len(map_bin_centers_x)+1)
+    map_bin_edges_y = np.linspace(0, scan_area_y, len(map_bin_centers_y)+1)
+
+    if center_symm:
+        # Extract scan dimensions    
+        dut_rectangle = ((scan_area_x - dut_rectangle[0])/2., (scan_area_y - dut_rectangle[1])/2.,
+                         (scan_area_x + dut_rectangle[0])/2., (scan_area_y + dut_rectangle[1])/2.)
+
+    x_min_idx, x_max_idx = np.searchsorted(map_bin_edges_x, dut_rectangle[0]), np.searchsorted(map_bin_edges_x, dut_rectangle[-2], side='right')
+    y_min_idx, y_max_idx = np.searchsorted(map_bin_edges_y, dut_rectangle[1]), np.searchsorted(map_bin_edges_y, dut_rectangle[-1], side='right')
+
+    return fluence_map[y_min_idx:y_max_idx, x_min_idx:x_max_idx], map_bin_centers_x[x_min_idx:x_max_idx], map_bin_centers_y[y_min_idx:y_max_idx]
 
 
 @njit
