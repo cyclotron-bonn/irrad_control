@@ -34,7 +34,7 @@ setup_kwargs = {'name': 'irrad_control',
                 'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
                 'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
                 'platforms': 'any',
-                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control'), 'irrad_analyse = irrad_control.analysis.analyse:main']}
+                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control'), 'irrad_analyse = irrad_control.analysis.main:main']}
                 }
 
 # Setup
