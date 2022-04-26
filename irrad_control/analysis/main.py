@@ -95,6 +95,7 @@ def main():
     
     # Load data
     data, config = load_irrad_data(data_file=session_data, config_file=session_config)
+    print(config)
 
     # Make output pdf
     analysis_out_pdf = os.path.join(file_folder, f"{session_name}_analysis_{analysis_suffix}.pdf")
@@ -118,6 +119,10 @@ def main():
 
                 for fig in res:
                     _pdf.savefig(fig)
+            
+            if parsed['calibration']:
+
+                irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data, irrad_config=content, server=irrad_server_name)
 
 
 if __name__ == '__main__':
