@@ -179,7 +179,7 @@ def lin_odr(B, x):
 
 
 def lin(x, *args):
-    return a[0] * x + (0 if len(args) == 1 else args[1])
+    return args[0] * x + (0 if len(args) == 1 else args[1])
 
 
 def red_chisquare(observed, expected, observed_error, popt):
