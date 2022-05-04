@@ -8,9 +8,28 @@ import scipy.odr as odr
 from scipy.optimize import curve_fit
 from uncertainties import ufloat
 from collections import defaultdict
+from irrad_control.analysis import plotting
 
 import irrad_control.analysis.formulas as irrad_formulas
 from irrad_control.devices.readout import RO_DEVICES, DAQ_BOARD_CONFIG, RO_ELECTRONICS_CONFIG
+
+
+def _get_ifs(channel_idx, config):
+
+    if config['readout']['device'] == RO_DEVICES.DAQBoard:
+        return config['readout']['ro_group_scales'][config['readout']['ch_groups'][channel_idx]]
+    
+    return config['readout']['ro_scales'][channel_idx]
+
+
+def _get_ref_voltage(config):
+
+    # Get max reference voltage of readout board
+    if config['readout']['device'] == RO_DEVICES.DAQBoard:
+        return DAQ_BOARD_CONFIG['common']['voltages']['5Vp']
+    
+    # Otherwise 5 V
+    return 5.
 
 
 def beam_monitor_calibration(irrad_data, irrad_config, server):
@@ -45,101 +64,148 @@ def beam_monitor_calibration(irrad_data, irrad_config, server):
     # Get info about the full scale current
     for quant in (sem_calib_channel, cup_calib_channel):
         for ch in quant:
+            quant[ch]['ifs'] = _get_ifs(channel_idx=quant[ch]['idx'], config=irrad_config)
 
-            # Set initial IFS per channel
-            if irrad_config['readout']['device'] == RO_DEVICES.DAQBoard:
-                quant[ch]['ifs'] = irrad_config['readout']['ro_group_scales'][irrad_config['readout']['ch_groups'][quant[ch]['idx']]]
-            else:
-                quant[ch]['ifs'] = irrad_config['readout']['ro_scales'][quant[ch]['idx']]
+    # Search events for 'update_group_ifs' which indicate change in readout IFS scale
+    events = irrad_data[server]['Event']
+    update_ifs_events = events[events['event'] == b'update_group_ifs']
 
-    # Get max reference voltage of readout
-    if irrad_config['readout']['device'] == RO_DEVICES.DAQBoard:
-        ref_voltage = DAQ_BOARD_CONFIG['common']['voltages']['5Vp']
-    else:
-        ref_voltage = 5.
+    # Make list of figures to return
+    figs = []
 
     # Loop over all combinations of sem calibration channels versus cups
     for sem_ch in sem_calib_channel:
         for cup_ch in cup_calib_channel:
 
             # Make data cuts to exclude quick changes and data taken at edge of range
+            # Cuts are made on the *cup_ch*
             cut_data = apply_rel_data_cuts(data=raw_data,
                                            ref_sig=raw_data[cup_ch],
-                                           ref_sig_max=ref_voltage,  # Max reference signal
+                                           ref_sig_max=_get_ref_voltage(config=irrad_config),  # Max reference signal
                                            cut_slope=0.03,  # Cut variation larger than 3% of *ref_signal_max*
                                            cut_min=0.02,  # Cut data smaller than 2% of *ref_signal_max*
                                            cut_max=0.98)  # Cut data larger than 98% of *ref_signal_max*
 
-            # Initialize arrays containing the IFS values for each entry
-            ifs_sem_ch = np.full_like(cut_data[sem_ch], fill_value=sem_calib_channel[sem_ch]['ifs'])
-            ifs_cup_ch = np.full_like(cut_data[cup_ch], fill_value=cup_calib_channel[cup_ch]['ifs'])
-             
-            # Do calibration with respect to changing scales 
-            if irrad_config['readout']['device'] == RO_DEVICES.DAQBoard:
+            # Perform calibration between the two channels
+            calib_result, fit_result, calib_arrays, stat_result = calibrate_sem_vs_cup(data=cut_data,
+                                                                                       sem_ch_idx=sem_calib_channel[sem_ch]['idx'],
+                                                                                       cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
+                                                                                       config=irrad_config,
+                                                                                       update_ifs_events=update_ifs_events,
+                                                                                       return_full=True)
 
-                # Search events for 'update_group_ifs' which indicate change in readout IFS scale
-                events = irrad_data[server]['Event']
-                update_ifs_events = events[events['event'] == b'update_group_ifs']
-                
-                # IFS groups
-                sem_group = irrad_config['readout']['ch_groups'][sem_calib_channel[sem_ch]['idx']]
-                cup_group = irrad_config['readout']['ch_groups'][cup_calib_channel[cup_ch]['idx']]
+            # Extract results
+            beta_const, lambda_const = calib_result
+            popt, perr, red_chi = fit_result
+            current_sem_ch, current_cup_ch = calib_arrays
+            lambda_stat, lambda_stat_mask = stat_result
 
-                # Init indeces to update IFS values
-                sem_update_idx = cup_update_idx = 0
-                
-                # Loop over all updates
-                for ifs_updates in update_ifs_events:
-                    
-                    update_parameters = str(ifs_updates['parameters'])
-                    idx = np.searchsorted(cut_data['timestamp'], ifs_updates['timestamp'], side='right')
-                    updated_ifs_value = float(update_parameters.split()[1])  # This is the IFS in nA
+            # Start the plotting
+            #Beam current over time
+            fig, _ = plotting.plot_beam_current_over_time(timestamps=cut_data['timestamp'][lambda_stat_mask], beam_current=current_cup_ch[lambda_stat_mask], ch_name=cup_ch)
 
-                    if sem_group in update_parameters:
-                        #ifs_sem_ch[sem_update_idx:idx] = updated_ifs_value
-                        #sem_update_idx = idx
-                        ifs_sem_ch[idx:] = updated_ifs_value
+            figs.append(fig)
 
-                    elif cup_group in update_parameters:
-                        #ifs_cup_ch[cup_update_idx:idx] = updated_ifs_value
-                        #cup_update_idx = idx
-                        ifs_cup_ch[idx:] = updated_ifs_value
+            #Beam current over time
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[lambda_stat_mask], ref_data=current_cup_ch[lambda_stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result)
 
-                # Calibrate current_sem_ch to current_cup_ch in this case
-                current_sem_ch = irrad_formulas.v_sig_to_i_sig(cut_data[sem_ch], full_scale_current=ifs_sem_ch, full_scale_voltage=ref_voltage)
-                current_cup_ch = irrad_formulas.v_sig_to_i_sig(cut_data[cup_ch], full_scale_current=ifs_cup_ch, full_scale_voltage=ref_voltage)
-                
-                # Do fit
-                popt, perr, red_chi = fit(xdata=current_sem_ch, ydata=current_cup_ch, xerr=current_sem_ch*0.05, yerr=current_cup_ch*0.05, use_odr=True)
+            figs.append(fig)
 
-                beta_const = ufloat(popt[0], perr[0])
-                lambda_const = beta_const / ufloat(ref_voltage, ref_voltage*0.01)
-                print(lambda_const)
+            #Beam current over time
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[lambda_stat_mask], ref_data=current_cup_ch[lambda_stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result, hist=True)
 
-            # Do calibration with static IFS scales
-            else:
-                ifs_cup_array = np.full_like(cut_data[cup_ch], fill_value=cup_calib_channel[cup_ch]['ifs'])
+            figs.append(fig)
+
+    return figs
 
 
-def _calibrate_static_ifs(data, sem_ch, sem_ifs, cup_ch, cup_ifs):
+def generate_ch_ifs_array(data, config, channel_idx, update_ifs_events=None):
 
-    # Extract data
-    time_in_seconds = data['timestamp'] - data['timestamp'][0]
-    voltage_sem_ch = data[sem_ch]
-    current_cup_ch = irrad_formulas.v_sig_to_i_sig(v_sig=data[cup_ch], full_scale_current=cup_ifs, full_scale_voltage=5.0)
+    channel = config['readout']['channels'][channel_idx]
+
+    ifs_array = np.full_like(data[channel], fill_value=_get_ifs(channel_idx=channel_idx, config=config))
+
+    # The IFS have been changed during the session: adapt
+    if update_ifs_events is not None:
+        # Extract IFS group that the channel belongs to
+        channel_group = config['readout']['ch_groups'][channel_idx]
+        # Loop over updates and check if our channel is affected
+        for ifs_update in update_ifs_events:
+            
+            # Get update prameters to check channel
+            update_parameters = str(ifs_update['parameters'])
+
+            if channel_group in update_parameters:
+                # Extract IFS value in nA
+                updated_ifs_value = float(update_parameters.split()[1])
+                # Search for the index at which the IFS change happened
+                idx = np.searchsorted(data['timestamp'], ifs_update['timestamp'], side='right')
+                # Update subsequent IFS values
+                ifs_array[idx:] = updated_ifs_value
+
+    return ifs_array
+
+
+def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events, return_full=False):
+
+    sem_ch = config['readout']['channels'][sem_ch_idx]
+    cup_ch = config['readout']['channels'][cup_ch_idx]
+
+    # Initialize arrays containing the IFS values for each entry
+    ifs_sem_ch = generate_ch_ifs_array(data=data, config=config, channel_idx=sem_ch_idx, update_ifs_events=update_ifs_events)
+    ifs_cup_ch = generate_ch_ifs_array(data=data, config=config, channel_idx=cup_ch_idx, update_ifs_events=update_ifs_events)
+
+    ref_voltage = _get_ref_voltage(config=config)
+
+    # Calibrate current_sem_ch to current_cup_ch in this case
+    current_sem_ch = irrad_formulas.v_sig_to_i_sig(data[sem_ch], full_scale_current=ifs_sem_ch, full_scale_voltage=ref_voltage)
+    current_cup_ch = irrad_formulas.v_sig_to_i_sig(data[cup_ch], full_scale_current=ifs_cup_ch, full_scale_voltage=ref_voltage)
+
+    # Errors are sqrt(1%²+1%²) = sqrt(2%)
+    current_sem_ch_error, current_cup_ch_error = 0.01414 * current_sem_ch, 0.01414 * current_cup_ch
+
+    ########################################################################
+    # Calibration:                                                         #
+    # -> I_sem_type = U_sem_type / ref_voltage * IFS                       #
+    # -> I_cup_type = beta * I_sem_type with beta = lambda * ref_voltage   #
+    # -> lambda = beta / ref_voltage, [lambda] = 1/V                       #
+    # -> I_beam(U_sem_type, IFS) = lambda * IFS * U_sem_type               #
+    ########################################################################
+
+    # Get statistical calibration constant and use it to cut the fit data on 3 sigma
+    beta_stat_array = current_cup_ch / current_sem_ch
+    lambda_stat_array = beta_stat_array / ref_voltage
+    beta_stat = ufloat(beta_stat_array.mean(), beta_stat_array.std())
+    lambda_stat = ufloat(lambda_stat_array.mean(), lambda_stat_array.std())
     
-    # Errors
-    current_cup_ch_error = current_cup_ch * 0.01  # Error of 1%
-    voltage_sem_ch_error = voltage_sem_ch * 0.01  # Error of 1%
+    # Make bool mask from lambda stat array to not fir outliers
+    fit_cut_lower = lambda_stat_array > (lambda_stat.n - 3 * lambda_stat.s)
+    fit_cut_upper = lambda_stat < (lambda_stat.n + 3 * lambda_stat.s)
+    fit_mask = fit_cut_lower & fit_cut_upper
 
-    # Make fit
-    popt, perr, red_chi = fit(xdata=voltage_sem_ch, ydata=current_cup_ch, xerr=voltage_sem_ch_error, yerr=current_cup_ch_error, use_odr=True)
+    logging.info("Discarding {} ({:.2f} %) entries for calibration fit due to 3 sigma cut".format(np.count_nonzero(~fit_mask), 100 * (np.count_nonzero(~fit_mask) / fit_mask.shape[0])))
+    
+    # Do fit
+    popt, perr, red_chi = fit(xdata=current_sem_ch[fit_mask],
+                              ydata=current_cup_ch[fit_mask],
+                              xerr=current_sem_ch_error[fit_mask],
+                              yerr=current_cup_ch_error[fit_mask],
+                              use_odr=True)
 
-    # Calculate calibration constant lambda
-    alpha_slope = ufloat(popt[0, popt[1]])
-    ifs_calib = ufloat(sem_ifs, 0.01*sem_ifs)
-    lambda_const = alpha_slope / ifs_calib
+    # get slope and finally lambda_const which is calibration value
+    beta_fit = ufloat(popt[0], perr[0])
+    lambda_fit = beta_fit / ufloat(ref_voltage, ref_voltage*0.01)
 
+    # Notify the user if red. Chi² is very fishy
+    if not 0.1 <= red_chi <= 5:
+        logging.warning(f"The calibration fit resulted in a red. Chi^2 of {red_chi:.2f} which indicates a faulty fit or model.")
+
+    logging.info(f"Calibration of linear model I_cup_type = beta * I_sem_type -> beta={beta_fit.n:.2E}+-{beta_fit.s:.2E} @ red. Chi^2 {red_chi:.2f}")
+
+    if return_full:
+        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch), (lambda_stat, fit_mask)
+    else:
+        return (beta_fit, lambda_fit), (beta_stat, lambda_stat)
 
 def fit(xdata, ydata, yerr=None, xerr=None, use_odr=True, p0=(1,), fit_func=irrad_formulas.lin_odr):
 

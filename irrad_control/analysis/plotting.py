@@ -1,5 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.dates as md
+
+from datetime import datetime
+from matplotlib.colors import LogNorm
+
+from irrad_control.analysis.formulas import lin_odr
 
 
 def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_map=None):
@@ -95,9 +101,9 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, cmap='vir
     return fig, ax
 
 
-def plot_generic_fig(plot_data, fit_data=None, hist_data=None, **sp_kwargs):
+def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
     
-    fig, ax = plt.subplots(**sp_kwargs)
+    fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
     
     # Make figure and axis
     ax.set_title(plot_data['title'])
@@ -125,4 +131,50 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, **sp_kwargs):
     ax.grid()
     ax.legend(loc='upper left')
     
+    return fig, ax
+
+
+def plot_beam_current_over_time(timestamps, beam_current, ch_name):
+
+    fig, ax = plot_generic_fig(plot_data={'xdata': [datetime.fromtimestamp(ts) for ts in timestamps],
+                                          'ydata': beam_current,
+                                          'xlabel': 'Time',
+                                          'ylabel': f"Cup channel {ch_name} current / nA",
+                                          'label': f'{ch_name} current',
+                                          'title': f"Current of channel {ch_name}",
+                                          'fmt': 'C0-'},
+                               figsize=(8,6))
+
+    ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    fig.autofmt_xdate()
+
+    return fig, ax
+
+
+def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lambda, hist=False):
+
+    beta_const, lambda_const = beta_lambda
+
+    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_sum})=\beta \cdot I_{sem_sum}}$;'
+    fit_label += '\n\t' + r'$\mathrm{\beta=\lambda \cdot 5\ V=(%.3f \pm %.3f)}$' % (beta_const.n, beta_const.s)
+    fit_label += '\n\t' + r'$\lambda=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
+    fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
+
+    # Make figure and axis
+    fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
+                                          'ydata': ref_data,
+                                          'xlabel': r'Calibration sem_sum-type current / nA',
+                                          'ylabel': r'Reference cup-type current / nA',
+                                          'label': 'Correlation',
+                                          'title':"Beam current calibration", 'fmt':'C0.'},
+                               fit_data={'xdata': calib_data,
+                                         'func': lin_odr,
+                                         'fit_args': [[beta_const.n], calib_data],
+                                         'fmt': 'C1-',
+                                         'label': fit_label},
+                               hist_data={'bins': (100, 100), 'cmap': 'viridis', 'norm': LogNorm()} if hist else {},
+                               figsize=(8,6))
+
+    # Make figure and axis
+    _, _ = ax.set_ylim(0, np.max(ref_data) * (1.25))
     return fig, ax
