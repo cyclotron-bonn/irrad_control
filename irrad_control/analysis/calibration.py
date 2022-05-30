@@ -84,9 +84,13 @@ def beam_monitor_calibration(irrad_data, irrad_config):
             cut_data = apply_rel_data_cuts(data=raw_data,
                                            ref_sig=raw_data[cup_ch],
                                            ref_sig_max=_get_ref_voltage(config=irrad_config),  # Max reference signal
-                                           cut_slope=0.03,  # Cut variation larger than 3% of *ref_signal_max*
+                                           cut_slope=0.01,  # Cut variation larger than 3% of *ref_signal_max*
                                            cut_min=0.02,  # Cut data smaller than 2% of *ref_signal_max*
                                            cut_max=0.98)  # Cut data larger than 98% of *ref_signal_max*
+
+            if cut_data[cup_ch].shape[0] < 100:
+                logging.error(f"Insufficient data after cuts! Skipping calibration for cup-type channel '{cup_ch}' vs. sem-type channel '{sem_ch}'")
+                continue
 
             # Perform calibration between the two channels
             calib_result, fit_result, calib_arrays, stat_result = calibrate_sem_vs_cup(data=cut_data,
@@ -97,9 +101,8 @@ def beam_monitor_calibration(irrad_data, irrad_config):
                                                                                        return_full=True)
 
             # Extract results
-            beta_const, lambda_const = calib_result
-            popt, perr, red_chi = fit_result
-            current_sem_ch, current_cup_ch = calib_arrays
+            _, _, red_chi = fit_result
+            current_sem_ch, current_cup_ch, lambda_stat_array = calib_arrays
             lambda_stat, lambda_stat_mask = stat_result
 
             # Start the plotting
@@ -115,6 +118,18 @@ def beam_monitor_calibration(irrad_data, irrad_config):
 
             #Beam current over time
             fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[lambda_stat_mask], ref_data=current_cup_ch[lambda_stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result, hist=True)
+
+            figs.append(fig)
+
+            # Statistical distribution of lambdas
+            fig, _ = plotting.plot_generic_fig(plot_data={'xdata': lambda_stat_array[lambda_stat_mask],
+                                                          'xlabel': r'$\mathrm{\lambda_{stat}\ /\ V^{-1}}$',
+                                                          'ylabel': r'$\mathrm{\#}$',
+                                                          'label': r'$\mathrm{\lambda_{stat} = (%.3f\pm %.3f)\ /\ V^{-1}}$' % (lambda_stat.n, lambda_stat.s),
+                                                          'title': r"$\lambda_{stat}$ distribution after 2$\sigma$ cut",
+                                                          'fmt': 'C0.'},
+                                                hist_data={'bins': 'stat'},
+                                                figsize=(8,6))
 
             figs.append(fig)
 
@@ -180,12 +195,12 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     beta_stat = ufloat(beta_stat_array.mean(), beta_stat_array.std())
     lambda_stat = ufloat(lambda_stat_array.mean(), lambda_stat_array.std())
     
-    # Make bool mask from lambda stat array to not fir outliers
-    fit_cut_lower = lambda_stat_array > (lambda_stat.n - 3 * lambda_stat.s)
-    fit_cut_upper = lambda_stat < (lambda_stat.n + 3 * lambda_stat.s)
+    # Make bool mask from lambda stat array to not fit outliers
+    fit_cut_lower = lambda_stat_array > (lambda_stat.n - 2 * lambda_stat.s)
+    fit_cut_upper = lambda_stat < (lambda_stat.n + 2 * lambda_stat.s)
     fit_mask = fit_cut_lower & fit_cut_upper
 
-    logging.info("Discarding {} ({:.2f} %) entries for calibration fit due to 3 sigma cut".format(np.count_nonzero(~fit_mask), 100 * (np.count_nonzero(~fit_mask) / fit_mask.shape[0])))
+    logging.info("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~fit_mask), 100 * (np.count_nonzero(~fit_mask) / fit_mask.shape[0])))
     
     # Do fit
     popt, perr, red_chi = fit(xdata=current_sem_ch[fit_mask],
@@ -205,7 +220,7 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     logging.info(f"Calibration of linear model I_cup_type = beta * I_sem_type -> beta={beta_fit.n:.2E}+-{beta_fit.s:.2E} @ red. Chi^2 {red_chi:.2f}")
 
     if return_full:
-        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch), (lambda_stat, fit_mask)
+        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array), (lambda_stat, fit_mask)
     else:
         return (beta_fit, lambda_fit), (beta_stat, lambda_stat)
 
