@@ -11,7 +11,7 @@ from collections import defaultdict
 from irrad_control.analysis import plotting
 
 import irrad_control.analysis.formulas as irrad_formulas
-from irrad_control.devices.readout import RO_DEVICES, DAQ_BOARD_CONFIG, RO_ELECTRONICS_CONFIG
+from irrad_control.devices.readout import RO_DEVICES, DAQ_BOARD_CONFIG
 
 
 def _get_ifs(channel_idx, config):
