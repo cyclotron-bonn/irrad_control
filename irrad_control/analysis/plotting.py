@@ -10,17 +10,17 @@ from irrad_control.analysis.formulas import lin_odr
 
 def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_map=None):
 
-    damage_unit = r'n$_\mathrm{eq}$ / cm$^2$' if damage == 'NIEL' else 'Mrad'
-    damage_label = 'Fluence' if damage == 'NIEL' else 'Total Ionizing Dose'
+    damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else r'p cm$^{-2}$' if damage == 'fluence' else 'Mrad'
+    damage_label = 'Fluence' if damage in ('neq', 'fluence') else 'Total Ionizing Dose'
     damage_target = "DUT" if dut else "Scan"
 
-    ax.set_xlabel(f'{damage_target} area horizontal [mm]')
-    ax.set_ylabel(f'{damage_target} area vertical [mm]')
-    plt.suptitle(f'{damage_label} Distribution {damage_target} Area [Server: {server}]')
+    ax.set_xlabel(f'{damage_target} area horizontal / mm')
+    ax.set_ylabel(f'{damage_target} area vertical / mm')
+    plt.suptitle(f'{damage_label} Distribution {damage_target} Area (Server: {server})')
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):
-        ax.set_zlabel(f"{damage_label} [{damage_unit}]")
+        ax.set_zlabel(f"{damage_label} / {damage_unit}")
 
     if damage_map is not None and dut:
         mean, std = damage_map.mean(), damage_map.std()
@@ -28,7 +28,7 @@ def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_
         ax.set_title(damage_mean_std)
 
     if cbar is not None:
-        cbar_label = f"{damage_label} [{damage_unit}]"
+        cbar_label = f"{damage_label} / {damage_unit}"
         cbar.set_label(cbar_label)
 
 
