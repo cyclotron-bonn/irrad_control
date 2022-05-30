@@ -32,7 +32,9 @@ def _get_ref_voltage(config):
     return 5.
 
 
-def beam_monitor_calibration(irrad_data, irrad_config, server):
+def beam_monitor_calibration(irrad_data, irrad_config):
+
+    server = irrad_config['name']
 
     # Get raw data and event data; events are needed in order to check for changing full scale factors when using the IrradDAQBoard
     raw_data = irrad_data[server]['Raw']
