@@ -155,7 +155,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 
     beta_const, lambda_const = beta_lambda
 
-    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_sum})=\beta \cdot I_{sem_sum}}$;'
+    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_{sum}})=\beta \cdot I_{sem_sum}}$;'
     fit_label += '\n\t' + r'$\mathrm{\beta=\lambda \cdot 5\ V=(%.3f \pm %.3f)}$' % (beta_const.n, beta_const.s)
     fit_label += '\n\t' + r'$\lambda=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
@@ -163,8 +163,8 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
                                           'ydata': ref_data,
-                                          'xlabel': r'Calibration sem_sum-type current / nA',
-                                          'ylabel': r'Reference cup-type current / nA',
+                                          'xlabel': f"Calibration sem_sum-type channel '{calib_sig}' current / nA",
+                                          'ylabel': f"Reference cup-type channel '{ref_sig}' current / nA",
                                           'label': 'Correlation',
                                           'title':"Beam current calibration", 'fmt':'C0.'},
                                fit_data={'xdata': calib_data,
