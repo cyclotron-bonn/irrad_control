@@ -103,26 +103,26 @@ def beam_monitor_calibration(irrad_data, irrad_config):
             # Extract results
             _, _, red_chi = fit_result
             current_sem_ch, current_cup_ch, lambda_stat_array = calib_arrays
-            lambda_stat, lambda_stat_mask = stat_result
+            lambda_stat, stat_mask = stat_result
 
             # Start the plotting
             #Beam current over time
-            fig, _ = plotting.plot_beam_current_over_time(timestamps=cut_data['timestamp'][lambda_stat_mask], beam_current=current_cup_ch[lambda_stat_mask], ch_name=cup_ch)
+            fig, _ = plotting.plot_beam_current_over_time(timestamps=cut_data['timestamp'][stat_mask], beam_current=current_cup_ch[stat_mask], ch_name=cup_ch)
 
             figs.append(fig)
 
             #Beam current over time
-            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[lambda_stat_mask], ref_data=current_cup_ch[lambda_stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result)
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask], ref_data=current_cup_ch[stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result)
 
             figs.append(fig)
 
             #Beam current over time
-            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[lambda_stat_mask], ref_data=current_cup_ch[lambda_stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result, hist=True)
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask], ref_data=current_cup_ch[stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result, hist=True)
 
             figs.append(fig)
 
             # Statistical distribution of lambdas
-            fig, _ = plotting.plot_generic_fig(plot_data={'xdata': lambda_stat_array[lambda_stat_mask],
+            fig, _ = plotting.plot_generic_fig(plot_data={'xdata': lambda_stat_array,
                                                           'xlabel': r'$\mathrm{\lambda_{stat}\ /\ V^{-1}}$',
                                                           'ylabel': r'$\mathrm{\#}$',
                                                           'label': r'$\mathrm{\lambda_{stat} = (%.3f\pm %.3f)\ /\ V^{-1}}$' % (lambda_stat.n, lambda_stat.s),
@@ -189,24 +189,21 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     # -> I_beam(U_sem_type, IFS) = lambda * IFS * U_sem_type               #
     ########################################################################
 
-    # Get statistical calibration constant and use it to cut the fit data on 3 sigma
+    # Get statistical calibration constant and use it to cut the fit data on 2 sigma
     beta_stat_array = current_cup_ch / current_sem_ch
-    lambda_stat_array = beta_stat_array / ref_voltage
     beta_stat = ufloat(beta_stat_array.mean(), beta_stat_array.std())
-    lambda_stat = ufloat(lambda_stat_array.mean(), lambda_stat_array.std())
+    beta_stat_mask = (beta_stat_array > (beta_stat.n - 2 * beta_stat.s)) & (beta_stat_array < (beta_stat.n + 2 * beta_stat.s))
     
-    # Make bool mask from lambda stat array to not fit outliers
-    fit_cut_lower = lambda_stat_array > (lambda_stat.n - 2 * lambda_stat.s)
-    fit_cut_upper = lambda_stat < (lambda_stat.n + 2 * lambda_stat.s)
-    fit_mask = fit_cut_lower & fit_cut_upper
+    lambda_stat_array = beta_stat_array[beta_stat_mask] / ref_voltage
+    lambda_stat = ufloat(lambda_stat_array.mean(), lambda_stat_array.std())
 
-    logging.info("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~fit_mask), 100 * (np.count_nonzero(~fit_mask) / fit_mask.shape[0])))
+    logging.debug("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~beta_stat_mask), 100 * (np.count_nonzero(~beta_stat_mask) / beta_stat_mask.shape[0])))
     
     # Do fit
-    popt, perr, red_chi = fit(xdata=current_sem_ch[fit_mask],
-                              ydata=current_cup_ch[fit_mask],
-                              xerr=current_sem_ch_error[fit_mask],
-                              yerr=current_cup_ch_error[fit_mask],
+    popt, perr, red_chi = fit(xdata=current_sem_ch[beta_stat_mask],
+                              ydata=current_cup_ch[beta_stat_mask],
+                              xerr=current_sem_ch_error[beta_stat_mask],
+                              yerr=current_cup_ch_error[beta_stat_mask],
                               use_odr=True)
 
     # get slope and finally lambda_const which is calibration value
@@ -217,10 +214,14 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     if not 0.1 <= red_chi <= 5:
         logging.warning(f"The calibration fit resulted in a red. Chi^2 of {red_chi:.2f} which indicates a faulty fit or model.")
 
-    logging.info(f"Calibration of linear model I_cup_type = beta * I_sem_type -> beta={beta_fit.n:.2E}+-{beta_fit.s:.2E} @ red. Chi^2 {red_chi:.2f}")
+    logging.debug(f"Calibration of linear model I_cup_type = beta * I_sem_type -> beta={beta_fit.n:.2E}+-{beta_fit.s:.2E} @ red. Chi^2 {red_chi:.2f}")
+
+    logging.info("Beam current calibration result for '{}' vs '{}': {} 1/V [{} 1/V]".format(cup_ch, sem_ch,
+                                                                                            '{}=({:.3f}{}{:.3f})'.format(u'\u03bb' + '_fit', lambda_fit.n, u'\u00b1', lambda_fit.s),
+                                                                                            '{}=({:.3f}{}{:.3f})'.format(u'\u03bb' + '_stat', lambda_stat.n, u'\u00b1', lambda_stat.s)))
 
     if return_full:
-        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array), (lambda_stat, fit_mask)
+        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array), (lambda_stat, beta_stat_mask)
     else:
         return (beta_fit, lambda_fit), (beta_stat, lambda_stat)
 
