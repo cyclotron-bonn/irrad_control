@@ -29,6 +29,7 @@ Due to dependencies, you have to have Python 3.8  with the following packages in
 - uncertainties
 - tqdm
 - numba
+- scipy
 - pyqt (version 5)
 - `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.11)
 
@@ -38,7 +39,7 @@ and required dependencies, type
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib tqdm numba
+   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib tqdm numba scipy
 
 Run ``conda activate irrad`` to activate the Python environment. To install the required packages that are not available via ``conda``, use ``pip``
 
@@ -46,11 +47,11 @@ Run ``conda activate irrad`` to activate the Python environment. To install the 
 
   pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
 
-To finally install ``irrad_control`` run the setup script
+To finally install ``irrad_control`` run the setup script via
 
 .. code-block:: bash
 
-   python setup.py develop
+   pip install -e .
 
 When you start the application you can add RPi servers in the **setup** tab. Each server needs to be set up before usage.
 The procedure is explained in the following section.
@@ -77,7 +78,7 @@ The server is then automatically set up on first use with ``irrad_control``.
 Versions
 ========
 
-- v1.3.0: Included module for offline analysis of irradiation data
+- v1.3.0: Included module for offline analysis of e.g. irradiation data
 - v1.2.0: First version with partial support for updated irradiation setup running on Python 3 
 - v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
 - v1.0.1: Initial release with semantic verisoning
