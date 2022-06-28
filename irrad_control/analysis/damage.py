@@ -43,10 +43,10 @@ def analyse_radiation_damage(data, **damage_kwargs):
             # Initialize fluence and TID maps
             if damage_maps['fluence'] is None:
 
-                damage_maps['fluence'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                                                          scan_data=data_part[server]['Scan'],
-                                                                                                          beam_sigma=beam_sigma,
-                                                                                                          bins=bins)
+                damage_maps['fluence'], _, bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                                                                                                             scan_data=data_part[server]['Scan'],
+                                                                                                             beam_sigma=beam_sigma,
+                                                                                                             bins=bins)
                 # Generate TID map from potentially different stopping power irradiation
                 damage_maps['tid'] = formulas.tid_scan(proton_fluence=damage_maps['fluence'], stopping_power=damage_kwargs['stopping_power'])
 
@@ -56,10 +56,10 @@ def analyse_radiation_damage(data, **damage_kwargs):
             # Sum up damage maps from different files
             else:
 
-                fluence_map_part, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                      scan_data=data_part[server]['Scan'],
-                                                                      beam_sigma=beam_sigma,
-                                                                      bins=bins)
+                fluence_map_part, _, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                                                                         scan_data=data_part[server]['Scan'],
+                                                                         beam_sigma=beam_sigma,
+                                                                         bins=bins)
                 # Add to overall map
                 damage_maps['fluence'] += fluence_map_part
                 damage_maps['tid'] += formulas.tid_scan(proton_fluence=fluence_map_part, stopping_power=damage_kwargs['stopping_power'])
@@ -69,11 +69,11 @@ def analyse_radiation_damage(data, **damage_kwargs):
 
         server = damage_kwargs['server']
                     
-        damage_maps['fluence'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
-                                                                                                  scan_data=data[server]['Scan'],
-                                                                                                  beam_sigma=beam_sigma,
-                                                                                                  bins=bins)
-
+        damage_maps['fluence'], _dmg, bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
+                                                                                                     scan_data=data[server]['Scan'],
+                                                                                                     beam_sigma=beam_sigma,
+                                                                                                     bins=bins)
+        print(_dmg/damage_maps['fluence']*100, '###################')
         # Generate TID map from potentially different stopping power irradiation
         damage_maps['tid'] = formulas.tid_scan(proton_fluence=damage_maps['fluence'], stopping_power=damage_kwargs['stopping_power'])
 

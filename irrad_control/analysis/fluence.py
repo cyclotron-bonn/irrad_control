@@ -27,6 +27,11 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     bins : tuple, optional
         Binning of the generated fluence map, by default (100, 100)
         CAUTION: the binning is numpy shape, therefore bins are (Y, X)
+
+    Returns
+    -------
+    tuple: (np.ndarray, np.ndarray, np.ndarray, np.ndarray)
+        Tuple containing fluence map, fluence map error, bin_centers_x, bin_centers_y
     """
 
     # Get number of rows; FIXME: get n_rows from *Irrad* data
@@ -39,6 +44,7 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
 
     # Fluence map
     fluence_map = np.zeros(shape=bins)
+    fluence_map_error = np.zeros_like(fluence_map)
 
     # Create fluence map bin edge points
     map_bin_edges_y = np.linspace(0, abs(scan_area_start[1] - scan_area_end[1]), bins[0] + 1)
@@ -64,6 +70,7 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
         current_row_idx = _process_row(row_data=row_data,
                                        beam_data=beam_data,
                                        fluence_map=fluence_map,
+                                       fluence_map_error=fluence_map_error,
                                        row_bin_transit_times=row_bin_transit_times,
                                        map_bin_edges_x=map_bin_edges_x,
                                        map_bin_centers_x=map_bin_centers_x,
@@ -75,9 +82,10 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     logging.info(f"Finished generating fluence distribution.")                                       
 
     # Scale from protons / mm² (intrinsic unit) to neutrons / cm²
-    fluence_map *= 100 
+    fluence_map *= 100
+    fluence_map_error *= 100
 
-    return fluence_map, map_bin_centers_x, map_bin_centers_y
+    return fluence_map, fluence_map_error, map_bin_centers_x, map_bin_centers_y
 
 
 def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, dut_rectangle, center_symm=False):
@@ -339,7 +347,7 @@ def _calc_bin_transit_times(bin_transit_times, bin_edges, scan_speed, scan_accel
 
 
 @njit
-def _process_row_wait(row_data, row_wait_currents, fluence_map, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
+def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
     """
     Processes the times where the beam is waiting on the periphery of the scan area or switches rows
 
@@ -347,10 +355,12 @@ def _process_row_wait(row_data, row_wait_currents, fluence_map, map_bin_edges_x,
     ----------
     row_data : numpy.ndarray
         Structured numpy array containing data of current row
-    row_wait_currents : numpy.ndarray
-        Beam currents measured while waiting, in-between two rows
+    wait_beam_data : numpy.ndarray
+        Beam data measured while waiting, in-between two rows
     fluence_map : numpy.ndarray
         Two-dimensional numpy.ndarray which holds the fluence distribution and is updated for this row
+    fluence_map_error : numpy.ndarray
+        Two-dimensional numpy.ndarray which holds the fluence error distribution and is updated for this row
     row_bin_transit_times : numpy.ndarray
         Flat numpy array which is used to hold the bin transit times for this row
     map_bin_edges_x : numpy.ndarray
@@ -368,20 +378,26 @@ def _process_row_wait(row_data, row_wait_currents, fluence_map, map_bin_edges_x,
     # Determine the mean of the beam
     wait_mu_x = map_bin_edges_x[-1 if row_data['row'] % 2 else 0]
     wait_mu_y = row_data['row_start_y'] - scan_y_offset
+
+    # Add variation to the uncertainty
+    wait_protons_std = np.std(wait_beam_data['beam_current'])
     
     # Loop over currents and apply Gauss kernel at given position
-    for i in range(row_wait_currents.shape[0] - 1):
+    for i in range(wait_beam_data.shape[0] - 1):
 
         # Get beam current measurement
-        wait_current = row_wait_currents[i]['beam_current']
+        wait_current = wait_beam_data[i]['beam_current']
+        wait_current_error = wait_beam_data[i]['beam_current_error']
 
         # Calculate how many seconds this current was present while waiting
-        wait_interval = row_wait_currents[i+1]['timestamp'] - row_wait_currents[i]['timestamp']
+        wait_interval = wait_beam_data[i+1]['timestamp'] - wait_beam_data[i]['timestamp']
 
         # Integrate over *wait_interval* to obtain number of protons induced
         wait_protons = wait_current * wait_interval / elementary_charge
+        wait_protons_error = wait_current_error * wait_interval / elementary_charge
+        wait_protons_error = (wait_protons_error**2 + wait_protons_std**2)**.5
 
-        # Apply Gaussian kernel
+        # Apply Gaussian kernel for protons
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
@@ -391,10 +407,21 @@ def _process_row_wait(row_data, row_wait_currents, fluence_map, map_bin_edges_x,
                               sigma_y=beam_sigma[1],
                               amplitude=wait_protons,
                               normalized=False)
+        
+        # Apply Gaussian kernel for proton error
+        apply_gauss_2d_kernel(map_2d=fluence_map_error,
+                              bin_centers_x=map_bin_centers_x,
+                              bin_centers_y=map_bin_centers_y,
+                              mu_x=wait_mu_x,
+                              mu_y=wait_mu_y,
+                              sigma_x=beam_sigma[0],
+                              sigma_y=beam_sigma[1],
+                              amplitude=wait_protons_error,
+                              normalized=False)
 
 
 @njit
-def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluence_map, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
+def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
     """
     Processes the scanning of a single row.
 
@@ -402,12 +429,12 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
     ----------
     row_data : numpy.ndarray
         Structured numpy array containing data of current row
-    scan_beam_currents : numpy.ndarray
-        Beam currents measured during scanning of this row; used for interpolation
-    scan_beam_timestamps : numpy.ndarray
-        Timestamps of beam currents measured during scanning of this row; used for interpolation
+    row_beam_data : numpy.ndarray
+        Beam data measured during scanning of this row; used for interpolation
     fluence_map : numpy.ndarray
         Two-dimensional numpy.ndarray which holds the fluence distribution and is updated for this row
+    fluence_map_error : numpy.ndarray
+        Two-dimensional numpy.ndarray which holds the fluence error distribution and is updated for this row
     row_bin_transit_times : numpy.ndarray
         Flat numpy array which is used to hold the bin transit times for this row
     map_bin_edges_x : numpy.ndarray
@@ -435,10 +462,13 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
     row_bin_center_timestamps = actual_row_start_timestamp + np.cumsum(row_bin_transit_times) - row_bin_transit_times / 2.0
     
     # Interpolate the beam current measurements at the bin center for this scan
-    row_bin_center_currents = np.interp(row_bin_center_timestamps, scan_beam_timestamps, scan_beam_currents)
+    row_bin_center_currents = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current'])
+    row_bin_center_current_errors = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current_error'])
 
     # Integrate the current measurements with the times spent in each bin to calculate the amount of protons in the bin
     row_bin_center_protons = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
+    row_bin_center_proton_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
+    row_bin_center_proton_errors = (row_bin_center_proton_errors**2 + np.std(row_bin_center_protons)**2)**.5
 
     # Loop over row times
     for i in range(row_bin_center_protons.shape[0]):
@@ -447,7 +477,7 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
         mu_x = map_bin_centers_x[(-(i+1) if row_data['row'] % 2 else i)]
         mu_y = row_data['row_start_y'] - scan_y_offset
         
-        # Apply Gaussian kernel
+        # Apply Gaussian kernel for protons
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
@@ -458,10 +488,21 @@ def _process_row_scan(row_data, scan_beam_currents, scan_beam_timestamps, fluenc
                               amplitude=row_bin_center_protons[i],
                               normalized=False)
 
+        # Apply Gaussian kernel for proton error
+        apply_gauss_2d_kernel(map_2d=fluence_map_error,
+                              bin_centers_x=map_bin_centers_x,
+                              bin_centers_y=map_bin_centers_y,
+                              mu_x=mu_x,
+                              mu_y=mu_y,
+                              sigma_x=beam_sigma[0],
+                              sigma_y=beam_sigma[1],
+                              amplitude=row_bin_center_proton_errors[i],
+                              normalized=False)
+
 
 
 @njit
-def _process_row(row_data, beam_data, fluence_map, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, current_row_idx):
+def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, current_row_idx):
     """
     Process the scanning and waiting / switching of a single row
 
@@ -473,6 +514,8 @@ def _process_row(row_data, beam_data, fluence_map, row_bin_transit_times, map_bi
         Complete beam data which is sliced using *current_row_idx*
     fluence_map : numpy.ndarray
         Two-dimensional numpy.ndarray which holds the fluence distribution and is updated for this row
+    fluence_map_error : numpy.ndarray
+        Two-dimensional numpy.ndarray which holds the fluence error distribution and is updated for this row
     row_bin_transit_times : numpy.ndarray
         Flat numpy array which is used to hold the bin transit times for this row
     map_bin_edges_x : numpy.ndarray
@@ -502,20 +545,20 @@ def _process_row(row_data, beam_data, fluence_map, row_bin_transit_times, map_bi
     row_start_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_start_timestamp'], side='left')
     row_stop_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_stop_timestamp'], side='right')
 
-    # Get beam current measurements and corresponding timestamps of this row scan
-    row_scan_currents = current_beam_data['beam_current'][row_start_idx:row_stop_idx]
-    row_scan_timestamps = current_beam_data['timestamp'][row_start_idx:row_stop_idx]
-
+    # Get beam data current measurements and corresponding timestamps of this row scan
+    row_beam_data = current_beam_data[row_start_idx:row_stop_idx]
+    
     # If this is not the first row, we want to process the waiting / switching row
     if current_row_idx > 0:
         
         # Get beam current measurements which were taken while waiting to start next row
-        row_wait_currents = current_beam_data[:row_start_idx]
+        wait_beam_data = current_beam_data[:row_start_idx]
         
         # Process the currents measured while waiting
         _process_row_wait(row_data=row_data,
-                          row_wait_currents=row_wait_currents,
+                          wait_beam_data=wait_beam_data,
                           fluence_map=fluence_map,
+                          fluence_map_error=fluence_map_error,
                           map_bin_edges_x=map_bin_edges_x,
                           map_bin_centers_x=map_bin_centers_x,
                           map_bin_centers_y=map_bin_centers_y,
@@ -524,9 +567,9 @@ def _process_row(row_data, beam_data, fluence_map, row_bin_transit_times, map_bi
 
     # Process the scan
     _process_row_scan(row_data=row_data,
-                      scan_beam_currents=row_scan_currents,
-                      scan_beam_timestamps=row_scan_timestamps,
+                      row_beam_data=row_beam_data,
                       fluence_map=fluence_map,
+                      fluence_map_error=fluence_map_error,
                       row_bin_transit_times=row_bin_transit_times,
                       map_bin_edges_x=map_bin_edges_x,
                       map_bin_centers_x=map_bin_centers_x,
