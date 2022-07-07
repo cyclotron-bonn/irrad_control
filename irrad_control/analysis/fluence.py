@@ -79,9 +79,12 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
                                        scan_y_offset=scan_area_end[-1],
                                        current_row_idx=current_row_idx)
 
-    logging.info(f"Finished generating fluence distribution.")                                       
+    logging.info(f"Finished generating fluence distribution.")
+    
+    # Take sqrt of error map squared
+    fluence_map_error = np.sqrt(fluence_map_error)                                  
 
-    # Scale from protons / mm² (intrinsic unit) to neutrons / cm²
+    # Scale from protons / mm² (intrinsic unit) to protons / cm²
     fluence_map *= 100
     fluence_map_error *= 100
 
@@ -416,7 +419,7 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
                               mu_y=wait_mu_y,
                               sigma_x=beam_sigma[0],
                               sigma_y=beam_sigma[1],
-                              amplitude=wait_protons_error,
+                              amplitude=wait_protons_error**2,
                               normalized=False)
 
 
@@ -496,7 +499,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
                               mu_y=mu_y,
                               sigma_x=beam_sigma[0],
                               sigma_y=beam_sigma[1],
-                              amplitude=row_bin_center_proton_errors[i],
+                              amplitude=row_bin_center_proton_errors[i]**2,
                               normalized=False)
 
 
