@@ -1,6 +1,6 @@
 import logging
 from types import GeneratorType
-
+import numpy as np
 from irrad_control.analysis import plotting
 from irrad_control.analysis import fluence
 from irrad_control.analysis import formulas
@@ -15,7 +15,7 @@ def analyse_radiation_damage(data, **damage_kwargs):
     bins = (100, 100)
 
     # Dict that holds fluence and TID maps
-    damage_maps = {'neq': None, 'tid': None, 'fluence': None}
+    damage_maps = {'neq': None, 'tid': None, 'fluence': None, 'error': None}
     bin_centers = {'x': None, 'y': None}
 
     # We have a multipart irradiation with mulitple datafiles
@@ -43,10 +43,10 @@ def analyse_radiation_damage(data, **damage_kwargs):
             # Initialize fluence and TID maps
             if damage_maps['fluence'] is None:
 
-                damage_maps['fluence'], _, bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                                                             scan_data=data_part[server]['Scan'],
-                                                                                                             beam_sigma=beam_sigma,
-                                                                                                             bins=bins)
+                damage_maps['fluence'], damage_maps['error'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                                                                                                                                scan_data=data_part[server]['Scan'],
+                                                                                                                                beam_sigma=beam_sigma,
+                                                                                                                                bins=bins)
                 # Generate TID map from potentially different stopping power irradiation
                 damage_maps['tid'] = formulas.tid_scan(proton_fluence=damage_maps['fluence'], stopping_power=damage_kwargs['stopping_power'])
 
@@ -56,33 +56,42 @@ def analyse_radiation_damage(data, **damage_kwargs):
             # Sum up damage maps from different files
             else:
 
-                fluence_map_part, _, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                         scan_data=data_part[server]['Scan'],
-                                                                         beam_sigma=beam_sigma,
-                                                                         bins=bins)
+                fluence_map_part, fluence_map_part_error, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                                                                                              scan_data=data_part[server]['Scan'],
+                                                                                              beam_sigma=beam_sigma,
+                                                                                              bins=bins)
                 # Add to overall map
                 damage_maps['fluence'] += fluence_map_part
+                damage_maps['error'] = (damage_maps['error']**2 + fluence_map_part_error**2)**.5
                 damage_maps['tid'] += formulas.tid_scan(proton_fluence=fluence_map_part, stopping_power=damage_kwargs['stopping_power'])
                 damage_maps['neq'] += fluence_map_part * server_config['daq']['kappa']
+
+        
 
     else:
 
         server = damage_kwargs['server']
                     
-        damage_maps['fluence'], _dmg, bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
-                                                                                                     scan_data=data[server]['Scan'],
-                                                                                                     beam_sigma=beam_sigma,
-                                                                                                     bins=bins)
-        print(_dmg/damage_maps['fluence']*100, '###################')
+        damage_maps['fluence'], damage_maps['error'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
+                                                                                                                        scan_data=data[server]['Scan'],
+                                                                                                                        beam_sigma=beam_sigma,
+                                                                                                                        bins=bins)
         # Generate TID map from potentially different stopping power irradiation
         damage_maps['tid'] = formulas.tid_scan(proton_fluence=damage_maps['fluence'], stopping_power=damage_kwargs['stopping_power'])
 
         # Generate NEQ fluence map from potentially different hardness_factor
         damage_maps['neq'] = damage_maps['fluence'] * damage_kwargs['hardness_factor']
 
+    # Handle error map
+    fluence_map_error = damage_maps.pop('error')
+    dut_map_error = fluence.extract_dut_map(fluence_map=fluence_map_error,
+                                            map_bin_centers_x=bin_centers['x'],
+                                            map_bin_centers_y=bin_centers['y'],
+                                            dut_rectangle=dut_rectangle,
+                                            center_symm=True)
 
     # Loop over all damage maps
-    for damage, map in damage_maps.items():    
+    for damage, map in damage_maps.items():
     
         dut_map, dut_centers_x, dut_centers_y = fluence.extract_dut_map(fluence_map=map,
                                                                         map_bin_centers_x=bin_centers['x'],
