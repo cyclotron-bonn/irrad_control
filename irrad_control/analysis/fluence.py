@@ -237,15 +237,21 @@ def gauss_2d_norm(amplitude, sigma_x, sigma_y):
 
 
 @njit
-def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigma_x, sigma_y, amplitude, normalized, skip_sigmas=6):
+def apply_gauss_2d_kernel(map_2d, map_2d_error, amplitude, amplitude_error, bin_centers_x, bin_centers_y, mu_x, mu_y, sigma_x, sigma_y, normalized, skip_sigmas=6):
     """
-    Applies a 2D Gaussian kernel on *map_2d*, along given bin centers in x and y dimension. See *gauss_2d_pdf* function
+    Applies a 2D Gaussian kernel on *map_2d* and *map_2d_error*, along given bin centers in x and y dimension. See *gauss_2d_pdf* function
     for more info.
 
     Parameters
     ----------
     map_2d : np.ndarray
         Input map to apply kernel to which satisfies len(map_2d.shape)==2
+    map_2d_error : np.ndarray
+        Input error map to apply kernel to which satisfies len(map_2d.shape)==2
+    amplitude : float
+        Amplitude of distribution; must be normalized for correct results e.g. integral(gauss_2D_pdf) == 1
+    amplitude_error : float
+        Amplitude of error distribution; must be normalized for correct results e.g. integral(gauss_2D_pdf) == 1
     bin_centers_x : np.ndarray
         [description]
     bin_centers_y : np.ndarray
@@ -258,8 +264,6 @@ def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigm
         Standard deviation in first dimension
     sigma_y : float
         Standard deviation in second dimension
-    amplitude : float
-        Amplitude of distribution; must be normalized for correct results e.g. integral(gauss_2D_pdf) == 1
     normalized : bool, optional
         Whether to normaliz amplitude, by default False
     skip_sigmas: float, int
@@ -269,6 +273,8 @@ def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigm
     # Check
     if skip_sigmas < 3:
         raise ValueError("Minimum of skip_sigmas is 3 to maintain reasonable accuracy")
+
+    error_amplitude_squared = amplitude_error ** 2
     
     # Loop over y indices
     for j in range(map_2d.shape[0]):
@@ -290,7 +296,7 @@ def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigm
             if abs(x_coord - mu_x) > skip_sigmas * sigma_x:
                 continue
             
-            # Apply Gaussian
+            # Apply Gaussian to map
             map_2d[j, i] += gauss_2d_pdf(x=x_coord,
                                          y=y_coord,
                                          mu_x=mu_x,
@@ -299,6 +305,16 @@ def apply_gauss_2d_kernel(map_2d, bin_centers_x, bin_centers_y, mu_x, mu_y, sigm
                                          sigma_y=sigma_y,
                                          amplitude=amplitude,
                                          normalized=normalized)
+
+            # Apply Gaussian to error map e.g. with squared amplitude
+            map_2d_error[j, i] += gauss_2d_pdf(x=x_coord,
+                                               y=y_coord,
+                                               mu_x=mu_x,
+                                               mu_y=mu_y,
+                                               sigma_x=sigma_x,
+                                               sigma_y=sigma_y,
+                                               amplitude=error_amplitude_squared,
+                                               normalized=normalized)
 
 
 @njit
@@ -402,24 +418,15 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
 
         # Apply Gaussian kernel for protons
         apply_gauss_2d_kernel(map_2d=fluence_map,
-                              bin_centers_x=map_bin_centers_x,
-                              bin_centers_y=map_bin_centers_y,
-                              mu_x=wait_mu_x,
-                              mu_y=wait_mu_y,
-                              sigma_x=beam_sigma[0],
-                              sigma_y=beam_sigma[1],
+                              map_2d_error=fluence_map_error,
                               amplitude=wait_protons,
-                              normalized=False)
-        
-        # Apply Gaussian kernel for proton error
-        apply_gauss_2d_kernel(map_2d=fluence_map_error,
+                              amplitude_error=wait_protons_error,
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=wait_mu_x,
                               mu_y=wait_mu_y,
                               sigma_x=beam_sigma[0],
                               sigma_y=beam_sigma[1],
-                              amplitude=wait_protons_error**2,
                               normalized=False)
 
 
@@ -482,26 +489,16 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
         
         # Apply Gaussian kernel for protons
         apply_gauss_2d_kernel(map_2d=fluence_map,
-                              bin_centers_x=map_bin_centers_x,
-                              bin_centers_y=map_bin_centers_y,
-                              mu_x=mu_x,
-                              mu_y=mu_y,
-                              sigma_x=beam_sigma[0],
-                              sigma_y=beam_sigma[1],
+                              map_2d_error=fluence_map_error,
                               amplitude=row_bin_center_protons[i],
-                              normalized=False)
-
-        # Apply Gaussian kernel for proton error
-        apply_gauss_2d_kernel(map_2d=fluence_map_error,
+                              amplitude_error=row_bin_center_proton_errors[i],
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=mu_x,
                               mu_y=mu_y,
                               sigma_x=beam_sigma[0],
                               sigma_y=beam_sigma[1],
-                              amplitude=row_bin_center_proton_errors[i]**2,
                               normalized=False)
-
 
 
 @njit
