@@ -91,14 +91,24 @@ def analyse_radiation_damage(data, **damage_kwargs):
         dut_map, dut_centers_x, dut_centers_y = fluence.extract_dut_map(fluence_map=map,
                                                                         map_bin_centers_x=bin_centers['x'],
                                                                         map_bin_centers_y=bin_centers['y'],
-                                                                        dut_rectangle=dut_rectangle,
-                                                                        center_symm=True)
+                                                                        dut_rectangle=dut_rectangle,  # FIXME: read from irrad data
+                                                                        center_symm=True)  # FIXME: read from irrad data
+
+        # Extract respective dut error map
+        dut_error_map, _, _ = fluence.extract_dut_map(fluence_map=errors[damage],
+                                                      map_bin_centers_x=bin_centers['x'],
+                                                      map_bin_centers_y=bin_centers['y'],
+                                                      dut_rectangle=dut_rectangle,  # FIXME: read from irrad data
+                                                      center_symm=True)  # FIXME: read from irrad data
 
         for damage_map, centers_x, centers_y in [(map, bin_centers['x'], bin_centers['y']), (dut_map, dut_centers_x, dut_centers_y)]:
 
-            is_dut = damage_map.shape == dut_map.shape                  
+            is_dut = damage_map.shape == dut_map.shape                
 
             fig, _ = plotting.plot_damage_map_3d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
+            figs.append(fig)
+
+            fig, _ = plotting.plot_damage_error_3d(damage_map=damage_map, error_map=errors[damage] if not is_dut else dut_error_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
             figs.append(fig)
 
             fig, _ = plotting.plot_damage_map_2d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)

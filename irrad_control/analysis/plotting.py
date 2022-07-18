@@ -32,6 +32,43 @@ def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_
         cbar.set_label(cbar_label)
 
 
+def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
+    
+    # Get min max values
+    min_dam, max_dam = damage_map.min(), damage_map.max()
+
+    # Get percentage of damage
+    dam_percent = lambda val: val / max_dam * 100.0
+
+    # Make figure
+    fig, ax = plt.subplots(figsize=(8, 6), tight_layout=False, subplot_kw={"projection": "3d"})
+
+    # Generate meshgird to plot on
+    mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
+
+    # plot surface
+    surface_3d = ax.plot_surface(mesh_x, mesh_y, error_map, antialiased=True, cmap=cmap)
+    
+    # Adjust angle
+    ax.view_init(*view_angle)
+    ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
+
+    # Make colorbar
+    # Create two axes for the colorbar on the same place. 
+    cax_absolute = plt.axes([0.85, 0.1, 0.033, 0.8])
+    cax_relative = cax_absolute.twinx()
+    cbar = fig.colorbar(surface_3d, cax=cax_absolute,label="Fluence uncertainty / ppp")
+    cbar.ax.yaxis.set_ticks_position('left')
+    cbar.ax.yaxis.set_label_position('left')
+    cax_relative.set_ylim(*(dam_percent(x) for x in ax.get_ylim()[::-1]))
+    cax_relative.set_ylabel("Fluence uncertainty / %")
+    #cax_relative.set_axis_off(0)
+    print(cax_relative.yaxis.get_offset_text())
+
+    return fig, ax
+
+
+
 def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
 
     # Make figure
