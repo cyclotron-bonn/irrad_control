@@ -14,19 +14,19 @@ def _get_damage_label_unit_target(damage, dut=False):
     damage_target = "DUT" if dut else "Scan"
     return damage_label, damage_unit, damage_target
 
-def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_map=None):
+def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_map=None, uncertainty_map=False):
 
     damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, dut=dut)
 
     ax.set_xlabel(f'{damage_target} area horizontal / mm')
     ax.set_ylabel(f'{damage_target} area vertical / mm')
-    plt.suptitle(f'{damage_label} Distribution {damage_target} Area (Server: {server})')
+    plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target} Area (Server: {server})")
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):
         ax.set_zlabel(f"{damage_label} / {damage_unit}")
 
-    if damage_map is not None and dut:
+    if damage_map is not None and dut and not uncertainty_map:
         mean, std = damage_map.mean(), damage_map.std()
         damage_mean_std = "Mean = {:.2E}{}{:.2E} {}".format(mean, u'\u00b1', std, damage_unit)
         ax.set_title(damage_mean_std)
@@ -73,7 +73,7 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()))
 
     # Apply labels
-    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, **damage_label_kwargs)
+    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, uncertainty_map=True, **damage_label_kwargs)
 
     return fig, ax
 

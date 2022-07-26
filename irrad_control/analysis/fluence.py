@@ -34,6 +34,12 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
         Tuple containing fluence map, fluence map error, bin_centers_x, bin_centers_y
     """
 
+    total_scans = np.max(scan_data['scan']) + 1
+    total_rows = total_scans * scan_data['n_rows'][0]
+
+    logging.info(f"Generating fluence distribution from {total_scans} scans, containing {total_rows} total rows")
+    logging.info("Using Gaussian beam model with dimensions {}_x = {} mm, {}_y = {}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
+
     # Get number of rows; FIXME: get n_rows from *Irrad* data
     n_rows = np.max(scan_data['row']) + 1  # Rows start at 0
     
@@ -62,10 +68,8 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     # Index that keeps track how far we have advanced trough the beam data
     current_row_idx = 0
 
-    logging.info("Generating fluence distribution for Gaussian beam with {}_x={}mm, {}_y={}mm...".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
-
     # Loop over scanned rows
-    for row_data in tqdm(scan_data, unit='rows'):
+    for row_data in tqdm(scan_data, desc='Generating fluence distribution', unit='rows'):
 
         current_row_idx = _process_row(row_data=row_data,
                                        beam_data=beam_data,

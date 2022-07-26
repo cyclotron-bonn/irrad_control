@@ -85,6 +85,8 @@ def analyse_radiation_damage(data, **damage_kwargs):
         errors['neq'] = ((damage_kwargs['hardness_factor'] * errors['proton'])**2 + (results['proton'] * 0.6)**2)**.5  # FIXME: read hardness factor error from config
         errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=damage_kwargs['stopping_power'])
 
+    logging.info("Generating plots ...")
+
     # Loop over all damage maps
     for damage, map in results.items():
     
@@ -116,5 +118,7 @@ def analyse_radiation_damage(data, **damage_kwargs):
 
             fig, _ = plotting.plot_damage_map_contourf(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)
             figs.append(fig)
+
+    logging.info("Finished plotting.")
 
     return figs

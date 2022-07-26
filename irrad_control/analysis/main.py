@@ -1,9 +1,11 @@
+from doctest import OutputChecker
 import sys
 import os
 import logging
 import argparse
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
+from tqdm import tqdm
 import matplotlib as mpl
 
 import irrad_control.analysis as irrad_analysis
@@ -108,6 +110,20 @@ def input_files(infiles):
 
         yield i, data, config, session_basename
 
+def save_plots(plots, outfile):
+    """
+    Save plots to output file
+
+    Parameters
+    ----------
+    plots : Iterable of Figures
+        Figures to save
+    outfile : PDFPages
+        Filehandle of PDFPages object
+    """
+    for plot in tqdm(plots, desc="Saving plots", unit='plots'):
+        outfile.savefig(plot, bbox_inches='tight')
+
 
 def main():
 
@@ -163,8 +179,7 @@ def main():
                                                                  hardness_factor=4.1,
                                                                  stopping_power=p_stop_Si)
 
-            for fig in res:
-                out_pdf.savefig(fig, bbox_inches='tight')
+            save_plots(plots=res, outfile=out_pdf)
 
     # We are doing the same analysis on multiple files
     else:
@@ -194,15 +209,13 @@ def main():
                                                                              hardness_factor=content['daq']['kappa'],
                                                                              stopping_power=p_stop_Si)
 
-                        for fig in res:
-                            out_pdf.savefig(fig, bbox_inches='tight')
+                        save_plots(plots=res, outfile=out_pdf)
             
                     if parsed['calibration']:
 
                         res = irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data, irrad_config=content)
 
-                        for fig in res:
-                            out_pdf.savefig(fig, bbox_inches='tight')
+                        save_plots(plots=res, outfile=out_pdf)
 
 
 if __name__ == '__main__':
