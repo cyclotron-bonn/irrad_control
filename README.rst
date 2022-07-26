@@ -85,16 +85,16 @@ The server is then automatically set up on first use with ``irrad_control``.
 Offline Analysis
 ================
 
-From version v1.3.0 onwards, `irrad_control` ships with offline analysis utilities, allowing to analyse e.g. irradiation or calibration data.
-The output of `irrad_control` are two different file types with the same base name (e.g. `my_irrad_file`), one containing the configuration (`YAML`) and the other the actual data (`HDF5`).
+From version v1.3.0 onwards, ``irrad_control`` ships with offline analysis utilities, allowing to analyse e.g. irradiation or calibration data.
+The output of ``irrad_control`` are two different file types with the same base name (e.g. ``my_irrad_file``), one containing the configuration (*YAML*) and the other the actual data (*HDF5*).
 Both files are required to be present in the same directory.
-To analyse irradiation data (e.g. NIEL / TID / fluence) use the `irrad_analyse` CLI:
+To analyse irradiation data (e.g. NIEL / TID / fluence) use the ``irrad_analyse`` CLI:
 
 .. code-block:: bash
 
    irrad_analyse -f my_irrad_file  # No file ending required; --damage (NIEL, TID) is default analysis flag 
 
-which will generate a `my_irrad_file_analysis_damage.pdf` output file. Optionally, the `-o my_custom_output_file.pdf` option / value pair can be given to give a custom output file name.
+which will generate a ``my_irrad_file_analysis_damage.pdf`` output file. Optionally, the ``-o my_custom_output_file.pdf`` option / value pair can be given to give a custom output file name.
 To analyse multiple files at once, pass them individually to the `-f` otpion
 
 .. code-block:: bash
@@ -102,7 +102,7 @@ To analyse multiple files at once, pass them individually to the `-f` otpion
    irrad_analyse -f my_irrad_file_0 my_irrad_file_1 my_irrad_file_2
    irrad_analyse -f *.h5  # Analyse all HDF5 files in the current directory
 
-Furthermore, irradiations which were carried out in multiple sessions (e.g. multiple output config / data files) can be analysed by passing the `--multipart` flag.
+Furthermore, irradiations which were carried out in multiple sessions (e.g. multiple output config / data files) can be analysed by passing the ``--multipart`` flag.
 To analyse an multi-file irradiation, pass the list of file base names
 
 .. code-block:: bash
@@ -110,7 +110,7 @@ To analyse an multi-file irradiation, pass the list of file base names
    irrad_analyse -f my_irrad_file_0 my_irrad_file_1 my_irrad_file_2 --multipart
    irrad_analyse -f *.h5 --multipart  # Take all HDF5 files in the current directory
 
-To analyse beam monitor calibration measurements, pass the `--calibration` flag.
+To analyse beam monitor calibration measurements, pass the ``--calibration`` flag.
 
 .. code-block:: bash
 
