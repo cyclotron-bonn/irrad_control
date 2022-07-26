@@ -8,11 +8,15 @@ from matplotlib.colors import LogNorm
 from irrad_control.analysis.formulas import lin_odr
 
 
-def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_map=None):
-
+def _get_damage_label_unit_target(damage, dut=False):
     damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else r'p cm$^{-2}$' if damage == 'proton' else 'Mrad'
     damage_label = 'Fluence' if damage in ('neq', 'proton') else 'Total Ionizing Dose'
     damage_target = "DUT" if dut else "Scan"
+    return damage_label, damage_unit, damage_target
+
+def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_map=None):
+
+    damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, dut=dut)
 
     ax.set_xlabel(f'{damage_target} area horizontal / mm')
     ax.set_ylabel(f'{damage_target} area vertical / mm')
@@ -31,17 +35,27 @@ def _apply_labels_damage_plots(ax, damage, server, dut=False, cbar=None, damage_
         cbar_label = f"{damage_label} / {damage_unit}"
         cbar.set_label(cbar_label)
 
+def _make_cbar(fig, damage_map, damage, rel_error_lims=None):
+
+    damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, dut=False)
+
+    # Make axis for cbar
+    cbar_axis = plt.axes([0.85, 0.1, 0.033, 0.8])
+    cbar = fig.colorbar(damage_map, cax=cbar_axis, label=f"{damage_label} / {damage_unit}")
+
+    if rel_error_lims is not None:
+        cbar_rel_axis = cbar_axis.twinx()
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.yaxis.set_label_position('left')
+        cbar_rel_axis.set_ylim(rel_error_lims)
+        cbar_rel_axis.set_ylabel("Relative uncertainty / %")
+        cbar_rel_axis.yaxis.get_offset_text().set_alpha(0)  # Make offset disappear like a magician
+
 
 def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
-    
-    # Get min max values
-    min_dam, max_dam = damage_map.min(), damage_map.max()
-
-    # Get percentage of damage
-    dam_percent = lambda val: val / max_dam * 100.0
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6), tight_layout=False, subplot_kw={"projection": "3d"})
+    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw={"projection": "3d"})
 
     # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
@@ -53,17 +67,13 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     ax.view_init(*view_angle)
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
-    # Make colorbar
-    # Create two axes for the colorbar on the same place. 
-    cax_absolute = plt.axes([0.85, 0.1, 0.033, 0.8])
-    cax_relative = cax_absolute.twinx()
-    cbar = fig.colorbar(surface_3d, cax=cax_absolute,label="Fluence uncertainty / ppp")
-    cbar.ax.yaxis.set_ticks_position('left')
-    cbar.ax.yaxis.set_label_position('left')
-    cax_relative.set_ylim(*(dam_percent(x) for x in ax.get_ylim()[::-1]))
-    cax_relative.set_ylabel("Fluence uncertainty / %")
-    #cax_relative.set_axis_off(0)
-    print(cax_relative.yaxis.get_offset_text())
+    # Relative errors
+    rel_damage_map = error_map / damage_map * 100.0
+
+    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()))
+
+    # Apply labels
+    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, **damage_label_kwargs)
 
     return fig, ax
 
@@ -72,7 +82,7 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
 def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6), tight_layout=True, subplot_kw={"projection": "3d"})
+    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw={"projection": "3d"})
 
     # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
@@ -89,11 +99,10 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
     ax.view_init(*view_angle)
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
-    # Make colorbar
-    cbar = fig.colorbar(surface_3d)
-
+    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'))
+    
     # Apply labels
-    _apply_labels_damage_plots(ax=ax, cbar=cbar, damage_map=damage_map, **damage_label_kwargs)
+    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, **damage_label_kwargs)
 
     return fig, ax
 
@@ -101,7 +110,7 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
 def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, cmap='viridis', **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6), tight_layout=True)
+    fig, ax = plt.subplots(figsize=(8, 6))
     
     bin_width_y = (map_centers_y[1] - map_centers_y[0])
     bin_width_x = (map_centers_x[1] - map_centers_x[0])
@@ -120,7 +129,7 @@ def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, cmap='viridis',
 def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, cmap='viridis', **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6), tight_layout=True)
+    fig, ax = plt.subplots(figsize=(8, 6))
 
      # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
