@@ -85,6 +85,9 @@ def analyse_radiation_damage(data, **damage_kwargs):
         errors['neq'] = ((damage_kwargs['hardness_factor'] * errors['proton'])**2 + (results['proton'] * 0.6)**2)**.5  # FIXME: read hardness factor error from config
         errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=damage_kwargs['stopping_power'])
 
+    if any(a is None for a in (list(bin_centers.values()) + list(errors.values()) + list(results.values()))):
+        raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
+
     logging.info("Generating plots ...")
 
     # Loop over all damage maps
