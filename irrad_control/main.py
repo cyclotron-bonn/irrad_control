@@ -449,11 +449,12 @@ class IrradControlWin(QtWidgets.QMainWindow):
         elif data['meta']['type'] == 'scan':
             self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
             self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
-            self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
-            # FIXME: more precise result would be helpful
-            if data['data']['eta_n_scans'] < 0:
-                self.send_cmd(server, 'stage', 'finish')
+            if data['data']['eta_n_scans'] >= 0:
+                self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
+                # FIXME: more precise result would be helpful
+                if data['data']['eta_n_scans'] == 0:
+                    self.send_cmd(server, 'stage', 'finish')
 
         elif data['meta']['type'] == 'damage':
 
