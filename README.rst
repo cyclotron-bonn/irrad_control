@@ -27,6 +27,9 @@ Due to dependencies, you have to have Python 3.8  with the following packages in
 - matplotlib
 - paramiko
 - uncertainties
+- tqdm
+- numba
+- scipy
 - pyqt (version 5)
 - `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.11)
 
@@ -36,7 +39,7 @@ and required dependencies, type
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib
+   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib tqdm numba scipy
 
 Run ``conda activate irrad`` to activate the Python environment. To install the required packages that are not available via ``conda``, use ``pip``
 
@@ -44,11 +47,17 @@ Run ``conda activate irrad`` to activate the Python environment. To install the 
 
   pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
 
-To finally install ``irrad_control`` run the setup script
+To finally install & launch ``irrad_control`` run the setup script via
 
 .. code-block:: bash
 
-   python setup.py develop
+   pip install -e .
+
+followed by
+
+.. code-block:: bash
+
+   irrad_control
 
 When you start the application you can add RPi servers in the **setup** tab. Each server needs to be set up before usage.
 The procedure is explained in the following section.
@@ -72,9 +81,52 @@ where ``ip-address-of-rpi`` is the IP address of the RPi within the network. In 
 After launching ``irrad_control``, you can perform a first-time-setup of the server by adding it via its IP address.
 The server is then automatically set up on first use with ``irrad_control``.
 
-Versions
+
+Offline Analysis
+================
+
+From version v1.3.0 onwards, ``irrad_control`` ships with offline analysis utilities, allowing to analyse e.g. irradiation or calibration data.
+The output of ``irrad_control`` are two different file types with the same base name (e.g. ``my_irrad_file``), one containing the configuration (*YAML*) and the other the actual data (*HDF5*).
+Both files are required to be present in the same directory.
+To analyse irradiation data (e.g. NIEL / TID / fluence) use the ``irrad_analyse`` CLI:
+
+.. code-block:: bash
+
+   irrad_analyse -f my_irrad_file  # No file ending required; --damage (NIEL, TID) is default analysis flag 
+
+which will generate a ``my_irrad_file_analysis_damage.pdf`` output file. Optionally, the ``-o my_custom_output_file.pdf`` option / value pair can be given to give a custom output file name.
+To analyse multiple files at once, pass them individually to the `-f` otpion
+
+.. code-block:: bash
+
+   irrad_analyse -f my_irrad_file_0 my_irrad_file_1 my_irrad_file_2
+   irrad_analyse -f *.h5  # Analyse all HDF5 files in the current directory
+
+Furthermore, irradiations which were carried out in multiple sessions (e.g. multiple output config / data files) can be analysed by passing the ``--multipart`` flag.
+To analyse an multi-file irradiation, pass the list of file base names
+
+.. code-block:: bash
+
+   irrad_analyse -f my_irrad_file_0 my_irrad_file_1 my_irrad_file_2 --multipart
+   irrad_analyse -f *.h5 --multipart  # Take all HDF5 files in the current directory
+
+To analyse beam monitor calibration measurements, pass the ``--calibration`` flag.
+
+.. code-block:: bash
+
+   irrad_analyse -f my_calibration_file --calibration
+   irrad_analyse -f *.h5 --calibration  # Take all HDF5 files in the current directory
+
+To see the CLI options type
+
+.. code-block:: bash
+
+   irrad_analyse --help
+
+Changelog
 ========
 
+- v1.3.0: Included module for offline analysis of e.g. irradiation data
 - v1.2.0: First version with partial support for updated irradiation setup running on Python 3 
 - v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
 - v1.0.1: Initial release with semantic verisoning

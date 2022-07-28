@@ -458,22 +458,35 @@ class IrradConverter(DAQProcess):
                                                                                                                    ro_device=self.readout_setup[server]['device']),
                                                                    full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-                    try:
-                        loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
-                        if loss >= self._beam_cut_off_threshold:
-                            logging.warning("Beam cut-off detected! Losing {:.2f} % of beam at extraction!".format(loss * 100))
-                    except ZeroDivisionError:
-                        pass
-
-                    # Correct extracted beam current when blm_current is above self._beam_correction_threshold
-                    if blm_current > self._beam_correction_threshold * self.data_arrays[server]['beam']['beam_current'][0]:
-                        extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
-                        logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
-                                                                                                             extracted_current))
-                        self.data_arrays[server]['beam']['beam_current'] = extracted_current
-
                     # Only add beam loss to data if we have BLM data
                     beam_data['data']['current']['beam_loss'] = blm_current
+
+                    # This should always be the case, at leasanything else is unphysical  
+                    if blm_current <= self.data_arrays[server]['beam']['beam_current'][0]:
+                        
+                        try:
+                            # Get beam loss
+                            beam_loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
+
+                            # Warn when cut-off is detected
+                            if beam_loss >= self._beam_cut_off_threshold:
+                                logging.warning("Beam cut-off detected! Losing {:.2f} % of beam at extraction!".format(beam_loss * 100))
+
+                            # Warn when extracted beam current is corrected
+                            if beam_loss >= self._beam_correction_threshold:
+                                extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
+                                logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
+                                                                                                                extracted_current))
+                                self.data_arrays[server]['beam']['beam_current'] = extracted_current
+
+                        except ZeroDivisionError:
+                            pass
+                    
+                    # This case should not exist because blm_current can be at most beam current
+                    # Due to different sampling timestamps for the ADC channels, this can occure in unstable beam conditions
+                    # See https://github.com/SiLab-Bonn/irrad_control/issues/69
+                    else:
+                        self.data_arrays[server]['beam']['beam_current'] = 0
 
                 else:
                     blm_current = np.nan
@@ -567,7 +580,7 @@ class IrradConverter(DAQProcess):
                 eta_n_scans = int(remainder_fluence / row_proton_fluence.n)
                 eta_time = eta_n_scans * row_scan_time * self.data_arrays[server]['scan']['n_rows'][0]
             except ZeroDivisionError:
-                eta_time = eta_n_scans = 0
+                eta_time = eta_n_scans = -1
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),

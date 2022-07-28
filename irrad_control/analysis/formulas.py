@@ -3,7 +3,7 @@ import irrad_control.analysis.constants as irrad_consts
 import numpy as np
 
 
-def tid_scan(proton_fluence, stopping_power):
+def tid_scan(proton_fluence, stopping_power=irrad_consts.p_stop_Si):
     """
 
     Parameters
@@ -173,3 +173,14 @@ def get_hist_idx(val, bin_edges, side='left'):
     else:
         return int(res) - 1
 
+
+def lin_odr(B, x):
+    return B[0] * x + (0 if len(B) == 1 else B[1])
+
+
+def lin(x, *args):
+    return args[0] * x + (0 if len(args) == 1 else args[1])
+
+
+def red_chisquare(observed, expected, observed_error, popt):
+    return np.sum(((observed - expected) / observed_error)**2 / (len(observed_error) - len(popt) - 1))
