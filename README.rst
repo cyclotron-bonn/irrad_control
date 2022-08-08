@@ -175,9 +175,12 @@ information on the setup, the irradiation procedure & characteristics or addiati
 Publications
 ============
 
-#. 2022
+Publications related to the proton irradiation site can be found below. If you are publishing results obtained by performing
+irradiations or test beams at the proton irradiation site at Bonn university, please cite a suitable publication.
 
-    * `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for Si-Detectors at the Bonn Isochronous Cyclotron”, in Proc. IPAC'22, Bangkok, Thailand, Jun. 2022, pp. 130-132. doi:10.18429/JACoW-IPAC2022-MOPOST030 <https://ipac2022.vrws.de/papers/mopost030.pdf>`_
+* 2022
+
+    #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for Si-Detectors at the Bonn Isochronous Cyclotron”, in Proc. IPAC'22, Bangkok, Thailand, Jun. 2022, pp. 130-132. doi:10.18429/JACoW-IPAC2022-MOPOST030 <https://ipac2022.vrws.de/papers/mopost030.pdf>`_
 
 
 .. |test-status| image:: https://github.com/Silab-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=development
