@@ -47,9 +47,9 @@ def _make_cbar(fig, damage_map, damage, rel_error_lims=None):
         cbar_rel_axis = cbar_axis.twinx()
         cbar.ax.yaxis.set_ticks_position('left')
         cbar.ax.yaxis.set_label_position('left')
-        cbar_rel_axis.set_ylim(rel_error_lims)
         cbar_rel_axis.set_ylabel("Relative uncertainty / %")
-        cbar_rel_axis.yaxis.get_offset_text().set_alpha(0)  # Make offset disappear like a magician
+        cbar_rel_axis.ticklabel_format(axis='y', useOffset=False, style='plain')
+        cbar_rel_axis.set_ylim(rel_error_lims)
 
 
 def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
