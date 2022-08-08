@@ -128,11 +128,11 @@ Fluence Distributions
 
 .. list-table::
 
-    * - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_nominal.pdf?raw=true
+    * - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_nominal.pdf
 
            Proton fluence, scan area
 
-      - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_error.pdf?raw=true
+      - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_error.pdf
 
            Proton fluence uncertainty, scan area
 
