@@ -128,27 +128,27 @@ Fluence Distributions
 
 .. list-table::
 
-    * - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_nominal.pdf
+    * - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_nominal.jpg?raw=true
 
            Proton fluence, scan area
 
-      - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_error.pdf
+      - .. figure:: ../assets/ITkPixV1_1e16_scan_primary_error.jpg?raw=true
 
            Proton fluence uncertainty, scan area
 
-    * - .. figure:: ../assets/ITkPixV1_1e16_scan_neq_nominal.pdf?raw=true
+    * - .. figure:: ../assets/ITkPixV1_1e16_scan_neq_nominal.jpg?raw=true
 
            1 MeV neutron equivalent fluence, scan area
 
-      - .. figure:: ../assets/ITkPixV1_1e16_scan_neq_error.pdf?raw=true
+      - .. figure:: ../assets/ITkPixV1_1e16_scan_neq_error.jpg?raw=true
 
            1 MeV neutron equivalent fluence uncertainty, scan area
 
-    * - .. figure:: ../assets/ITkPixV1_1e16_dut_neq_nominal.pdf?raw=true
+    * - .. figure:: ../assets/ITkPixV1_1e16_dut_neq_nominal.jpg?raw=true
 
            1 MeV neutron equivalent fluence, DUT area
 
-      - .. figure:: ../assets/ITkPixV1_1e16_dut_neq_error.pdf?raw=true
+      - .. figure:: ../assets/ITkPixV1_1e16_dut_neq_error.jpg?raw=true
 
            1 MeV neutron equivalent fluence uncertainty, DUT area
 
