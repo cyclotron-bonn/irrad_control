@@ -12,7 +12,7 @@ sem:
 # of the custom readout electronics (3.3,10,33,100,330,1000) in [nA] and the proportionality constant lambda in [1/V] like:
 # I_Beam(U_SEM) = lambda * I_fs * U_SEM
 lambda:
-  default: lambda_2
+  default: lambda_3
   all:
     lambda_1:
       nominal: 0.937
@@ -32,6 +32,15 @@ lambda:
       particle: proton
       energy: 14 MeV
       date: Wed May 18 11:30:00 2022
+    lambda_3:
+      nominal: 0.906
+      sigma: 0.009
+      hv_sem: 100 V
+      unit: 1/V
+      device: SEM-15-deg
+      particle: proton
+      energy: 14 MeV
+      date: Wed Aug 17 11:00:00 2022
 
 
 # Proton hardness factors
