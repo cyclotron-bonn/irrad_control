@@ -273,25 +273,25 @@ class MotorStageControlWidget(ControlWidget):
                                                                                            {'method': 'get_physical_props',
                                                                                             'kwargs': {'base_unit': 'mm'}}}))
             # Rel. movement
-            btn_rel.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-                                                                           target=ms,
-                                                                           cmd='move_rel',
-                                                                           cmd_data={'kwargs': axis_kwargs({'value': spx_rel.value(),
-                                                                                                            'unit': 'mm'}),
-                                                                                     'threaded': True}))  # Movement in separate thread
+            #btn_rel.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
+            #                                                               target=ms,
+            #                                                               cmd='move_rel',
+            #                                                               cmd_data={'kwargs': axis_kwargs({'value': spx_rel.value(),
+            #                                                                                                'unit': 'mm'}),
+            #                                                                         'threaded': True}))  # Movement in separate thread
             # Abs. movement
-            btn_abs.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-                                                                           target=ms,
-                                                                           cmd='move_abs',
-                                                                           cmd_data={'kwargs': axis_kwargs({'value': spx_abs.value(),
-                                                                                                            'unit': 'mm'}),
-                                                                                     'threaded': True}))  # Movement in separate thread
+            #btn_abs.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
+            #                                                               target=ms,
+            #                                                               cmd='move_abs',
+            #                                                               cmd_data={'kwargs': axis_kwargs({'value': spx_abs.value(),
+            #                                                                                                'unit': 'mm'}),
+            #                                                                         'threaded': True}))  # Movement in separate thread
             # Abs. movement
-            btn_pos.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-                                                                           target=ms,
-                                                                           cmd='move_pos',
-                                                                           cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
-                                                                                     'threaded': True}))  # Movement in separate thread
+            #btn_pos.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
+            #                                                               target=ms,
+            #                                                               cmd='move_pos',
+            #                                                               cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
+            #                                                                         'threaded': True}))  # Movement in separate thread
 
             # Rel. movement
             btn_rel.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
@@ -325,7 +325,7 @@ class MotorStageControlWidget(ControlWidget):
             self.tabs.addTab(container, motorstage)
             self.motorstage_positions_window.add_motorstage(motorstage=motorstage, positions=positions, properties=properties)
 
-    def _send_movement_cmd(self, motorstage, mov_cmd, cmd_data):
+    def _send_movement_cmd(self, motorstage, cmd, cmd_data):
         
         restricted = ('SetupTableStage', 'ExternalCupStage')
         restricted_controllable = [r in self.motorstage_properties for r in restricted]
@@ -402,7 +402,7 @@ class MotorStageControlWidget(ControlWidget):
             move = True
         
         if move:
-            self.send_cmd(hostname=self.server, target=motorstage, cmd=mov_cmd, cmd_data=cmd_data)
+            self.send_cmd(hostname=self.server, target=motorstage, cmd=cmd, cmd_data=cmd_data)
 
 
 class ScanControlWidget(ControlWidget):
