@@ -14,7 +14,7 @@ from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control import network_config, daq_config, config_path, tmp_dir
-from irrad_control.utils.tools import safe_yaml, make_path
+from irrad_control.utils.tools import save_yaml, make_path
 
 
 def _check_has_text(_edit):
@@ -262,7 +262,7 @@ class NetworkSetup(BaseSetupWidget):
         network_config['server']['all'][ip] = 'none'
 
         # Open the network_config.yaml and overwrites it with current server_ips
-        safe_yaml(path=make_path(config_path, 'network_config.yaml'), data=network_config)
+        save_yaml(path=make_path(config_path, 'network_config.yaml'), data=network_config)
 
     def find_servers(self):
 

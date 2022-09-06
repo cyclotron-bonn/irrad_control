@@ -20,9 +20,6 @@ class IrradConverter(DAQProcess):
         # Set name of this interpreter process
         name = 'interpreter' if name is None else name
 
-        # Dict of known commands; flag to indicate when cmd is busy
-        commands = {'interpreter': ['shutdown', 'zero_offset', 'record_data', 'start', 'update_group_ifs', 'prepare_scan']}
-
         # Attributes controlling converter behaviour
         self._data_flush_interval = 1.0
         self._last_data_flush = None
@@ -34,7 +31,7 @@ class IrradConverter(DAQProcess):
         self.hists = analysis.dtype.IrradHists()
 
         # Call init of super class
-        super(IrradConverter, self).__init__(name=name, commands=commands)
+        super(IrradConverter, self).__init__(name=name)
 
     def _setup_daq(self):
 
@@ -46,6 +43,9 @@ class IrradConverter(DAQProcess):
 
         self.interaction_flags = {server: {'write': Event(),
                                            'offset': Event()} for server in self.server}
+
+        # We want to start writing data from every server from the start
+        _ = [self.interaction_flags[s]['write'].set() for s in self.server]
 
         # Containers to hold data
         # Store tables
@@ -66,7 +66,6 @@ class IrradConverter(DAQProcess):
         self._lookups = defaultdict(dict)
         self._raw_offsets = {}
         self._row_fluence_hist = {}
-        self._irrad_setup = {}
         self._dtimes = defaultdict(dict)
 
         # R/O setup per server
@@ -108,7 +107,7 @@ class IrradConverter(DAQProcess):
             self.data_flags[server]['scanning'] = False
 
             # Create needed tables and arrays
-            for dname in ('Raw', 'RawOffset', 'Event', 'Beam', 'Damage', 'Scan', 'Result'):
+            for dname in ('Raw', 'RawOffset', 'Event', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
 
                 try:
                     dtype = self.dtypes[dname.lower()]
@@ -186,16 +185,18 @@ class IrradConverter(DAQProcess):
                 self.data_flags[server][dname] = False
 
         # We have motorstage data
-        if 'ZaberXYStage' in server_setup['devices']:  # FIXME: make flag for devices that are stages / ADD: ItemStage
-            # Make temperature measurement group in outfile
-            # Create group at root
-            self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
+        # FIXME: make flag for devices that are stages instead of hardcode
+        for motorstage in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
-            if 'ZaberXYStage' in server_setup['devices']:
+            if motorstage in server_setup['devices']:
+
+                # Create group at root because we have a motorstage
+                if '/{}/Motorstage'.format(server_setup['name']) not in self.output_table:
+                    self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
 
                 dtype = self.dtypes['motorstage']
-                dname = 'motorstage_zaberxystage'
-                node_name = 'ZaberXYStage'
+                dname = f'motorstage_{motorstage.lower()}'
+                node_name = motorstage
 
                 # Create and store tables
                 self.data_tables[server][dname] = self.output_table.create_table('/{}/Motorstage'.format(server_setup['name']),
@@ -519,9 +520,27 @@ class IrradConverter(DAQProcess):
 
         if data['status'] == 'scan_init':
 
-            self.data_arrays[server]['scan']['row_separation'] = data['y_step']
-            self.data_arrays[server]['scan']['n_rows'] = data['n_rows']
+            self.data_arrays[server]['irrad']['timestamp'] = meta['timestamp']
+            self.data_arrays[server]['irrad']['row_separation'] = data['row_sep']
+            self.data_arrays[server]['irrad']['n_rows'] = data['n_rows']
+            self.data_arrays[server]['irrad']['aim_damage'] = data['aim_damage'].encode('ascii')
+            self.data_arrays[server]['irrad']['aim_value'] = data['aim_value']
+            self.data_arrays[server]['irrad']['min_scan_current'] = data['min_current']
+            self.data_arrays[server]['irrad']['scan_origin_x'] = data['scan_origin'][0]
+            self.data_arrays[server]['irrad']['scan_origin_y'] = data['scan_origin'][1]
+            self.data_arrays[server]['irrad']['scan_area_start_x'] = data['scan_area_start'][0]
+            self.data_arrays[server]['irrad']['scan_area_start_y'] = data['scan_area_start'][1]
+            self.data_arrays[server]['irrad']['scan_area_stop_x'] = data['scan_area_stop'][0]
+            self.data_arrays[server]['irrad']['scan_area_stop_y'] = data['scan_area_stop'][1]
+
+            # Fluence hist
             self._row_fluence_hist[server] = [0] * data['n_rows']
+
+            # Append data to table within this interpretation cycle
+            self.data_flags[server]['irrad'] = True
+
+            # Make sure we are recoding data when we initialize a scan
+            self.interaction_flags[server]['write'].set()
 
         elif data['status'] == 'scan_start':
 
@@ -535,6 +554,7 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['scan']['row_start_x'] = data['x_start']
             self.data_arrays[server]['scan']['row_start_y'] = data['y_start']
             self.data_arrays[server]['scan']['row_scan_speed'] = data['speed']
+            self.data_arrays[server]['scan']['row_scan_accel'] = data['accel']
 
         elif data['status'] == 'scan_stop':
 
@@ -574,15 +594,27 @@ class IrradConverter(DAQProcess):
             self.data_flags[server]['scan'] = True
 
             # ETA time and n_scans
-            remainder_fluence = self._irrad_setup[server]['aim_proton_fluence'] - np.mean(self._row_fluence_hist[server]).n
+            _mean_proton_fluence = np.mean(self._row_fluence_hist[server]).n
             row_scan_time = self.data_arrays[server]['scan']['row_stop_timestamp'][0] - self.data_arrays[server]['scan']['row_start_timestamp'][0]
+
             try:
-                eta_n_scans = int(remainder_fluence / row_proton_fluence.n)
-                eta_time = eta_n_scans * row_scan_time * self.data_arrays[server]['scan']['n_rows'][0]
+                # Check damage type
+                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('NIEL', encoding='ascii'):
+                    # Get remaining proton fluence
+                    remainder_NIEL = self.data_arrays[server]['irrad']['aim_value'][0] / self.setup['server'][server]['daq']['kappa'] - _mean_proton_fluence
+                    eta_n_scans = int(remainder_NIEL / row_proton_fluence.n)
+                else:
+                    remainder_TID = self.data_arrays[server]['irrad']['aim_value'][0] - analysis.formulas.tid_scan(proton_fluence=_mean_proton_fluence,
+                                                                                                                   stopping_power=analysis.constants.p_stop_Si)
+                    eta_n_scans = int(remainder_TID / analysis.formulas.tid_scan(proton_fluence=row_proton_fluence.n,
+                                                                                 stopping_power=analysis.constants.p_stop_Si))
+
+                eta_time = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
+
             except ZeroDivisionError:
                 eta_time = eta_n_scans = -1
 
-            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
+            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'row'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
                                   'fluence_hist_err': unumpy.std_devs(self._row_fluence_hist[server]).tolist(),
                                   'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
@@ -594,11 +626,11 @@ class IrradConverter(DAQProcess):
 
             # Get scan proton fluence in each row
             row_proton_fluences_last_scan = self.data_tables[server]['scan'].col('row_proton_fluence')[
-                                            -self.data_arrays[server]['scan']['n_rows'][0]:]
+                                            -self.data_arrays[server]['irrad']['n_rows'][0]:]
 
             # Get scan proton fluence error in each row
             row_proton_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_proton_fluence_error')[
-                                                -self.data_arrays[server]['scan']['n_rows'][0]:]
+                                                -self.data_arrays[server]['irrad']['n_rows'][0]:]
 
             # Calculate mean proton fluence of last scan
             mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(
@@ -646,8 +678,8 @@ class IrradConverter(DAQProcess):
             mean_result_proton_fluence = np.mean(self._row_fluence_hist[server])
             mean_result_tid = analysis.formulas.tid_scan(proton_fluence=mean_result_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
             # FIXME: hardcoded error! Pass errors through DAQ setup
-            mean_result_neq_fluence = mean_result_proton_fluence * ufloat( self.setup['server'][server]['daq']['kappa'],
-                                                                           self.setup['server'][server]['daq']['kappa'] * 0.15)
+            mean_result_neq_fluence = mean_result_proton_fluence * ufloat(self.setup['server'][server]['daq']['kappa'],
+                                                                          self.setup['server'][server]['daq']['kappa'] * 0.15)
 
             self.data_arrays[server]['result']['proton_fluence'] = mean_result_proton_fluence.n
             self.data_arrays[server]['result']['proton_fluence_error'] = mean_result_proton_fluence.s
@@ -719,6 +751,21 @@ class IrradConverter(DAQProcess):
 
         return rad_data
 
+    def _store_axis_data(self, server, data, meta):
+
+        axis_domain = 'motorstage_{}'.format(data['axis_domain'].lower())
+
+        self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
+        self.data_arrays[server][axis_domain]['axis'] = data['axis']
+        self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
+        self.data_arrays[server][axis_domain]['position'] = data['position']
+
+        for prop in ('speed', 'accel', 'travel'):
+            if prop in data:
+                self.data_arrays[server][axis_domain][prop] = data[prop]
+
+        self.data_flags[server][axis_domain] = True
+
     def interpret_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -759,7 +806,7 @@ class IrradConverter(DAQProcess):
                 if ntc_data:
                     interpreted_data.append(ntc_data)
 
-        elif meta_data['type'] == 'stage':
+        elif meta_data['type'] == 'scan':
 
             scan_data = self._interpret_scan_data(server=server, data=data, meta=meta_data)
 
@@ -775,9 +822,13 @@ class IrradConverter(DAQProcess):
         elif meta_data['type'] == 'rad_monitor':
             rad_data = self._interpret_rad_monitor_data(server=server, data=data, meta=meta_data)
             interpreted_data.append(rad_data)
+            
+        # A motorstage axis has send movement change data
+        elif meta_data['type'] == 'axis':
+            self._store_axis_data(server=server, data=data, meta=meta_data)
 
         # If event is not set, store data to hdf5 file
-        if not self.interaction_flags[server]['write'].is_set():
+        if self.interaction_flags[server]['write'].is_set():
             self.store_data(server)
         else:
             logging.debug("Data of {} is not being recorded...".format(self.setup['server'][server]['name']))
@@ -842,20 +893,16 @@ class IrradConverter(DAQProcess):
                 server, record = data
 
                 if record:  # We want to write
-                    self.interaction_flags[server]['write'].clear()
-                else:
                     self.interaction_flags[server]['write'].set()
+                else:
+                    self.interaction_flags[server]['write'].clear()
 
-                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, not self.interaction_flags[server]['write'].is_set()])
+                self._send_reply(reply=cmd, sender=target, _type='STANDARD', data=[server, self.interaction_flags[server]['write'].is_set()])
 
             elif cmd == 'update_group_ifs':
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
                 self._interpret_event(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
-
-            elif cmd == 'prepare_scan':
-                server, irrad_setup = data['server'], data['setup']
-                self._irrad_setup[server] = irrad_setup
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

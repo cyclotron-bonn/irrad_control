@@ -10,12 +10,12 @@ _event_dtype = [('timestamp', '<f8'),
 
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
-                     ('axis_id', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
-                     ('movement_status', 'U10'),  # String stating whether stage starts or stops movement
-                     ('position', '<f4'),  # Position at movement status
-                     ('speed', '<f4'),  # Speed at movement status
-                     ('accel', '<f4'),  # Acceleration at movement status
-                     ('travel', '<f4')]  # Travel
+                     ('axis', '<i1'),  # Integer which corresponds to axis (0->x, 1->y, ...)
+                     ('movement_status', 'S10'),  # String stating whether stage starts or stops movement
+                     ('position', '<f4'),  # Position at movement status [mm]
+                     ('speed', '<f4'),  # Speed at movement status [mm/s]
+                     ('accel', '<f4'),  # Acceleration at movement status [mm/s2]
+                     ('travel', '<f4')]  # Travel [mm]
 
 # Beam data type: contains info about beam current and position from primary and secondary signals
 _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
@@ -29,21 +29,34 @@ _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
-               ('n_rows', '<i2'),  # Number of total rows
                ('row_start_timestamp', '<f8'),  # Posix-timestamp when beginning to scan a row [s]
                ('row_stop_timestamp', '<f8'),  # Posix-timestamp when ending to scan a row [s]
                ('row_start_x', '<f4'),  # x component of the starting position of currently-scanned row [mm]
                ('row_start_y', '<f4'),  # y component of the starting position of currently-scanned row [mm]
                ('row_stop_x', '<f4'),  # x component of the stopping position of currently-scanned row [mm]
                ('row_stop_y', '<f4'),  # # y component of the stopping position of currently-scanned row [mm]
-               ('row_mean_beam_current', '<f4'),  # Mean of the beam current during scanning current row [nA]
-               ('row_mean_beam_current_error', '<f4'),  # Error of the beam current; quadratic addition of std of beam current and measurement error [nA]
+               ('row_mean_beam_current', '<f4'),  # Mean of the beam current during scanning current row [A]
+               ('row_mean_beam_current_error', '<f4'),  # Error of the beam current; quadratic addition of std of beam current and measurement error [A]
                ('row_proton_fluence', '<f8'),  # The proton fluence during scanning current row [protons/cm^2]
                ('row_proton_fluence_error', '<f8'),  # Error of the proton fluence during scanning current row [protons/cm^2]
                ('row_tid', '<f4'),  # The TID during scanning current row [Mrad]
                ('row_tid_error', '<f4'),  # Error of the tid [Mrad]
                ('row_scan_speed', '<f4'),  # Speed with which the sample is scanned [mm/s]
-               ('row_separation', '<f4')]  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
+               ('row_scan_accel', '<f4')]  # Acceleration with which scan speed is approached / slowed down [mm/s^2]
+
+# Scan configuration data type: contains the initial scan configuration.
+_irrad_dtype = [('timestamp', '<f8'),  # Posix-timestamp of init [s]
+                ('row_separation', '<f4'),  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
+                ('n_rows', '<i2'),  # Number of total rows in scan
+                ('aim_damage', 'S4'),  # Either NIEL or TID
+                ('aim_value', '<f4'),  # Nominal value of damage to be induced, either in neq/cm^2 or Mrad
+                ('min_scan_current', '<f4'),  # Minimum current for scanning [A]
+                ('scan_origin_x', '<f4'),  # x component of the scan origin from where the rel. coord. system is constructed [mm]
+                ('scan_origin_y', '<f4'),  # y component of the scan origin from where the rel. coord. system is constructed [mm]
+                ('scan_area_start_x', '<f4'),  # x component of the upper left corner of the scan area [mm]
+                ('scan_area_start_y', '<f4'),  # y component of the upper left corner of the scan area [mm]
+                ('scan_area_stop_x', '<f4'),  # x component of the lower right corner of the scan area [mm]
+                ('scan_area_stop_y', '<f4')]  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
 
 # Damage data dtype; contains NIEL and TID damage data on a per-scan basis
 _damage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
@@ -71,6 +84,7 @@ class IrradDtypes:
     motorstage = np.dtype(_motorstage_dtype)
     beam = np.dtype(_beam_dtype)
     scan = np.dtype(_scan_dtype)
+    irrad = np.dtype(_irrad_dtype)
     damage = np.dtype(_damage_dtype)
     result = np.dtype(_result_dtype)
 

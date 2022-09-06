@@ -9,8 +9,9 @@
 .pydevproject
 # egg-info folder
 irrad_control.egg-info/
-# xy config
-irrad_control/devices/stage/xy_stage_config.yaml
+# Ignore all motorstage configs since they change on every use
+irrad_control/devices/motorstage/*.yaml
+irrad_control/devices/motorstage/*.yml
 # PID file
 irrad_control/config/.irrad.pid
 # macOS stuff

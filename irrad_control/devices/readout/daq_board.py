@@ -92,7 +92,12 @@ class IrradDAQBoard(object):
 
     def set_ntc_channel(self, channel):
 
+        # In case of cycling channels
+        if self.is_cycling_temp_channels():
+            self.stop_cycle_temp_channels()
+
         self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'], val=channel)
+
 
         self.ntc = channel
 
