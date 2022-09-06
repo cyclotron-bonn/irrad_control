@@ -183,6 +183,6 @@ irradiations or test beams at the proton irradiation site at Bonn university, pl
     #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for Si-Detectors at the Bonn Isochronous Cyclotron”, in Proc. IPAC'22, Bangkok, Thailand, Jun. 2022, pp. 130-132. doi:10.18429/JACoW-IPAC2022-MOPOST030 <https://ipac2022.vrws.de/papers/mopost030.pdf>`_
 
 
-.. |test-status| image:: https://github.com/Silab-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=development
-    :target: https://github.com/SiLab-Bonn/irrad_control/actions
+.. |test-status| image:: https://github.com/Cyclotron-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=main
+    :target: https://github.com/Cyclotron-Bonn/irrad_control/actions
     :alt: Build status
