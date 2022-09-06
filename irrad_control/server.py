@@ -256,7 +256,7 @@ class IrradServer(DAQProcess):
 
             return res
 
-        call_kwargs = {} if call_data is None else call_data['kwargs']
+        call_kwargs = {} if call_data is None or 'kwargs' not in call_data else call_data['kwargs']
         callback = False if call_data is None or 'callback' not in call_data else call_data['callback']
         call_threaded = False if call_data is None or 'threaded' not in call_data else call_data['threaded']
 
