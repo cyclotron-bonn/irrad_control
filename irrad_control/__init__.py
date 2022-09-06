@@ -3,7 +3,7 @@ import os
 import yaml
 
 # Version
-__version__ = '1.2.0'
+__version__ = '2.0.0'
 
 # Paths
 package_path = os.path.dirname(__file__)
