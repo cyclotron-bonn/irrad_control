@@ -19,8 +19,8 @@ with open('requirements.txt' if not _server else 'requirements_server.txt') as f
 # Make dict to pass to setup
 setup_kwargs = {'name': 'irrad_control',
                 'version': version,
-                'description': 'Control software for irradiation facility at HISKP cyclotron at Bonn University',
-                'url': 'https://github.com/SiLab-Bonn/irrad_control',
+                'description': 'Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University',
+                'url': 'https://github.com/Cyclotron-Bonn/irrad_control',
                 'license': 'MIT License',
                 'long_description': '',
                 'author': author,
