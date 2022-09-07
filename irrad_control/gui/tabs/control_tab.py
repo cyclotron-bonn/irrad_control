@@ -39,10 +39,13 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def _init_tab(self, server):
 
+        # R/O device
+        ro_device = None if 'readout' not in self.setup[server] else self.setup[server]['readout']['device']
+
         # Get widgets
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server)
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server)
-        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=self.setup[server]['readout']['device'])
+        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device)
         status_widget = ic_cntrl_wdgts.StatusInfoWidget('Status')
 
         # Connect command signals

@@ -53,6 +53,8 @@ class MotorStageControlWidget(ControlWidget):
 
         self.motorstage_properties = defaultdict(dict)
 
+        self._motorstage_widgets =defaultdict(dict)
+
         self._init_buttons()
 
         self.add_widget(self.tabs)
@@ -79,32 +81,27 @@ class MotorStageControlWidget(ControlWidget):
                   lambda _: self.motorstage_positions_window.tabs.setCurrentIndex(self.tabs.currentIndex())]:
             master_btn_positions.clicked.connect(x)
 
-        # self.add_widget(master_btn_stop)
+        self.add_widget(master_btn_stop)
         self.add_widget(master_btn_positions)
 
     def _get_n_axis(self, motorstage):
-        try:
-            n_axis = DEVICES_CONFIG[motorstage]['init']['n_axis']
-        except KeyError:
-            n_axis = 1
-        return n_axis
+        return DEVICES_CONFIG[motorstage]['init'].get('n_axis', 1)
 
-    def _update_ui_elements(self, motorstage, elements, axis):
-
-        spxs_range, spx_speed, spx_abs = elements
+    def _update_ui_elements(self, motorstage):
         
-        if axis == 1:
-            spxs_range[0].setValue(self.motorstage_properties[motorstage]['range'][0])
-            spxs_range[1].setValue(self.motorstage_properties[motorstage]['range'][1])
-            spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
-            spx_abs.setRange(*self.motorstage_properties[motorstage]['range'])
-            spx_abs.setValue(*self.motorstage_properties[motorstage]['range'][0])
+        if self._get_n_axis(motorstage) == 1:
+            self._motorstage_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage]['range'][0])
+            self._motorstage_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage]['range'][1])
+            self._motorstage_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage]['speed'])
+            self._motorstage_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage]['range'])
+            self._motorstage_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage]['range'][0])
         else:
-            spxs_range[0].setValue(self.motorstage_properties[motorstage][axis]['range'][0])
-            spxs_range[1].setValue(self.motorstage_properties[motorstage][axis]['range'][1])
-            spx_speed.setValue(self.motorstage_properties[motorstage][axis]['speed'])
-            spx_abs.setRange(*self.motorstage_properties[motorstage][axis]['range'])
-            spx_abs.setValue(*self.motorstage_properties[motorstage][axis]['range'][0])
+            axis_idx = self._motorstage_widgets[motorstage]['cbx_axis'].currentIndex()
+            self._motorstage_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
+            self._motorstage_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][1])
+            self._motorstage_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage][axis_idx]['speed'])
+            self._motorstage_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage][axis_idx]['range'])
+            self._motorstage_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
 
     def update_motorstage_properties(self, motorstage, properties):
 
@@ -183,7 +180,11 @@ class MotorStageControlWidget(ControlWidget):
             btn_pos = QtWidgets.QPushButton('Move to')
 
             # Get number of axis
-            n_axis = 1 if 'n_axis' not in DEVICES_CONFIG[motorstage]['init'] else DEVICES_CONFIG[motorstage]['init']['n_axis']
+            n_axis = self._get_n_axis(motorstage)
+
+            # Axis selection
+            label_axis = QtWidgets.QLabel('Axis selection: ')
+            cbx_axis = QtWidgets.QComboBox()
 
             # Handle multiple axes by combobox
             if n_axis > 1:
@@ -191,11 +192,7 @@ class MotorStageControlWidget(ControlWidget):
                 # Fill properties; base unit always mm
                 for a in range(n_axis):
                     self.motorstage_properties[motorstage][a] = {prop: properties[a][prop] for prop in properties[a]}
-
-                # Axis selection
-                label_axis = QtWidgets.QLabel('Axis selection: ')
-                cbx_axis = QtWidgets.QComboBox()
-                cbx_axis.addItems([f'Axis {n}' for n in range(n_axis)])
+                    cbx_axis.addItem(f'Axis {a}')
 
                 # Connections
                 for con in [
@@ -218,6 +215,7 @@ class MotorStageControlWidget(ControlWidget):
 
                 spxs_range[1].setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
+
             else:
                 # Only one axis
                 for prop in properties:
@@ -227,17 +225,12 @@ class MotorStageControlWidget(ControlWidget):
                 spxs_range[1].setValue(spxs_range[1].maximum())
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
                 spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
-
-            # Get axis index; also for 1 axis
-            axis_idx = lambda: 0 if n_axis == 1 else cbx_axis.currentIndex()
-
+        
             ### Connections ###
             ### Connect widgets ###
 
             # Update UI elements for the motorstage
-            self.motorstagePropertiesUpdated.connect(
-                lambda motorstage, axis=axis_idx, elements=(spxs_range, spx_speed, spx_abs):
-                self._update_ui_elements(motorstage, elements, axis))
+            self.motorstagePropertiesUpdated.connect(lambda ms: self._update_ui_elements(ms))
 
             # Update combobox items
             self.motorstage_positions_window.motorstagePosChanged.connect(
@@ -272,27 +265,7 @@ class MotorStageControlWidget(ControlWidget):
                                                                                        'callback':
                                                                                            {'method': 'get_physical_props',
                                                                                             'kwargs': {'base_unit': 'mm'}}}))
-            # Rel. movement
-            #btn_rel.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-            #                                                               target=ms,
-            #                                                               cmd='move_rel',
-            #                                                               cmd_data={'kwargs': axis_kwargs({'value': spx_rel.value(),
-            #                                                                                                'unit': 'mm'}),
-            #                                                                         'threaded': True}))  # Movement in separate thread
-            # Abs. movement
-            #btn_abs.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-            #                                                               target=ms,
-            #                                                               cmd='move_abs',
-            #                                                               cmd_data={'kwargs': axis_kwargs({'value': spx_abs.value(),
-            #                                                                                                'unit': 'mm'}),
-            #                                                                         'threaded': True}))  # Movement in separate thread
-            # Abs. movement
-            #btn_pos.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
-            #                                                               target=ms,
-            #                                                               cmd='move_pos',
-            #                                                               cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
-            #                                                                         'threaded': True}))  # Movement in separate thread
-
+            
             # Rel. movement
             btn_rel.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
                                                                                      cmd='move_rel',
@@ -309,6 +282,14 @@ class MotorStageControlWidget(ControlWidget):
                                                                                      cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
                                                                                                'threaded': True}))  # Movement in separate thread
 
+            # Add all widgets which need to be accessed by instance to dict
+            self._motorstage_widgets[motorstage]['btn_stop'] = btn_stop
+            self._motorstage_widgets[motorstage]['cbx_axis'] = cbx_axis
+            self._motorstage_widgets[motorstage]['spxs_range'] = spxs_range
+            self._motorstage_widgets[motorstage]['spx_speed'] = spx_speed
+            self._motorstage_widgets[motorstage]['cbx_pos'] = cbx_pos
+            self._motorstage_widgets[motorstage]['spx_abs'] = spx_abs
+            
             # Add everything to container
             container = GridContainer(name='')
             container.grid.addWidget(label_stop, container.grid.rowCount(), 0)
@@ -595,8 +576,11 @@ class DAQControlWidget(ControlWidget):
         self.ro_device = ro_device
 
         self._style = QtWidgets.qApp.style()
-
-        self._init_ui()
+        
+        if self.ro_device is not None:
+            self._init_ui()
+        else:
+            self.add_widget(widget=QtWidgets.QLabel('No readout device!'))
 
         spacer = QtWidgets.QVBoxLayout()
         spacer.addStretch()
