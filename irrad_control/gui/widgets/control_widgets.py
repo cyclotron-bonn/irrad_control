@@ -53,7 +53,7 @@ class MotorStageControlWidget(ControlWidget):
 
         self.motorstage_properties = defaultdict(dict)
 
-        self._motorstage_widgets =defaultdict(dict)
+        self._ms_widgets =defaultdict(dict)
 
         self._init_buttons()
 
@@ -90,18 +90,18 @@ class MotorStageControlWidget(ControlWidget):
     def _update_ui_elements(self, motorstage):
         
         if self._get_n_axis(motorstage) == 1:
-            self._motorstage_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage]['range'][0])
-            self._motorstage_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage]['range'][1])
-            self._motorstage_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage]['speed'])
-            self._motorstage_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage]['range'])
-            self._motorstage_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage]['range'][0])
+            self._ms_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage]['range'][0])
+            self._ms_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage]['range'][1])
+            self._ms_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage]['speed'])
+            self._ms_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage]['range'])
+            self._ms_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage]['range'][0])
         else:
-            axis_idx = self._motorstage_widgets[motorstage]['cbx_axis'].currentIndex()
-            self._motorstage_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
-            self._motorstage_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][1])
-            self._motorstage_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage][axis_idx]['speed'])
-            self._motorstage_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage][axis_idx]['range'])
-            self._motorstage_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
+            axis_idx = self._ms_widgets[motorstage]['cbx_axis'].currentIndex()
+            self._ms_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
+            self._ms_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][1])
+            self._ms_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage][axis_idx]['speed'])
+            self._ms_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage][axis_idx]['range'])
+            self._ms_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
 
     def update_motorstage_properties(self, motorstage, properties):
 
@@ -283,12 +283,12 @@ class MotorStageControlWidget(ControlWidget):
                                                                                                'threaded': True}))  # Movement in separate thread
 
             # Add all widgets which need to be accessed by instance to dict
-            self._motorstage_widgets[motorstage]['btn_stop'] = btn_stop
-            self._motorstage_widgets[motorstage]['cbx_axis'] = cbx_axis
-            self._motorstage_widgets[motorstage]['spxs_range'] = spxs_range
-            self._motorstage_widgets[motorstage]['spx_speed'] = spx_speed
-            self._motorstage_widgets[motorstage]['cbx_pos'] = cbx_pos
-            self._motorstage_widgets[motorstage]['spx_abs'] = spx_abs
+            self._ms_widgets[motorstage]['btn_stop'] = btn_stop
+            self._ms_widgets[motorstage]['cbx_axis'] = cbx_axis
+            self._ms_widgets[motorstage]['spxs_range'] = spxs_range
+            self._ms_widgets[motorstage]['spx_speed'] = spx_speed
+            self._ms_widgets[motorstage]['cbx_pos'] = cbx_pos
+            self._ms_widgets[motorstage]['spx_abs'] = spx_abs
             
             # Add everything to container
             container = GridContainer(name='')
