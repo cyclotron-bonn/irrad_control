@@ -252,13 +252,14 @@ class IrradServer(DAQProcess):
             # Check for callback
             if callback and hasattr(self.devices[device], callback['method']):
                 res['callback'] = {**callback}
-                res['callback']['result'] = getattr(self.devices[device], res['callback']['method'])(**res['callback']['kwargs'])
+                callback_kwargs = res['callback'].get('kwargs', {}) 
+                res['callback']['result'] = getattr(self.devices[device], res['callback']['method'])(**callback_kwargs)
 
             return res
 
-        call_kwargs = {} if call_data is None or 'kwargs' not in call_data else call_data['kwargs']
-        callback = False if call_data is None or 'callback' not in call_data else call_data['callback']
-        call_threaded = False if call_data is None or 'threaded' not in call_data else call_data['threaded']
+        call_kwargs = {} if call_data is None else call_data.get('kwargs', {})
+        callback = False if call_data is None else call_data.get('callback', False)
+        call_threaded = False if call_data is None else call_data.get('threaded', False)
 
         if call_threaded:
             self.launch_thread(target=_call, call_kwargs=call_kwargs, callback=callback)
