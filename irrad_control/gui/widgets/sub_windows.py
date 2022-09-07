@@ -330,7 +330,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             for name, pos in self._positions_buffer[motorstage].items():
 
                 # Loop over content
-                for entry, val in pos:
+                for entry, val in pos.items():
                     if entry != 'delete':
                         if positions[name][entry] == val:
                                 self.positions[motorstage][name] = entry
