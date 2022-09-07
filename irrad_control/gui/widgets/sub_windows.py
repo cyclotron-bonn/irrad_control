@@ -14,7 +14,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
     motorstagePosAdded = QtCore.pyqtSignal(str, dict)
     motorstagePosRemoved = QtCore.pyqtSignal(str, list)
-    motorstagePosChanged = QtCore.pyqtSignal(dict)
+    motorstagePosChanged = QtCore.pyqtSignal(str, dict)
 
     def __init__(self, parent=None):
         super(MotorstagePositionWindow, self).__init__(parent)
@@ -325,25 +325,21 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 del self._containers[motorstage]['pos'].widgets[pos]
 
         elif validate == 'add':
-            
+
             # Loop over buffer and check if positions are the same; if so add to self.positions
             for name, pos in self._positions_buffer[motorstage].items():
 
-                # Loop over content
-                for entry, val in pos.items():
-                    if entry != 'delete':
-                        if positions[name][entry] == val:
-                                self.positions[motorstage][name] = entry
-                                self._containers[motorstage]['pos'].widgets[name][-2].setStyleSheet('QLabel {color: green;}')
-                                self._containers[motorstage]['pos'].widgets[name][-2].setText('Saved')
-                        else:
-                            logging.error(f"Postion {name} returned from server and in buffer are different")
-
+                if all(positions[name][entry] == pos[entry] for entry in pos if entry != 'delete'):
+                    self.positions[motorstage][name] = positions[name]
+                    self._containers[motorstage]['pos'].widgets[name][-2].setStyleSheet('QLabel {color: green;}')
+                    self._containers[motorstage]['pos'].widgets[name][-2].setText('Saved')
+                else:
+                    logging.error(f"Postion {name} returned from server and in buffer are different")
         else:
             logging.info(f"Unknown validation '{validate}'")
             return
 
-        self.motorstagePosChanged.emit(self.positions[motorstage])
+        self.motorstagePosChanged.emit(motorstage, self.positions[motorstage])
         self._edit_initiated[motorstage] = False
 
     def close(self):

@@ -234,7 +234,7 @@ class MotorStageControlWidget(ControlWidget):
 
             # Update combobox items
             self.motorstage_positions_window.motorstagePosChanged.connect(
-                lambda pos, ms=motorstage: None if ms not in pos else fill_combobox_items(cbx_pos, pos[ms]))
+                lambda ms, pos: fill_combobox_items(self._ms_widgets[ms]['cbx_pos'], pos))
 
             cbx_pos.currentTextChanged.connect(lambda text: btn_pos.setText(f'Move to {text}'))
 
