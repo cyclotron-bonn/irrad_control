@@ -158,12 +158,11 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         if name not in self._positions_buffer[motorstage]:
 
             coordinates = coordinates if isinstance(coordinates, list) else [coordinates]
-            unit = unit if isinstance(unit, list) else [unit]
-            date = date if isinstance(date, list) else [date]
+            date = date if date is not None else time.asctime()
 
             if len(coordinates) == 1:
                 # Buffer original position when added
-                self._positions_buffer[motorstage][name] = {'value': coordinates[0], 'unit': unit[0], 'date': date[0] if date is not None else time.asctime(), 'delete': False}
+                self._positions_buffer[motorstage][name] = {'value': coordinates[0], 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
             else:
                 self._positions_buffer[motorstage][name] = {'value': coordinates, 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
 
@@ -172,7 +171,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             for i in range(len(coordinates)):
                 spx = QtWidgets.QDoubleSpinBox()
                 spx.setPrefix(f'Axis {i}: ')
-                spx.setSuffix(f' {unit[i]}')
+                spx.setSuffix(f' {unit}')
                 spx.setDecimals(3)
                 spx.setMinimum(self._ms_spnbxs[motorstage][i].minimum())
                 spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
@@ -188,7 +187,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             # Delete checkboxes
             chbx_del = QtWidgets.QCheckBox('Delete {}'.format(name))
 
-            _widgets = [QtWidgets.QLabel(name)] + spxs + [QtWidgets.QLabel("Last updated: {}".format(date[0])),
+            _widgets = [QtWidgets.QLabel(name)] + spxs + [QtWidgets.QLabel("Last updated: {}".format(date)),
                                                           label_status,
                                                           chbx_del]
 
@@ -329,8 +328,15 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             # Loop over buffer and check if positions are the same; if so add to self.positions
             for name, pos in self._positions_buffer[motorstage].items():
 
-                if all(positions[name][entry] == pos[entry] for entry in pos if entry != 'delete'):
-                    self.positions[motorstage][name] = positions[name]
+                # Check for multi axis
+                if isinstance(pos['value'], list):
+                    check = all(positions[name][entry][0] == pos[entry] for entry in pos if entry not in ('delete', 'value'))
+                    check = check and positions[name]['value'] == pos['value']
+                else:
+                    check = all(positions[name][entry] == pos[entry] for entry in pos if entry != 'delete')
+                
+                if check:
+                    self.positions[motorstage][name] = pos
                     self._containers[motorstage]['pos'].widgets[name][-2].setStyleSheet('QLabel {color: green;}')
                     self._containers[motorstage]['pos'].widgets[name][-2].setText('Saved')
                 else:

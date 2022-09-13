@@ -58,8 +58,10 @@ def load_base_axis_config(config=None):
             return config
         elif isfile(config):
             return load_yaml(config)
-        elif isinstance(config, str) and os.access(os.path.dirname(config), os.W_OK):
-            tmp['meta']['filename'] = config
+        elif isinstance(config, str):
+            config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), config))
+            if os.access(config_path, os.W_OK):
+                tmp['meta']['filename'] = config_path
 
     return tmp
 
@@ -77,14 +79,14 @@ def save_base_axis_config(config):
         return
 
     try:
-        logging.info('Updating {} axis positions')
+        logging.info(f"Saving axis configuration at {config['meta']['filename']}")
 
         save_yaml(path=config['meta']['filename'], data=config)
 
-        logging.info('Successfully updated axis configuration')
+        logging.info('Successfully saved axis configuration')
 
     except (OSError, IOError, FileNotFoundError):
-        logging.warning("Could not update axis configuration file at {}. Maybe it is opened by another process?".format(config['meta']['filename']))
+        logging.warning(f"Could not update axis configuration file at {config['meta']['filename']}. Maybe it is opened by another process?")
 
 
 def base_axis_config_updater(base_axis_func):
