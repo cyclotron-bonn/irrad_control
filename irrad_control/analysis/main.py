@@ -213,11 +213,25 @@ def main():
             
                     if parsed['calibration']:
 
-                        res = irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data, irrad_config=content)
+                        res = irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data,
+                                                                                  irrad_config=content)
 
                         save_plots(plots=res, outfile=out_pdf)
 
+                    if parsed['scan']:
+                        
+                        res = irrad_analysis.scan.analyse_scan(data=data,
+                                                               server = content['name'])
+                        
+                        save_plots(plots=res, outfile=out_pdf)
 
+                    if parsed['beam']:
+                        
+                        res = irrad_analysis.beam.analyse_beam(data=data,
+                                                               server = content['name'])
+                    
+                        save_plots(plots=res, outfile=out_pdf)
+                    
 if __name__ == '__main__':
     main()
     

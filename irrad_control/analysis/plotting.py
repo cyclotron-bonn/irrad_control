@@ -1,9 +1,11 @@
+from cProfile import label
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 
 from datetime import datetime
 from matplotlib.colors import LogNorm
+from pkg_resources import VersionConflict
 
 from irrad_control.analysis.formulas import lin_odr
 
@@ -146,15 +148,25 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, cmap='vir
 
     return fig, ax
 
+def plot_generic_axis(axis_data, fig_ax=None, set_grid=True, **sp_kwargs):
+    fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
+    
+    ax.set_title(axis_data['title'])
+    ax.set_xlabel(axis_data['xlabel'])
+    ax.set_ylabel(axis_data['ylabel'])
+    if set_grid: ax.grid()
+    ax.legend(labels="test", loc="upper left")
+    return fig, ax
+    
 
 def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
-    
     fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
     
     # Make figure and axis
     ax.set_title(plot_data['title'])
     ax.set_xlabel(plot_data['xlabel'])
     ax.set_ylabel(plot_data['ylabel'])
+    
     if fit_data:
         ax.plot(fit_data['xdata'], fit_data['func'](*fit_data['fit_args']), fit_data['fmt'], label=fit_data['label'], zorder=10)
     if hist_data:
@@ -180,6 +192,7 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
     return fig, ax
 
 
+
 def plot_beam_current_over_time(timestamps, beam_current, ch_name):
 
     fig, ax = plot_generic_fig(plot_data={'xdata': [datetime.fromtimestamp(ts) for ts in timestamps],
@@ -188,7 +201,7 @@ def plot_beam_current_over_time(timestamps, beam_current, ch_name):
                                           'ylabel': f"Cup channel {ch_name} current / nA",
                                           'label': f'{ch_name} current',
                                           'title': f"Current of channel {ch_name}",
-                                          'fmt': 'C0-'},
+                                          'fmt': 'C0.'},
                                figsize=(8,6))
 
     ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
@@ -201,7 +214,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 
     beta_const, lambda_const = beta_lambda
 
-    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_{sum}})=\beta \cdot I_{sem_sum}}$;'
+    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_{sum}})=\beta \cdot I_{sem_{sum}}}$;'
     fit_label += '\n\t' + r'$\mathrm{\beta=\lambda \cdot 5\ V=(%.3f \pm %.3f)}$' % (beta_const.n, beta_const.s)
     fit_label += '\n\t' + r'$\lambda=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
@@ -212,7 +225,8 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                           'xlabel': f"Calibration sem_sum-type channel '{calib_sig}' current / nA",
                                           'ylabel': f"Reference cup-type channel '{ref_sig}' current / nA",
                                           'label': 'Correlation',
-                                          'title':"Beam current calibration", 'fmt':'C0.'},
+                                          'title':"Beam current calibration",
+                                          'fmt':'C0.'},
                                fit_data={'xdata': calib_data,
                                          'func': lin_odr,
                                          'fit_args': [[beta_const.n], calib_data],
@@ -223,4 +237,102 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 
     # Make figure and axis
     _, _ = ax.set_ylim(0, np.max(ref_data) * (1.25))
+    
+    return fig, ax
+
+#******** Scanplotting *******#
+def plot_tid_per_row(data):
+    fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
+                                          'ylabel': f"Accumulated TID / Mrad",
+                                          'label': "glabel",
+                                          'title': "Accumulation Of TID Per Scan"},
+                                figsize=(8,6))
+    rows = [row for row in range(len(data))]
+    bar_heights = np.zeros(len(rows))
+    datalen = len(data[0])
+    for scan in range(datalen):
+        ax.bar(x = rows, height=data[:,scan], bottom=bar_heights, color=(0,0,0.75*int(scan%2)), edgecolor=(0,0,0), linewidth=0.05)
+        bar_heights = bar_heights+data[:,scan]
+    ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
+    return fig, ax
+
+def plot_everything(data):
+    fig, tidax = plt.subplots(figsize=(8,6))
+    #tidax.set_xlim(left=data['row_start'][0]-10, right=data['row_stop'][-1]+10)
+
+    n_scan = len(data['scan_start'])
+    tick_dist = n_scan/5
+    
+    tidaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if i%tick_dist==0]
+    
+    timeax = tidax.twiny()
+    tidax.minorticks_on()
+    tidax.bar(x=data['row_start'], height=data['row_tid'], width=data['row_stop']-data['row_start'], label="Accumalation Of TID Per Scan") #add tid per scan
+    tidax.set_ylabel("TID / Mrad")
+    #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    #fig.autofmt_xdate()
+    
+    tidax.set_xticks([data['scan_start'][i] for i in range(len(data['scan_start'])) if i%tick_dist==0])
+    tidax.set_xticklabels(tidaxlabel)
+    
+    timeax.set_xlabel("Time / ?")
+    timeax.set_xlim(tidax.get_xlim())
+    timeax.minorticks_on()
+    
+    beamax = tidax.twinx()
+    #beamax.set_xlim(tidax.get_xlim())
+    beamax.set_ylabel("Current / nA")
+    mean_row_timestamps = (data['row_start']+data['row_stop'])/np.array(2)
+    beamax.plot(mean_row_timestamps, data['beam_current'], marker='o', markersize=0.1, linewidth=0.2, label="Mean Beam Current Per Row") #add beam current per row
+    
+    #print(data['scan_start'])
+    #print(np.sort(np.concatenate((data['scan_start'], data['scan_stop']))))
+    print(timeax.xaxis)
+    #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    timeax.set_xticks(tidax.get_xticks())
+    #fig.autofmt_xdate()
+    tidax.legend(loc='upper left')
+    beamax.legend(loc='upper right')
+    return fig
+    
+#******* Beamplotting ********#
+def plot_beam_current(timestamps, beam_currents, while_scan=None):
+    fig_title = "Beam current over time" if while_scan is None else "Beam current over time while scanning"
+    fig, ax = plot_generic_fig(plot_data={'xdata': [datetime.fromtimestamp(ts) for ts in timestamps],
+                                          'ydata': beam_currents,
+                                          'xlabel': f"Time",
+                                          'ylabel': f"Beam current / nA",
+                                          'label': f"Beam",
+                                          'title': fig_title,
+                                          'fmt': 'C0.'},
+                               figsize=(8,6))
+    ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    fig.autofmt_xdate()
+    return fig, ax
+
+def plot_beam_current_hist(beam_currents, while_scan=None):
+    fig_title = "Histogram Of Beam-Current Distribution" if while_scan is None else "Histogram Of Beam-Current Distribution While Scanning"
+    fig, ax = plot_generic_fig(plot_data={'xdata': beam_currents,
+                                          'xlabel': f"Beam current / nA",
+                                          'ylabel': f"#",
+                                          'label': f"Beam",
+                                          'title': fig_title,
+                                          'fmt': 'C0.'},
+                               hist_data={'bins': 'stat'},
+                               figsize=(8,6))
+    return fig, ax
+
+def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=None):
+    fig_title = "Relative Beam-Distribution From Mean Position" if while_scan is None \
+        else "Relative Beam-Distribution From Mean Position While Scanning"
+    fig, ax = plot_generic_fig(plot_data={'xdata': horizontal_deviation,
+                                          'ydata': vertical_deviation,
+                                          'xlabel': r'x-deviation / %',
+                                          'ylabel': r'y-deviation / %',
+                                          'label': r'Other title',
+                                          'title': fig_title,
+                                          'fmt': 'C0.'},
+                                hist_data={'bins': (200,200),'cmap': 'viridis', 'norm': LogNorm()},
+                                figsize=(8,6))
+    
     return fig, ax
