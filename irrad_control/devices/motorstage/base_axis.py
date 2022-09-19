@@ -60,8 +60,9 @@ def load_base_axis_config(config=None):
             return load_yaml(config)
         elif isinstance(config, str):
             config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), config))
-            if os.access(config_path, os.W_OK):
-                tmp['meta']['filename'] = config_path
+            if isfile(config_path):
+                tmp = load_yaml(config_path)
+            tmp['meta']['filename'] = config_path
 
     return tmp
 
