@@ -279,7 +279,7 @@ class MotorStageControlWidget(ControlWidget):
             # Abs. movement
             btn_pos.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
                                                                                      cmd='move_pos',
-                                                                                     cmd_data={'kwargs': {'pos': cbx_pos.currentText()},
+                                                                                     cmd_data={'kwargs': {'name': cbx_pos.currentText()},
                                                                                                'threaded': True}))  # Movement in separate thread
 
             # Add all widgets which need to be accessed by instance to dict
