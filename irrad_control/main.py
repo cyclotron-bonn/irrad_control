@@ -631,8 +631,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
             # Get motorstage responses
             elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
-                print('ggggggg', reply)
-
                 if reply in ('set_speed', 'set_range', 'set_accel', 'stop'):
                     # Callback is get_physical_props
                     self.control_tab.tab_widgets[hostname]['motorstage'].update_motorstage_properties(motorstage=sender,
