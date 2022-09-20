@@ -272,7 +272,6 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         # We have multiple axes
         if 'n_axis' in DEVICES_CONFIG[motorstage]['init']:
-            
             self._add_motorstage(motorstage=motorstage, travel_range=[p['range'] for p in properties], unit='mm')
 
         # We have only one axis
@@ -308,7 +307,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         # Check if the motorstage has more than one axis
 
         if validate == 'remove':
-            
+
             # These should not exist
             remove = [name for name, pos in self._positions_buffer[motorstage].items() if pos['delete']]
 
@@ -329,11 +328,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             for name, pos in positions.items():
                 buffer_pos = self._positions_buffer[motorstage]
                 # Check for multi axis
-                if isinstance(pos['value'], list):
-                    check = buffer_pos[name]['value'] == pos['value']  # Check the posistion is the same
-                    check = check and all(buffer_pos[name][entry] == pos[entry][0] for entry in pos if entry != 'value')
-                else:
-                    check = all(buffer_pos[name][entry] == pos[entry] for entry in pos)
+                check = all(buffer_pos[name][entry] == pos[entry] for entry in pos)
                 
                 if check:
                     self.positions[motorstage][name] = {k: v for k, v in buffer_pos[name].items() if k != 'delete'}

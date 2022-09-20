@@ -44,12 +44,12 @@ class MotorStageControlWidget(ControlWidget):
                                                                                      for n, p in pos.items()])
 
 
-        self.motorstage_positions_window.motorstagePosRemoved.connect(lambda ms, pos: [self.send_cmd(hostname=self.server,
-                                                                                                     target=ms,
-                                                                                                     cmd='remove_position',
-                                                                                                     cmd_data={'kwargs': {'name': n},
-                                                                                                               'callback': {'method': 'get_positions'}})
-                                                                                       for n in pos])
+        self.motorstage_positions_window.motorstagePosRemoved.connect(lambda ms, pos: self.send_cmd(hostname=self.server,
+                                                                                                    target=ms,
+                                                                                                    cmd='remove_position',
+                                                                                                    cmd_data={'kwargs': {'name': pos},
+                                                                                                              'callback': {'method': 'get_positions'}})
+                                                                                       )
 
         self.motorstage_properties = defaultdict(dict)
 
