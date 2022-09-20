@@ -186,6 +186,9 @@ class MotorStageControlWidget(ControlWidget):
             label_axis = QtWidgets.QLabel('Axis selection: ')
             cbx_axis = QtWidgets.QComboBox()
 
+            spxs_range[0].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(v, spxs_range[1].value()))
+            spxs_range[1].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(spxs_range[0].value(), v))
+
             # Handle multiple axes by combobox
             if n_axis > 1:
 
@@ -215,6 +218,7 @@ class MotorStageControlWidget(ControlWidget):
 
                 spxs_range[1].setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['axis_init'][cbx_axis.currentIndex()]['travel'] * 1e3)
+                spxs_range[1].setValue(self.motorstage_properties[motorstage][cbx_axis.currentIndex()]['range'][1])
 
             else:
                 # Only one axis
@@ -222,7 +226,7 @@ class MotorStageControlWidget(ControlWidget):
                     self.motorstage_properties[motorstage][prop] = properties[prop]
 
                 spxs_range[1].setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
-                spxs_range[1].setValue(spxs_range[1].maximum())
+                spxs_range[1].setValue(self.motorstage_properties[motorstage]['range'][1])
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
                 spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
         
