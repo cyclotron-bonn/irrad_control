@@ -38,7 +38,7 @@ SetupTableStage:
     port: /dev/ttyACM2
     axis_addr: 3
     step: 0.1953125e-6
-    travel: 300.0e-3
+    travel: 284.0e-3
     model: LRQ300HL-E01T3A
 
 ExternalCupStage:
