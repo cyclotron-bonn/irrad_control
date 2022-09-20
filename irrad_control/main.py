@@ -495,7 +495,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
-            print(data['data'])
+            #print(data['data'])
             pass  # TODO: handle direct axis info from server
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
@@ -631,6 +631,8 @@ class IrradControlWin(QtWidgets.QMainWindow):
             # Get motorstage responses
             elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
 
+                print('ggggggg', reply)
+
                 if reply in ('set_speed', 'set_range', 'set_accel', 'stop'):
                     # Callback is get_physical_props
                     self.control_tab.tab_widgets[hostname]['motorstage'].update_motorstage_properties(motorstage=sender,
@@ -650,11 +652,11 @@ class IrradControlWin(QtWidgets.QMainWindow):
                                                                                                               validate=reply.split('_')[0])
 
             # Debug
-            msg = 'Standard {} reply received: {}'.format(sender.capitalize(), reply)
+            msg = 'Standard {} reply received: {}'.format(sender, reply)
             logging.debug(msg)
 
         elif _type == 'ERROR':
-            msg = '{} error occurred: {}'.format(sender.capitalize(), reply)
+            msg = '{} error occurred: {}'.format(sender, reply)
             logging.error(msg)
             if self.log_dock.isHidden():
                 self.log_dock.setVisible(True)
