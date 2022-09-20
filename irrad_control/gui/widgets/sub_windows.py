@@ -326,17 +326,17 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         elif validate == 'add':
 
             # Loop over buffer and check if positions are the same; if so add to self.positions
-            for name, pos in self._positions_buffer[motorstage].items():
-
+            for name, pos in positions.items():
+                buffer_pos = self._positions_buffer[motorstage]
                 # Check for multi axis
                 if isinstance(pos['value'], list):
-                    check = all(positions[name][entry][0] == pos[entry] for entry in pos if entry not in ('delete', 'value'))
-                    check = check and positions[name]['value'] == pos['value']
+                    check = buffer_pos[name]['value'] == pos['value']  # Check the posistion is the same
+                    check = check and all(buffer_pos[name][entry] == pos[entry][0] for entry in pos if entry != 'value')
                 else:
-                    check = all(positions[name][entry] == pos[entry] for entry in pos if entry != 'delete')
+                    check = all(buffer_pos[name][entry] == pos[entry] for entry in pos)
                 
                 if check:
-                    self.positions[motorstage][name] = pos
+                    self.positions[motorstage][name] = {k: v for k, v in buffer_pos[name].items() if k != 'delete'}
                     self._containers[motorstage]['pos'].widgets[name][-2].setStyleSheet('QLabel {color: green;}')
                     self._containers[motorstage]['pos'].widgets[name][-2].setText('Saved')
                 else:
