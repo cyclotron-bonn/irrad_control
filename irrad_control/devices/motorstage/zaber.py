@@ -451,7 +451,9 @@ class ZaberMultiAxis(object):
         positions = {}
         for cp in common_positions:
             coordinates, units, dates = ([pos[cp][x] for pos in axes_positions] for x in ('value', 'unit', 'date'))
-            positions[cp] = {'value': coordinates, 'unit': units, 'date': dates} 
+            if any(len(set(x)) != 1 for x in (units, dates)):
+                logging.warning(f"Multi-axis position {cp} of motorstage {type(self).__name__} has differetn units / dates!")
+            positions[cp] = {'value': coordinates, 'unit': units[0], 'date': dates[0]} 
 
         return positions
 
