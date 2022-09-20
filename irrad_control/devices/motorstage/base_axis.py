@@ -321,14 +321,17 @@ class BaseAxis(object):
 
         Parameters
         ----------
-        name: str
-            name of the position
+        name: str, Iterable of str
+            name(s) of the position(s) to remove
         """
 
-        if name in self.config['axis']['positions']:
-            del self.config['axis']['positions'][name]
-        else:
-            logging.warning('Position {} unknown and therefore cannot be removed.'.format(name))
+        pos_to_remove = name if isinstance(name, (list, tuple)) else (name,)
+
+        for rp in pos_to_remove:
+            if rp in self.config['axis']['positions']:
+                del self.config['axis']['positions'][rp]
+            else:
+                logging.warning(f'Position {rp} unknown and therefore cannot be removed.')
 
     def save_config(self):
         save_base_axis_config(config=self.config)

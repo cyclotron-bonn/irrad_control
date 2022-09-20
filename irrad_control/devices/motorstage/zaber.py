@@ -607,11 +607,11 @@ class ZaberMultiAxis(object):
 
         Parameters
         ----------
-        name: str
-            name of the position
+        name: str, iterable of str
+            name(s) of the position(s) to remove
         """
 
-        for i, axis in enumerate(self.axis):
+        for axis in self.axis:
             axis.remove_position(name=name)
 
     def save_config(self):
