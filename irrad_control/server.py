@@ -144,6 +144,17 @@ class IrradServer(DAQProcess):
             self.on_demand_events['stop_rad_monitor']
             self.on_demand_events['rad_monitor_idle'].set()
 
+        if 'ScanStage' in self.devices:
+
+            # Add special __scan__ device which from now on can be accessed via the direct device calls
+            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'])
+
+            # Connect to ZMQ
+            self.devices['__scan__'].setup_zmq(ctx=self.context,
+                                               skt=self.socket_type['data'],
+                                               addr=self._internal_sub_addr,
+                                               sender=self.server)
+
     def daq_thread(self, daq_func):
         """
         Does data acquisition in separate thread, retrieving results and putting them into the outgoing queue
@@ -288,29 +299,6 @@ class IrradServer(DAQProcess):
             elif cmd == 'motorstages':
                 reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
-
-        elif target == 'scan':
-
-            if cmd == 'setup':
-
-                if 'ScanStage' in self.devices:
-
-                    # Add special __scan__ device which from now on can be accessed via the direct device calls
-                    self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'], scan_config=data)
-
-                    # Connect to ZMQ
-                    self.devices['__scan__'].setup_zmq(ctx=self.context,
-                                                       skt=self.socket_type['data'],
-                                                       addr=self._internal_sub_addr,
-                                                       sender=self.server)
-
-                    # Make return data
-                    _data = {'n_rows': self.devices['__scan__'].n_rows, 'rows': self.devices['__scan__'].rows}
-
-                    self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=_data)
-                else:
-                    logging.error(f"No ScanStage in server {self.name} devices. Abort.")
-                    self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
