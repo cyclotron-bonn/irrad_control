@@ -28,7 +28,7 @@ class DUTScan(object):
     def rows(self, val):
         raise AttributeError("rows is read-only")
 
-    def __init__(self, scan_stage, scan_config):
+    def __init__(self, scan_stage, config=None):
 
         # Timing-related
         self._event_wait_time = 0.1  # Wait for events to be set
@@ -37,7 +37,8 @@ class DUTScan(object):
         self.scan_stage = scan_stage
 
         # Scan configuration
-        self.scan_config = scan_config
+        if config is not None:
+            self.setup_scan(scan_config=config)
 
         # ZMQ configuration
         self.zmq_config = {}
@@ -76,16 +77,22 @@ class DUTScan(object):
         """
 
         if event == 'abort':
+            logging.warning("Aborting scan!")
             self._events['stop'].set()
         elif event == 'finish':
+            logging.info("Finishing scan!")
             self._events['complete'].set()
         elif event == 'pause':
+            logging.info("Pausing scan!")
             self._events['wait'].set()
         elif event == 'continue':
+            logging.info("Continuing scan!")
             self._events['wait'].clear()
         elif event in ('beam_down', 'beam_jitter'):
+            logging.warning("Scan on standby due to beam conditions!")
             self._events['standby'].set()
         elif event == 'beam_ok':
+            logging.debug("Beam conditions recovered!")
             self._events['standby'].clear()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
@@ -106,7 +113,7 @@ class DUTScan(object):
         # Store
         self.zmq_config.update({'ctx': ctx, 'skt': skt, 'addr': addr, 'sender': sender})
 
-    def _setup_scan(self):
+    def setup_scan(self, scan_config):
         """
         Prepares a scan by gathering info from self.scan_config and generating all needed quantities in internal self._scan_config
 
@@ -127,23 +134,27 @@ class DUTScan(object):
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units
 
         # Start position of the scan in native units
-        self._scan_params['start'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, self.scan_config['rel_start'][i]) for i in (0, 1))
+        self._scan_params['start'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_start'][i]) for i in (0, 1))
 
         # Start position of the scan in native units
-        self._scan_params['end'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, self.scan_config['rel_end'][i]) for i in (0, 1))
+        self._scan_params['end'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_end'][i]) for i in (0, 1))
 
         # Store scan speed
-        self._scan_params['scan_speed'] = self.scan_config['scan_speed']  # mm/s
+        self._scan_params['scan_speed'] = scan_config['scan_speed']  # mm/s
 
         # Store step size
-        self._scan_params['row_sep'] = self.scan_config['row_sep']  # mm
+        self._scan_params['row_sep'] = scan_config['row_sep']  # mm
 
         # Store number of rows in this scan
-        self._scan_params['n_rows'] = int(abs(self._scan_params['end'][1] - self._scan_params['start'][1]) / axis_mm_to_native(1, self.scan_config['row_sep']))
+        self._scan_params['n_rows'] = int(abs(self._scan_params['end'][1] - self._scan_params['start'][1]) / axis_mm_to_native(1, scan_config['row_sep']))
 
         # Make dictionary with absolute position in native units of each row
         self._scan_params['rows'] = dict([(row, self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep']))
                                          for row in range(self._scan_params['n_rows'])])
+
+        self.scan_config = scan_config
+
+        return self._scan_params
 
     def _check_scan(self):
         """
@@ -167,7 +178,7 @@ class DUTScan(object):
 
         return True
 
-    def scan_row(self, row, speed=None):
+    def scan_row(self, row, speed=None, repeat=1):
         """
         Method to scan a single row of a device. Uses info about scan parameters from self._scan_params dict.
         Does sanity checks. The actual scan is done in a separate thread which calls self._scan_row.
@@ -178,6 +189,8 @@ class DUTScan(object):
             Integer of row which should be scanned
         speed : float, None
             Scan speed in mm/s or None. If None, current speed of x-axis is used for scanning
+        repeat : int
+            Number of times *row* should be scanned with *speed*
         """
 
         # Check scan configuration dict
@@ -190,7 +203,7 @@ class DUTScan(object):
             return
 
         # Start scan in separate thread
-        scan_thread = threading.Thread(target=self._scan_row, args=(row, speed))
+        scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat})
         scan_thread.start()
 
     def scan_device(self):
@@ -208,7 +221,7 @@ class DUTScan(object):
         scan_thread = threading.Thread(target=self._scan_device)
         scan_thread.start()
 
-    def _scan_row(self, row, speed=None, scan=-1, data_pub=None):
+    def _scan_row(self, row, speed=None, scan=-1, data_pub=None, repeat=1):
         """
         Method which is called by self._scan_device or self.scan_row. See docstrings there.
 
@@ -222,6 +235,8 @@ class DUTScan(object):
             Integer indicating the scan number during self.scan_device. *scan* for single rows is -1
         data_pub : zmq socket, None
             Socket on which data is published. If None, check if a socket can be created, if not, no data is published
+        repeat : int
+            Number of times *row* should be scanned with *speed*
         """
 
         # Check socket, if no socket is given and ZMQ is setup for this instance, open one
@@ -259,57 +274,60 @@ class DUTScan(object):
             msg = "Y-axis did not move to row {}. Abort.".format(row)
             raise ScanError(msg)
 
-        # Current x position
-        x_current = self.scan_stage.axis[0].get_position()
+        # Scan row *repeat* times
+        for _ in range(int(repeat)):
 
-        # If we're not at the start or end of a row, something went wrong
-        if x_current not in (x_start, x_end):
-            msg = "Current x-axis position ({}) does not correspond to either start ({}) or end ({}) x-position of the scan. Abort!"
-            msg.format(x_current, x_start, x_end)
-            raise ScanError(msg)
+            # Current x position
+            x_current = self.scan_stage.axis[0].get_position()
 
-        # Check for beam current to be sufficient / beam to be on for scan; if not wait
-        while self._events['standby'].wait(self._event_wait_time):
-            logging.warning("Insufficient beam conditions. Waiting for beam to stabilize")
-            time.sleep(self._between_checks_time)
+            # If we're not at the start or end of a row, something went wrong
+            if x_current not in (x_start, x_end):
+                msg = "Current x-axis position ({}) does not correspond to either start ({}) or end ({}) x-position of the scan. Abort!"
+                msg.format(x_current, x_start, x_end)
+                raise ScanError(msg)
 
-            # If beam does not recover and we need to stop manually
-            if self.stop_scan.wait(self._event_wait_time):
-                raise ScanError("Scan was stopped manually")
+            # Check for beam current to be sufficient / beam to be on for scan; if not wait
+            while self._events['standby'].wait(self._event_wait_time):
+                logging.warning("Insufficient beam conditions. Waiting for beam to stabilize")
+                time.sleep(self._between_checks_time)
 
-        # Publish if we have a socket
-        if data_pub is not None:
+                # If beam does not recover and we need to stop manually
+                if self.stop_scan.wait(self._event_wait_time):
+                    raise ScanError("Scan was stopped manually")
 
-            # Publish data
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
-            _data = {'status': 'scan_start', 'scan': scan, 'row': row,
-                     'speed': self.scan_stage.axis[0].get_speed(unit='mm/s'),
-                     'accel': self.scan_stage.axis[0].get_accel(unit='mm/s^2'),
-                     'x_start': self.scan_stage.axis[0].get_position(unit='mm'),
-                     'y_start': self.scan_stage.axis[1].get_position(unit='mm')}
+            # Publish if we have a socket
+            if data_pub is not None:
 
-            # Publish data
-            data_pub.send_json({'meta': _meta, 'data': _data})
+                # Publish data
+                _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
+                _data = {'status': 'scan_start', 'scan': scan, 'row': row,
+                        'speed': self.scan_stage.axis[0].get_speed(unit='mm/s'),
+                        'accel': self.scan_stage.axis[0].get_accel(unit='mm/s^2'),
+                        'x_start': self.scan_stage.axis[0].get_position(unit='mm'),
+                        'y_start': self.scan_stage.axis[1].get_position(unit='mm')}
 
-        # Scan the current row
-        self.scan_stage.move_abs(axis=0, value=x_end if x_current == x_start else x_start)
+                # Publish data
+                data_pub.send_json({'meta': _meta, 'data': _data})
 
-        # Check reply; if something went wrong raise error
-        if self.scan_stage.axis[0].error:
-            msg = "X-axis did not scan row {}. Abort.".format(row)
-            raise ScanError(msg)
+            # Scan the current row
+            self.scan_stage.move_abs(axis=0, value=x_end if x_current == x_start else x_start)
 
-        # Publish if we have a socket
-        if data_pub is not None:
+            # Check reply; if something went wrong raise error
+            if self.scan_stage.axis[0].error:
+                msg = "X-axis did not scan row {}. Abort.".format(row)
+                raise ScanError(msg)
 
-            # Publish stop data
-            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
-            _data = {'status': 'scan_stop',
-                     'x_stop': self.scan_stage.axis[0].position(unit='mm'),
-                     'y_stop': self.scan_stage.axis[1].position(unit='mm')}
+            # Publish if we have a socket
+            if data_pub is not None:
 
-            # Publish data
-            data_pub.send_json({'meta': _meta, 'data': _data})
+                # Publish stop data
+                _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
+                _data = {'status': 'scan_stop',
+                        'x_stop': self.scan_stage.axis[0].position(unit='mm'),
+                        'y_stop': self.scan_stage.axis[1].position(unit='mm')}
+
+                # Publish data
+                data_pub.send_json({'meta': _meta, 'data': _data})
 
         if spawn_pub:
             data_pub.close()

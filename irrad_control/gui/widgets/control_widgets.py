@@ -409,9 +409,9 @@ class ScanControlWidget(ControlWidget):
                             'rel_end': [0.0, 0.0]}
 
         self._after_scan_container = None
+        self.n_rows = None
 
         self._init_ui()
-        #self.init_after_scan_ui(40)
 
         spacer = QtWidgets.QVBoxLayout()
         spacer.addStretch()
@@ -511,16 +511,26 @@ class ScanControlWidget(ControlWidget):
         # Scan
         btn_start = QtWidgets.QPushButton('START')
         btn_start.setToolTip("Start scan.")
-        btn_start.clicked.connect(lambda _: self.send_cmd(hostname=self.server, target='scan', cmd='setup', cmd_data=self.scan_params))
+        btn_start.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                          target='__scan__',
+                                                          cmd='setup_scan',
+                                                          cmd_data={'kwargs': {'scan_config': self.scan_params},
+                                                                    'callback': {'method': 'scan_device'}}))
 
         btn_finish = QtWidgets.QPushButton('FINISH')
         btn_finish.setToolTip("Finish the scan. Allow remaining rows to be scanned before finishing.")
-        btn_finish.clicked.connect(lambda _: self.send_cmd(hostname=self.server, target='scan', cmd='finish'))
+        btn_finish.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                           target='__scan__',
+                                                           cmd='handle_event',
+                                                           cmd_data={'kwargs': {'event': 'finish'}}))
 
         # Stop button
         btn_stop = QtWidgets.QPushButton('STOP')
         btn_stop.setToolTip("Immediately cancel scan and return to scan origin")
-        btn_stop.clicked.connect(lambda _: self.send_cmd(hostname=self.server, target='scan', cmd='stop'))
+        btn_stop.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                           target='__scan__',
+                                                           cmd='handle_event',
+                                                           cmd_data={'kwargs': {'event': 'abort'}}))
 
         btn_start.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
@@ -542,30 +552,35 @@ class ScanControlWidget(ControlWidget):
         self.add_widget(widget=[label_end, spx_end_x, spx_end_y])
         self.grid.addLayout(layout_scan, self.grid.rowCount(), 0, 1, 3)
 
-    def init_after_scan_ui(self, n_rows):
-        # Make container
-        self._after_scan_container = GridContainer('After scan')
+    def init_after_scan_ui(self):
 
-        # Individual row scanning
-        label_scan_row = QtWidgets.QLabel('Scan individual row:')
-        spx_row = QtWidgets.QSpinBox()
-        spx_row.setPrefix('Row: ')
-        spx_row.setRange(0, n_rows)
-        spx_speed = QtWidgets.QDoubleSpinBox()
-        spx_speed.setPrefix('Scan speed: ')
-        spx_speed.setSuffix(' mm/s')
-        spx_speed.setRange(1e-3, 110)
-        spx_speed.setValue(self.scan_params['scan_speed'])
-        spx_repeat = QtWidgets.QSpinBox()
-        spx_repeat.setPrefix('Repeat: ')
-        spx_repeat.setRange(1, 10)
-        btn_scan_row = QtWidgets.QPushButton('Scan row')
-        btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server, target='scan', cmd='row', cmd_data={'row': spx_row.value(),
-                                                                                                                       'scan_speed': spx_speed.value(),
-                                                                                                                       'repeat': spx_repeat.value()}))
+        if self.n_rows is not None:
+            # Make container
+            self._after_scan_container = GridContainer('After scan')
 
-        self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
-        self.grid.addWidget(self._after_scan_container, self.grid.rowCount(), 0, 1, 3)
+            # Individual row scanning
+            label_scan_row = QtWidgets.QLabel('Scan individual row:')
+            spx_row = QtWidgets.QSpinBox()
+            spx_row.setPrefix('Row: ')
+            spx_row.setRange(0, self.n_rows - 1)
+            spx_speed = QtWidgets.QDoubleSpinBox()
+            spx_speed.setPrefix('Scan speed: ')
+            spx_speed.setSuffix(' mm/s')
+            spx_speed.setRange(1e-3, 110)
+            spx_speed.setValue(self.scan_params['scan_speed'])
+            spx_repeat = QtWidgets.QSpinBox()
+            spx_repeat.setPrefix('Repeat: ')
+            spx_repeat.setRange(1, 10)
+            btn_scan_row = QtWidgets.QPushButton('Scan row')
+            btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                                target='__scan__',
+                                                                cmd='scan_row',
+                                                                cmd_data={'kwargs': {'row': spx_row.value(),
+                                                                                    'speed': spx_speed.value(),
+                                                                                    'repeat': spx_repeat.value()}}))
+
+            self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
+            self.grid.addWidget(self._after_scan_container, self.grid.rowCount(), 0, 1, 3)
 
 
 class DAQControlWidget(ControlWidget):
