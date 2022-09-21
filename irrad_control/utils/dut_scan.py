@@ -372,8 +372,8 @@ class DUTScan(object):
             scan = 0
 
             # Initialize rows of scan for top to bottom and bottom to top scan; reuse to safe resources
-            top_to_bottom_rows = range(self._scan_params['rows'])
-            bottom_to_top_rows = range(self._scan_params['rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
+            top_to_bottom_rows = range(self._scan_params['n_rows'])
+            bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
 
             # Loop until self._events['stop'] or self._events['complete']
             while not (self.events['stop'].wait(self._event_wait_time) or self.events['complete'].wait(self._event_wait_time)):
