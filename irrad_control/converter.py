@@ -609,18 +609,19 @@ class IrradConverter(DAQProcess):
                     eta_n_scans = int(remainder_TID / analysis.formulas.tid_scan(proton_fluence=row_proton_fluence.n,
                                                                                  stopping_power=analysis.constants.p_stop_Si))
 
-                eta_time = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
+                eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
 
             except ZeroDivisionError:
                 eta_time = eta_n_scans = -1
 
-            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'row'},
+            scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
                                   'fluence_hist_err': unumpy.std_devs(self._row_fluence_hist[server]).tolist(),
                                   'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
                                   'row_mean_tid': (row_proton_tid.n, row_proton_tid.s),
                                   'row': int(self.data_arrays[server]['scan']['row'][0]),
-                                  'eta_time': eta_time, 'eta_n_scans': eta_n_scans}}
+                                  'eta_seconds': eta_seconds, 'eta_n_scans': eta_n_scans,
+                                  'status': 'interpreted'}}
 
         elif data['status'] == 'scan_complete':
 

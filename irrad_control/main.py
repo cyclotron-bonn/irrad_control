@@ -442,18 +442,6 @@ class IrradControlWin(QtWidgets.QMainWindow):
             if 'sey_vertical_idx' in data['data']:
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
-        # Check whether data is interpreted
-        elif data['meta']['type'] == 'row':
-            self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-            #self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
-            #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-
-            if data['data']['eta_n_scans'] >= 0:
-                self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-                # FIXME: more precise result would be helpful
-                if data['data']['eta_n_scans'] == 0:
-                    self.send_cmd(server, 'stage', 'finish')
-
         elif data['meta']['type'] == 'damage':
 
             #update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
@@ -483,6 +471,21 @@ class IrradControlWin(QtWidgets.QMainWindow):
                 # Enable all record buttons when scan is over
                 self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
+
+                # Check whether data is interpreted
+            elif data['meta']['status'] == 'interpreted':
+                self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
+                #self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+                #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
+
+                if data['data']['eta_n_scans'] >= 0:
+                    # self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
+                    # FIXME: more precise result would be helpful
+                    pass
+
+                # Finish the scan programatically
+                if data['data']['eta_n_scans'] == 0:
+                    self.send_cmd(server, 'stage', 'finish')
 
         elif data['meta']['type'] == 'temp_arduino':
 
