@@ -515,7 +515,16 @@ class ScanControlWidget(ControlWidget):
                                                           target='__scan__',
                                                           cmd='setup_scan',
                                                           cmd_data={'kwargs': {'scan_config': self.scan_params},
-                                                                    'callback': {'method': 'scan_device'}}))
+                                                                    'threaded': True,
+                                                                    'callback': {'method': '_scan_device'}}))
+
+        btn_pause = QtWidgets.QPushButton('PAUSE')
+        btn_pause.setToolTip("Pause the scan. Allow remaining rows to be scanned before pausing.")
+        btn_pause.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                          target='__scan__',
+                                                          cmd='handle_event',
+                                                          cmd_data={'kwargs': {'event': btn_pause.text().lower()}}))
+        btn_pause.clicked.connect(lambda _: btn_pause.setText('CONTINUE' if btn_pause.text() == 'PAUSE' else 'PAUSE'))
 
         btn_finish = QtWidgets.QPushButton('FINISH')
         btn_finish.setToolTip("Finish the scan. Allow remaining rows to be scanned before finishing.")
@@ -533,12 +542,14 @@ class ScanControlWidget(ControlWidget):
                                                            cmd_data={'kwargs': {'event': 'abort'}}))
 
         btn_start.setStyleSheet('QPushButton {color: green;}')
+        btn_pause.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
         btn_stop.setStyleSheet('QPushButton {color: red;}')
 
         layout_scan = QtWidgets.QHBoxLayout()
         layout_scan.setSpacing(self.grid.horizontalSpacing())
         layout_scan.addWidget(btn_start)
+        layout_scan.addWidget(btn_pause)
         layout_scan.addWidget(btn_finish)
         layout_scan.addWidget(btn_stop)
 
