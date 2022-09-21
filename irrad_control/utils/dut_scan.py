@@ -321,8 +321,8 @@ class DUTScan(object):
                 # Publish stop data
                 _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
                 _data = {'status': 'scan_stop',
-                        'x_stop': self.scan_stage.axis[0].position(unit='mm'),
-                        'y_stop': self.scan_stage.axis[1].position(unit='mm')}
+                        'x_stop': self.scan_stage.axis[0].get_position(unit='mm'),
+                        'y_stop': self.scan_stage.axis[1].get_position(unit='mm')}
 
                 # Publish data
                 data_pub.send_json({'meta': _meta, 'data': _data})
