@@ -273,9 +273,11 @@ class IrradServer(DAQProcess):
         call_threaded = False if call_data is None else call_data.get('threaded', False)
 
         if call_threaded:
-            self.launch_thread(target=_call, call_kwargs=call_kwargs, callback=callback)
+            data = self.launch_thread(target=_call, call_kwargs=call_kwargs, callback=callback)
         else:
-            self._send_reply(reply=method, sender=device, _type='STANDARD', data=_call(call_kwargs, callback))
+            data =_call(call_kwargs, callback)
+        
+        self._send_reply(reply=method, sender=device, _type='STANDARD', data=data)
 
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
