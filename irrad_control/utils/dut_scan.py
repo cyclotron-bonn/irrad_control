@@ -253,7 +253,7 @@ class DUTScan(object):
             self.scan_stage.set_speed(speed, axis=0, unit='mm/s')
 
         # Make x start and end variables
-        x_start, x_end = self._scan_params['start_pos'][0], self._scan_params['end_pos'][0]
+        x_start, x_end = self._scan_params['start'][0], self._scan_params['end'][0]
 
         # Check whether we are scanning from origin
         if from_origin:
