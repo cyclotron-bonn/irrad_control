@@ -36,10 +36,6 @@ class DUTScan(object):
 
         self.scan_stage = scan_stage
 
-        # Scan configuration
-        if config is not None:
-            self.setup_scan(scan_config=config)
-
         # ZMQ configuration
         self.zmq_config = {}
 
@@ -53,7 +49,9 @@ class DUTScan(object):
         self._scan_params = {}
 
         # Construct scan parameters
-        self._setup_scan()
+        # Scan configuration
+        if config is not None:
+            self.setup_scan(scan_config=config)
 
     def handle_event(self, event):
         """
