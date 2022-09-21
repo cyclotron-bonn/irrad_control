@@ -564,7 +564,7 @@ class IrradConverter(DAQProcess):
             row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
 
             row_proton_fluence = analysis.formulas.proton_fluence_scan(proton_current=ufloat(row_mean_beam_current, row_mean_beam_current_err),
-                                                                       scan_step=self.data_arrays[server]['scan']['row_separation'][0],
+                                                                       scan_step=self.data_arrays[server]['irrad']['row_separation'][0],
                                                                        scan_speed=self.data_arrays[server]['scan']['row_scan_speed'][0])
 
             row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
