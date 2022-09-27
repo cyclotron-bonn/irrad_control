@@ -14,18 +14,20 @@ def data_while_scanning(stamps, data):
 
 def stamps_scanning(timestamps, start_timestamps, stop_timestamps):
     stamps = np.empty(0)
+    pos = 0
     for i in tqdm(range(len(timestamps)), desc="Get Scan Data", unit="timestamps"):
-        if during_scan(timestamps[i], start_timestamps, stop_timestamps):
+        scan, pos = during_scan(timestamps[i], start_timestamps, stop_timestamps, pos)
+        if scan:
             stamps = np.append(stamps, i)
     return stamps
 
 @njit
-def during_scan(timestamp, start_timestamps, stop_timestamps):
+def during_scan(timestamp, start_timestamps, stop_timestamps, pos):
     #check if timestamp is during scan process
-    for j in range(len(start_timestamps)):
+    for j in range(pos, pos+2): #use range(0, len(start_timestamps)) if timestamps not ascending
         if start_timestamps[j] <= timestamp <= stop_timestamps[j]:
-            return True
-    return False
+            return True, j
+    return False, pos
 
 def data_per_row(n_scan, n_rows, rows, data):
     res = np.empty(shape=(0, n_scan+1))
@@ -40,6 +42,7 @@ def analyse_scan(data, **scan_kwargs):
     stamps = stamps_scanning(timestamps = data[server]['Beam']['timestamp'],
                             start_timestamps=data[server]['Scan']['row_start_timestamp'],
                             stop_timestamps=data[server]['Scan']['row_stop_timestamp'])
+    print(len(stamps))
     nano = np.array(constants.nano)
     beam_current_nA = data[server]['Beam']['beam_current']/nano #beam current in nA
     logging.info("Generating plots ...")
@@ -66,6 +69,10 @@ def analyse_scan(data, **scan_kwargs):
     fig, _ = plotting.plot_beam_deviation(horizontal_deviation=hor_beam_pos_scan,
                                           vertical_deviation=ver_beam_pos_scan,
                                           while_scan=True)
+    figs.append(fig)
+    #Histogram of proton fluence while scanning
+    fluence_data = data[server]['Scan']['row_proton_fluence']
+    fig, _ = plotting.fluence_row_hist(fluence=fluence_data)
     figs.append(fig)
     
     #accumulated tid per row as bar diagram

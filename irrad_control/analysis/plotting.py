@@ -241,19 +241,37 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
     return fig, ax
 
 #******** Scanplotting *******#
+def fluence_row_hist(fluence):
+    xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
+    unit = r'$\mathrm{p}\ \mathrm{cm}^{-2}$'
+    fig_label = "(Mean: {:.2e}, Std.: {:.1e}) {}".format(np.mean(fluence), np.std(fluence), unit)
+    fig_title = "Histogram Of Fluence Per Row"
+    fig, ax = plot_generic_fig(plot_data={'xdata': fluence,
+                                          'xlabel': xlabel,
+                                          'ylabel': f"#",
+                                          'label': fig_label,
+                                          'title': fig_title,
+                                          'fmt': 'C0'},
+                               hist_data={'bins': 'stat'},
+                               figsize=(8,6))
+    return fig, ax
+
 def plot_tid_per_row(data):
     fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
                                           'ylabel': f"Accumulated TID / Mrad",
-                                          'label': "glabel",
+                                          'label': "Rowwise TID per Scan",
                                           'title': "Accumulation Of TID Per Scan"},
                                 figsize=(8,6))
+    
     rows = [row for row in range(len(data))]
     bar_heights = np.zeros(len(rows))
     datalen = len(data[0])
     for scan in range(datalen):
-        ax.bar(x = rows, height=data[:,scan], bottom=bar_heights, color=(0,0,0.75*int(scan%2)), edgecolor=(0,0,0), linewidth=0.05)
+        color = 'C0' if int(scan%2)==0 else 'C1'
+        ax.bar(x = rows, height=data[:,scan], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
         bar_heights = bar_heights+data[:,scan]
     ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
+    #ax.legend(handles=[ax], legend = "Scanwise TID Per Row", loc="upper left")
     return fig, ax
 
 def plot_everything(data):
@@ -267,7 +285,7 @@ def plot_everything(data):
     
     timeax = tidax.twiny()
     tidax.minorticks_on()
-    tidax.bar(x=data['row_start'], height=data['row_tid'], width=data['row_stop']-data['row_start'], label="Accumalation Of TID Per Scan") #add tid per scan
+    tidax.bar(x=data['row_start'], height=data['row_tid'], width=data['row_stop']-data['row_start'], label="Accumalation Of TID Per Scan", color='C0') #add tid per scan
     tidax.set_ylabel("TID / Mrad")
     #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
     #fig.autofmt_xdate()
@@ -283,11 +301,10 @@ def plot_everything(data):
     #beamax.set_xlim(tidax.get_xlim())
     beamax.set_ylabel("Current / nA")
     mean_row_timestamps = (data['row_start']+data['row_stop'])/np.array(2)
-    beamax.plot(mean_row_timestamps, data['beam_current'], marker='o', markersize=0.1, linewidth=0.2, label="Mean Beam Current Per Row") #add beam current per row
+    beamax.plot(mean_row_timestamps, data['beam_current'], linestyle='-', linewidth=0.2, label="Mean Beam Current Per Row", color='C1') #add beam current per row
     
     #print(data['scan_start'])
     #print(np.sort(np.concatenate((data['scan_start'], data['scan_stop']))))
-    print(timeax.xaxis)
     #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
     timeax.set_xticks(tidax.get_xticks())
     #fig.autofmt_xdate()
@@ -304,20 +321,21 @@ def plot_beam_current(timestamps, beam_currents, while_scan=None):
                                           'ylabel': f"Beam current / nA",
                                           'label': f"Beam",
                                           'title': fig_title,
-                                          'fmt': 'C0.'},
+                                          'fmt': '-C0'},
                                figsize=(8,6))
     ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
     fig.autofmt_xdate()
     return fig, ax
 
 def plot_beam_current_hist(beam_currents, while_scan=None):
+    fig_label = "(Mean: {:.0}, Std.: {:.0}) nA".format(np.mean(beam_currents), np.std(beam_currents))
     fig_title = "Histogram Of Beam-Current Distribution" if while_scan is None else "Histogram Of Beam-Current Distribution While Scanning"
     fig, ax = plot_generic_fig(plot_data={'xdata': beam_currents,
                                           'xlabel': f"Beam current / nA",
                                           'ylabel': f"#",
-                                          'label': f"Beam",
+                                          'label': fig_label,
                                           'title': fig_title,
-                                          'fmt': 'C0.'},
+                                          'fmt': 'C0'},
                                hist_data={'bins': 'stat'},
                                figsize=(8,6))
     return fig, ax
@@ -329,10 +347,11 @@ def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=Non
                                           'ydata': vertical_deviation,
                                           'xlabel': r'x-deviation / %',
                                           'ylabel': r'y-deviation / %',
-                                          'label': r'Other title',
+                                          'label': 'Other title',
                                           'title': fig_title,
-                                          'fmt': 'C0.'},
+                                          'fmt': 'C0'},
                                 hist_data={'bins': (200,200),'cmap': 'viridis', 'norm': LogNorm()},
                                 figsize=(8,6))
+    #ax.legend(labels="Test", loc="upper left")
     
     return fig, ax
