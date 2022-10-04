@@ -42,7 +42,6 @@ def analyse_scan(data, **scan_kwargs):
     stamps = stamps_scanning(timestamps = data[server]['Beam']['timestamp'],
                             start_timestamps=data[server]['Scan']['row_start_timestamp'],
                             stop_timestamps=data[server]['Scan']['row_stop_timestamp'])
-    print(len(stamps))
     nano = np.array(constants.nano)
     beam_current_nA = data[server]['Beam']['beam_current']/nano #beam current in nA
     logging.info("Generating plots ...")

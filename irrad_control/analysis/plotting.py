@@ -155,7 +155,6 @@ def plot_generic_axis(axis_data, fig_ax=None, set_grid=True, **sp_kwargs):
     ax.set_xlabel(axis_data['xlabel'])
     ax.set_ylabel(axis_data['ylabel'])
     if set_grid: ax.grid()
-    ax.legend(labels="test", loc="upper left")
     return fig, ax
     
 
@@ -180,7 +179,7 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
 
             _, _, _ = ax.hist(plot_data['xdata'], bins=bins, label=plot_data['label'])
         elif len(hist_data['bins']) == 2:
-            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=hist_data['cmap'], cmin=1, label=plot_data['label'])
+            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=hist_data['cmap'], cmin=1)
             plt.colorbar(im)
         else:
             raise ValueError('bins must be 2D iterable of intsd or int')
@@ -259,7 +258,6 @@ def fluence_row_hist(fluence):
 def plot_tid_per_row(data):
     fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
                                           'ylabel': f"Accumulated TID / Mrad",
-                                          'label': "Rowwise TID per Scan",
                                           'title': "Accumulation Of TID Per Scan"},
                                 figsize=(8,6))
     
@@ -268,10 +266,9 @@ def plot_tid_per_row(data):
     datalen = len(data[0])
     for scan in range(datalen):
         color = 'C0' if int(scan%2)==0 else 'C1'
-        ax.bar(x = rows, height=data[:,scan], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
+        ax.bar(x=rows, height=data[:,scan], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
         bar_heights = bar_heights+data[:,scan]
     ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
-    #ax.legend(handles=[ax], legend = "Scanwise TID Per Row", loc="upper left")
     return fig, ax
 
 def plot_everything(data):
@@ -328,7 +325,7 @@ def plot_beam_current(timestamps, beam_currents, while_scan=None):
     return fig, ax
 
 def plot_beam_current_hist(beam_currents, while_scan=None):
-    fig_label = "(Mean: {:.0}, Std.: {:.0}) nA".format(np.mean(beam_currents), np.std(beam_currents))
+    fig_label = "(Mean: {:.0f}, Std.: {:.0f}) nA".format(np.mean(beam_currents), np.std(beam_currents))
     fig_title = "Histogram Of Beam-Current Distribution" if while_scan is None else "Histogram Of Beam-Current Distribution While Scanning"
     fig, ax = plot_generic_fig(plot_data={'xdata': beam_currents,
                                           'xlabel': f"Beam current / nA",
@@ -341,17 +338,17 @@ def plot_beam_current_hist(beam_currents, while_scan=None):
     return fig, ax
 
 def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=None):
+    fig, ax = plt.subplots(figsize=(8,6))
     fig_title = "Relative Beam-Distribution From Mean Position" if while_scan is None \
         else "Relative Beam-Distribution From Mean Position While Scanning"
-    fig, ax = plot_generic_fig(plot_data={'xdata': horizontal_deviation,
-                                          'ydata': vertical_deviation,
-                                          'xlabel': r'x-deviation / %',
-                                          'ylabel': r'y-deviation / %',
-                                          'label': 'Other title',
-                                          'title': fig_title,
-                                          'fmt': 'C0'},
-                                hist_data={'bins': (200,200),'cmap': 'viridis', 'norm': LogNorm()},
-                                figsize=(8,6))
-    #ax.legend(labels="Test", loc="upper left")
+    # Make figure and axis
+    ax.set_title(fig_title)
+    ax.set_xlabel("-deviation / %")
+    ax.set_ylabel("x-deviation / %")
+    _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(100,100),norm=LogNorm(), cmap='viridis', cmin=1)
+    plt.colorbar(im)
     
+    fig_label = "x-Std.: {:.1f} %\ny-Std.: {:.1f} %".format(np.std(horizontal_deviation), np.std(vertical_deviation))
+    ax.scatter([0],[0],s=0, label=fig_label)
+    ax.legend(loc='upper left')
     return fig, ax
