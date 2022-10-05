@@ -149,7 +149,7 @@ class ItemLinearStage(BaseAxis):
         self.udp = udp
 
         # Init client
-        self.item_client = ItemTelnetClient(host=host, port=port)
+        self.item_client = ItemTelnetClient(host=host, port=port, timeout=2)
 
         # Login stage
         self.item_client.send_cmd(cmd='LOGIN Stage Hochstromraum')
@@ -163,11 +163,12 @@ class ItemLinearStage(BaseAxis):
 
         # Make intial config because this stage lives off bare values
         config = load_base_axis_config(config=config)
+        
         if not config['meta']['configured']:
             config['axis']['speed']['value'] = 10
             config['axis']['speed']['unit'] = 'mm/s'
-            config['axis']['range']['value'] = [0, travel]
-            config['axis']['range']['unit'] = 'm'
+            config['axis']['range']['value'] = [0, 1e3 * travel]
+            config['axis']['range']['unit'] = 'mm'
             config['axis']['accel']['value'] = 250
             config['axis']['accel']['unit'] = 'mm/s^2'
             config['axis']['position']['unit'] = 'mm'
