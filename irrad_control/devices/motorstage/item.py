@@ -162,11 +162,11 @@ class ItemLinearStage(BaseAxis):
         self.travel = travel  # meter
 
         # Make intial config because this stage lives off bare values
-        if config is None:
-            config = load_base_axis_config()
+        config = load_base_axis_config(config=config)
+        if not config['meta']['configured']:
             config['axis']['speed']['value'] = 10
             config['axis']['speed']['unit'] = 'mm/s'
-            config['axis']['range']['value'] = (0, travel)
+            config['axis']['range']['value'] = [0, travel]
             config['axis']['range']['unit'] = 'm'
             config['axis']['accel']['value'] = 250
             config['axis']['accel']['unit'] = 'mm/s^2'
