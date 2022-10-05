@@ -197,7 +197,8 @@ class ZaberStepAxis(BaseAxis):
             return
 
         if self.invert_axis:
-            value = [self.travel_microsteps - v for v in reversed(value)]
+            steps = self.travel_microsteps if unit is None else self.convert_to_unit(self.travel_microsteps, unit)
+            value = [steps - v for v in reversed(value)]
 
         for i, lim in enumerate(('min', 'max')):
             self._send_cmd("set limit.{} {}".format(lim, value[i] if unit is None else self.convert_from_unit(value[i], unit)))
