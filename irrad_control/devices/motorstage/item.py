@@ -3,7 +3,7 @@ import telnetlib
 import logging
 
 # Package imports
-from .base_axis import BaseAxis, base_axis_config_updater
+from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config
 
 
 class ItemTelnetClient(object):
@@ -160,6 +160,18 @@ class ItemLinearStage(BaseAxis):
         self.controller_id = self.get_id()
         self.model = model
         self.travel = travel  # meter
+
+        # Make intial config because this stage lives off bare values
+        if config is None:
+            config = load_base_axis_config()
+            config['axis']['speed']['value'] = 10
+            config['axis']['speed']['unit'] = 'mm/s'
+            config['axis']['range']['value'] = (0, travel)
+            config['axis']['range']['unit'] = 'm'
+            config['axis']['accel']['value'] = 250
+            config['axis']['accel']['unit'] = 'mm/s^2'
+            config['axis']['position']['unit'] = 'mm'
+            config['axis']['travel']['unit'] = 'mm'
 
         super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
 
