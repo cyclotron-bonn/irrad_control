@@ -66,6 +66,9 @@ class IrradControlWin(QtWidgets.QMainWindow):
         self._cmd_reply = defaultdict(list)
         self._try_close = False
         self._log_close = False
+
+        # Keep track of successfully started daq processes
+        self._started_daq_proc_hostnames = []
         
         # Connect signals
         self.data_received.connect(lambda data: self.handle_data(data))
@@ -187,6 +190,21 @@ class IrradControlWin(QtWidgets.QMainWindow):
         # Init servers
         self._init_processes()
 
+        # Show a progress dialog so user knows what is happening
+        self._init_progress_dialog()
+
+    def _init_progress_dialog(self):
+
+        self.pdiag = QtWidgets.QProgressDialog()
+        pdiag_label = QtWidgets.QLabel("Launching application:\n\n->Staring data converter...\n->Configuring {0} server(s)...\n->Starting {0} server(s)...".format(len(self.setup['server'])))
+        pdiag_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.pdiag.setLabel(pdiag_label)
+        self.pdiag.setRange(0, 0)
+        self.pdiag.setMinimumDuration(0)
+        self.pdiag.setCancelButton(None)
+        self.pdiag.setModal(True)
+        self.pdiag.show()
+
     def _init_log_dock(self):
         """Initializes corresponding log dock"""
 
@@ -279,6 +297,27 @@ class IrradControlWin(QtWidgets.QMainWindow):
             self.threadpool.start(server_config_workers[server])
 
         self.start_interpreter()
+
+    def _started_daq_proc(self, hostname):
+        """A DQAProcess has been sucessfully started on *hostname*"""
+        
+        self._started_daq_proc_hostnames.append(hostname)
+
+        # Enable Control and Monitor tabs for this
+        if hostname in self.setup['server']:
+            self.control_tab.enable_control(server=hostname)
+            self.monitor_tab.enable_monitor(server=hostname)
+
+        # All servers have launched successfully
+        if all(s in self._started_daq_proc_hostnames for s in self.setup['server']):
+            # The interpreter has also succesfully started
+            if 'localhost' in self._started_daq_proc_hostnames:
+
+                # The application has started succesfully
+                logging.info("All servers and the converter have started successfully!")
+                self.pdiag.setLabelText('Application launched successfully!')
+                self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
+                QtCore.QTimer.singleShot(1500, self.pdiag.close)
 
     def collect_proc_infos(self):
         """Run in a separate thread to collect infos of all launched processes"""
@@ -567,7 +606,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'start':
                     logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
-                    self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
+                    self._started_daq_proc(hostname=hostname)
 
                     # Get initial motorstage configuration
                     self.send_cmd(hostname=hostname, target=sender, cmd='motorstages')
@@ -599,6 +638,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
 
                 if reply == 'start':
                     logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
+                    self._started_daq_proc(hostname=hostname)
 
                 if reply == 'record_data':
                     server, state = reply_data

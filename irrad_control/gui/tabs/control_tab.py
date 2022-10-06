@@ -36,6 +36,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
         for server in self.setup:
             self._init_tab(server=server)
+            self.enable_control(server=server, enable=False)
 
     def _init_tab(self, server):
 
@@ -90,6 +91,12 @@ class IrradControlTab(QtWidgets.QWidget):
         splitter_upper.setSizes([self.width(), self.width()])
         splitter_lower.setSizes([self.width(), self.width()])
         splitter.setSizes([self.height(), self.height()])
+
+    def enable_control(self, server, enable=True):
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == self.setup[server]['name']:
+                self.tabs.widget(i).setEnabled(enable)
+
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         """Function emitting signal with command dict which is send to *server* in main"""
