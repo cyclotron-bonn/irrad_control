@@ -6,7 +6,7 @@ from serial import SerialException
 # Package imports
 from irrad_control.devices import devices
 from irrad_control.devices.motorstage import motorstage
-from irrad_control.utils.daq_proc import DAQProcess
+from irrad_control.processes.daq_proc import DAQProcess
 from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
