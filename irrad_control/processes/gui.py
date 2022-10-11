@@ -33,7 +33,7 @@ represent_dict_order = lambda self, data: self.represent_mapping('tag:yaml.org,2
 yaml.add_representer(OrderedDict, represent_dict_order)
 
 
-class IrradControlWin(QtWidgets.QMainWindow):
+class IrradGUI(QtWidgets.QMainWindow):
     """Inits the main window of the irrad_control software."""
 
     # PyQt signals
@@ -42,7 +42,7 @@ class IrradControlWin(QtWidgets.QMainWindow):
     log_received = QtCore.pyqtSignal(dict)  # Signal for log
 
     def __init__(self, parent=None):
-        super(IrradControlWin, self).__init__(parent)
+        super(IrradGUI, self).__init__(parent)
 
         # Setup dict of the irradiation; is set when setup tab is completed
         self.setup = None
@@ -854,15 +854,15 @@ class IrradControlWin(QtWidgets.QMainWindow):
             event.accept()
 
 
-def main():
+def run():
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
     font.setPointSize(11)
     app.setFont(font)
-    icw = IrradControlWin()
-    icw.show()
+    icg = IrradGUI()
+    icg.show()
     sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
-    main()
+    run()

@@ -6,10 +6,12 @@ from serial import SerialException
 # Package imports
 from irrad_control.devices import devices
 from irrad_control.devices.motorstage import motorstage
-from irrad_control.processes.daq_proc import DAQProcess
 from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
+
+# Relatives
+from .daq import DAQProcess
 
 
 class IrradServer(DAQProcess):
@@ -314,12 +316,14 @@ class IrradServer(DAQProcess):
                 self.devices[dev].save_config()
 
 
-def main():
+def run(blocking=True):
 
     irrad_server = IrradServer()
     irrad_server.start()
-    irrad_server.join()
+    
+    if blocking:
+        irrad_server.join()
 
 
 if __name__ == '__main__':
-    main()
+    run()
