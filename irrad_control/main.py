@@ -7,16 +7,21 @@ import logging
 # Package imports
 import irrad_control
 
-# If we are not on a server, the requirements are not installed and we cannot run a server process
-_procs = {proc: None for proc in ('gui', 'converter', 'server')}
-for proc in _procs:
+
+def _load_irrad_control_process(proc):
     try:
-        _procs[proc] = importlib.import_module(f'irrad_control.processes.{proc}')
+        return importlib.import_module(f'irrad_control.processes.{proc}')
     except (ImportError, ModuleNotFoundError) as e:
         logging.debug(f"'irrad_control --{proc}' not available: {e.msg}!")
 
-if all(val is None for _, val in _procs.items()):
-    raise RuntimeError("No process from irrad_control could be imported. Check installation!")
+
+def _run_irrad_control_process(proc):
+    actual_proc = _load_irrad_control_process(proc=proc)
+    if actual_proc is None:
+        logging.error(f"'irrad_control --{proc}' not available!")
+        return
+    actual_proc.run()
+
 
 def main():
 
@@ -42,22 +47,16 @@ def main():
         print(f'irrad_control {irrad_control.__version__}')
 
     elif parsed['gui']:
-        if _procs['gui'] is None:
-            logging.error(f"'irrad_control --gui' not available!")
-            return
-        _procs['gui'].run()
+        _run_irrad_control_process(proc='gui')
 
     elif parsed['converter']:
-        if _procs['converter'] is None:
-            logging.error(f"'irrad_control --converter' not available!")
-            return
-        _procs['converter'].run()
+        _run_irrad_control_process(proc='converter')
 
     elif parsed['server']:
-        if _procs['server'] is None:
-            logging.error(f"'irrad_control --server' not available!")
-            return
-        _procs['server'].run()
+        _run_irrad_control_process(proc='server')
+    
+    else:
+        
 
 
 if __name__ == '__main__':
