@@ -54,9 +54,6 @@ def main():
 
     elif parsed['server']:
         _run_irrad_control_process(proc='server')
-    
-    else:
-        
 
 
 if __name__ == '__main__':
