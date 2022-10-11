@@ -5,7 +5,7 @@ import unittest
 
 from irrad_control import config_path
 from irrad_control.utils.tools import load_yaml
-from irrad_control.utils.daq_proc import DAQProcess
+from irrad_control.processes.daq import DAQProcess
 
 
 class BaseDAQProcess(DAQProcess):
