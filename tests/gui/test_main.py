@@ -4,7 +4,7 @@ import unittest
 
 from PyQt5 import QtWidgets
 
-from irrad_control.main import IrradControlWin
+from irrad_control.processes.gui import IrradGUI
 
 
 class TestMain(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestMain(unittest.TestCase):
         cls.test_app = QtWidgets.QApplication(sys.argv)
 
         # Create complete window which can be accessed after launch
-        cls.irrad_window = IrradControlWin()
+        cls.irrad_window = IrradGUI()
         cls.irrad_window.show()
 
         # Exit app after finding servers

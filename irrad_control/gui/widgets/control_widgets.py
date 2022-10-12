@@ -417,6 +417,9 @@ class ScanControlWidget(ControlWidget):
         spacer.addStretch()
         self.add_widget(spacer)
 
+    def launch_scan(self):
+        self.send_cmd(hostname=self.server, target='__scan__', cmd='scan_device')
+
     def update_scan_params(self, **kwargs):
         self.scan_params.update(kwargs)
         self.scanParamsUpdated.emit(self.scan_params)
@@ -514,9 +517,7 @@ class ScanControlWidget(ControlWidget):
         btn_start.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                           target='__scan__',
                                                           cmd='setup_scan',
-                                                          cmd_data={'kwargs': {'scan_config': self.scan_params},
-                                                                    'threaded': True,
-                                                                    'callback': {'method': '_scan_device'}}))
+                                                          cmd_data={'kwargs': {'scan_config': self.scan_params}}))
 
         btn_pause = QtWidgets.QPushButton('PAUSE')
         btn_pause.setToolTip("Pause the scan. Allow remaining rows to be scanned before pausing.")

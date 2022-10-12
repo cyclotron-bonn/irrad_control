@@ -219,8 +219,8 @@ class ZaberStepAxis(BaseAxis):
             _reply = self._send_cmd("get limit.{}".format(lim))
             _range.append(0 if self.error else int(_reply.data))
 
-        #if self.invert_axis:
-        #    _range = [self.travel_microsteps - r for r in reversed(_range)]
+        if self.invert_axis:
+            _range = [self.travel_microsteps - r for r in reversed(_range)]
 
         return _range if unit is None else [self.convert_to_unit(r, unit) for r in _range]
 
@@ -572,11 +572,8 @@ class ZaberMultiAxis(object):
 
         if name is None and pos is None:
             raise ValueError("Either the 'pos' arguments or the name of the position have to be given")
-
-        if len(self.axis) != len(pos):
-            raise ValueError("Number of axis does not match given position")
-
-        for i, axis in self.axis:
+                    
+        for i, axis in enumerate(self.axis):
             # If we're moving to an already known position
             if name is not None:
                 axis.move_pos(name=name)

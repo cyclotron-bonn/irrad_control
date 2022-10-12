@@ -78,7 +78,7 @@ class ProcessManager(object):
     def configure_server(self, hostname, py_version=None, py_update=False, git_pull=False, branch=False):
 
         # Check whether remote server already has the script in the default installation path
-        remote_script = '/home/{}/irrad_control/irrad_control/configure_server.sh'.format(self.server[hostname])
+        remote_script = '/home/{}/irrad_control/scripts/configure_server.sh'.format(self.server[hostname])
         remote_script_exists = self._check_file_exits(hostname=hostname, file_path=remote_script)
 
         # If no remote script is found, copy script from host PC to server
@@ -137,13 +137,13 @@ class ProcessManager(object):
 
         logging.info('Attempting to start server process at host {}...'.format(host_user))
 
-        self._exec_cmd(hostname, 'nohup bash /home/{}/start_irrad_server.sh &'.format(self.server[hostname]))
+        self._exec_cmd(hostname, 'nohup bash /home/{}/irrad_control/scripts/start_server.sh &'.format(self.server[hostname]))
 
     def start_interpreter_process(self):
 
         logging.info('Starting interpreter process...')
 
-        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'converter.py'))
+        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'processes/converter.py'))
 
     def _call_script(self, script, args=None, cmd=None):
 

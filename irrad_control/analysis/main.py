@@ -1,4 +1,3 @@
-from doctest import OutputChecker
 import sys
 import os
 import logging
