@@ -83,7 +83,7 @@ class ProcessManager(object):
 
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
-            remote_script = '/home/{}/irrad_control/scripts/config_server.sh'.format(self.server[hostname])
+            remote_script = '/home/{}/config_server.sh'.format(self.server[hostname])
             self.copy_to_server(hostname, config_server_script, remote_script)
 
         # Add args to call remote script
