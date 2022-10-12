@@ -2,6 +2,7 @@ from cProfile import label
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
+from irrad_control.analysis import formulas as fm
 
 from datetime import datetime
 from matplotlib.colors import LogNorm
@@ -272,41 +273,44 @@ def plot_tid_per_row(data):
     return fig, ax
 
 def plot_everything(data):
-    fig, tidax = plt.subplots(figsize=(8,6))
-    #tidax.set_xlim(left=data['row_start'][0]-10, right=data['row_stop'][-1]+10)
-
+    fig_title = "Row- and scanwise accumulation of TID"
+    dtime_row_start = [datetime.fromtimestamp(ts) for ts in data['row_start']]
+    dtime_row_stop = [datetime.fromtimestamp(ts) for ts in data['row_stop']]
+    fig, beamax = plot_generic_fig(plot_data={'xdata': dtime_row_start,
+                                          'ydata': data['beam_current'],
+                                          'xlabel': f"Time",
+                                          'ylabel': f"Beam current / nA",
+                                          'label': f"Beam",
+                                          'title': fig_title,
+                                          'fmt': '-C1'},
+                               figsize=(8,6))
+    beamax.set_zorder(3)
+    beamax.set_facecolor('none')
+    ymin, ymax = beamax.get_ylim()
+    beamax.set_ylim(ymin, 1.05*ymax) #make some room for labels
+    
+    tidax = beamax.twinx()
+    ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
+    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="TID", color='C0', align='edge') #add tid per scan
+    tidax.set_zorder(1)
+    tidax.set_ylabel("TID / Mrad")
+    ymin, ymax = tidax.get_ylim()
+    tidax.set_ylim(ymin, 1.05*ymax) #make some room for labels
+    
+    beamax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    fig.autofmt_xdate()
+    
     n_scan = len(data['scan_start'])
     tick_dist = n_scan/5
+    scanaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if i%tick_dist==0]
+    scanax = beamax.twiny()
+    scanax.set_xlim(beamax.get_xlim())
+    dtime_scan_start = [datetime.fromtimestamp(data['scan_start'][i]) for i in range(n_scan) if i%tick_dist==0]
+    scanax.set_xticks(dtime_scan_start)
+    scanax.set_xticklabels(scanaxlabel)
     
-    tidaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if i%tick_dist==0]
-    
-    timeax = tidax.twiny()
-    tidax.minorticks_on()
-    tidax.bar(x=data['row_start'], height=data['row_tid'], width=data['row_stop']-data['row_start'], label="Accumalation Of TID Per Scan", color='C0') #add tid per scan
-    tidax.set_ylabel("TID / Mrad")
-    #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
-    #fig.autofmt_xdate()
-    
-    tidax.set_xticks([data['scan_start'][i] for i in range(len(data['scan_start'])) if i%tick_dist==0])
-    tidax.set_xticklabels(tidaxlabel)
-    
-    timeax.set_xlabel("Time / ?")
-    timeax.set_xlim(tidax.get_xlim())
-    timeax.minorticks_on()
-    
-    beamax = tidax.twinx()
-    #beamax.set_xlim(tidax.get_xlim())
-    beamax.set_ylabel("Current / nA")
-    mean_row_timestamps = (data['row_start']+data['row_stop'])/np.array(2)
-    beamax.plot(mean_row_timestamps, data['beam_current'], linestyle='-', linewidth=0.2, label="Mean Beam Current Per Row", color='C1') #add beam current per row
-    
-    #print(data['scan_start'])
-    #print(np.sort(np.concatenate((data['scan_start'], data['scan_stop']))))
-    #timeax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
-    timeax.set_xticks(tidax.get_xticks())
-    #fig.autofmt_xdate()
-    tidax.legend(loc='upper left')
-    beamax.legend(loc='upper right')
+    beamax.legend(loc='upper left')
+    tidax.legend(loc='upper right')
     return fig
     
 #******* Beamplotting ********#
@@ -338,17 +342,36 @@ def plot_beam_current_hist(beam_currents, while_scan=None):
     return fig, ax
 
 def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=None):
-    fig, ax = plt.subplots(figsize=(8,6))
+    fig = plt.figure(figsize=(6, 6))
+    gs = fig.add_gridspec(2, 2,  width_ratios=(4, 1), height_ratios=(1, 4),
+                        left=0.1, right=0.9, bottom=0.1, top=0.9,
+                        wspace=0.05, hspace=0.05)
+    ax = fig.add_subplot(gs[1, 0])
+    ax_histx = fig.add_subplot(gs[0, 0], sharex=ax)
+    ax_histy = fig.add_subplot(gs[1, 1], sharey=ax)
+    ax_histy.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.grid()
+    ax_histx.grid()
+    ax_histy.grid()
     fig_title = "Relative Beam-Distribution From Mean Position" if while_scan is None \
         else "Relative Beam-Distribution From Mean Position While Scanning"
-    # Make figure and axis
-    ax.set_title(fig_title)
-    ax.set_xlabel("-deviation / %")
-    ax.set_ylabel("x-deviation / %")
-    _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(100,100),norm=LogNorm(), cmap='viridis', cmin=1)
-    plt.colorbar(im)
+    fig.suptitle(fig_title)
+    ax.set_xlabel("x-deviation / %")
+    ax.set_ylabel("y-deviation / %")
+    n_bins = 100 #bins of 2% each
+    _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(n_bins, n_bins),norm=LogNorm(), cmap='viridis', cmin=1)
+    plt.colorbar(mappable=im, ax=ax_histy)
+    xmean = np.mean(vertical_deviation)
+    xstd = np.std(vertical_deviation)
+    ymean = np.mean(horizontal_deviation)
+    ystd = np.std(horizontal_deviation)
+    xlabel = "Mean: {:.2f} %\nStd: {:.2f} %".format(xmean, xstd)
+    ylabel = "Mean: {:.2f} %\nStd: {:.2f} %".format(ymean, ystd)
+    _, xbins, _ = ax_histx.hist(vertical_deviation, bins=n_bins, label=xlabel)
+    _, ybins, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal', label=ylabel)
+    ax_histx.legend()
+    ax_histy.legend()
+    ax_histx.tick_params(axis="x", labelbottom=False)
+    ax_histy.tick_params(axis="y", labelleft=False)
     
-    fig_label = "x-Std.: {:.1f} %\ny-Std.: {:.1f} %".format(np.std(horizontal_deviation), np.std(vertical_deviation))
-    ax.scatter([0],[0],s=0, label=fig_label)
-    ax.legend(loc='upper left')
     return fig, ax

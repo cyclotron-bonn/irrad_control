@@ -184,3 +184,6 @@ def lin(x, *args):
 
 def red_chisquare(observed, expected, observed_error, popt):
     return np.sum(((observed - expected) / observed_error)**2 / (len(observed_error) - len(popt) - 1))
+
+def gaussian(x, mean, sigma, scale=1):
+    return 1./np.sqrt(2*np.pi*sigma**2)*np.exp(-(x-mean)**2/(2*sigma**2))*scale

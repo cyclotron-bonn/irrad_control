@@ -15,6 +15,7 @@ def analyse_beam(data, **beam_kwargs):
     nano = np.array(constants.nano)
     beam_current_nA = data[server]['Beam']['beam_current']/nano #beam current in nA
     #Beam Current over time
+    logging.info("Generating plots...")
     fig, _ = plotting.plot_beam_current(timestamps=data[server]['Beam']['timestamp'], beam_currents=beam_current_nA)
     
     figs.append(fig)
