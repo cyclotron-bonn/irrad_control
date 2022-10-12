@@ -9,9 +9,7 @@ from uncertainties import ufloat, unumpy
 # Package imports
 import irrad_control.analysis as analysis
 import irrad_control.devices.readout as ro
-
-# Relatives
-from .daq import DAQProcess
+from irrad_control.processes.daq import DAQProcess
 
 
 class IrradConverter(DAQProcess):
