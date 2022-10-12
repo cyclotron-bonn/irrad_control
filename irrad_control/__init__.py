@@ -11,7 +11,7 @@ config_path = os.path.join(package_path, 'config')
 tmp_dir = '/tmp/irrad_control'
 
 # Shell script to config server
-config_server_script = os.path.join(package_path, 'configure_server.sh')
+config_server_script = os.path.join(package_path, '../scripts/configure_server.sh')
 
 # Make tmp folder to store temp files in
 if not os.path.isdir(tmp_dir):
