@@ -510,6 +510,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Enable all record buttons when scan is over
                 self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
+                self.control_tab.tab_widgets[server]['scan'].init_after_scan_ui()
 
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
@@ -652,25 +653,16 @@ class IrradGUI(QtWidgets.QMainWindow):
                     # Try to close
                     self.close()
 
-            elif sender == 'scan':
+            elif sender == '__scan__':
 
-                if reply == 'setup':
-                    self.monitor_tab.add_fluence_hist(**{'kappa': self.setup['server'][hostname]['daq']['kappa'],
-                                                         'n_rows': reply_data['n_rows'],
-                                                         'server': hostname})
-                    self.send_cmd(hostname=hostname, target='scan', cmd='start')
+                if reply == 'setup_scan':
+                    self.monitor_tab.add_fluence_hist(server=hostname,
+                                                      kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      n_rows=reply_data['result']['n_rows'])
+                    
                     self.control_tab.scan_status(server=hostname, status='started')
-
-                elif reply == 'finish':
-
-                    logging.info("Finishing scan!")
-
-                elif reply == 'no_beam':
-
-                    if reply_data:
-                        logging.debug("No beam event set")
-                    else:
-                        logging.debug("No beam event cleared")
+                    self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
+                    self.control_tab.tab_widgets[hostname]['scan'].launch_scan()
 
             # Get motorstage responses
             elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
