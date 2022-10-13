@@ -1,0 +1,3 @@
+### This file contains hardness factor data for protons ###
+# Energy / MeV, kappa,  kappa_err, timestamp / s
+12.26, 4.1, 0.8, 1594810800.0

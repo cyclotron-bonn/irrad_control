@@ -1,0 +1,5 @@
+### This file contains beam monitor calibration data for protons ###
+# Energy / MeV, lambda / 1/V,  lambda_err / 1/V, timestamp / s
+14, 0.886, 0.009, 1652864400.0
+14, 0.906, 0.009, 1660726800.0
+14, 0.897, 0.009, 1664269200.0
