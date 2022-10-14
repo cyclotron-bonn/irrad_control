@@ -244,7 +244,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 def fluence_row_hist(fluence):
     xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
     unit = r'$\mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_label = "(Mean: {:.2e}, Std.: {:.1e}) {}".format(np.mean(fluence), np.std(fluence), unit)
+    fig_label = "({:.2e}±{:.1e}) {}".format(np.mean(fluence), np.std(fluence), unit)
     fig_title = "Histogram Of Fluence Per Row"
     fig, ax = plot_generic_fig(plot_data={'xdata': fluence,
                                           'xlabel': xlabel,
@@ -329,7 +329,7 @@ def plot_beam_current(timestamps, beam_currents, while_scan=None):
     return fig, ax
 
 def plot_beam_current_hist(beam_currents, while_scan=None):
-    fig_label = "(Mean: {:.0f}, Std.: {:.0f}) nA".format(np.mean(beam_currents), np.std(beam_currents))
+    fig_label = "({:.0f}±{:.0f}) nA".format(np.mean(beam_currents), np.std(beam_currents))
     fig_title = "Histogram Of Beam-Current Distribution" if while_scan is None else "Histogram Of Beam-Current Distribution While Scanning"
     fig, ax = plot_generic_fig(plot_data={'xdata': beam_currents,
                                           'xlabel': f"Beam current / nA",
@@ -365,8 +365,8 @@ def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=Non
     xstd = np.std(vertical_deviation)
     ymean = np.mean(horizontal_deviation)
     ystd = np.std(horizontal_deviation)
-    xlabel = "Mean: {:.2f} %\nStd: {:.2f} %".format(xmean, xstd)
-    ylabel = "Mean: {:.2f} %\nStd: {:.2f} %".format(ymean, ystd)
+    xlabel = "({:.2f}±{:.2f}) %".format(xmean, xstd)
+    ylabel = "({:.2f}±{:.2f}) %".format(ymean, ystd)
     _, xbins, _ = ax_histx.hist(vertical_deviation, bins=n_bins, label=xlabel)
     _, ybins, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal', label=ylabel)
     ax_histx.legend()

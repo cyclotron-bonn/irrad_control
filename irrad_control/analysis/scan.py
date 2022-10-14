@@ -29,6 +29,7 @@ def during_scan(timestamp, start_timestamps, stop_timestamps, pos):
             return True, j
     return False, pos
 
+@njit
 def data_per_row(n_scan, n_rows, rows, data):
     res = np.empty(shape=(0, n_scan+1))
     for i in range(n_rows):
@@ -99,7 +100,8 @@ def analyse_scan(data, **scan_kwargs):
                                          'row_start': data[server]['Scan']['row_start_timestamp'],
                                          'row_stop': data[server]['Scan']['row_stop_timestamp'],
                                          'row_tid': acc_tid,
-                                         'beam_current': data[server]['Scan']['row_mean_beam_current']/nano})
+                                         'beam_current': data[server]['Scan']['row_mean_beam_current']/nano,
+                                         'proton_fluence': data[server]['Scan']['row_proton_fluence']})
     figs.append(fig)
     logging.info("Finished plotting.")
     return figs
