@@ -5,7 +5,7 @@ import paramiko
 import subprocess
 import yaml
 from collections import defaultdict
-from irrad_control import package_path, script_path, config_path, tmp_path
+from irrad_control import package_path, script_path, pid_file, tmp_path
 
 
 class ProcessManager(object):
@@ -105,12 +105,12 @@ class ProcessManager(object):
 
         # Check whether we're looking for a pid file on server or localhost
         if hostname in self.client:
-            pid_file = '/home/{}/.config/irrad_control/.irrad.pid'.format(self.server[hostname])
+            pid_file = '/home/{}/.config/irrad_control/irrad_control.pid'.format(self.server[hostname])
             pid_file_local = os.path.join(tmp_path, '{}_server.pid'.format(hostname))
             if self._check_file_exits(hostname=hostname, file_path=pid_file):
                 self.get_from_server(hostname=hostname, remote_filepath=pid_file, local_filepath=pid_file_local)
         else:
-            pid_file_local = os.path.join(config_path, '.irrad.pid')
+            pid_file_local = pid_file
 
         if self._check_file_exits(hostname='localhost', file_path=pid_file_local):
 

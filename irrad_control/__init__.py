@@ -17,6 +17,7 @@ script_path = os.path.abspath(os.path.join(package_path, '../scripts'))
 
 # Files
 config_file = os.path.join(config_path, 'config.yaml')
+pid_file = os.path.join(config_path, 'irrad_control.pid')
 
 # Check / make
 for check_path in (tmp_path, config_path):
