@@ -24,4 +24,4 @@ def load_yaml(path):
 def save_yaml(path, data):
 
     with open(path, 'w') as _a:
-        yaml.safe_dump(data, _a)
+        yaml.safe_dump(data, _a, default_flow_style=False)
