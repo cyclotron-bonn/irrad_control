@@ -12,8 +12,6 @@ irrad_control.egg-info/
 # Ignore all motorstage configs since they change on every use
 irrad_control/devices/motorstage/*.yaml
 irrad_control/devices/motorstage/*.yml
-# PID file
-irrad_control/config/.irrad.pid
 # server start script
 scripts/start_server.sh
 # macOS stuff
