@@ -2,7 +2,7 @@ import os
 import logging
 import time
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
 
 
@@ -12,7 +12,8 @@ class IrradIon:
     name: str  # Ion name
     n_charge: int  # Number of elementary charges
     n_nucleon: int  # Number of nucleons
-    _energy_range_per_nucleon: tuple = (7., 14.)  # 7 to 14 MeV per nucleon
+    data_path: str  = field(repr=False) # Where the data lies
+    _energy_range_per_nucleon: tuple = field(repr=False, default=(7., 14.))  # 7 to 14 MeV per nucleon
 
     def __post_init__(self):
 
@@ -28,8 +29,9 @@ class IrradIon:
         self._data = {}
 
         for dset, dfile in self._data_sets.items():
-            if os.path.isfile(dfile):
-                self._data[dset] = np.loadtxt(dfile, delimiter=',', ndmin=2)  # At least 2 dims so you can loop over e.g. calibrations even if there is only one dset
+            dpath = os.path.join(self.data_path, dfile)
+            if os.path.isfile(dpath):
+                self._data[dset] = np.loadtxt(dpath, delimiter=',', ndmin=2)  # At least 2 dims so you can loop over e.g. calibrations even if there is only one dset
             else:
                 self._data[dset] = None
 
@@ -57,10 +59,11 @@ class IrradIon:
         logging.warning(f"No simulation data available for {self.name}s. Using input energy of {energy} MeV instead.")
         return energy
 
-    def stopping_power_at_dut(self, energy):
+    def stopping_power(self, energy, at_dut=False):
         
         if self._data['stopping'] is not None:
-            return np.interp(x=energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1])
+            tmp_energy = energy if not at_dut else self.ekin_at_dut(energy=energy)
+            return np.interp(x=tmp_energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1])
         
         logging.warning(f"No stopping power data available for {self.name}s.")
         return None
@@ -95,9 +98,11 @@ class IrradIon:
 
 
 # Generate all ions
-ions = []
-for ion in os.listdir(os.path.dirname(__file__)):
-    try:
-        ions.append(getattr(import_module(f'irrad_control.ions.{ion}'), ion))
-    except (ModuleNotFoundError, AttributeError):
-        pass
+def get_ions():
+    ions = {}
+    for ion in os.listdir(os.path.dirname(__file__)):
+        try:
+            ions[ion] = getattr(import_module(f'irrad_control.ions.{ion}'), ion)
+        except (ModuleNotFoundError, AttributeError):
+            pass
+    return ions
