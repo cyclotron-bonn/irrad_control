@@ -22,15 +22,18 @@ def fill_combobox_items(cbx, fill_dict):
 
     # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
     for i, k in enumerate(sorted(_all.keys())):
-        if 'hv_sem' in _all[k]:
-            cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
-        elif 'nominal' in _all[k]:
-            cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
+        tool_tip = ''
+        if isinstance(_all[k], dict):
+            if 'hv_sem' in _all[k]:
+                cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
+            elif 'nominal' in _all[k]:
+                cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
+
+            for l in _all[k]:
+                tool_tip += '{}: {}\n'.format(l, _all[k][l])
         else:
             cbx.insertItem(i, k)
-        tool_tip = ''
-        for l in _all[k]:
-            tool_tip += '{}: {}\n'.format(l, _all[k][l])
+            tool_tip += '{}: {}\n'.format(k, _all[k])
         cbx.model().item(i).setToolTip(tool_tip)
 
         default_idx = default_idx if 'default' not in fill_dict else default_idx if k != fill_dict['default'] else i
