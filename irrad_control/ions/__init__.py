@@ -2,22 +2,24 @@ import os
 import logging
 import time
 import numpy as np
-from dataclasses import dataclass, field
 from importlib import import_module
 
 
-@dataclass
-class IrradIon:
-    
-    name: str  # Ion name
-    n_charge: int  # Number of elementary charges
-    n_nucleon: int  # Number of nucleons
-    data_path: str  = field(repr=False) # Where the data lies
-    _energy_range_per_nucleon: tuple = field(repr=False, default=(7., 14.))  # 7 to 14 MeV per nucleon
+class IrradIon(object):
 
-    def __post_init__(self):
+    EKIN_RANGE_PER_NUCLEON = (7., 14.)  # valid for all ions
+
+    def __init__(self, name, n_charge, n_nucleon, data_path=None):
+
+        self.name = name
+        self.n_charge = n_charge
+        self.n_nucleon = n_nucleon
+        self.data_path = os.path.join(os.path.dirname(__file__), name) if data_path is None else data_path
 
         self._load_data_sets()
+
+    def __repr__(self):
+        return f"{self.name.capitalize()}(Z={self.n_charge}, A={self.n_nucleon})"
     
     def _load_data_sets(self):
 
@@ -49,7 +51,7 @@ class IrradIon:
         tuple
             Kinetic energy range in MeV
         """
-        return tuple(self.n_nucleon * x  for x in self._energy_range_per_nucleon)
+        return tuple(self.n_nucleon * x  for x in self.EKIN_RANGE_PER_NUCLEON)
 
     def ekin_at_dut(self, energy):
 
