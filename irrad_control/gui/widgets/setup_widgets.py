@@ -634,17 +634,14 @@ class DAQSetup(BaseSetupWidget):
         label_ion = QtWidgets.QLabel('Ion:')
         combo_ion = QtWidgets.QComboBox()
         fill_combobox_items(combo_ion, self.ions)
-        combo_ion.setCurrentIndex(self.ion_names.index('proton'))
-        combo_ion.currentIndexChanged.connect(self.setup)
 
         # Add to layout
         self.add_widget(widget=[label_ion, combo_ion])
 
         # Label for name of DAQ device which is represented by the ADC
-        label_energy = QtWidgets.QLabel('Kinetic energy:')
+        label_energy = QtWidgets.QLabel('Kinetic energy [MeV]:')
         spbx_energy = QtWidgets.QDoubleSpinBox()
-        spbx_energy.setSuffix(' MeV')
-        spbx_energy.setRange(*self.ions[combo_ion.currentText()].ekin_range())
+        spbx_energy.setDecimals(3)
 
         # Add to layout
         self.add_widget(widget=[label_energy, spbx_energy])
@@ -652,7 +649,6 @@ class DAQSetup(BaseSetupWidget):
         # Label for readout scale combobox
         label_kappa = QtWidgets.QLabel('Hardness factor %s:' % u'\u03ba')
         combo_kappa = QtWidgets.QComboBox()
-        fill_combobox_items(combo_kappa, {f' @{hd[0]} MeV on DUT': self.ions[combo_ion.currentText()].hardness_factor_to_dict(hd) for hd in self.ions[combo_ion.currentText()].hardness_factors()})
 
         # Add to layout
         self.add_widget(widget=[label_kappa, combo_kappa])
@@ -661,24 +657,61 @@ class DAQSetup(BaseSetupWidget):
         label_prop = QtWidgets.QLabel('Calibration factor %s [1/V]:' % u'\u03bb')
         label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
         combo_prop = QtWidgets.QComboBox()
-        fill_combobox_items(combo_prop, {f' @{cd[0]} MeV intial': self.ions[combo_ion.currentText()].calibration_to_dict(cd) for cd in self.ions[combo_ion.currentText()].calibrations()})
 
         # Add to layout
         self.add_widget(widget=[label_prop, combo_prop])
+
+        # Connections
+        combo_ion.currentTextChanged.connect(lambda text: self._setup_ion_selection(ion=text, ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
+        spbx_energy.valueChanged.connect(lambda _: self._setup_energy_selection(ion=combo_ion.currentText(), ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
+    
+        combo_ion.setCurrentIndex(self.ion_names.index('proton'))
 
         # Store all daq related widgets in dict
         self.widgets['ion_combo'] = combo_ion
         self.widgets['energy_spbx'] = spbx_energy
         self.widgets['kappa_combo'] = combo_kappa
         self.widgets['lambda_combo'] = combo_prop
+        spbx_energy.valueChanged.connect(self.setup)
+
+    def _setup_ion_selection(self, ion, ckappa, cprop, senergy):
+
+        hardness = self.ions[ion].hardness_factor(as_dict=True)
+        if hardness is None:
+            ckappa.setEnabled(False)
+            fill_combobox_items(ckappa, {f'Unavailable for {ion}': None})
+        else:
+            ckappa.setEnabled(True)
+            fill_combobox_items(ckappa, hardness)
+
+        calibration = self.ions[ion].calibration(as_dict=True)
+        if calibration is None:
+            cprop.setEnabled(False)
+            fill_combobox_items(cprop, {f'Unavailable for {ion}': None})
+        else:
+            cprop.setEnabled(True)
+            fill_combobox_items(cprop, calibration)
+
+        senergy.setRange(*self.ions[ion].ekin_range())
+
+    def _setup_energy_selection(self, ion, ckappa, cprop, senergy):
+
+        ckappa_idx = self.ions[ion].hardness_factor(at_energy=senergy.value(), return_index=True)
+        ckappa.setCurrentIndex(ckappa_idx if ckappa_idx is not None else ckappa.currentIndex())
+
+        cprop_idx = self.ions[ion].calibration(at_energy=senergy.value(), return_index=True)
+        cprop.setCurrentIndex(cprop_idx if cprop_idx is not None else cprop.currentIndex())
 
     def setup(self):
 
         setup = {}
         setup['ion'] = {'name': self.widgets['ion_combo'].currentText(), 'energy': self.widgets['energy_spbx'].value()}
-        setup['lambda'] = self.ions[setup['ion']['name']].calibration_to_dict(self.ions[setup['ion']['name']].calibrations()[self.widgets['lambda_combo'].currentIndex()])
-        setup['kappa'] = self.ions[setup['ion']['name']].hardness_factor_to_dict(self.ions[setup['ion']['name']].hardness_factors()[self.widgets['kappa_combo'].currentIndex()])
-        print(setup)
+        
+        if self.ions[setup['ion']['name']].hardness_factor():
+            setup['kappa'] = self.ions[setup['ion']['name']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
+        
+        if self.ions[setup['ion']['name']].hardness_factor():
+            setup['lambda'] = self.ions[setup['ion']['name']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
         
         return setup
 
