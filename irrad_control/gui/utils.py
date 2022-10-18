@@ -14,32 +14,28 @@ def fill_combobox_items(cbx, fill_dict):
         dictionary which will fill combobox with keys
     """
 
-    default_idx = 0
-    _all = fill_dict if 'all' not in fill_dict else fill_dict['all']
-
     # Clear initially
     cbx.clear()
 
     # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
-    for i, k in enumerate(sorted(_all.keys())):
+    for i, k in enumerate(sorted(fill_dict.keys())):
+        
         tool_tip = ''
-        if isinstance(_all[k], dict):
-            if 'hv_sem' in _all[k]:
-                cbx.insertItem(i, '{} ({}, HV: {})'.format(_all[k]['nominal'], k, _all[k]['hv_sem']))
-            elif 'nominal' in _all[k]:
-                cbx.insertItem(i, '{} ({})'.format(_all[k]['nominal'], k))
 
-            for l in _all[k]:
-                tool_tip += '{}: {}\n'.format(l, _all[k][l])
+        if isinstance(fill_dict[k], dict):
+
+            if 'nominal' in fill_dict[k]:
+                cbx.insertItem(i, f"{fill_dict[k]['nominal']}" + u'\u00b1' + f"{fill_dict[k]['sigma']}" + f" ({fill_dict[k]['energy']} MeV)")
+
+            else:
+                cbx.insertItem(i, k)
+
+            for l in fill_dict[k]:
+                tool_tip += '{}: {}\n'.format(l, fill_dict[k][l])
         else:
             cbx.insertItem(i, k)
-            tool_tip += '{}: {}\n'.format(k, _all[k])
+            tool_tip += '{}: {}\n'.format(k, fill_dict[k])
         cbx.model().item(i).setToolTip(tool_tip)
-
-        default_idx = default_idx if 'default' not in fill_dict else default_idx if k != fill_dict['default'] else i
-
-    cbx.setCurrentIndex(default_idx)
-
 
 def get_host_ip():
     """Returns the host IP address on UNIX systems. If not UNIX, returns None"""
