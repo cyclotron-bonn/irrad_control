@@ -665,14 +665,13 @@ class DAQSetup(BaseSetupWidget):
         combo_ion.currentTextChanged.connect(lambda text: self._setup_ion_selection(ion=text, ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
         spbx_energy.valueChanged.connect(lambda _: self._setup_energy_selection(ion=combo_ion.currentText(), ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
     
-        combo_ion.setCurrentIndex(self.ion_names.index('proton'))
+        combo_ion.currentTextChanged.emit(combo_ion.currentText())
 
         # Store all daq related widgets in dict
         self.widgets['ion_combo'] = combo_ion
         self.widgets['energy_spbx'] = spbx_energy
         self.widgets['kappa_combo'] = combo_kappa
         self.widgets['lambda_combo'] = combo_prop
-        spbx_energy.valueChanged.connect(self.setup)
 
     def _setup_ion_selection(self, ion, ckappa, cprop, senergy):
 

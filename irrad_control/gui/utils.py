@@ -18,7 +18,7 @@ def fill_combobox_items(cbx, fill_dict):
     cbx.clear()
 
     # Add entire Info to tooltip e.g. date of measured constant, sigma, etc.
-    for i, k in enumerate(sorted(fill_dict.keys())):
+    for i, k in enumerate(fill_dict.keys()):
         
         tool_tip = ''
 
