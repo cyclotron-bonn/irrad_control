@@ -20,6 +20,9 @@ class IrradIon(object):
 
     def __repr__(self):
         return f"{self.name.capitalize()}(Z={self.n_charge}, A={self.n_nucleon})"
+
+    def __lt__(self, other):
+        return self.n_nucleon < other.n_nucleon
     
     def _load_data_sets(self):
 
@@ -111,10 +114,11 @@ class IrradIon(object):
 
 # Generate all ions
 def get_ions():
-    ions = {}
+    ions = []
     for ion in os.listdir(os.path.dirname(__file__)):
         try:
-            ions[ion] = getattr(import_module(f'irrad_control.ions.{ion}'), ion)
+            ions.append(getattr(import_module(f'irrad_control.ions.{ion}'), ion))
         except (ModuleNotFoundError, AttributeError):
             pass
-    return ions
+    ions.sort()
+    return {ion.name: ion for ion in ions}
