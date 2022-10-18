@@ -43,7 +43,7 @@ class IrradIon(object):
 
         if isinstance(data, list):
                 _data = {i: helper(dat) for i, dat in enumerate(data)}
-        elif isinstance(_data, np.ndarray):
+        elif isinstance(data, np.ndarray):
             _data = helper(data)
         else:
             raise ValueError('Cannot pack data to dict')
