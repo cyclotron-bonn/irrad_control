@@ -39,8 +39,38 @@ class IrradIon(object):
 
     def _to_dict(self, data):
 
+        helper = lambda d: {'nominal': d[1], 'sigma': d[2], 'energy': d[0], 'date': time.asctime(time.gmtime(d[3]))}
+
+        if isinstance(data, list):
+                _data = {i: helper(dat) for i, dat in enumerate(data)}
+        elif isinstance(_data, np.ndarray):
+            _data = helper(data)
+        else:
+            raise ValueError('Cannot pack data to dict')
+
         # Get calibration factor for given energy
-        return {'nominal': data[1], 'sigma': data[2], 'energy': data[0], 'date': time.asctime(time.gmtime(data[3]))}
+        return _data
+
+    def _select_data(self, data_type, at_energy=None, at_index=None, as_dict=False, return_index=False):
+        
+        if self._data[data_type] is None:
+            logging.warning(f"No {data_type} data available for ion {self.name}")
+            return None
+        
+        if at_energy:
+            closest_idx = (np.abs(self._data[data_type][:,0] - at_energy)).argmin()
+            _data = self._data[data_type][closest_idx] if not return_index else closest_idx
+
+        elif at_index:
+            _data = self._data[data_type][at_index]
+
+        else:
+            _data = [calib for calib in self._data[data_type]]
+
+        if as_dict:
+            _data = self._to_dict(_data)
+
+        return _data
 
     def ekin_range(self):
         """
@@ -70,33 +100,13 @@ class IrradIon(object):
         logging.warning(f"No stopping power data available for {self.name}s.")
         return None
 
-    def calibrations(self):
-        if self._data['calibration'] is not None:
-            return [calib for calib in self._data['calibration']]
+    def calibration(self, at_energy=None, at_index=None, as_dict=False, return_index=False):
+        
+        return self._select_data(data_type='calibration', at_energy=at_energy, at_index=at_index, as_dict=as_dict, return_index=return_index)
 
-    def calibration_data(self, energy, return_idx=False):
+    def hardness_factor(self, at_energy=None, at_index=None, as_dict=False, return_index=False):
 
-        if self._data['calibration'] is not None:
-            # Get calibration factor for given energy
-            closest_idx = (np.abs(self._data['calibration'][:,0] - energy)).argmin()
-            return self._data['calibration'][closest_idx] if not return_idx else closest_idx
-
-    def calibration_to_dict(self, cal_data):
-        return self._to_dict(data=cal_data)
-
-    def hardness_factors(self):
-        if self._data['hardness'] is not None:
-            return [kappa for kappa in self._data['hardness']]
-
-    def hardness_factor_data(self, energy, return_idx=False):
-        if self._data['hardness'] is not None:
-            # Get calibration factor for given energy
-            closest_idx = (np.abs(self._data['hardness'][:,0] - energy)).argmin()
-            return self._data['hardness'][closest_idx] if not return_idx else closest_idx
-
-    def hardness_factor_to_dict(self, kappa_data):
-        # Get calibration factor for given energy
-        return self._to_dict(data=kappa_data)
+        return self._select_data(data_type='hardness', at_energy=at_energy, at_index=at_index, as_dict=as_dict, return_index=return_index)
 
 
 # Generate all ions
