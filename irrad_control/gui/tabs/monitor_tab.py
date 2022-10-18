@@ -51,19 +51,17 @@ class IrradMonitorTab(QtWidgets.QWidget):
                 if monitor == 'Raw':
 
                     channels = self.setup[server]['readout']['channels']
-                    daq_device = self.setup[server]['daq']['sem']
-                    self.plots[server]['raw_plot'] = plots.RawDataPlot(channels=channels, daq_device=daq_device)
+                    self.plots[server]['raw_plot'] = plots.RawDataPlot(channels=channels)
                     monitor_widget = self._create_plot_wrapper(plot_name='raw_plot', server=server)
 
                 elif monitor == 'Beam':
 
                     channels = ('beam_current', 'beam_current_error', 'reconstructed_beam_current')
-                    daq_device = self.setup[server]['daq']['sem']
                     if 'blm' in self.setup[server]['readout']['types']:
                         channels += ('beam_loss', )
 
-                    self.plots[server]['current_plot'] = plots.BeamCurrentPlot(channels=channels, daq_device=daq_device)
-                    self.plots[server]['pos_plot'] = plots.BeamPositionPlot(self.setup[server], daq_device=daq_device)
+                    self.plots[server]['current_plot'] = plots.BeamCurrentPlot(channels=channels)
+                    self.plots[server]['pos_plot'] = plots.BeamPositionPlot(self.setup[server])
 
                     beam_current_wrapper = self._create_plot_wrapper(plot_name='current_plot', server=server)
                     beam_pos_wrapper = self._create_plot_wrapper(plot_name='pos_plot', server=server)

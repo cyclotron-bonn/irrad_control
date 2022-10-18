@@ -657,7 +657,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
                 if reply == 'setup_scan':
                     self.monitor_tab.add_fluence_hist(server=hostname,
-                                                      kappa=self.setup['server'][hostname]['daq']['kappa'],
+                                                      kappa=self.setup['server'][hostname]['daq']['kappa']['nominal'],
                                                       n_rows=reply_data['result']['n_rows'])
                     
                     self.control_tab.scan_status(server=hostname, status='started')
