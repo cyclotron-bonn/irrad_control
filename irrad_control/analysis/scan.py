@@ -29,7 +29,6 @@ def during_scan(timestamp, start_timestamps, stop_timestamps, pos):
             return True, j
     return False, pos
 
-@njit
 def data_per_row(n_scan, n_rows, rows, data):
     res = np.empty(shape=(0, n_scan+1))
     for i in range(n_rows):

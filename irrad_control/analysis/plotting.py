@@ -282,12 +282,27 @@ def plot_everything(data):
                                           'ylabel': f"Beam current / nA",
                                           'label': f"Beam",
                                           'title': fig_title,
-                                          'fmt': '-C1'},
+                                          'fmt': '--C1'},
                                figsize=(8,6))
     beamax.set_zorder(3)
     beamax.set_facecolor('none')
-    ymin, ymax = beamax.get_ylim()
-    beamax.set_ylim(ymin, 1.05*ymax) #make some room for labels
+    bymin, bymax = beamax.get_ylim()
+    beamax.set_ylim(bymin, 1.2*bymax) #make some room for labels
+    
+    fluenceax = beamax.twinx()
+    fluenceax.yaxis.tick_left()
+    fluenceax.yaxis.set_label_position("left")
+    fluenceax.spines.left.set_visible(True)
+    
+    beamax.spines.left.set_position(("axes", -0.1))
+    beamax.yaxis.tick_left()
+    beamax.yaxis.set_label_position("left")
+    beamax.spines.left.set_visible(True)
+
+    fluenceax.plot(dtime_row_start, data['proton_fluence'], color='C2', label="Fluence")
+    flxlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
+    fluenceax.set_ylabel(flxlabel)
+    fluenceax.set_ylim(fluenceax.get_ylim()[0], 1.1*fluenceax.get_ylim()[1])
     
     tidax = beamax.twinx()
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
@@ -302,15 +317,16 @@ def plot_everything(data):
     
     n_scan = len(data['scan_start'])
     tick_dist = n_scan/5
-    scanaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if i%tick_dist==0]
+    scanaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if (i-19)%tick_dist==0]
     scanax = beamax.twiny()
     scanax.set_xlim(beamax.get_xlim())
-    dtime_scan_start = [datetime.fromtimestamp(data['scan_start'][i]) for i in range(n_scan) if i%tick_dist==0]
+    dtime_scan_start = [datetime.fromtimestamp(data['scan_start'][i]) for i in range(n_scan) if (i-19)%tick_dist==0]
     scanax.set_xticks(dtime_scan_start)
     scanax.set_xticklabels(scanaxlabel)
     
     beamax.legend(loc='upper left')
     tidax.legend(loc='upper right')
+    fluenceax.legend(loc='upper center')
     return fig
     
 #******* Beamplotting ********#
