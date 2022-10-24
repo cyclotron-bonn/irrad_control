@@ -648,6 +648,13 @@ class DAQSetup(BaseSetupWidget):
         # Add to layout
         self.add_widget(widget=[label_energy, spbx_energy])
 
+        # Label for name of DAQ device which is represented by the ADC
+        label_stopping_power = QtWidgets.QLabel('Stopping power [MeV cm²/g]:')
+        label_stopping_power_value = QtWidgets.QLabel()
+
+        # Add to layout
+        self.add_widget(widget=[label_stopping_power, label_stopping_power_value])
+
         # Label for readout scale combobox
         label_kappa = QtWidgets.QLabel('Hardness factor %s:' % u'\u03ba')
         combo_kappa = QtWidgets.QComboBox()
@@ -665,7 +672,7 @@ class DAQSetup(BaseSetupWidget):
 
         # Connections
         combo_ion.currentTextChanged.connect(lambda text: self._setup_ion_selection(ion=text, ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
-        spbx_energy.valueChanged.connect(lambda _: self._setup_energy_selection(ion=combo_ion.currentText(), ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
+        spbx_energy.valueChanged.connect(lambda _: self._setup_energy_selection(ion=combo_ion.currentText(), ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy, lstop=label_stopping_power_value))
     
         combo_ion.currentTextChanged.emit(combo_ion.currentText())
 
@@ -695,13 +702,30 @@ class DAQSetup(BaseSetupWidget):
 
         senergy.setRange(*self.ions[ion].ekin_range())
 
-    def _setup_energy_selection(self, ion, ckappa, cprop, senergy):
+    def _setup_energy_selection(self, ion, ckappa, cprop, senergy, lstop):
 
         ckappa_idx = self.ions[ion].hardness_factor(at_energy=self.ions[ion].ekin_at_dut(senergy.value()), return_index=True)
         ckappa.setCurrentIndex(ckappa_idx if ckappa_idx is not None else ckappa.currentIndex())
 
         cprop_idx = self.ions[ion].calibration(at_energy=senergy.value(), return_index=True)
         cprop.setCurrentIndex(cprop_idx if cprop_idx is not None else cprop.currentIndex())
+
+        ekin_at_dut = self.ions[ion].ekin_at_dut(energy=senergy.value())
+        if ekin_at_dut != senergy.value():
+            senergy.setSuffix(f" ({ekin_at_dut:.3f} at DUT)")
+        else:
+            senergy.setSuffix('')
+
+        stopping_power = self.ions[ion].stopping_power(energy=senergy.value())
+        if stopping_power:
+            stop_text = f"{stopping_power:.3f}"
+            stopping_power_at_dut = self.ions[ion].stopping_power(energy=senergy.value(), at_dut=True)
+            if stopping_power != stopping_power_at_dut:
+                stop_text += f" ({stopping_power_at_dut:.3f} at DUT)"
+        else:
+            stop_text = f"Unavailable for {ion}"
+        
+        lstop.setText(stop_text)
 
     def setup(self):
 
