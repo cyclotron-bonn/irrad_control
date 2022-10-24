@@ -5,6 +5,8 @@ import subprocess
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
+from matplotlib.pyplot import ion
+
 # Package imports
 import irrad_control.devices.readout as ro
 from irrad_control.utils.logger import log_levels
@@ -695,7 +697,7 @@ class DAQSetup(BaseSetupWidget):
 
     def _setup_energy_selection(self, ion, ckappa, cprop, senergy):
 
-        ckappa_idx = self.ions[ion].hardness_factor(at_energy=senergy.value(), return_index=True)
+        ckappa_idx = self.ions[ion].hardness_factor(at_energy=self.ions[ion].ekin_at_dut(senergy.value()), return_index=True)
         ckappa.setCurrentIndex(ckappa_idx if ckappa_idx is not None else ckappa.currentIndex())
 
         cprop_idx = self.ions[ion].calibration(at_energy=senergy.value(), return_index=True)
@@ -704,13 +706,10 @@ class DAQSetup(BaseSetupWidget):
     def setup(self):
 
         setup = {}
-        setup['ion'] = {'name': self.widgets['ion_combo'].currentText(), 'energy': self.widgets['energy_spbx'].value()}
-        
-        if self.ions[setup['ion']['name']].hardness_factor():
-            setup['kappa'] = self.ions[setup['ion']['name']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
-        
-        if self.ions[setup['ion']['name']].calibration():
-            setup['lambda'] = self.ions[setup['ion']['name']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
+        setup['ion'] = self.widgets['ion_combo'].currentText()
+        setup['ekin'] = self.widgets['energy_spbx'].value() 
+        setup['kappa'] = self.ions[setup['ion']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
+        setup['lambda'] = self.ions[setup['ion']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
         
         return setup
 
