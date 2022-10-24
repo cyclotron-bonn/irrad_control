@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 from irrad_control.analysis import formulas as fm
+import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
 from matplotlib.colors import LogNorm
@@ -270,6 +271,11 @@ def plot_tid_per_row(data):
         ax.bar(x=rows, height=data[:,scan], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
         bar_heights = bar_heights+data[:,scan]
     ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
+    neqax = ax.twinx()
+    neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
+    neqax.set_ylabel(neqlabel)
+    neq_ylims = [lim*1.4/(1e5 * irrad_consts.elementary_charge * irrad_consts.p_stop_Si) for lim in ax.get_ylim()]
+    neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
     return fig, ax
 
 def plot_everything(data):
@@ -300,7 +306,7 @@ def plot_everything(data):
     beamax.spines.left.set_visible(True)
 
     fluenceax.plot(dtime_row_start, data['proton_fluence'], color='C2', label="Fluence")
-    flxlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
+    flxlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}\mathrm{s}^{-1}$'
     fluenceax.set_ylabel(flxlabel)
     fluenceax.set_ylim(fluenceax.get_ylim()[0], 1.1*fluenceax.get_ylim()[1])
     
