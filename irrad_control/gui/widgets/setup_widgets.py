@@ -707,7 +707,10 @@ class DAQSetup(BaseSetupWidget):
 
         setup = {}
         setup['ion'] = self.widgets['ion_combo'].currentText()
-        setup['ekin'] = self.widgets['energy_spbx'].value() 
+        setup['ekin'] = self.widgets['energy_spbx'].value()
+        setup['stopping_power'] = self.ions[setup['ion']].stopping_power(energy=setup['ekin'])
+        setup['dut_ekin'] = self.ions[setup['ion']].ekin_at_dut(energy=setup['ekin'])
+        setup['dut_stopping_power'] = self.ions[setup['ion']].stopping_power(energy=setup['dut_ekin'])
         setup['kappa'] = self.ions[setup['ion']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
         setup['lambda'] = self.ions[setup['ion']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
         
