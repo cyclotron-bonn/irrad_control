@@ -67,12 +67,14 @@ class IrradConverter(DAQProcess):
         self._raw_offsets = {}
         self._row_fluence_hist = {}
         self._dtimes = defaultdict(dict)
+        self._daq_params = defaultdict(dict)
 
         # R/O setup per server
         self.readout_setup = {}
 
         for server, server_setup in self.setup['server'].items():
             self._add_server_data(server=server, server_setup=server_setup)
+            self._setup_daq_parameters(server=server, server_setup=server_setup)
 
         self._scan_number = None
 
@@ -224,6 +226,15 @@ class IrradConverter(DAQProcess):
 
             # Add flag
             self.data_flags[server][dname] = False
+
+    def _setup_daq_parameters(self, server, server_setup):
+        
+        daq_setup = server_setup['daq']
+
+        self._daq_params[server]['dut_ekin'] = daq_setup['dut_ekin']
+        self._daq_params[server]['dut_stopping_power'] = daq_setup['dut_stopping_power'] or np.nan
+        self._daq_params[server]['kappa'] = (np.nan, np.nan) if daq_setup['kappa'] is None else (daq_setup['kappa']['nominal'], daq_setup['kappa']['sigma'])
+        self._daq_params[server]['lambda'] = (np.nan, np.nan) if daq_setup['lambda'] is None else (daq_setup['lambda']['nominal'], daq_setup['lambda']['sigma'])
             
     def _calc_drate(self, server, meta):
 
@@ -420,7 +431,7 @@ class IrradConverter(DAQProcess):
 
                     for idx in foil_idxs:
                         bc = analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][idx]],
-                                                                       calibration_factor=self.setup['server'][server]['daq']['lambda']['nominal'],
+                                                                       calibration_factor=self._daq_params[server]['lambda'][0],
                                                                        full_scale_current=self._get_full_scale_current(server=server, ch_idx=idx,
                                                                                                                        ro_device=self.readout_setup[server]['device']))
                         current += bc / n_foils
@@ -429,7 +440,7 @@ class IrradConverter(DAQProcess):
                     if 'sem_sum' in self._lookups[server]['ro_type_idx']:
                         sum_idx = self._lookups[server]['ro_type_idx']['sem_sum']
                         current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sum_idx]],
-                                                                            calibration_factor=self.setup['server'][server]['daq']['lambda']['nominal'],
+                                                                            calibration_factor=self._daq_params[server]['lambda'][0],
                                                                             full_scale_current=self._get_full_scale_current(server=server, ch_idx=sum_idx,
                                                                                                                             ro_device=self.readout_setup[server]['device']))
                         if 'error' in dname:
@@ -567,7 +578,7 @@ class IrradConverter(DAQProcess):
                                                                        scan_step=self.data_arrays[server]['irrad']['row_separation'][0],
                                                                        scan_speed=self.data_arrays[server]['scan']['row_scan_speed'][0])
 
-            row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
+            row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=self._daq_params[server]['dut_stopping_power'])
 
             self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
@@ -601,17 +612,17 @@ class IrradConverter(DAQProcess):
                 # Check damage type
                 if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('NIEL', encoding='ascii'):
                     # Get remaining proton fluence
-                    remainder_NIEL = self.data_arrays[server]['irrad']['aim_value'][0] / self.setup['server'][server]['daq']['kappa']['nominal'] - _mean_proton_fluence
+                    remainder_NIEL = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0] - _mean_proton_fluence
                     eta_n_scans = int(remainder_NIEL / row_proton_fluence.n)
                 else:
                     remainder_TID = self.data_arrays[server]['irrad']['aim_value'][0] - analysis.formulas.tid_scan(proton_fluence=_mean_proton_fluence,
-                                                                                                                   stopping_power=analysis.constants.p_stop_Si)
+                                                                                                                   stopping_power=self._daq_params[server]['dut_stopping_power'])
                     eta_n_scans = int(remainder_TID / analysis.formulas.tid_scan(proton_fluence=row_proton_fluence.n,
-                                                                                 stopping_power=analysis.constants.p_stop_Si))
+                                                                                 stopping_power=self._daq_params[server]['dut_stopping_power']))
 
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
 
-            except ZeroDivisionError:
+            except (ZeroDivisionError, ValueError):  # ValueError if any of the values is np.nan
                 eta_time = eta_n_scans = -1
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
@@ -646,7 +657,7 @@ class IrradConverter(DAQProcess):
 
             # Calculate absolute delivered TID with this scan
             abs_tid = analysis.formulas.tid_scan(proton_fluence=abs_proton_fluence,
-                                                 stopping_power=analysis.constants.p_stop_Si)
+                                                 stopping_power=self._daq_params[server]['dut_stopping_power'])
 
             # Completed scan number and timestamp of completion
             self.data_arrays[server]['damage']['timestamp'] = meta['timestamp']
@@ -678,9 +689,7 @@ class IrradConverter(DAQProcess):
 
             mean_result_proton_fluence = np.mean(self._row_fluence_hist[server])
             mean_result_tid = analysis.formulas.tid_scan(proton_fluence=mean_result_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
-            # FIXME: hardcoded error! Pass errors through DAQ setup
-            mean_result_neq_fluence = mean_result_proton_fluence * ufloat(self.setup['server'][server]['daq']['kappa']['nominal'],
-                                                                          self.setup['server'][server]['daq']['kappa']['sigma'])
+            mean_result_neq_fluence = mean_result_proton_fluence * ufloat(*self._daq_params[server]['kappa'])
 
             self.data_arrays[server]['result']['proton_fluence'] = mean_result_proton_fluence.n
             self.data_arrays[server]['result']['proton_fluence_error'] = mean_result_proton_fluence.s
