@@ -111,7 +111,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Open the config.yaml and overwrite it with current server_ips if something changed
         if n_servers_changed or content_servers_changed:
-            save_yaml(path=config_file, data=current_servers)
+            save_yaml(path=config_file, data=config)
 
     def update_setup(self):
         """Update the info into the setup dict"""
