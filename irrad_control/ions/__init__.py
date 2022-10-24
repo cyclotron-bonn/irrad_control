@@ -42,7 +42,7 @@ class IrradIon(object):
 
     def _to_dict(self, data):
 
-        helper = lambda d: {'nominal': d[1], 'sigma': d[2], 'energy': d[0], 'date': time.asctime(time.gmtime(d[3]))}
+        helper = lambda d: {'nominal': float(d[1]), 'sigma': float(d[2]), 'energy': float(d[0]), 'date': time.asctime(time.gmtime(d[3]))}
 
         if isinstance(data, list):
                 _data = {i: helper(dat) for i, dat in enumerate(data)}
@@ -89,16 +89,16 @@ class IrradIon(object):
     def ekin_at_dut(self, energy):
 
         if self._data['energy'] is not None:
-            return np.interp(x=energy, xp=self._data['energy'][:,0], fp=self._data['energy'][:,1])
+            return float(np.interp(x=energy, xp=self._data['energy'][:,0], fp=self._data['energy'][:,1]))
         
         logging.warning(f"No simulation data available for {self.name}s. Using input energy of {energy} MeV instead.")
-        return energy
+        return float(energy)
 
     def stopping_power(self, energy, at_dut=False):
         
         if self._data['stopping'] is not None:
             tmp_energy = energy if not at_dut else self.ekin_at_dut(energy=energy)
-            return np.interp(x=tmp_energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1])
+            return float(np.interp(x=tmp_energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1]))
         
         logging.warning(f"No stopping power data available for {self.name}s.")
         return None
