@@ -709,7 +709,7 @@ class DAQSetup(BaseSetupWidget):
         if self.ions[setup['ion']['name']].hardness_factor():
             setup['kappa'] = self.ions[setup['ion']['name']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
         
-        if self.ions[setup['ion']['name']].hardness_factor():
+        if self.ions[setup['ion']['name']].calibration():
             setup['lambda'] = self.ions[setup['ion']['name']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
         
         return setup
