@@ -60,11 +60,11 @@ class IrradIon(object):
             logging.warning(f"No {data_type} data available for ion {self.name}")
             return None
         
-        if at_energy:
+        if at_energy is not None:
             closest_idx = (np.abs(self._data[data_type][:,0] - at_energy)).argmin()
             _data = self._data[data_type][closest_idx] if not return_index else closest_idx
 
-        elif at_index:
+        elif at_index is not None:
             _data = self._data[data_type][at_index]
 
         else:
