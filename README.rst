@@ -39,13 +39,13 @@ and required dependencies, type
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial paramiko matplotlib tqdm numba scipy
+   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial matplotlib tqdm numba scipy
 
 Run ``conda activate irrad`` to activate the Python environment. To install the required packages that are not available via ``conda``, use ``pip``
 
 .. code-block:: bash
 
-  pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
+  pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11 paramiko==2.11
 
 To finally install & launch ``irrad_control`` run the setup script via
 
