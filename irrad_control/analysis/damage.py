@@ -1,11 +1,10 @@
 import logging
-from types import GeneratorType
 from irrad_control.analysis import plotting
 from irrad_control.analysis import fluence
 from irrad_control.analysis import formulas
 
 
-def analyse_radiation_damage(data, **damage_kwargs):
+def analyse_radiation_damage(data, config=None):
 
     figs = []
 
@@ -19,7 +18,7 @@ def analyse_radiation_damage(data, **damage_kwargs):
     bin_centers = {'x': None, 'y': None}
 
     # We have a multipart irradiation with mulitple datafiles
-    if isinstance(data, GeneratorType):
+    if config is None:
         
         server = None  # Only allow files with exactly one server for multipart to avoid adding unrelated fluence maps
 
@@ -48,8 +47,16 @@ def analyse_radiation_damage(data, **damage_kwargs):
                                                                                                                        beam_sigma=beam_sigma,
                                                                                                                        bins=bins)
                 # Generate eqivalent fluence map as well as TID map
-                results['neq'] = results['proton'] * server_config['daq']['kappa']
-                results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=damage_kwargs['stopping_power'])
+                if server_config['daq']['kappa'] is None:
+                    del results['neq']
+                else:
+                    results['neq'] = results['proton'] * server_config['daq']['kappa']['nominal']
+                
+                print(server_config['daq']['stopping_power'], type(server_config['daq']['stopping_power']))
+                if server_config['daq']['stopping_power'] is None:
+                    del results['tid']
+                else:
+                    results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=server_config['daq']['stopping_power'])
 
                 continue
 
@@ -61,31 +68,37 @@ def analyse_radiation_damage(data, **damage_kwargs):
             results['proton'] += fluence_map_part
             errors['proton'] = (errors['proton']**2 + fluence_map_part_error**2)**.5
             
-            # Add to eqivalent fluence map as well as TID map
-            results['neq'] += results['proton'] * server_config['daq']['kappa']
-            results['tid'] += formulas.tid_scan(proton_fluence=results['proton'], stopping_power=damage_kwargs['stopping_power'])
-
-            # Error calculation
-            errors['neq'] = ((server_config['daq']['kappa'] * errors['proton'])**2 + (results['proton'] * 0.6)**2)**0.5  # FIXME: read hardness factor error from config
-            errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=damage_kwargs['stopping_power'])
+            # Add to eqivalent fluence map
+            if 'neq' in results:
+                results['neq'] += results['proton'] * server_config['daq']['kappa']['nominal']
+                errors['neq'] = ((server_config['daq']['kappa']['nominal'] * errors['proton'])**2 + (results['proton'] * server_config['daq']['kappa']['sigma'])**2)**0.5
+            
+            if 'tid' in results:
+                results['tid'] += formulas.tid_scan(proton_fluence=results['proton'], stopping_power=server_config['daq']['stopping_power'])
+                errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=server_config['daq']['stopping_power'])
 
     else:
 
-        server = damage_kwargs['server']
+        server = config['name']
                     
         results['proton'], errors['proton'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
                                                                                                                beam_sigma=beam_sigma,
                                                                                                                bins=bins)
         # Generate eqivalent fluence map as well as TID map
-        results['neq'] = results['proton'] * damage_kwargs['hardness_factor']
-        results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=damage_kwargs['stopping_power'])
+        if config['daq']['kappa'] is None:
+            del results['neq']
+        else:
+            results['neq'] = results['proton'] * config['daq']['kappa']['nominal']
+            errors['neq'] = ((config['daq']['kappa']['nominal'] * errors['proton'])**2 + (results['proton'] * config['daq']['kappa']['sigma'])**2)**.5
+        
+        if config['daq']['stopping_power'] is None:
+            del results['tid']
+        else:
+            results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=config['daq']['stopping_power'])
+            errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=config['daq']['stopping_power'])
 
-        # Error calculation
-        errors['neq'] = ((damage_kwargs['hardness_factor'] * errors['proton'])**2 + (results['proton'] * 0.6)**2)**.5  # FIXME: read hardness factor error from config
-        errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=damage_kwargs['stopping_power'])
-
-    if any(a is None for a in (list(bin_centers.values()) + list(errors.values()) + list(results.values()))):
+    if any(a is None for a in (list(bin_centers.values()) + list(results.values()))):
         raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
 
     logging.info("Generating plots ...")

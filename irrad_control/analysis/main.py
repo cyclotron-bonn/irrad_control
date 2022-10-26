@@ -9,8 +9,6 @@ import matplotlib as mpl
 
 import irrad_control.analysis as irrad_analysis
 from irrad_control.analysis.utils import load_irrad_data
-from irrad_control.analysis.constants import p_stop_Si
-
 
 
 # Disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
@@ -174,9 +172,7 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.analyse_radiation_damage(data=input_files(infiles=parsed['infile']),
-                                                                 hardness_factor=4.1,
-                                                                 stopping_power=p_stop_Si)
+            res = irrad_analysis.damage.analyse_radiation_damage(data=input_files(infiles=parsed['infile']), config=None)
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -203,10 +199,7 @@ def main():
 
                     if parsed['damage']:
                         
-                        res = irrad_analysis.damage.analyse_radiation_damage(data=data,
-                                                                             server=content['name'],
-                                                                             hardness_factor=content['daq']['kappa'],
-                                                                             stopping_power=p_stop_Si)
+                        res = irrad_analysis.damage.analyse_radiation_damage(data=data, config=content)
 
                         save_plots(plots=res, outfile=out_pdf)
             

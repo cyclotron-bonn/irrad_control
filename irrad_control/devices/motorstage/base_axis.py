@@ -8,6 +8,7 @@ from threading import get_ident
 from copy import deepcopy
 
 # Package imports
+from irrad_control import config_path
 from irrad_control.utils.utils import create_pub_from_ctx
 from irrad_control.utils.tools import save_yaml, load_yaml
 
@@ -59,10 +60,10 @@ def load_base_axis_config(config=None):
         elif isfile(config):
             return load_yaml(config)
         elif isinstance(config, str):
-            config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), config))
-            if isfile(config_path):
-                tmp = load_yaml(config_path)
-            tmp['meta']['filename'] = config_path
+            tmp_config = os.path.join(config_path, config)
+            if isfile(tmp_config):
+                tmp = load_yaml(tmp_config)
+            tmp['meta']['filename'] = tmp_config
 
     return tmp
 

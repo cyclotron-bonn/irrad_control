@@ -1,26 +1,33 @@
 # Imports
-from distutils.command.config import config
 import os
-import yaml
+from .utils import tools
 
 # Version
 __version__ = '2.0.0'
 
+# Dirs to be checked / made
+tmp_dir = '/tmp/irrad_control'
+config_dir = f"{os.path.expanduser('~')}/.config/irrad_control"
+
 # Paths
 package_path = os.path.dirname(__file__)
-config_path = os.path.join(package_path, 'config')
-tmp_dir = '/tmp/irrad_control'
+config_path = os.path.abspath(config_dir)
+tmp_path = os.path.abspath(tmp_dir)
+script_path = os.path.abspath(os.path.join(package_path, '../scripts'))
 
-# Shell script to config server
-config_server_script = os.path.abspath(os.path.join(package_path, '../scripts/configure_server.sh'))
+# Files
+config_file = os.path.join(config_path, 'config.yaml')
+pid_file = os.path.join(config_path, 'irrad_control.pid')
 
-# Make tmp folder to store temp files in
-if not os.path.isdir(tmp_dir):
-    os.mkdir(tmp_dir)
+# Check / make
+for check_path in (tmp_path, config_path):
+    if not os.path.isdir(check_path):
+        os.mkdir(check_path)
 
-# Load network and data acquisition config
-with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:
-    network_config = yaml.safe_load(_nc)
-
-with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as _dc:
-    daq_config = yaml.safe_load(_dc)
+# Check for config.yaml
+if os.path.isfile(config_file):
+    config = tools.load_yaml(path=config_file)
+else:
+    # Create empty config yaml
+    config = {'server': {'all': {}, 'default': None}, 'git': None}
+    tools.save_yaml(path=config_file, data=config)

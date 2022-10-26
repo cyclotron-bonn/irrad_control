@@ -1,0 +1,5 @@
+### This file contains beam monitor calibration data for protons ###
+# Initial energy / MeV, energy at DUT mean / MeV,  energy at DUT sigma / MeV
+7, 3, 0.5
+13, 12.1, 0.2
+14, 12.8, 0.15

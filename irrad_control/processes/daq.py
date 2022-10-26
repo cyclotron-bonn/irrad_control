@@ -7,7 +7,7 @@ from time import sleep
 from multiprocessing import Process
 from threading import Event
 from zmq.log import handlers
-from irrad_control import config_path
+from irrad_control import pid_file
 from irrad_control.utils.worker import ThreadWorker
 from collections import defaultdict
 
@@ -41,7 +41,6 @@ class DAQProcess(Process):
 
         # Initialize a name which is connected to this process
         self.pname = name
-        self.pfile = os.path.join(config_path, '.irrad.pid')  # Create hidden PID file
 
         # Events to handle sending / receiving of data and commands
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
@@ -233,13 +232,13 @@ class DAQProcess(Process):
         proc_info['ports'] = self.ports
 
         # Make file path; if a file already exists,overwrite
-        with open(self.pfile, 'w') as pid_file:
-            yaml.safe_dump(proc_info, pid_file, default_flow_style=False)
+        with open(pid_file, 'w') as pf:
+            yaml.safe_dump(proc_info, pf, default_flow_style=False)
 
     def _remove_pid_file(self):
         """ Method that removes the PID file in the config-folder of this package on process shutdown process """
-        if os.path.isfile(self.pfile):
-            os.remove(self.pfile)
+        if os.path.isfile(pid_file):
+            os.remove(pid_file)
 
     def _setup(self):
         """Setup everything neeeded for the instance"""

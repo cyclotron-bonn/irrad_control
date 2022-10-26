@@ -5,7 +5,7 @@ import paramiko
 import subprocess
 import yaml
 from collections import defaultdict
-from irrad_control import package_path, config_server_script, config_path, tmp_dir
+from irrad_control import package_path, script_path, pid_file, tmp_path
 
 
 class ProcessManager(object):
@@ -84,7 +84,8 @@ class ProcessManager(object):
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
             remote_script = '/home/{}/config_server.sh'.format(self.server[hostname])
-            self.copy_to_server(hostname, config_server_script, remote_script)
+            local_script = os.path.join(script_path, 'configure_server.sh')
+            self.copy_to_server(hostname, local_script, remote_script)
 
         # Add args to call remote script
         _rs = remote_script
@@ -104,12 +105,12 @@ class ProcessManager(object):
 
         # Check whether we're looking for a pid file on server or localhost
         if hostname in self.client:
-            pid_file = '/home/{}/irrad_control/irrad_control/config/.irrad.pid'.format(self.server[hostname])
-            pid_file_local = os.path.join(tmp_dir, '{}_server.pid'.format(hostname))
+            pid_file = '/home/{}/.config/irrad_control/irrad_control.pid'.format(self.server[hostname])
+            pid_file_local = os.path.join(tmp_path, '{}_server.pid'.format(hostname))
             if self._check_file_exits(hostname=hostname, file_path=pid_file):
                 self.get_from_server(hostname=hostname, remote_filepath=pid_file, local_filepath=pid_file_local)
         else:
-            pid_file_local = os.path.join(config_path, '.irrad.pid')
+            pid_file_local = pid_file
 
         if self._check_file_exits(hostname='localhost', file_path=pid_file_local):
 

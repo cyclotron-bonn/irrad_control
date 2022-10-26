@@ -3,7 +3,7 @@ import irrad_control.analysis.constants as irrad_consts
 import numpy as np
 
 
-def tid_scan(proton_fluence, stopping_power=irrad_consts.p_stop_Si):
+def tid_scan(proton_fluence, stopping_power):
     """
 
     Parameters
