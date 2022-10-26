@@ -231,8 +231,7 @@ class IrradConverter(DAQProcess):
         
         daq_setup = server_setup['daq']
 
-        self._daq_params[server]['dut_ekin'] = daq_setup['dut_ekin']
-        self._daq_params[server]['dut_stopping_power'] = daq_setup['dut_stopping_power'] or np.nan
+        self._daq_params[server]['stopping_power'] = daq_setup['stopping_power'] or np.nan
         self._daq_params[server]['kappa'] = (np.nan, np.nan) if daq_setup['kappa'] is None else (daq_setup['kappa']['nominal'], daq_setup['kappa']['sigma'])
         self._daq_params[server]['lambda'] = (np.nan, np.nan) if daq_setup['lambda'] is None else (daq_setup['lambda']['nominal'], daq_setup['lambda']['sigma'])
             
@@ -578,7 +577,7 @@ class IrradConverter(DAQProcess):
                                                                        scan_step=self.data_arrays[server]['irrad']['row_separation'][0],
                                                                        scan_speed=self.data_arrays[server]['scan']['row_scan_speed'][0])
 
-            row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=self._daq_params[server]['dut_stopping_power'])
+            row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=self._daq_params[server]['stopping_power'])
 
             self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
@@ -616,9 +615,9 @@ class IrradConverter(DAQProcess):
                     eta_n_scans = int(remainder_NIEL / row_proton_fluence.n)
                 else:
                     remainder_TID = self.data_arrays[server]['irrad']['aim_value'][0] - analysis.formulas.tid_scan(proton_fluence=_mean_proton_fluence,
-                                                                                                                   stopping_power=self._daq_params[server]['dut_stopping_power'])
+                                                                                                                   stopping_power=self._daq_params[server]['stopping_power'])
                     eta_n_scans = int(remainder_TID / analysis.formulas.tid_scan(proton_fluence=row_proton_fluence.n,
-                                                                                 stopping_power=self._daq_params[server]['dut_stopping_power']))
+                                                                                 stopping_power=self._daq_params[server]['stopping_power']))
 
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
 
@@ -657,7 +656,7 @@ class IrradConverter(DAQProcess):
 
             # Calculate absolute delivered TID with this scan
             abs_tid = analysis.formulas.tid_scan(proton_fluence=abs_proton_fluence,
-                                                 stopping_power=self._daq_params[server]['dut_stopping_power'])
+                                                 stopping_power=self._daq_params[server]['stopping_power'])
 
             # Completed scan number and timestamp of completion
             self.data_arrays[server]['damage']['timestamp'] = meta['timestamp']
