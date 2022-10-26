@@ -16,7 +16,7 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   tests:
-    name: Testing ${{matrix.version}} on ${{matrix.python-version}} | ${{matrix.sim}}
+    name: Testing Python ${{matrix.python-version}} | ${{matrix.sim}} on ${{matrix.os}}
     runs-on: ${{matrix.os}}
     
     env:
