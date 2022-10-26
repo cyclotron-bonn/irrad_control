@@ -19,6 +19,7 @@ jobs:
   # This workflow contains a single job called "build"
   tests:
     name: Testing ${{matrix.software-version}} on ${{matrix.python-version}} | ${{matrix.sim}}
+    runs-on: ${{matrix.os}}
     
     env:
       DISPLAY: :0
@@ -29,8 +30,6 @@ jobs:
         os: [ubuntu-20.04, ubuntu-latest]
         python-version: [3.8]
         software-version: [v1.3.0, ${{ github.head_ref || github.ref_name }}]
-
-    runs-on: ${{matrix.os}}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
