@@ -16,7 +16,7 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   tests:
-    name: Testing Python ${{matrix.python-version}} | ${{matrix.sim}} on ${{matrix.os}}
+    name: Testing Python ${{matrix.python-version}} on ${{matrix.os}}
     runs-on: ${{matrix.os}}
     
     env:
@@ -59,6 +59,6 @@ jobs:
           # start xvfb in the background
           sudo /usr/bin/Xvfb $DISPLAY -screen 0 1366x768x24 &
 
-      - name: Testing
+      - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
         shell: bash -l {0}
         run: pytest
