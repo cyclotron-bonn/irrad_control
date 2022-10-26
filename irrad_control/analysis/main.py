@@ -9,8 +9,6 @@ import matplotlib as mpl
 
 import irrad_control.analysis as irrad_analysis
 from irrad_control.analysis.utils import load_irrad_data
-from irrad_control.analysis.constants import p_stop_Si
-
 
 
 # Disable matplotlib figure number warning; expect people to have more than 2 GB of RAM

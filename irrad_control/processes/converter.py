@@ -687,7 +687,7 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['result']['timestamp'] = meta['timestamp']
 
             mean_result_proton_fluence = np.mean(self._row_fluence_hist[server])
-            mean_result_tid = analysis.formulas.tid_scan(proton_fluence=mean_result_proton_fluence, stopping_power=analysis.constants.p_stop_Si)
+            mean_result_tid = analysis.formulas.tid_scan(proton_fluence=mean_result_proton_fluence, stopping_power=self._daq_params[server]['stopping_power'])
             mean_result_neq_fluence = mean_result_proton_fluence * ufloat(*self._daq_params[server]['kappa'])
 
             self.data_arrays[server]['result']['proton_fluence'] = mean_result_proton_fluence.n
