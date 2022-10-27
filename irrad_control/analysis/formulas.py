@@ -1,51 +1,51 @@
 """Collection of analysis functions"""
-import irrad_control.analysis.constants as irrad_consts
 import numpy as np
+import irrad_control.analysis.constants as irrad_consts
 
 
-def tid_scan(proton_fluence, stopping_power):
+def tid_per_scan(ion_fluence, stopping_power):
     """
 
     Parameters
     ----------
-    proton_fluence: float
-        Number of protons per square centimeter
+    ion_fluence: float
+        Number of ions per square centimeter
 
     stopping_power:
-        Total stopping power of the protons in MeV cm^2 / g
+        Total stopping power of the ions in MeV cm^2 / g
 
     Returns
     -------
     Total ionizing dose in Mrad
     """
-    return 1e5 * irrad_consts.elementary_charge * proton_fluence * stopping_power
+    return irrad_consts.MEV_PER_GRAM_TO_MRAD * ion_fluence * stopping_power
 
 
-def tid_rate_scan(proton_flux, stopping_power):
+def tid_rate(ion_rate, stopping_power):
     """
 
     Parameters
     ----------
-    proton_flux: float
-        Number of protons per square centimeter per second
+    ion_rate: float
+        Number of ions per second
 
     stopping_power:
-        Total stopping power of the protons in MeV cm^2 / g
+        Total stopping power of the ions in MeV cm^2 / g
 
     Returns
     -------
-    Total ionizing dose in Mrad
+    Total ionizing dose rate in Mrad/s
     """
-    return 1e5 * irrad_consts.elementary_charge * proton_flux * stopping_power
+    return irrad_consts.MEV_PER_GRAM_TO_MRAD * ion_rate * stopping_power
 
 
-def proton_fluence_scan(proton_current, scan_step, scan_speed):
+def fluence_per_scan(ion_current, ion_n_charge, scan_step, scan_speed):
     """
 
     Parameters
     ----------
-    proton_current: float
-        Proton beam current in A
+    current: float
+        Ion beam current in A
 
     scan_step: float
         Separation between scanned rows in mm
@@ -55,34 +55,28 @@ def proton_fluence_scan(proton_current, scan_step, scan_speed):
 
     Returns
     -------
-    Fluence in protons / cm^2 delivered.
+    Fluence in ions / cm^2 delivered.
 
     """
-    return proton_current / (irrad_consts.elementary_charge * scan_speed * scan_step * 1e-2)
+    return ion_current / (ion_n_charge * irrad_consts.elementary_charge * scan_speed * scan_step * 1e-2)
 
 
-def proton_flux_scan(proton_current, scan_step, scan_speed, scan_duration):
+def niel_rate(ion_rate, hardness_factor):
     """
 
     Parameters
     ----------
-    proton_current: float
-        Proton beam current in A
+    ion_rate: float
+        Ion rate in particles / s
 
-    scan_step: float
-        Separation between scanned rows in mm / cm / m
-
-    scan_speed: float
-        Speed with which rows are scanned in mm/s / cm/s / m/s
-
-    scan_duration:
-        Duration which is needed to scan from first row to last row
+    hardness_factor:
+        Hardness factor to scale damage to neutron eqivalents
 
     Returns
     -------
-    Proton flux in protons/cm^2/s
+    1 MeV neutron eqivalent damages / s
     """
-    return proton_fluence_scan(proton_current, scan_step, scan_speed) / scan_duration
+    return ion_rate * hardness_factor
 
 
 def time_scan(scan_area, scan_step, scan_speed):
