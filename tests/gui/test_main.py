@@ -2,7 +2,7 @@ import sys
 import logging
 import unittest
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 
 from irrad_control.processes.gui import IrradGUI
 
@@ -18,12 +18,6 @@ class TestMain(unittest.TestCase):
         # Create complete window which can be accessed after launch
         cls.irrad_window = IrradGUI()
         cls.irrad_window.show()
-
-        # Execute app
-        #cls.test_app.exec()
-
-        # Allow 5 seconds for testing
-        #QtCore.QTimer.singleShot(5000, cls.test_app.exit)
 
     @classmethod
     def tearDownClass(cls):
