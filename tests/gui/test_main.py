@@ -2,7 +2,7 @@ import sys
 import logging
 import unittest
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 
 from irrad_control.processes.gui import IrradGUI
 
@@ -19,11 +19,11 @@ class TestMain(unittest.TestCase):
         cls.irrad_window = IrradGUI()
         cls.irrad_window.show()
 
-        # Exit app after finding servers
-        cls.irrad_window.setup_tab.session_setup.setup_widgets['network'].serverIPsFound.connect(cls.test_app.exit)
+        # Execute app
+        cls.test_app.exec()
 
-        # Execute app; After server finding returns, main window is setup and can be tested
-        cls.test_app.exec_()
+        # Allow 5 seconds for testing
+        QtCore.QTimer.singleShot(5000, cls.test_app.exit)
 
     @classmethod
     def tearDownClass(cls):
