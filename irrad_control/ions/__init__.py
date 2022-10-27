@@ -4,6 +4,8 @@ import time
 import numpy as np
 from importlib import import_module
 
+from irrad_control.analysis.constants import elementary_charge
+
 
 class IrradIon(object):
 
@@ -75,6 +77,24 @@ class IrradIon(object):
 
         return _data
 
+    def rate(self, current):
+        """
+        Returns the *rate* in particles / second, calculated from *current* in Ampere.
+        For IrradIons with n_charge = 1 current / elementary charge and rate are the same
+
+        Parameters
+        ----------
+        current : float
+            Ion beam current in Ampere
+
+        Returns
+        -------
+        ion rate
+            Number of ions per second
+        """
+        # Ions per second
+        return current / (self.n_charge * elementary_charge)
+
     def ekin_range(self):
         """
         Return kinetic energy range as a tuple in MeV
@@ -114,6 +134,14 @@ class IrradIon(object):
 
 # Generate all ions
 def get_ions():
+    """
+    Returns a dict with all available IrradIon.name, IrradIon key-value pairs
+
+    Returns
+    -------
+    dict
+        dict with IrradIon.names as keys and the respective IrradIon as value
+    """
     ions = []
     for ion in os.listdir(os.path.dirname(__file__)):
         try:
