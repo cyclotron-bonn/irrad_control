@@ -8,17 +8,19 @@ on:
   push:
     branches:
       - main
+      - development
   pull_request:
     branches:
       - main
+      - development
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
   tests:
-    name: Testing Python ${{matrix.python-version}} on ${{matrix.os}}
-    runs-on: ${{matrix.os}}
-    
+    name: Testing on Python ${{matrix.python-version}} | ${{matrix.sim}}
+    runs-on: ubuntu-20.04
+
     env:
       DISPLAY: :0
 
@@ -43,8 +45,8 @@ jobs:
         shell: bash -l {0}
         run: |
           conda info -a
-          conda install numpy pyyaml pyzmq pytables matplotlib pytest numba tqdm
-          pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11 paramiko==2.11
+          conda install numpy pyyaml pyzmq pytables matplotlib paramiko pytest numba tqdm
+          pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11
           pip install -r requirements.txt
 
       - name: Package installation
@@ -59,6 +61,6 @@ jobs:
           # start xvfb in the background
           sudo /usr/bin/Xvfb $DISPLAY -screen 0 1366x768x24 &
 
-      - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
+      - name: Testing
         shell: bash -l {0}
         run: pytest
