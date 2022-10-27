@@ -515,7 +515,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-                #self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+                #self.control_tab.update_info(row=data['data']['row_primary_fluence'][0], unit='p/cm^2')
                 #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
                 if data['data']['eta_n_scans'] >= 0:
