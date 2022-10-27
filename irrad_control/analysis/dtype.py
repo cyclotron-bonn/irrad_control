@@ -37,8 +37,8 @@ _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row_stop_y', '<f4'),  # # y component of the stopping position of currently-scanned row [mm]
                ('row_mean_beam_current', '<f4'),  # Mean of the beam current during scanning current row [A]
                ('row_mean_beam_current_error', '<f4'),  # Error of the beam current; quadratic addition of std of beam current and measurement error [A]
-               ('row_proton_fluence', '<f8'),  # The proton fluence during scanning current row [protons/cm^2]
-               ('row_proton_fluence_error', '<f8'),  # Error of the proton fluence during scanning current row [protons/cm^2]
+               ('row_primary_fluence', '<f8'),  # The ion fluence during scanning current row [ions/cm^2]
+               ('row_primary_fluence_error', '<f8'),  # Error of the ion fluence during scanning current row [ions/cm^2]
                ('row_tid', '<f4'),  # The TID during scanning current row [Mrad]
                ('row_tid_error', '<f4'),  # Error of the tid [Mrad]
                ('row_scan_speed', '<f4'),  # Speed with which the sample is scanned [mm/s]
@@ -61,18 +61,18 @@ _irrad_dtype = [('timestamp', '<f8'),  # Posix-timestamp of init [s]
 # Damage data dtype; contains NIEL and TID damage data on a per-scan basis
 _damage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
                  ('scan', '<i2'),  # Number of *completed* scans,
-                 ('scan_proton_fluence', '<f8'),  # Proton fluence delivered in this scan [protons/cm^2]
-                 ('scan_proton_fluence_error', '<f8'),  # Error of proton fluence delivered in this scan [protons/cm^2]
+                 ('scan_primary_fluence', '<f8'),  # ion fluence delivered in this scan [ions/cm^2]
+                 ('scan_primary_fluence_error', '<f8'),  # Error of ion fluence delivered in this scan [ions/cm^2]
                  ('scan_tid', '<f8'),  # Total-ionizing dose delivered in this scan [Mrad]
                  ('scan_tid_error', '<f8')]  # Error of total-ionizing dose delivered in this scan [Mrad]
 
 
-# Result data type: contains proton as well as neutron fluence and scaling factor
+# Result data type: contains ion as well as neutron fluence and scaling factor
 _result_dtype = [('timestamp', '<f8'),
-                 ('proton_fluence', '<f8'),
-                 ('proton_fluence_error', '<f8'),
-                 ('neutron_fluence', '<f8'),
-                 ('neutron_fluence_error', '<f8'),
+                 ('primary_fluence', '<f8'),
+                 ('primary_fluence_error', '<f8'),
+                 ('neq_fluence', '<f8'),
+                 ('neq_fluence_error', '<f8'),
                  ('tid', '<f4'),
                  ('tid_error', '<f4')]
 

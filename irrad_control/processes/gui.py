@@ -483,7 +483,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'damage':
 
-            #update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
+            #update_info(scan=data['data']['scan_primary_fluence'][0], unit='p/cm^2')
             pass
 
         elif data['meta']['type'] == 'scan':

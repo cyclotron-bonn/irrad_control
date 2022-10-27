@@ -3,12 +3,12 @@ import numpy as np
 import irrad_control.analysis.constants as irrad_consts
 
 
-def tid_per_scan(ion_fluence, stopping_power):
+def tid_per_scan(primary_fluence, stopping_power):
     """
 
     Parameters
     ----------
-    ion_fluence: float
+    primary_fluence: float
         Number of ions per square centimeter
 
     stopping_power:
@@ -18,7 +18,7 @@ def tid_per_scan(ion_fluence, stopping_power):
     -------
     Total ionizing dose in Mrad
     """
-    return irrad_consts.MEV_PER_GRAM_TO_MRAD * ion_fluence * stopping_power
+    return irrad_consts.MEV_PER_GRAM_TO_MRAD * primary_fluence * stopping_power
 
 
 def tid_rate(ion_rate, stopping_power):
@@ -61,7 +61,7 @@ def fluence_per_scan(ion_current, ion_n_charge, scan_step, scan_speed):
     return ion_current / (ion_n_charge * irrad_consts.elementary_charge * scan_speed * scan_step * 1e-2)
 
 
-def niel_rate(ion_rate, hardness_factor):
+def neq_rate(ion_rate, hardness_factor):
     """
 
     Parameters
