@@ -25,13 +25,13 @@ Due to dependencies, you have to have Python 3.8  with the following packages in
 - pyzmq
 - pytables
 - matplotlib
-- paramiko
 - uncertainties
 - tqdm
 - numba
 - scipy
 - pyqt (version 5)
 - `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.11)
+- paramiko (version 2.11)
 
 It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
 After installation you can use the package manager ``conda`` to install the required packages. To create a new Python 3.8 environment with the name `irrad`

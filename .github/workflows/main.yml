@@ -31,7 +31,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Anaconda ${{matrix.python-version}} setup
         uses: conda-incubator/setup-miniconda@v2
@@ -50,7 +50,7 @@ jobs:
       - name: Package installation
         shell: bash -l {0}
         run: |
-          python setup.py develop
+          pip install -e .
 
       - name: xvfb setup
         shell: bash -l {0}

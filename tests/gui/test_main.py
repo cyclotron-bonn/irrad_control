@@ -19,12 +19,6 @@ class TestMain(unittest.TestCase):
         cls.irrad_window = IrradGUI()
         cls.irrad_window.show()
 
-        # Exit app after finding servers
-        cls.irrad_window.setup_tab.session_setup.setup_widgets['network'].serverIPsFound.connect(cls.test_app.exit)
-
-        # Execute app; After server finding returns, main window is setup and can be tested
-        cls.test_app.exec_()
-
     @classmethod
     def tearDownClass(cls):
         pass
