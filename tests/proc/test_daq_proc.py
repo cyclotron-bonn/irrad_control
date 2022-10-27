@@ -32,11 +32,13 @@ class TestDAQProcess(unittest.TestCase):
         # Wait until process is created with irrad_control.pid file
         start = time.time()
         while not os.path.isfile(pid_file):
-            time.sleep(0.2)
+            time.sleep(1)
 
-            # Wait max 5 seconds
-            if time.time() - start > 5:
+            # Wait max 30 seconds
+            if time.time() - start > 30:
                 break
+
+        assert os.path.isfile(pid_file)
 
     @classmethod
     def tearDownClass(cls):
