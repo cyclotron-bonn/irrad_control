@@ -20,10 +20,10 @@ class TestMain(unittest.TestCase):
         cls.irrad_window.show()
 
         # Execute app
-        cls.test_app.exec()
+        #cls.test_app.exec()
 
         # Allow 5 seconds for testing
-        QtCore.QTimer.singleShot(5000, cls.test_app.exit)
+        #QtCore.QTimer.singleShot(5000, cls.test_app.exit)
 
     @classmethod
     def tearDownClass(cls):
