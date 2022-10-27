@@ -21,6 +21,7 @@ def analyse_radiation_damage(data, config=None):
     if config is None:
         
         server = None  # Only allow files with exactly one server for multipart to avoid adding unrelated fluence maps
+        ion_name = None
 
         # Loop over generator and get partial data files
         for nfile, data_part, config_part, session_basename in data:
@@ -35,6 +36,7 @@ def analyse_radiation_damage(data, config=None):
             # Only allow one fixed server for multipart
             if server is None:
                 server = server_config['name']
+                ion_name = server_config['daq']['ion']
 
             if server not in data_part:
                 raise KeyError(f"Server '{server}' not present in file {session_basename}!")
@@ -80,6 +82,7 @@ def analyse_radiation_damage(data, config=None):
     else:
 
         server = config['name']
+        ion_name = config['daq']['ion']
                     
         results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
@@ -123,16 +126,16 @@ def analyse_radiation_damage(data, config=None):
 
             is_dut = damage_map.shape == dut_map.shape                
 
-            fig, _ = plotting.plot_damage_map_3d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_3d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_error_3d(damage_map=damage_map, error_map=errors[damage] if not is_dut else dut_error_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_error_3d(damage_map=damage_map, error_map=errors[damage] if not is_dut else dut_error_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, ion_name=ion_name,  server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_map_2d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_2d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_map_contourf(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_contourf(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
     logging.info("Finished plotting.")
