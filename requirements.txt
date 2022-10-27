@@ -1,6 +1,6 @@
 numpy  # C-like arrays and vectorized functions
 pyzmq  # 0MQ
-paramiko==2.11  # SSH API in python
+paramiko  # SSH API in python
 pyyaml  # yaml
 tables  # pytables HDF5 library in Python
 matplotlib  # Plotting colors
