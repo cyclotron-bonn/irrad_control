@@ -24,7 +24,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=Fals
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):
-        ax.set_zlabel(f"{damage_label} / {damage_unit}")
+        ax.set_zlabel(f"{damage_unit}")
 
     if damage_map is not None and dut and not uncertainty_map:
         mean, std = damage_map.mean(), damage_map.std()
