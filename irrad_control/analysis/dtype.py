@@ -48,8 +48,8 @@ _scan_dtype = [('scan', '<i2'),  # Number of current scan
 _irrad_dtype = [('timestamp', '<f8'),  # Posix-timestamp of init [s]
                 ('row_separation', '<f4'),  # Row separation e.g. step size of scan, spacing in between scanned rows [mm]
                 ('n_rows', '<i2'),  # Number of total rows in scan
-                ('aim_damage', 'S4'),  # Either NIEL or TID
-                ('aim_value', '<f4'),  # Nominal value of damage to be induced, either in neq/cm^2 or Mrad
+                ('aim_damage', 'S8'),  # Either neq, tid or primary
+                ('aim_value', '<f4'),  # Nominal value of damage to be induced, either in neq/cm^2, Mrad or ions / cm^2
                 ('min_scan_current', '<f4'),  # Minimum current for scanning [A]
                 ('scan_origin_x', '<f4'),  # x component of the scan origin from where the rel. coord. system is constructed [mm]
                 ('scan_origin_y', '<f4'),  # y component of the scan origin from where the rel. coord. system is constructed [mm]

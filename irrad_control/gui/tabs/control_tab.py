@@ -45,7 +45,7 @@ class IrradControlTab(QtWidgets.QWidget):
 
         # Get widgets
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server)
-        scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server)
+        scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'])
         daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device)
         status_widget = ic_cntrl_wdgts.StatusInfoWidget('Status')
 

@@ -394,17 +394,18 @@ class ScanControlWidget(ControlWidget):
 
     scanParamsUpdated = QtCore.pyqtSignal(dict)
 
-    def __init__(self, server, parent=None):
+    def __init__(self, server, daq_setup, parent=None):
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent)
 
         # Store server hostname
         self.server = server
+        self.daq_setup = daq_setup
 
         self.scan_params = {'row_sep': 1.0,
                             'scan_speed': 70.0,
                             'min_current': 0.0,
-                            'aim_damage': 'niel',
-                            'aim_value': 2e15,
+                            'aim_damage': 'primary',
+                            'aim_value': 1e14,
                             'rel_start': [0.0, 0.0],
                             'rel_end': [0.0, 0.0]}
 
@@ -423,6 +424,33 @@ class ScanControlWidget(ControlWidget):
     def update_scan_params(self, **kwargs):
         self.scan_params.update(kwargs)
         self.scanParamsUpdated.emit(self.scan_params)
+
+    def _damage_toggled(self, damage_buttons, sv, se):
+        
+        # Get active button
+        active = damage_buttons.checkedButton()
+        if active is None:
+            damage = 'primary'
+        else:
+            damage = active.text().lower()
+
+        if damage == 'primary':
+            se.setSuffix(f" {self.daq_setup['ion']} / cm^2")
+            se.setRange(3, 20)
+            sv.setValue(1)
+            se.setValue(14)
+        elif damage == 'neq':
+            se.setSuffix(f" neq / cm^2")
+            se.setRange(3, 20)
+            sv.setValue(1)
+            se.setValue(14)
+        else:
+            se.setRange(1, 6)
+            se.setSuffix(' Mrad')
+            sv.setValue(1)
+            se.setValue(2)
+
+        self.update_scan_params(aim_damage=damage)
 
     def _init_ui(self):
 
@@ -461,21 +489,36 @@ class ScanControlWidget(ControlWidget):
         # Fluence
         label_aim_damage = QtWidgets.QLabel('Aim damage:')
         label_aim_damage.setToolTip('Select type and quantity of damage to be introduced to DUT')
-        rbtn_niel = QtWidgets.QRadioButton('NIEL')
+        rbtn_neq = QtWidgets.QRadioButton('NEQ')
         rbtn_tid = QtWidgets.QRadioButton('TID')
+        rbtn_primary = QtWidgets.QRadioButton('Primary')
+        damage_buttons = QtWidgets.QButtonGroup()
+        damage_buttons.addButton(rbtn_neq)
+        damage_buttons.addButton(rbtn_tid)
+        damage_buttons.addButton(rbtn_primary)
+        layout_aim_damage = QtWidgets.QHBoxLayout()
+
+        # Add radio buttons for different types of damage
+        if self.daq_setup['kappa'] is None:
+            damage_buttons.removeButton(rbtn_neq)    
+        if self.daq_setup['stopping_power'] is None:
+            damage_buttons.removeButton(rbtn_tid)            
+
         spx_damage_val = QtWidgets.QDoubleSpinBox()
         spx_damage_val.setRange(1e-3, 10)
         spx_damage_val.setDecimals(3)
         spx_damage_exp = QtWidgets.QSpinBox()
         spx_damage_exp.setPrefix('e ')
-        rbtn_niel.toggled.connect(lambda toggled, sv=spx_damage_val, se=spx_damage_exp:
-                                  (se.setRange(3, 20), se.setSuffix(' neq / cm^2'), sv.setValue(2), se.setValue(15)))
-        rbtn_tid.toggled.connect(lambda toggled, sv=spx_damage_val, se=spx_damage_exp:
-                                 (se.setRange(1, 6), se.setSuffix(' Mrad'), sv.setValue(1), se.setValue(3)))
-        rbtn_niel.toggled.connect(lambda toggled: self.update_scan_params(aim_damage='niel' if toggled else 'tid'))
+
+        for btn in damage_buttons.buttons():
+            btn.toggled.connect(lambda _, bg=damage_buttons, sv=spx_damage_val, se=spx_damage_exp: self._damage_toggled(bg, sv, se))
+            layout_aim_damage.addWidget(btn)
+        
         spx_damage_val.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{v}e{spx_damage_exp.value()}')))
         spx_damage_exp.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{spx_damage_val.value()}e{v}')))
-        rbtn_niel.toggle()
+
+        # Toggle initially
+        rbtn_primary.toggle()
 
         # Start point
         label_start = QtWidgets.QLabel('Relative start point:')
@@ -558,7 +601,7 @@ class ScanControlWidget(ControlWidget):
         self.add_widget(widget=[label_row_sep, spx_row_sep])
         self.add_widget(widget=[label_scan_speed, spx_scan_speed])
         self.add_widget(widget=[label_min_current, spx_min_current])
-        self.add_widget(widget=[label_aim_damage, rbtn_niel, rbtn_tid])
+        self.add_widget(widget=[label_aim_damage, layout_aim_damage])
         self.add_widget(widget=[QtWidgets.QLabel(''), spx_damage_val, spx_damage_exp])
         self.add_widget(widget=[label_start, spx_start_x, spx_start_y])
         self.add_widget(widget=[label_end, spx_end_x, spx_end_y])

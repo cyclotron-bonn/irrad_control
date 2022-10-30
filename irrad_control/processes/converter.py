@@ -605,15 +605,23 @@ class IrradConverter(DAQProcess):
 
             try:
                 # Check damage type
-                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('NIEL', encoding='ascii'):
+                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('neq', encoding='ascii'):
                     # Get remaining primary fluence
-                    remainder_NIEL = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0] - _mean_primary_fluence
-                    eta_n_scans = int(remainder_NIEL / row_primary_fluence.n)
+                    aim_primary = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0]
+                    remainder_primary = aim_primary - _mean_primary_fluence
+                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
+
+                elif self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('tid', encoding='ascii'):
+                    remainder_tid = self.data_arrays[server]['irrad']['aim_value'][0]
+                    remainder_tid -= analysis.formulas.tid_per_scan(primary_fluence=_mean_primary_fluence,
+                                                                    stopping_power=self._daq_params[server]['stopping_power'])
+                    eta_n_scans = int(remainder_tid / analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence.n,
+                                                                                     stopping_power=self._daq_params[server]['stopping_power']))
+                # Remainder is primary fluence
                 else:
-                    remainder_TID = self.data_arrays[server]['irrad']['aim_value'][0] - analysis.formulas.tid_per_scan(primary_fluence=_mean_primary_fluence,
-                                                                                                                       stopping_power=self._daq_params[server]['stopping_power'])
-                    eta_n_scans = int(remainder_TID / analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence.n,
-                                                                                 stopping_power=self._daq_params[server]['stopping_power']))
+                    remainder_primary = self.data_arrays[server]['irrad']['aim_value'][0] - _mean_primary_fluence
+                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
+                    
 
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
 
