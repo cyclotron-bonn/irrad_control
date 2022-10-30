@@ -120,6 +120,12 @@ class IrradControlTab(QtWidgets.QWidget):
                     if time.time() - self._beam_down_timer[server] > 1.0:
                         self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'beam_ok'}})
                         self._beam_down[server] = False
+    
+    def check_finish(self, server, eta_n_scans):
+        
+        if eta_n_scans == 0 and self.tab_widgets[server]['scan'].auto_finish_scan:
+            self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'finish'}})
+
 
     def scan_status(self, server, status='started'):
         read_only_state = status == 'started'

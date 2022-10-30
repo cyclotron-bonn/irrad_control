@@ -411,6 +411,7 @@ class ScanControlWidget(ControlWidget):
 
         self._after_scan_container = None
         self.n_rows = None
+        self.auto_finish_scan = True
 
         self._init_ui()
 
@@ -554,6 +555,12 @@ class ScanControlWidget(ControlWidget):
         spx_end_x.valueChanged.connect(lambda v: self.update_scan_params(rel_end=[v, spx_end_y.value()]))
         spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(rel_start=[spx_end_x.value(), v]))
 
+        # Auto finish scan
+        checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
+        checkbox_auto_finish.setToolTip("Automatically finish scan procedure when target damage is reached.")
+        checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
+        checkbox_auto_finish.setChecked(True)
+
         # Scan
         btn_start = QtWidgets.QPushButton('START')
         btn_start.setToolTip("Start scan.")
@@ -596,6 +603,7 @@ class ScanControlWidget(ControlWidget):
         layout_scan.addWidget(btn_pause)
         layout_scan.addWidget(btn_finish)
         layout_scan.addWidget(btn_stop)
+        layout_scan.addWidget(checkbox_auto_finish)
 
         # Add to layout
         self.add_widget(widget=[label_row_sep, spx_row_sep])

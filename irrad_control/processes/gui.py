@@ -523,9 +523,8 @@ class IrradGUI(QtWidgets.QMainWindow):
                     # FIXME: more precise result would be helpful
                     pass
 
-                # Finish the scan programatically
-                if data['data']['eta_n_scans'] == 0:
-                    self.send_cmd(server, 'stage', 'finish')
+                # Finish the scan programatically, if wanted
+                self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
 
         elif data['meta']['type'] == 'temp_arduino':
 
