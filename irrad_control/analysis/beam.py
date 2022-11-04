@@ -21,7 +21,9 @@ def analyse_beam(data, **beam_kwargs):
     figs.append(fig)
     
     #Histogram of beam_current
-    fig, _ = plotting.plot_beam_current_hist(beam_currents=beam_current_nA)
+    fig, _ = plotting.plot_beam_current_hist(beam_currents=beam_current_nA,
+                                             start=data[server]['Scan']['row_start_timestamp'][0],
+                                             end=data[server]['Scan']['row_start_timestamp'][-1])
     
     figs.append(fig)
     #Histogram of beam current diviation

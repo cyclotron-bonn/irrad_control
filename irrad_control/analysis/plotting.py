@@ -242,10 +242,18 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
     return fig, ax
 
 #******** Scanplotting *******#
-def fluence_row_hist(fluence):
-    xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
+def fluence_row_hist(start, end, fluence):
+    tss = datetime.fromtimestamp(start)
+    tse = datetime.fromtimestamp(end)
+    tdiff = tse-tss
+    tdiff = tdiff.total_seconds()
+    tdiffh = (tdiff-tdiff%3600)/3600
+    tdiff = tdiff%3600
+    tdiffm = (tdiff-tdiff%60)/60
+    
     unit = r'$\mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_label = "({:.2e}±{:.1e}) {}".format(np.mean(fluence), np.std(fluence), unit)
+    fig_label = "Mean beam current over {} hours, {} mins.:\n({:.1e}±{:.1e}) {}".format(int(tdiffh), int(tdiffm), np.mean(fluence), np.std(fluence), unit)
+    xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
     fig_title = "Histogram Of Fluence Per Row"
     fig, ax = plot_generic_fig(plot_data={'xdata': fluence,
                                           'xlabel': xlabel,
@@ -257,34 +265,46 @@ def fluence_row_hist(fluence):
                                figsize=(8,6))
     return fig, ax
 
-def plot_tid_per_row(data):
+def plot_tid_per_row(data, **kwargs):
     fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
                                           'ylabel': f"Accumulated TID / Mrad",
-                                          'title': "Accumulation Of TID Per Scan"},
+                                          'title': "Radiation damage per scan"},
                                 figsize=(8,6))
     
     rows = [row for row in range(len(data))]
     bar_heights = np.zeros(len(rows))
     datalen = len(data[0])
-    for scan in range(datalen):
-        color = 'C0' if int(scan%2)==0 else 'C1'
-        ax.bar(x=rows, height=data[:,scan], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
-        bar_heights = bar_heights+data[:,scan]
+    for scan_j in range(0,2):
+        color, label = ('C0', "Alternating") if int(scan_j)==0 else ('C1', "scans")
+        ax.bar(x=rows, height=data[:,scan_j], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01, label=label)
+        bar_heights = bar_heights+data[:,scan_j]
+    ax.legend()
+    for scan_i in range(2,datalen):
+        color = 'C0' if int(scan_i%2)==0 else 'C1'
+        ax.bar(x=rows, height=data[:,scan_i], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
+        bar_heights = bar_heights+data[:,scan_i]
     ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
+    ax.set_ylim(ymax=ax.get_ylim()[1]*1.1)
     neqax = ax.twinx()
     neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     neqax.set_ylabel(neqlabel)
-    neq_ylims = [lim*1.4/(1e5 * irrad_consts.elementary_charge * irrad_consts.p_stop_Si) for lim in ax.get_ylim()]
+    
+    neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in ax.get_ylim()]
     neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
     return fig, ax
 
-def plot_everything(data):
-    fig_title = "Row- and scanwise accumulation of TID"
+def plot_everything(data, **kwargs):
+    fig_title = "Row- and scanwise radiation damage"
     dtime_row_start = [datetime.fromtimestamp(ts) for ts in data['row_start']]
     dtime_row_stop = [datetime.fromtimestamp(ts) for ts in data['row_stop']]
+    tss = datetime.fromtimestamp(data['row_start'][0])
+    day = tss.strftime("%d")
+    month = tss.strftime("%B")
+    year = tss.strftime("%Y")
+    xtimelabel = "Time on {} {} {}".format(day, month, year)
     fig, beamax = plot_generic_fig(plot_data={'xdata': dtime_row_start,
                                           'ydata': data['beam_current'],
-                                          'xlabel': f"Time",
+                                          'xlabel': xtimelabel,
                                           'ylabel': f"Beam current / nA",
                                           'label': f"Beam",
                                           'title': fig_title,
@@ -304,6 +324,12 @@ def plot_everything(data):
     beamax.yaxis.tick_left()
     beamax.yaxis.set_label_position("left")
     beamax.spines.left.set_visible(True)
+    
+    neqax = beamax.twinx()
+    
+    
+    neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
+    neqax.set_ylabel(neqlabel)
 
     fluenceax.plot(dtime_row_start, data['proton_fluence'], color='C2', label="Fluence")
     flxlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}\mathrm{s}^{-1}$'
@@ -311,6 +337,11 @@ def plot_everything(data):
     fluenceax.set_ylim(fluenceax.get_ylim()[0], 1.1*fluenceax.get_ylim()[1])
     
     tidax = beamax.twinx()
+    tidax.spines['right'].set_position(('outward', 55))
+    tidax.spines['right'].set_visible(True)
+    
+    
+    
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
     tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="TID", color='C0', align='edge') #add tid per scan
     tidax.set_zorder(1)
@@ -318,7 +349,7 @@ def plot_everything(data):
     ymin, ymax = tidax.get_ylim()
     tidax.set_ylim(ymin, 1.05*ymax) #make some room for labels
     
-    beamax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    beamax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     fig.autofmt_xdate()
     
     n_scan = len(data['scan_start'])
@@ -330,6 +361,11 @@ def plot_everything(data):
     scanax.set_xticks(dtime_scan_start)
     scanax.set_xticklabels(scanaxlabel)
     
+
+    
+    neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in tidax.get_ylim()]
+    neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
+    
     beamax.legend(loc='upper left')
     tidax.legend(loc='upper right')
     fluenceax.legend(loc='upper center')
@@ -337,22 +373,37 @@ def plot_everything(data):
     
 #******* Beamplotting ********#
 def plot_beam_current(timestamps, beam_currents, while_scan=None):
-    fig_title = "Beam current over time" if while_scan is None else "Beam current over time while scanning"
+    tss = datetime.fromtimestamp(timestamps[0])
+    day = tss.strftime("%d")
+    month = tss.strftime("%B")
+    year = tss.strftime("%Y")
+    fig_title = "Beam current over time" if while_scan is None else "Beam current over time during scan"
+    fig_label = "Beam"
+    xlabel = "Time on {} {} {}".format(day, month, year)
     fig, ax = plot_generic_fig(plot_data={'xdata': [datetime.fromtimestamp(ts) for ts in timestamps],
                                           'ydata': beam_currents,
-                                          'xlabel': f"Time",
+                                          'xlabel': xlabel,
                                           'ylabel': f"Beam current / nA",
-                                          'label': f"Beam",
+                                          'label': fig_label,
                                           'title': fig_title,
                                           'fmt': '-C0'},
                                figsize=(8,6))
-    ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
+    ax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     fig.autofmt_xdate()
     return fig, ax
 
-def plot_beam_current_hist(beam_currents, while_scan=None):
-    fig_label = "({:.0f}±{:.0f}) nA".format(np.mean(beam_currents), np.std(beam_currents))
-    fig_title = "Histogram Of Beam-Current Distribution" if while_scan is None else "Histogram Of Beam-Current Distribution While Scanning"
+def plot_beam_current_hist(beam_currents,  start, end, while_scan=None):
+    tss = datetime.fromtimestamp(start)
+    tse = datetime.fromtimestamp(end)
+    tdiff = tse-tss
+    tdiff = tdiff.total_seconds()
+    tdiffh = (tdiff-tdiff%3600)/3600
+    tdiff = tdiff%3600
+    tdiffm = (tdiff-tdiff%60)/60
+    
+
+    fig_label = "Mean beam current over {} hours, {} mins.:\n({:.0f}±{:.0f}) nA".format(int(tdiffh), int(tdiffm), np.mean(beam_currents), np.std(beam_currents))
+    fig_title = "Beam-Current Distribution" if while_scan is None else "Beam-current distribution during scan"
     fig, ax = plot_generic_fig(plot_data={'xdata': beam_currents,
                                           'xlabel': f"Beam current / nA",
                                           'ylabel': f"#",
@@ -375,11 +426,11 @@ def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=Non
     ax.grid()
     ax_histx.grid()
     ax_histy.grid()
-    fig_title = "Relative Beam-Distribution From Mean Position" if while_scan is None \
-        else "Relative Beam-Distribution From Mean Position While Scanning"
+    fig_title = "Relative beam-distribution from mean position" if while_scan is None \
+        else "Relative beam-distribution from mean position while scanning"
     fig.suptitle(fig_title)
-    ax.set_xlabel("x-deviation / %")
-    ax.set_ylabel("y-deviation / %")
+    ax.set_xlabel("x-deviation to left (-) and right (+) / % ")
+    ax.set_ylabel("y-deviation upwards (+) and downwards (-) / %")
     n_bins = 100 #bins of 2% each
     _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(n_bins, n_bins),norm=LogNorm(), cmap='viridis', cmin=1)
     plt.colorbar(mappable=im, ax=ax_histy)

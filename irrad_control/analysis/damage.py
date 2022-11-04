@@ -6,7 +6,6 @@ from irrad_control.analysis import formulas
 
 
 def analyse_radiation_damage(data, **damage_kwargs):
-
     figs = []
 
     beam_sigma = (2*2.01, 2*1.37)  # mm FIXME: get value from measurement outside vacuum; this value corresponds to 'visual' + measurement in vacuum
@@ -32,7 +31,7 @@ def analyse_radiation_damage(data, **damage_kwargs):
                 raise ValueError(f"Multipart damage analysis only supports input files containing data from 1 server; found {len(len(config_part['server']))}")
             
             server_config, = config_part['server'].values()
-
+            
             # Only allow one fixed server for multipart
             if server is None:
                 server = server_config['name']
@@ -79,6 +78,7 @@ def analyse_radiation_damage(data, **damage_kwargs):
                                                                                                                bins=bins)
         # Generate eqivalent fluence map as well as TID map
         results['neq'] = results['proton'] * damage_kwargs['hardness_factor']
+        print("hardness {}, stoppower {}".format(damage_kwargs['hardness_factor'], damage_kwargs['stopping_power']))
         results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=damage_kwargs['stopping_power'])
 
         # Error calculation

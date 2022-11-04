@@ -56,6 +56,8 @@ def analyse_scan(data, **scan_kwargs):
     
     #Histogram of Beam currents while scanning
     fig, _ = plotting.plot_beam_current_hist(beam_currents=beam_currents_while_scan,
+                                             start=data[server]['Scan']['row_start_timestamp'][0],
+                                             end=data[server]['Scan']['row_start_timestamp'][-1],
                                              while_scan=True)
     figs.append(fig)
     
@@ -71,7 +73,9 @@ def analyse_scan(data, **scan_kwargs):
     figs.append(fig)
     #Histogram of proton fluence while scanning
     fluence_data = data[server]['Scan']['row_proton_fluence']
-    fig, _ = plotting.fluence_row_hist(fluence=fluence_data)
+    fig, _ = plotting.fluence_row_hist(start=data[server]['Scan']['row_start_timestamp'][0],
+                                        end=data[server]['Scan']['row_start_timestamp'][-1],
+                                        fluence=fluence_data)
     figs.append(fig)
     
     #accumulated tid per row as bar diagram
@@ -79,7 +83,7 @@ def analyse_scan(data, **scan_kwargs):
                        n_rows=data[server]['Scan']['n_rows'][0],
                        rows=data[server]['Scan']['row'],
                        data=data[server]['Scan']['row_tid'])
-    fig, _ = plotting.plot_tid_per_row(res)
+    fig, _ = plotting.plot_tid_per_row(data=res, hardness_factor=scan_kwargs['hardness_factor'], stopping_power=scan_kwargs['stopping_power'])
     figs.append(fig)
     
     #Trying to cramp all of the above diagrams (except positional deviation) into one superduperdiagram
@@ -100,7 +104,9 @@ def analyse_scan(data, **scan_kwargs):
                                          'row_stop': data[server]['Scan']['row_stop_timestamp'],
                                          'row_tid': acc_tid,
                                          'beam_current': data[server]['Scan']['row_mean_beam_current']/nano,
-                                         'proton_fluence': data[server]['Scan']['row_proton_fluence']})
+                                         'proton_fluence': data[server]['Scan']['row_proton_fluence']},
+                                    hardness_factor=scan_kwargs['hardness_factor'],
+                                    stopping_power=scan_kwargs['stopping_power'])
     figs.append(fig)
     logging.info("Finished plotting.")
     return figs

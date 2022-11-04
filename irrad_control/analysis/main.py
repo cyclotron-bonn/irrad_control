@@ -221,7 +221,9 @@ def main():
                     if parsed['scan']:
                         
                         res = irrad_analysis.scan.analyse_scan(data=data,
-                                                               server = content['name'])
+                                                               server = content['name'],
+                                                               hardness_factor=content['daq']['kappa'],
+                                                               stopping_power=p_stop_Si)
                         
                         save_plots(plots=res, outfile=out_pdf)
 
