@@ -55,6 +55,20 @@ class TestAnalysisCLI(unittest.TestCase):
         assert success == 0
         assert os.path.isfile(outfile) and os.path.getsize(outfile) > 0
 
+    def test_beam_analysis_CLI(self):
+
+        outfile = os.path.join(self.output_dir, 'test_beam.pdf')
+        success = os.system(f"irrad_analyse -f {self.fixtures['irradiation']} --beam -o {outfile}")
+        assert success == 0
+        assert os.path.isfile(outfile) and os.path.getsize(outfile) > 0
+
+    def test_scan_analysis_CLI(self):
+
+        outfile = os.path.join(self.output_dir, 'test_scan.pdf')
+        success = os.system(f"irrad_analyse -f {self.fixtures['irradiation']} --scan -o {outfile}")
+        assert success == 0
+        assert os.path.isfile(outfile) and os.path.getsize(outfile) > 0
+
     def test_multipart_damage_analysis_CLI(self):
 
         outfile = os.path.join(self.output_dir, 'test_multipart_damage.pdf')
