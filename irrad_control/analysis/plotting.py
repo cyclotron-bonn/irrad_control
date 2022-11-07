@@ -343,7 +343,7 @@ def plot_everything(data, **kwargs):
     
     
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
-    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="TID", color='C0', align='edge') #add tid per scan
+    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge') #add tid per scan
     tidax.set_zorder(1)
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
