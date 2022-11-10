@@ -1,11 +1,6 @@
 import traceback
 import threading
 
-# Py2/3 compatibility
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
 
 # If we can import PyQt5, we want a QtWorker as well as a ThreadWorker
 _QT_WORKER = True
@@ -13,6 +8,7 @@ try:
     from PyQt5 import QtCore
 except ModuleNotFoundError:
     _QT_WORKER = False
+
 
 if _QT_WORKER:
 

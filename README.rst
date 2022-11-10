@@ -5,15 +5,26 @@ Irrad_Control |test-status|
 Introduction
 ============
 
-``irrad_control`` is a Python package for data acquisition and control of the proton irradiation site at the 
-`Bonn isochronous cyclotron <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/index_EN.html>`_, 
-located at the Helmholtz Institut für Strahlen- und Kernphysik (`HISKP <https://www.hiskp.uni-bonn.de/>`_), of Bonn University.
-The software features a graphical user interface (GUI), based on `PyQt <https://riverbankcomputing.com/software/pyqt/intro>`_, 
-from which the individual setup components can be managed and irradiations can be conducted. Furthermore, the GUI offers online data
-visualization of proton beam characteristics and irradiation-specific quantities such as e.g. proton fluence.
-The setup control and data acquisition is provided by a (or multiple) Raspberry Pi (RPi) server which is managed by ``irrad_control``,
-all acquired data is stored in the binary `HDF5 <https://www.pytables.org/>`_ format. The software furthermore provides a set of analysis methods
-for irradiation datasets which produce comprehensive plots.
+``irrad_control`` is the control, data acquisition and analysis software, written in Python, of the `proton irradiation site <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/experiments_cyclotron_EN.html#one>`_
+at the `Bonn isochronous cyclotron <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/index_EN.html>`_, located at the Helmholtz Institut für Strahlen- und Kernphysik (`HISKP <https://www.hiskp.uni-bonn.de/>`_), of Bonn University.
+The software allows control and data acquisition of all relevant components of an irradiation setup and is designed to be easily adaptable for different setups.
+It consists of three main components
+
+- A graphical user interface (GUI) for data visualization and setup control
+- A (or multiple) server processes interfacing the hardware components of the setup 
+- An converter process, analysing and storing the data of all servers for visualization and setup feedback
+
+This design enables to run multiple irradiation setups from one, centralized, GUI-interface simultaneously.
+During irradiation, ion beam characteristics and radiation-related quantities such as primary or 1 MeV neutron equivalent fluence,
+total-ionizing dose as well as ion currents are monitored in real-time, allowing high-uniformity damage distributions.
+
+Conventionally, the an ``irrad_control`` server is hosted on a RaspberryPi (RPi) single-board computer, interfacing the setup components via Serial, I2C, etc.
+Scripts to setup such servers on RPis are integrated in ``irrad_control``.
+
+Data acquired during irradiations is stored in binary `HDF5 <https://www.pytables.org/>`_ files. The software furthermore provides a set of offline
+analysis methods for irradiation datasets which produce comprehensive plots.
+
+For a list of publications using ``irrad_control`` see `here <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/publications_EN.html>`_ or in the `Publications` section below.
 
 Installation
 ============
@@ -23,7 +34,7 @@ After installation you can use the package manager ``conda`` to setup an isolate
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8
+   conda create -y -n irrad Python=3.9
 
 followed by ``conda activate irrad`` to activate the created Python environment. To install ``irrad_control`` run
 
@@ -37,7 +48,7 @@ which installs in editable mode, allowing to make changes to the code if needed.
 
    irrad_control
 
-When you start the application you can add RPi servers in the **setup** tab. Each server needs to be set up before usage.
+When you start the application you can add (RPi) servers in the **setup** tab. Each server needs to be set up before usage.
 The procedure is explained in the following section.
 
 Quick Setup
