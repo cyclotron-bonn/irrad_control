@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - actions_install_v2
   pull_request:
     branches:
       - main
@@ -17,48 +18,39 @@ jobs:
   # This workflow contains a single job called "build"
   tests:
     name: Testing Python ${{matrix.python-version}} on ${{matrix.os}}
-    runs-on: ${{matrix.os}}
     
-    env:
-      DISPLAY: :0
-
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, ubuntu-latest]
-        python-version: [3.8]
+        python-version: ["3.8", "3.9"]
+
+    runs-on: ${{matrix.os}}    
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
-      - name: Anaconda ${{matrix.python-version}} setup
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Setup python
+        uses: actions/setup-python@v4
         with:
-          auto-update-conda: true
           python-version: ${{matrix.python-version}}
-
+      
       - name: Dependency installation
-        shell: bash -l {0}
         run: |
-          conda info -a
-          conda install numpy pyyaml pyzmq pytables matplotlib pytest numba tqdm
-          pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11 paramiko==2.11
+          pip install --upgrade pip
           pip install -r requirements.txt
-
+          
       - name: Package installation
-        shell: bash -l {0}
-        run: |
-          pip install -e .
+        run: pip install -e .
 
-      - name: xvfb setup
-        shell: bash -l {0}
-        run: |
-          sudo apt-get install -y xvfb libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xinput0 libxcb-xfixes0
-          # start xvfb in the background
-          sudo /usr/bin/Xvfb $DISPLAY -screen 0 1366x768x24 &
+      - name: Qt5 default installation
+        run: sudo apt install qt5-default 
+        
+      - name: Headless display setup
+        uses: pyvista/setup-headless-display-action@v1   
 
       - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
-        shell: bash -l {0}
         run: pytest

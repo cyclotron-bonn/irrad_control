@@ -995,9 +995,11 @@ class BeamPositionPlot(IrradPlotWidget):
         get_scale = lambda plt_range, n_bins: float(abs(plt_range[0] - plt_range[1])) / n_bins
 
         # Add and manage position
+        tr = pg.QtGui.QTransform()
+        tr.translate(plot_range[0][0], plot_range[1][0])
+        tr.scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
         self.curves[hist_name] = pg.ImageItem(**kwargs)
-        self.curves[hist_name].translate(plot_range[0][0], plot_range[1][0])
-        self.curves[hist_name].scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
+        self.curves[hist_name].setTransform(tr)
         self.curves[hist_name].setZValue(-10)
 
     def set_data(self, data):
