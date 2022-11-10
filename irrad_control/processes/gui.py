@@ -483,7 +483,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'damage':
 
-            #update_info(scan=data['data']['scan_proton_fluence'][0], unit='p/cm^2')
+            #update_info(scan=data['data']['scan_primary_fluence'][0], unit='p/cm^2')
             pass
 
         elif data['meta']['type'] == 'scan':
@@ -515,7 +515,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-                #self.control_tab.update_info(row=data['data']['row_mean_proton_fluence'][0], unit='p/cm^2')
+                #self.control_tab.update_info(row=data['data']['row_primary_fluence'][0], unit='p/cm^2')
                 #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
 
                 if data['data']['eta_n_scans'] >= 0:
@@ -523,9 +523,8 @@ class IrradGUI(QtWidgets.QMainWindow):
                     # FIXME: more precise result would be helpful
                     pass
 
-                # Finish the scan programatically
-                if data['data']['eta_n_scans'] == 0:
-                    self.send_cmd(server, 'stage', 'finish')
+                # Finish the scan programatically, if wanted
+                self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
 
         elif data['meta']['type'] == 'temp_arduino':
 

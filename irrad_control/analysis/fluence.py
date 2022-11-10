@@ -88,7 +88,7 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     # Take sqrt of error map squared
     fluence_map_error = np.sqrt(fluence_map_error)                                  
 
-    # Scale from protons / mm² (intrinsic unit) to protons / cm²
+    # Scale from ions / mm² (intrinsic unit) to ions / cm²
     fluence_map *= 100
     fluence_map_error *= 100
 
@@ -403,7 +403,7 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
     wait_mu_y = row_data['row_start_y'] - scan_y_offset
 
     # Add variation to the uncertainty
-    wait_protons_std = np.std(wait_beam_data['beam_current'])
+    wait_ions_std = np.std(wait_beam_data['beam_current'])
     
     # Loop over currents and apply Gauss kernel at given position
     for i in range(wait_beam_data.shape[0] - 1):
@@ -415,16 +415,16 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
         # Calculate how many seconds this current was present while waiting
         wait_interval = wait_beam_data[i+1]['timestamp'] - wait_beam_data[i]['timestamp']
 
-        # Integrate over *wait_interval* to obtain number of protons induced
-        wait_protons = wait_current * wait_interval / elementary_charge
-        wait_protons_error = wait_current_error * wait_interval / elementary_charge
-        wait_protons_error = (wait_protons_error**2 + wait_protons_std**2)**.5
+        # Integrate over *wait_interval* to obtain number of ions induced
+        wait_ions = wait_current * wait_interval / elementary_charge
+        wait_ions_error = wait_current_error * wait_interval / elementary_charge
+        wait_ions_error = (wait_ions_error**2 + wait_ions_std**2)**.5
 
-        # Apply Gaussian kernel for protons
+        # Apply Gaussian kernel for ions
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               map_2d_error=fluence_map_error,
-                              amplitude=wait_protons,
-                              amplitude_error=wait_protons_error,
+                              amplitude=wait_ions,
+                              amplitude_error=wait_ions_error,
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=wait_mu_x,
@@ -479,23 +479,23 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     row_bin_center_currents = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current'])
     row_bin_center_current_errors = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current_error'])
 
-    # Integrate the current measurements with the times spent in each bin to calculate the amount of protons in the bin
-    row_bin_center_protons = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
-    row_bin_center_proton_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
-    row_bin_center_proton_errors = (row_bin_center_proton_errors**2 + np.std(row_bin_center_protons)**2)**.5
+    # Integrate the current measurements with the times spent in each bin to calculate the amount of ions in the bin
+    row_bin_center_ions = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
+    row_bin_center_ion_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
+    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.std(row_bin_center_ions)**2)**.5
 
     # Loop over row times
-    for i in range(row_bin_center_protons.shape[0]):
+    for i in range(row_bin_center_ions.shape[0]):
         
         # Update mean location of the distribution
         mu_x = map_bin_centers_x[(-(i+1) if row_data['row'] % 2 else i)]
         mu_y = row_data['row_start_y'] - scan_y_offset
         
-        # Apply Gaussian kernel for protons
+        # Apply Gaussian kernel for ions
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               map_2d_error=fluence_map_error,
-                              amplitude=row_bin_center_protons[i],
-                              amplitude_error=row_bin_center_proton_errors[i],
+                              amplitude=row_bin_center_ions[i],
+                              amplitude_error=row_bin_center_ion_errors[i],
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=mu_x,

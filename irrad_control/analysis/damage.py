@@ -13,7 +13,7 @@ def analyse_radiation_damage(data, config=None):
     bins = (100, 100)
 
     # Dict that holds results and error maps; bin centers
-    results = {r: None for r in ('proton', 'neq', 'tid')}
+    results = {r: None for r in ('primary', 'neq', 'tid')}
     errors = {e: None for e in results}
     bin_centers = {'x': None, 'y': None}
 
@@ -21,6 +21,7 @@ def analyse_radiation_damage(data, config=None):
     if config is None:
         
         server = None  # Only allow files with exactly one server for multipart to avoid adding unrelated fluence maps
+        ion_name = None
 
         # Loop over generator and get partial data files
         for nfile, data_part, config_part, session_basename in data:
@@ -35,6 +36,7 @@ def analyse_radiation_damage(data, config=None):
             # Only allow one fixed server for multipart
             if server is None:
                 server = server_config['name']
+                ion_name = server_config['daq']['ion']
 
             if server not in data_part:
                 raise KeyError(f"Server '{server}' not present in file {session_basename}!")
@@ -42,7 +44,7 @@ def analyse_radiation_damage(data, config=None):
             # Initialize damage and error maps
             if nfile == 0:
 
-                results['proton'], errors['proton'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
                                                                                                                        scan_data=data_part[server]['Scan'],
                                                                                                                        beam_sigma=beam_sigma,
                                                                                                                        bins=bins)
@@ -50,13 +52,13 @@ def analyse_radiation_damage(data, config=None):
                 if server_config['daq']['kappa'] is None:
                     del results['neq']
                 else:
-                    results['neq'] = results['proton'] * server_config['daq']['kappa']['nominal']
+                    results['neq'] = results['primary'] * server_config['daq']['kappa']['nominal']
                 
                 print(server_config['daq']['stopping_power'], type(server_config['daq']['stopping_power']))
                 if server_config['daq']['stopping_power'] is None:
                     del results['tid']
                 else:
-                    results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=server_config['daq']['stopping_power'])
+                    results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
 
                 continue
 
@@ -65,23 +67,24 @@ def analyse_radiation_damage(data, config=None):
                                                                                           beam_sigma=beam_sigma,
                                                                                           bins=bins)
             # Add to overall map
-            results['proton'] += fluence_map_part
-            errors['proton'] = (errors['proton']**2 + fluence_map_part_error**2)**.5
+            results['primary'] += fluence_map_part
+            errors['primary'] = (errors['primary']**2 + fluence_map_part_error**2)**.5
             
             # Add to eqivalent fluence map
             if 'neq' in results:
-                results['neq'] += results['proton'] * server_config['daq']['kappa']['nominal']
-                errors['neq'] = ((server_config['daq']['kappa']['nominal'] * errors['proton'])**2 + (results['proton'] * server_config['daq']['kappa']['sigma'])**2)**0.5
+                results['neq'] += results['primary'] * server_config['daq']['kappa']['nominal']
+                errors['neq'] = ((server_config['daq']['kappa']['nominal'] * errors['primary'])**2 + (results['primary'] * server_config['daq']['kappa']['sigma'])**2)**0.5
             
             if 'tid' in results:
-                results['tid'] += formulas.tid_scan(proton_fluence=results['proton'], stopping_power=server_config['daq']['stopping_power'])
-                errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=server_config['daq']['stopping_power'])
+                results['tid'] += formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
+                errors['tid'] = formulas.tid_per_scan(primary_fluence=errors['primary'], stopping_power=server_config['daq']['stopping_power'])
 
     else:
 
         server = config['name']
+        ion_name = config['daq']['ion']
                     
-        results['proton'], errors['proton'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
+        results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
                                                                                                                beam_sigma=beam_sigma,
                                                                                                                bins=bins)
@@ -89,14 +92,14 @@ def analyse_radiation_damage(data, config=None):
         if config['daq']['kappa'] is None:
             del results['neq']
         else:
-            results['neq'] = results['proton'] * config['daq']['kappa']['nominal']
-            errors['neq'] = ((config['daq']['kappa']['nominal'] * errors['proton'])**2 + (results['proton'] * config['daq']['kappa']['sigma'])**2)**.5
+            results['neq'] = results['primary'] * config['daq']['kappa']['nominal']
+            errors['neq'] = ((config['daq']['kappa']['nominal'] * errors['primary'])**2 + (results['primary'] * config['daq']['kappa']['sigma'])**2)**.5
         
         if config['daq']['stopping_power'] is None:
             del results['tid']
         else:
-            results['tid'] = formulas.tid_scan(proton_fluence=results['proton'], stopping_power=config['daq']['stopping_power'])
-            errors['tid'] = formulas.tid_scan(proton_fluence=errors['proton'], stopping_power=config['daq']['stopping_power'])
+            results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=config['daq']['stopping_power'])
+            errors['tid'] = formulas.tid_per_scan(primary_fluence=errors['primary'], stopping_power=config['daq']['stopping_power'])
 
     if any(a is None for a in (list(bin_centers.values()) + list(results.values()))):
         raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
@@ -123,16 +126,16 @@ def analyse_radiation_damage(data, config=None):
 
             is_dut = damage_map.shape == dut_map.shape                
 
-            fig, _ = plotting.plot_damage_map_3d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_3d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_error_3d(damage_map=damage_map, error_map=errors[damage] if not is_dut else dut_error_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_error_3d(damage_map=damage_map, error_map=errors[damage] if not is_dut else dut_error_map, map_centers_x=centers_x, map_centers_y=centers_y, contour=not is_dut, damage=damage, ion_name=ion_name,  server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_map_2d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_2d(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
-            fig, _ = plotting.plot_damage_map_contourf(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, server=server, dut=is_dut)
+            fig, _ = plotting.plot_damage_map_contourf(damage_map=damage_map, map_centers_x=centers_x, map_centers_y=centers_y, damage=damage, ion_name=ion_name, server=server, dut=is_dut)
             figs.append(fig)
 
     logging.info("Finished plotting.")

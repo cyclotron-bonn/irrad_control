@@ -10,6 +10,7 @@ from uncertainties import ufloat, unumpy
 import irrad_control.analysis as analysis
 import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
+from irrad_control.ions import get_ions
 
 
 class IrradConverter(DAQProcess):
@@ -29,6 +30,7 @@ class IrradConverter(DAQProcess):
 
         self.dtypes = analysis.dtype.IrradDtypes()
         self.hists = analysis.dtype.IrradHists()
+        self.ions = get_ions()
 
         # Call init of super class
         super(IrradConverter, self).__init__(name=name)
@@ -231,6 +233,7 @@ class IrradConverter(DAQProcess):
         
         daq_setup = server_setup['daq']
 
+        self._daq_params[server]['ion'] = self.ions[daq_setup['ion']]
         self._daq_params[server]['stopping_power'] = daq_setup['stopping_power'] or np.nan
         self._daq_params[server]['kappa'] = (np.nan, np.nan) if daq_setup['kappa'] is None else (daq_setup['kappa']['nominal'], daq_setup['kappa']['sigma'])
         self._daq_params[server]['lambda'] = (np.nan, np.nan) if daq_setup['lambda'] is None else (daq_setup['lambda']['nominal'], daq_setup['lambda']['sigma'])
@@ -488,7 +491,8 @@ class IrradConverter(DAQProcess):
                                 extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
                                 logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
                                                                                                                 extracted_current))
-                                self.data_arrays[server]['beam']['beam_current'] = extracted_current
+
+                                self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = extracted_current
 
                         except ZeroDivisionError:
                             pass
@@ -573,51 +577,52 @@ class IrradConverter(DAQProcess):
             # Calculate mean row fluence and error
             row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
 
-            row_proton_fluence = analysis.formulas.proton_fluence_scan(proton_current=ufloat(row_mean_beam_current, row_mean_beam_current_err),
-                                                                       scan_step=self.data_arrays[server]['irrad']['row_separation'][0],
-                                                                       scan_speed=self.data_arrays[server]['scan']['row_scan_speed'][0])
+            row_primary_fluence = analysis.formulas.fluence_per_scan(ion_current=ufloat(row_mean_beam_current, row_mean_beam_current_err),
+                                                                     ion_n_charge=self._daq_params[server]['ion'].n_charge,
+                                                                     scan_step=self.data_arrays[server]['irrad']['row_separation'][0],
+                                                                     scan_speed=self.data_arrays[server]['scan']['row_scan_speed'][0])
 
-            row_proton_tid = analysis.formulas.tid_scan(proton_fluence=row_proton_fluence, stopping_power=self._daq_params[server]['stopping_power'])
+            row_tid = analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence, stopping_power=self._daq_params[server]['stopping_power'])
 
             self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
             self.data_arrays[server]['scan']['row_stop_y'] = data['y_stop']
             self.data_arrays[server]['scan']['row_mean_beam_current'] = row_mean_beam_current
             self.data_arrays[server]['scan']['row_mean_beam_current_error'] = row_mean_beam_current_err
-            self.data_arrays[server]['scan']['row_proton_fluence'] = row_proton_fluence.n
-            self.data_arrays[server]['scan']['row_proton_fluence_error'] = row_proton_fluence.s
-            self.data_arrays[server]['scan']['row_tid'] = row_proton_tid.n
-            self.data_arrays[server]['scan']['row_tid_error'] = row_proton_tid.s
-
-            # Log
-            logging.info("Row {} of scan {}: ({:.2E} +- {:.2E}) protons / cm^2 and ({:.2E} +- {:.2E}) Mrad".format(self.data_arrays[server]['scan']['row'][0],
-                                                                                                                   self.data_arrays[server]['scan']['scan'][0],
-                                                                                                                   row_proton_fluence.n,
-                                                                                                                   row_proton_fluence.s,
-                                                                                                                   row_proton_tid.n,
-                                                                                                                   row_proton_tid.s))
+            self.data_arrays[server]['scan']['row_primary_fluence'] = row_primary_fluence.n
+            self.data_arrays[server]['scan']['row_primary_fluence_error'] = row_primary_fluence.s
+            self.data_arrays[server]['scan']['row_tid'] = row_tid.n
+            self.data_arrays[server]['scan']['row_tid_error'] = row_tid.s
 
             # Add to overall fluence
-            self._row_fluence_hist[server][self.data_arrays[server]['scan']['row'][0]] += row_proton_fluence
+            self._row_fluence_hist[server][self.data_arrays[server]['scan']['row'][0]] += row_primary_fluence
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['scan'] = True
 
             # ETA time and n_scans
-            _mean_proton_fluence = np.mean(self._row_fluence_hist[server]).n
+            _mean_primary_fluence = np.mean(self._row_fluence_hist[server]).n
             row_scan_time = self.data_arrays[server]['scan']['row_stop_timestamp'][0] - self.data_arrays[server]['scan']['row_start_timestamp'][0]
 
             try:
                 # Check damage type
-                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('NIEL', encoding='ascii'):
-                    # Get remaining proton fluence
-                    remainder_NIEL = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0] - _mean_proton_fluence
-                    eta_n_scans = int(remainder_NIEL / row_proton_fluence.n)
+                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('neq', encoding='ascii'):
+                    # Get remaining primary fluence
+                    aim_primary = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0]
+                    remainder_primary = aim_primary - _mean_primary_fluence
+                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
+
+                elif self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('tid', encoding='ascii'):
+                    remainder_tid = self.data_arrays[server]['irrad']['aim_value'][0]
+                    remainder_tid -= analysis.formulas.tid_per_scan(primary_fluence=_mean_primary_fluence,
+                                                                    stopping_power=self._daq_params[server]['stopping_power'])
+                    eta_n_scans = int(remainder_tid / analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence.n,
+                                                                                     stopping_power=self._daq_params[server]['stopping_power']))
+                # Remainder is primary fluence
                 else:
-                    remainder_TID = self.data_arrays[server]['irrad']['aim_value'][0] - analysis.formulas.tid_scan(proton_fluence=_mean_proton_fluence,
-                                                                                                                   stopping_power=self._daq_params[server]['stopping_power'])
-                    eta_n_scans = int(remainder_TID / analysis.formulas.tid_scan(proton_fluence=row_proton_fluence.n,
-                                                                                 stopping_power=self._daq_params[server]['stopping_power']))
+                    remainder_primary = self.data_arrays[server]['irrad']['aim_value'][0] - _mean_primary_fluence
+                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
+                    
 
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
 
@@ -627,84 +632,85 @@ class IrradConverter(DAQProcess):
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
                                   'fluence_hist_err': unumpy.std_devs(self._row_fluence_hist[server]).tolist(),
-                                  'row_mean_proton_fluence': (row_proton_fluence.n, row_proton_fluence.s),
-                                  'row_mean_tid': (row_proton_tid.n, row_proton_tid.s),
+                                  'row_primary_fluence': (row_primary_fluence.n, row_primary_fluence.s),
+                                  'row_tid': (row_tid.n, row_tid.s),
                                   'row': int(self.data_arrays[server]['scan']['row'][0]),
                                   'eta_seconds': eta_seconds, 'eta_n_scans': eta_n_scans,
                                   'status': 'interpreted'}}
 
         elif data['status'] == 'scan_complete':
 
-            # Get scan proton fluence in each row
-            row_proton_fluences_last_scan = self.data_tables[server]['scan'].col('row_proton_fluence')[
+            # Get scan primary fluence in each row
+            row_primary_fluences_last_scan = self.data_tables[server]['scan'].col('row_primary_fluence')[
                                             -self.data_arrays[server]['irrad']['n_rows'][0]:]
 
-            # Get scan proton fluence error in each row
-            row_proton_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_proton_fluence_error')[
+            # Get scan primary fluence error in each row
+            row_primary_fluences_last_scan_err = self.data_tables[server]['scan'].col('row_primary_fluence_error')[
                                                 -self.data_arrays[server]['irrad']['n_rows'][0]:]
 
-            # Calculate mean proton fluence of last scan
-            mean_scan_proton_fluence, mean_scan_proton_fluence_err = self._calc_mean_and_error(
-                data=unumpy.uarray(row_proton_fluences_last_scan,
-                                   row_proton_fluences_last_scan_err))
+            # Calculate mean primary fluence of last scan
+            mean_scan_primary_fluence, mean_scan_primary_fluence_err = self._calc_mean_and_error(
+                data=unumpy.uarray(row_primary_fluences_last_scan,
+                                   row_primary_fluences_last_scan_err))
 
             # Calculate absolute delivered fluence with this scan
-            abs_proton_fluence = ufloat(mean_scan_proton_fluence,
-                                        mean_scan_proton_fluence_err) + ufloat(
-                self.data_arrays[server]['damage']['scan_proton_fluence'][0],
-                self.data_arrays[server]['damage']['scan_proton_fluence_error'][0])
+            abs_primary_fluence = ufloat(mean_scan_primary_fluence,
+                                        mean_scan_primary_fluence_err) + ufloat(
+                self.data_arrays[server]['damage']['scan_primary_fluence'][0],
+                self.data_arrays[server]['damage']['scan_primary_fluence_error'][0])
 
             # Calculate absolute delivered TID with this scan
-            abs_tid = analysis.formulas.tid_scan(proton_fluence=abs_proton_fluence,
+            abs_tid = analysis.formulas.tid_per_scan(primary_fluence=abs_primary_fluence,
                                                  stopping_power=self._daq_params[server]['stopping_power'])
 
             # Completed scan number and timestamp of completion
             self.data_arrays[server]['damage']['timestamp'] = meta['timestamp']
             self.data_arrays[server]['damage']['scan'] = data['scan']
-            self.data_arrays[server]['damage']['scan_proton_fluence'] = abs_proton_fluence.n
-            self.data_arrays[server]['damage']['scan_proton_fluence_error'] = abs_proton_fluence.s
+            self.data_arrays[server]['damage']['scan_primary_fluence'] = abs_primary_fluence.n
+            self.data_arrays[server]['damage']['scan_primary_fluence_error'] = abs_primary_fluence.s
             self.data_arrays[server]['damage']['scan_tid'] = abs_tid.n
             self.data_arrays[server]['damage']['scan_tid_error'] = abs_tid.s
 
             # Log
             logging.info(
-                "Scan {}: ({:.2E} +- {:.2E}) protons / cm^2 and ({:.2E} +- {:.2E}) Mrad".format(data['scan'],
-                                                                                                abs_proton_fluence.n,
-                                                                                                abs_proton_fluence.s,
-                                                                                                abs_tid.n,
-                                                                                                abs_tid.s))
+                "Scan {}: ({:.2E} +- {:.2E}) {}s / cm^2 and ({:.2E} +- {:.2E}) Mrad".format(data['scan'],
+                                                                                            abs_primary_fluence.n,
+                                                                                            abs_primary_fluence.s,
+                                                                                            self._daq_params[server]['ion'].name,
+                                                                                            abs_tid.n,
+                                                                                            abs_tid.s))
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['damage'] = True
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'damage'},
                          'data': {'scan': data['scan'],
-                                  'scan_proton_fluence': (abs_proton_fluence.n, abs_proton_fluence.s),
+                                  'scan_primary_fluence': (abs_primary_fluence.n, abs_primary_fluence.s),
                                   'scan_tid': (abs_tid.n, abs_tid.s)}}
 
         elif data['status'] == 'scan_finished':
 
             self.data_arrays[server]['result']['timestamp'] = meta['timestamp']
 
-            mean_result_proton_fluence = np.mean(self._row_fluence_hist[server])
-            mean_result_tid = analysis.formulas.tid_scan(proton_fluence=mean_result_proton_fluence, stopping_power=self._daq_params[server]['stopping_power'])
-            mean_result_neq_fluence = mean_result_proton_fluence * ufloat(*self._daq_params[server]['kappa'])
+            mean_result_primary_fluence = np.mean(self._row_fluence_hist[server])
+            mean_result_tid = analysis.formulas.tid_per_scan(primary_fluence=mean_result_primary_fluence, stopping_power=self._daq_params[server]['stopping_power'])
+            mean_result_neq_fluence = mean_result_primary_fluence * ufloat(*self._daq_params[server]['kappa'])
 
-            self.data_arrays[server]['result']['proton_fluence'] = mean_result_proton_fluence.n
-            self.data_arrays[server]['result']['proton_fluence_error'] = mean_result_proton_fluence.s
+            self.data_arrays[server]['result']['primary_fluence'] = mean_result_primary_fluence.n
+            self.data_arrays[server]['result']['primary_fluence_error'] = mean_result_primary_fluence.s
             self.data_arrays[server]['result']['tid'] = mean_result_tid.n
             self.data_arrays[server]['result']['tid_error'] = mean_result_tid.s
-            self.data_arrays[server]['result']['neutron_fluence'] = mean_result_neq_fluence.n
-            self.data_arrays[server]['result']['neutron_fluence_error'] = mean_result_neq_fluence.s
+            self.data_arrays[server]['result']['neq_fluence'] = mean_result_neq_fluence.n
+            self.data_arrays[server]['result']['neq_fluence_error'] = mean_result_neq_fluence.s
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['result'] = True
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'result'},
                          'data': {'scan': int(self.data_arrays[server]['damage']['scan'][0]),
-                                  'proton_fluence': (mean_result_proton_fluence.n, mean_result_proton_fluence.s),
+                                  'primary_fluence': (mean_result_primary_fluence.n, mean_result_primary_fluence.s),
                                   'tid': (mean_result_tid.n, mean_result_tid.s),
-                                  'neutron_fluence': (mean_result_neq_fluence.n, mean_result_neq_fluence.s)}}
+                                  'neq_fluence': (mean_result_neq_fluence.n, mean_result_neq_fluence.s)}}
 
         return scan_data
 

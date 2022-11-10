@@ -8,15 +8,15 @@ from matplotlib.colors import LogNorm
 from irrad_control.analysis.formulas import lin_odr
 
 
-def _get_damage_label_unit_target(damage, dut=False):
-    damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else r'p cm$^{-2}$' if damage == 'proton' else 'Mrad'
-    damage_label = 'Fluence' if damage in ('neq', 'proton') else 'Total Ionizing Dose'
+def _get_damage_label_unit_target(damage, ion_name, dut=False):
+    damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else f'{ion_name}s' + r' cm$^{-2}$' if damage == 'primary' else 'Mrad'
+    damage_label = 'Fluence' if damage in ('neq', 'primary') else 'Total Ionizing Dose'
     damage_target = "DUT" if dut else "Scan"
     return damage_label, damage_unit, damage_target
 
-def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_map=None, uncertainty_map=False):
+def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=False, damage_map=None, uncertainty_map=False):
 
-    damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, dut=dut)
+    damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=dut)
 
     ax.set_xlabel(f'{damage_target} area horizontal / mm')
     ax.set_ylabel(f'{damage_target} area vertical / mm')
@@ -24,7 +24,7 @@ def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):
-        ax.set_zlabel(f"{damage_label} / {damage_unit}")
+        ax.set_zlabel(f"{damage_unit}")
 
     if damage_map is not None and dut and not uncertainty_map:
         mean, std = damage_map.mean(), damage_map.std()
@@ -35,9 +35,9 @@ def _apply_labels_damage_plots(ax, damage, server, cbar=None, dut=False, damage_
         cbar_label = f"{damage_label} / {damage_unit}"
         cbar.set_label(cbar_label)
 
-def _make_cbar(fig, damage_map, damage, rel_error_lims=None):
+def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None):
 
-    damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, dut=False)
+    damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=False)
 
     # Make axis for cbar
     cbar_axis = plt.axes([0.85, 0.1, 0.033, 0.8])
@@ -70,7 +70,7 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     # Relative errors
     rel_damage_map = error_map / damage_map * 100.0
 
-    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()))
+    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), ion_name=damage_label_kwargs['ion_name'], rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()))
 
     # Apply labels
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, uncertainty_map=True, **damage_label_kwargs)
@@ -99,7 +99,7 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
     ax.view_init(*view_angle)
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
-    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'))
+    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), ion_name=damage_label_kwargs['ion_name'])
     
     # Apply labels
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, **damage_label_kwargs)
