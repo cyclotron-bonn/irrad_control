@@ -18,42 +18,20 @@ for irradiation datasets which produce comprehensive plots.
 Installation
 ============
 
-Due to dependencies, you have to have Python 3.8  with the following packages installed:
-
-- numpy
-- pyyaml
-- pyzmq
-- pytables
-- matplotlib
-- uncertainties
-- tqdm
-- numba
-- scipy
-- pyqt (version 5)
-- `pyqtgraph <http://pyqtgraph.org/>`_ (version 0.11)
-- paramiko (version 2.11)
-
-It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
-After installation you can use the package manager ``conda`` to install the required packages. To create a new Python 3.8 environment with the name `irrad`
-and required dependencies, type
+Python >= 3.8 is required (Py3.8 & 3.9 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
+After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.8 environment, named ``irrad``, type
 
 .. code-block:: bash
 
-   conda create -y -n irrad python=3.8 numpy pyyaml pytables pyzmq pyserial matplotlib tqdm numba scipy
+   conda create -y -n irrad python=3.8
 
-Run ``conda activate irrad`` to activate the Python environment. To install the required packages that are not available via ``conda``, use ``pip``
-
-.. code-block:: bash
-
-  pip install uncertainties pytest pyqt5==5.12 pyqtgraph==0.11 paramiko==2.11
-
-To finally install & launch ``irrad_control`` run the setup script via
+followed by ``conda activate irrad`` to activate the created Python environment. To install ``irrad_control`` run
 
 .. code-block:: bash
 
    pip install -e .
 
-followed by
+which installs in editable mode, allowing to make changes to the code if needed. Finally, to launch the software run
 
 .. code-block:: bash
 
