@@ -491,7 +491,8 @@ class IrradConverter(DAQProcess):
                                 extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
                                 logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
                                                                                                                 extracted_current))
-                                self.data_arrays[server]['beam']['beam_current'] = extracted_current
+
+                                self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = extracted_current
 
                         except ZeroDivisionError:
                             pass
