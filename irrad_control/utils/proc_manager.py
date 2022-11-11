@@ -228,8 +228,7 @@ class ProcessManager(object):
         pid, name = self._check_ps_interaction(pid, name)
 
         # Bash command outputting all running PIDs / names, separated by a whitespace
-        cmd = "ps -e | awk '{print $1,$4}' | grep " + "'{}'".format(("\|").join(str(x) for x in name + pid if x is not None))
-
+        cmd = "ps -e | awk '{print $1,$4}' | grep " + "'{}'".format((r"\|").join(str(x) for x in name + pid if x is not None))
         ps_dict = {hostname: {}}
 
         # We are checking on the status of some remote process
