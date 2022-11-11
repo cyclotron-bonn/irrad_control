@@ -1,4 +1,5 @@
 import sys
+import time
 import logging
 import unittest
 
@@ -21,7 +22,8 @@ class TestMain(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        cls.irrad_window.close()
+        time.sleep(1)
 
     def test_setup_main_state(self):
 

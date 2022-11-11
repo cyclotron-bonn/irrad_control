@@ -51,6 +51,8 @@ class TestDAQProcess(unittest.TestCase):
         # Check pid file is gone
         assert not os.path.isfile(pid_file)
 
+        time.sleep(1)
+
     def test_pid_file_content(self):
 
         pid_file_content = load_yaml(pid_file)
