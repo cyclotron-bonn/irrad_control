@@ -13,7 +13,7 @@ server:
       lambda:
         date: Wed May 18 09:00:00 2022
         energy: 13.602
-        nominal: 0.886
+        nominal: 0.937
         sigma: 0.009
       stopping_power: 28.593999999999998
       stopping_power_initial: 26.67
