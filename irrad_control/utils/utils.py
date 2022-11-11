@@ -1,5 +1,8 @@
 import logging
 import time
+import  fcntl
+
+from irrad_control import lock_file
 
 
 def check_zmq_addr(addr):
@@ -81,3 +84,18 @@ def create_pub_from_ctx(ctx, addr, hwm=10, delay=0.3):
     time.sleep(delay)
 
     return pub
+
+
+class Lock:
+    """
+    Unix-style lock using file lock
+    Mainly used to write to one irrad_control.pid file
+    when there are more then 1 DAQProcess running on host 
+    """
+    def __enter__(self):
+        self.lfh = open(lock_file)
+        fcntl.flock(self.lfh.fileno(), fcntl.LOCK_EX)
+
+    def __exit__(self):
+        fcntl.lockf(self.lfh.fileno(), fcntl.LOCK_UN)
+        self.lfh.close()

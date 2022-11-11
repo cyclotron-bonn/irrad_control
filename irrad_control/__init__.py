@@ -18,6 +18,7 @@ script_path = os.path.abspath(os.path.join(package_path, '../scripts'))
 # Files
 config_file = os.path.join(config_path, 'config.yaml')
 pid_file = os.path.join(config_path, 'irrad_control.pid')
+lock_file = os.path.join(config_path, 'irrad_control.lck')
 
 # Check / make
 for check_path in (tmp_path, config_path):
@@ -31,3 +32,7 @@ else:
     # Create empty config yaml
     config = {'server': {'all': {}, 'default': None}, 'git': None}
     tools.save_yaml(path=config_file, data=config)
+
+if not os.path.isfile(lock_file):
+    with open(lock_file, 'a'):
+        pass
