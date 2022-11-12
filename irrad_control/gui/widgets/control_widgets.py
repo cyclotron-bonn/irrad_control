@@ -729,4 +729,59 @@ class DAQControlWidget(ControlWidget):
 
 
 class StatusInfoWidget(GridContainer):
-    pass
+
+    def __init__(self):
+        super().__init__(name='Status')
+
+        # Contains the GridContainer
+        self._status_containers = {}
+        self._status_labels = defaultdict(dict)
+
+    def format(self, status, status_values):
+        """
+        Return a string for a given status and its values.
+        Formatting for specific status
+
+        Parameters
+        ----------
+        status : str
+            status description e.g. scan
+        status_values : dict
+            dict descibing the correspoding status
+
+        Returns
+        -------
+        str
+            status description string
+        """
+
+        res = None
+
+        # TODO
+
+        return res
+    
+    def add_status(self, status):
+        
+        if status in self._status_containers:
+            return
+
+        status_container = GridContainer(name=status.capitalize())
+        self.add_widget(status_container)
+        self._status_containers[status] = status_container
+
+    def update_status(self, status, status_values):
+
+        # We have not yet seen this status
+        if status not in self._status_containers:
+            self.add_status(status=status)
+
+        container = self._status_containers[status]
+        for k, v in status_values.items():
+            text = self.format(status, status_values)
+            text = f'{k}={v}' if text is None else text 
+            if k in self._status_labels[status]:
+                self._status_labels[status][k].setText(text)
+            else:    
+                self._status_labels[status][k] = QtWidgets.QLabel(text)
+                container.add_widget(self._status_labels[status][k])

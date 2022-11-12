@@ -482,9 +482,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
         elif data['meta']['type'] == 'damage':
-
-            #update_info(scan=data['data']['scan_primary_fluence'][0], unit='p/cm^2')
-            pass
+            self.control_tab.tab_widgets[server]['status'].update_status(status='damage', status_values=data['data'])
 
         elif data['meta']['type'] == 'scan':
 
@@ -496,13 +494,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
-                #self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
-
-                if data['data']['status'] == 'scan_start':
-                    # Update control
-                    #update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
-                    #self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
-                    pass
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan', status_values=data['data'])
 
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
@@ -515,13 +507,8 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-                #self.control_tab.update_info(row=data['data']['row_primary_fluence'][0], unit='p/cm^2')
-                #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-
-                if data['data']['eta_n_scans'] >= 0:
-                    # self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-                    # FIXME: more precise result would be helpful
-                    pass
+                
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan', status_values=data['data'])
 
                 # Finish the scan programatically, if wanted
                 self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
@@ -537,8 +524,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
-            #print(data['data'])
-            pass  # TODO: handle direct axis info from server
+            self.control_tab.tab_widgets[server]['status'].update_status(status='motorstage', status_values=data['data'])
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
