@@ -553,7 +553,7 @@ class ScanControlWidget(ControlWidget):
         spx_end_y.setPrefix('y: ')
         spx_end_y.setSuffix(' mm')
         spx_end_x.valueChanged.connect(lambda v: self.update_scan_params(rel_end=[v, spx_end_y.value()]))
-        spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(rel_start=[spx_end_x.value(), v]))
+        spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(rel_end=[spx_end_x.value(), v]))
 
         # Auto finish scan
         checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
