@@ -406,8 +406,10 @@ class ScanControlWidget(ControlWidget):
                             'min_current': 0.0,
                             'aim_damage': 'primary',
                             'aim_value': 1e14,
-                            'rel_start': [0.0, 0.0],
-                            'rel_end': [0.0, 0.0]}
+                            'beam_fwhm': [0, 0],
+                            'dut_rect_upper': [0, 0],
+                            'dut_rect_lower': [0, 0],
+                            'dut_rect_is_scan_area': False}
 
         self._after_scan_container = None
         self.n_rows = None
@@ -521,39 +523,63 @@ class ScanControlWidget(ControlWidget):
         # Toggle initially
         rbtn_primary.toggle()
 
-        # Start point
-        label_start = QtWidgets.QLabel('Relative start point:')
+        # Beam FWHM
+        label_fwhm = QtWidgets.QLabel('Beam FWHM:')
+        spx_fwhm_x = QtWidgets.QDoubleSpinBox()
+        spx_fwhm_x.setRange(1e-2, 20)
+        spx_fwhm_x.setValue(10)
+        spx_fwhm_x.setDecimals(2)
+        spx_fwhm_x.setPrefix('x: ')
+        spx_fwhm_x.setSuffix(' mm')
+        spx_fwhm_y = QtWidgets.QDoubleSpinBox()
+        spx_fwhm_y.setRange(1e-3, 20)
+        spx_fwhm_y.setValue(10)
+        spx_fwhm_y.setDecimals(2)
+        spx_fwhm_y.setPrefix('x: ')
+        spx_fwhm_y.setSuffix(' mm')
+        spx_fwhm_x.valueChanged.connect(lambda v, s=spx_fwhm_y: self.update_scan_params(beam_fwhm=[v, s.value()]))
+        spx_fwhm_y.valueChanged.connect(lambda v, s=spx_fwhm_x: self.update_scan_params(beam_fwhm=[s.value(), v]))
+        
+        
+        # Define DUT rectangle relative to the origin of the scan coordinate system
+        label_dut_rect = QtWidgets.QLabel('DUT rectangle')
+        label_dut_rect.setToolTip('Define the DUT area relative to the scan origin. Complete scan area will be calculated according to scan speed and beam fwhm')
+        checkbox_scan_rect = QtWidgets.QCheckBox('Use as scan area')
+        checkbox_scan_rect.setToolTip('Use DUT rectangle as scan rectangle instead. No modifications will be made w.r.t scan speed or beam fwhm')
+        checkbox_scan_rect.stateChanged.connect(lambda state: self.update_scan_params(dut_rect_is_scan_area=bool(state)))
+        
+        label_start = QtWidgets.QLabel('Upper DUT point:')
         spx_start_x = QtWidgets.QDoubleSpinBox()
         spx_start_x.setRange(-300., 300.)
         spx_start_x.setValue(0)
-        spx_start_x.setDecimals(3)
+        spx_start_x.setDecimals(2)
         spx_start_x.setPrefix('x: ')
         spx_start_x.setSuffix(' mm')
         spx_start_y = QtWidgets.QDoubleSpinBox()
         spx_start_y.setRange(-300., 300.)
         spx_start_y.setValue(0)
-        spx_start_y.setDecimals(3)
+        spx_start_y.setDecimals(2)
         spx_start_y.setPrefix('y: ')
         spx_start_y.setSuffix(" mm")
-        spx_start_x.valueChanged.connect(lambda v: self.update_scan_params(rel_start=[v, spx_start_y.value()]))
-        spx_start_y.valueChanged.connect(lambda v: self.update_scan_params(rel_start=[spx_start_x.value(), v]))
+        spx_start_x.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_upper=[v, spx_start_y.value()]))
+        spx_start_y.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_upper=[spx_start_x.value(), v]))
 
         # End point
-        label_end = QtWidgets.QLabel('Relative end point:')
+        label_end = QtWidgets.QLabel('Lower DUT point:')
         spx_end_x = QtWidgets.QDoubleSpinBox()
         spx_end_x.setRange(-300., 300.)
         spx_end_x.setValue(0)
-        spx_end_x.setDecimals(3)
+        spx_end_x.setDecimals(2)
         spx_end_x.setPrefix('x: ')
         spx_end_x.setSuffix(' mm')
         spx_end_y = QtWidgets.QDoubleSpinBox()
         spx_end_y.setRange(-300., 300.)
         spx_end_y.setValue(0)
-        spx_end_y.setDecimals(3)
+        spx_end_y.setDecimals(2)
         spx_end_y.setPrefix('y: ')
         spx_end_y.setSuffix(' mm')
-        spx_end_x.valueChanged.connect(lambda v: self.update_scan_params(rel_end=[v, spx_end_y.value()]))
-        spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(rel_end=[spx_end_x.value(), v]))
+        spx_end_x.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_lower=[v, spx_end_y.value()]))
+        spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_lower=[spx_end_x.value(), v]))
 
         # Auto finish scan
         checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
@@ -611,6 +637,7 @@ class ScanControlWidget(ControlWidget):
         self.add_widget(widget=[label_min_current, spx_min_current])
         self.add_widget(widget=[label_aim_damage, layout_aim_damage])
         self.add_widget(widget=[QtWidgets.QLabel(''), spx_damage_val, spx_damage_exp])
+        self.add_widget(widget=[label_fwhm, spx_fwhm_x, spx_fwhm_y])
         self.add_widget(widget=[label_start, spx_start_x, spx_start_y])
         self.add_widget(widget=[label_end, spx_end_x, spx_end_y])
         self.grid.addLayout(layout_scan, self.grid.rowCount(), 0, 1, 3)

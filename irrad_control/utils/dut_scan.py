@@ -125,34 +125,52 @@ class DUTScan(object):
             step size of vertical steps in mm
         """
 
+        self._scan_params.update(scan_config)
+
+        self._generate_scan_area()
+
+        self.scan_config = scan_config
+
+        return self._scan_params
+
+    def _generate_scan_area(self):
+        """
+        Sets the 'start' and 'end' key values in the self.scan_params dict which define the scan area rectangle.
+        The scan area is constructed with respect to the beam FWHM and scan velocity as well as acceleration.
+        If the self.scan_params['dut_rect_is_scan_area'] is True, the scan area is consructed directly as the dut
+        rect without considering acceleration, etc.
+        """
+
         # Convert mm to native axis unit
         axis_mm_to_native = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_from_unit(val, unit='mm')
 
         # Store origin of relative coordinate system used for scan
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units
 
-        # Start position of the scan in native units
-        self._scan_params['start'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_start'][i]) for i in (0, 1))
+        dut_rect_upper = tuple(axis_mm_to_native(i, self._scan_params['dut_rect_upper'][i]) for i in range(2))
+        dut_rect_lower = tuple(axis_mm_to_native(i, self._scan_params['dut_rect_lower'][i]) for i in range(2))
 
-        # Start position of the scan in native units
-        self._scan_params['end'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_end'][i]) for i in (0, 1))
+        # We take the givne rectangle as the scan area w/o modifications
+        if self._scan_params['dut_rect_is_scan_area']:
+            # Start position of the scan in native units
+            self._scan_params['start'] = tuple(self._scan_params['origin'][i] - dut_rect_upper[i] for i in range(2))
+            # Start position of the scan in native units
+            self._scan_params['end'] = tuple(self._scan_params['origin'][i] - dut_rect_lower[i] for i in (0, 1))
 
-        # Store scan speed
-        self._scan_params['scan_speed'] = scan_config['scan_speed']  # mm/s
-
-        # Store step size
-        self._scan_params['row_sep'] = scan_config['row_sep']  # mm
+        else:
+            pass
 
         # Store number of rows in this scan
-        self._scan_params['n_rows'] = int(abs(self._scan_params['end'][1] - self._scan_params['start'][1]) / axis_mm_to_native(1, scan_config['row_sep']))
+        n_rows = abs(self._scan_params['end'][1] - self._scan_params['start'][1])
+        n_rows /= axis_mm_to_native(1, self._scan_params['row_sep'])
+        self._scan_params['n_rows'] = int(n_rows + 1)  # Always round up to next largest int
 
         # Make dictionary with absolute position in native units of each row
-        self._scan_params['rows'] = dict([(row, self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep']))
-                                         for row in range(self._scan_params['n_rows'])])
+        rows = {}
+        for row in range(self._scan_params['n_rows']):
+            rows[row] = self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep'])
+        self._scan_params['rows'] = rows
 
-        self.scan_config = scan_config
-
-        return self._scan_params
 
     def _check_scan(self):
         """
