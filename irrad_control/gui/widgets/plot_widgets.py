@@ -777,15 +777,12 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
                                               name=type(self).__name__,
                                               parent=parent)
         # Scale between beam current and number of ions per second
-        ion_scale = get_ions()[ion].rate(1)                                      
-
-        self.plt.getAxis('left').setScale(ion_scale)
-        self.plt.getAxis('left').enableAutoSIPrefix(False)
-        self.plt.setLabel('left', text=f'Ion rate', units=f'{ion.capitalize()}s / s')
-        self.plt.setLabel('right', text='Beam current', units='A')
-        self.plt.showAxis('left')
-        self.plt.showAxis('right')
-
+        ion_scale = get_ions()[ion].rate(1)
+        self.plt.setLabel('right', text=f'Ion rate', units=f'{ion.capitalize()}s / s')
+        self.plt.setLabel('left', text='Beam current', units='A')                                  
+        self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(scale=ion_scale)
+        
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
 
@@ -1113,9 +1110,9 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
         self.plt.setLabel('right', text='Neutron fluence', units='cm^-2')
         self.plt.setLabel('bottom', text='Scan row')
-        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
