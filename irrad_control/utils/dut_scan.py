@@ -147,18 +147,37 @@ class DUTScan(object):
         # Store origin of relative coordinate system used for scan
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units
 
-        dut_rect_upper = tuple(axis_mm_to_native(i, self._scan_params['dut_rect_upper'][i]) for i in range(2))
-        dut_rect_lower = tuple(axis_mm_to_native(i, self._scan_params['dut_rect_lower'][i]) for i in range(2))
+        start, end = [], []
 
-        # We take the givne rectangle as the scan area w/o modifications
-        if self._scan_params['dut_rect_is_scan_area']:
-            # Start position of the scan in native units
-            self._scan_params['start'] = tuple(self._scan_params['origin'][i] - dut_rect_upper[i] for i in range(2))
-            # Start position of the scan in native units
-            self._scan_params['end'] = tuple(self._scan_params['origin'][i] - dut_rect_lower[i] for i in (0, 1))
+        for i in range(2):
 
-        else:
-            pass
+            dut_rect_upper = axis_mm_to_native(i, self._scan_params['dut_rect_upper'][i])
+            dut_rect_lower = axis_mm_to_native(i, self._scan_params['dut_rect_lower'][i])
+
+            start.append(self._scan_params['origin'][i] + dut_rect_upper)
+            end.append(self._scan_params['origin'][i] + dut_rect_lower)
+
+        # We take the given rectangle as the DUT area and need modifications
+        if not self._scan_params['dut_rect_is_scan_area']:
+            # Beam-caused additional spacing we need: 3 sigma in each plane
+            beam_sigma_x, beam_sigma_y = (x / 2.3548 for x in self._scan_params['beam_fwhm'])
+            # De/Acceleration when scanning a row
+            scan_accel = self.scan_stage.axis[0].get_accel(unit='mm/s^2')
+            # Distance travelled until scan speed is reached
+            accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
+            # Resulting offsets in x and y
+            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + accel_distance)
+            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
+
+            # Apply ofset
+            start[0] += scan_offset_x
+            end[0] -= scan_offset_x
+            start[1] += scan_offset_y
+            end[1] -= scan_offset_y
+            
+
+        self._scan_params['start'] = tuple(start)
+        self._scan_params['end'] = tuple(end)
 
         # Store number of rows in this scan
         n_rows = abs(self._scan_params['end'][1] - self._scan_params['start'][1])
@@ -170,7 +189,6 @@ class DUTScan(object):
         for row in range(self._scan_params['n_rows']):
             rows[row] = self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep'])
         self._scan_params['rows'] = rows
-
 
     def _check_scan(self):
         """
