@@ -293,7 +293,13 @@ def plot_tid_per_row(data, **kwargs):
     return fig, ax
 
 def plot_everything(data, **kwargs):
+    fig = plt.figure(figsize=(6, 6))
+    gs = fig.add_gridspec(2, 1, height_ratios=(5, 1))#,
+                        #left=0.1, right=0.9, bottom=0.1, top=0.9,
+                        #wspace=0.05, hspace=0.05)
+    beamax = fig.add_subplot(gs[0, 0])
     fig_title = "Row- and scanwise radiation damage"
+    fig.suptitle(fig_title)
     dtime_row_start = [datetime.fromtimestamp(ts) for ts in data['row_start']]
     dtime_row_stop = [datetime.fromtimestamp(ts) for ts in data['row_stop']]
     tss = datetime.fromtimestamp(data['row_start'][0])
@@ -301,14 +307,9 @@ def plot_everything(data, **kwargs):
     month = tss.strftime("%B")
     year = tss.strftime("%Y")
     xtimelabel = "Time on {} {} {}".format(day, month, year)
-    fig, beamax = plot_generic_fig(plot_data={'xdata': dtime_row_start,
-                                          'ydata': data['beam_current'],
-                                          'xlabel': xtimelabel,
-                                          'ylabel': f"Beam current / nA",
-                                          'label': f"Beam",
-                                          'title': fig_title,
-                                          'fmt': '--C1'},
-                               figsize=(8,6))
+    beamax.plot(dtime_row_start, data['beam_current'], color="C1", label="Beam")
+    beamax.set_ylabel(f"Beam current / nA")
+    
     beamax.grid(False)
     beamax.set_zorder(3)
     beamax.set_facecolor('none')
@@ -317,12 +318,23 @@ def plot_everything(data, **kwargs):
     tidax = beamax.twinx()
     neqax = beamax.twinx()
     
-    beamax.spines['left'].set_visible(False)
     beamax.spines['right'].set_position(('outward', 0.0))
     beamax.yaxis.tick_right()
     beamax.yaxis.set_label_position("right")
-    beamax.spines['right'].set_visible(True)
     beamax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+    
+    beamlossax = fig.add_subplot(gs[1, 0], sharex=beamax)
+    beamlossax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
+    beamlossax.legend()
+    beamlossax.grid()
+    beamlossax.set_ylabel(f"Current loss / nA")
+    beamlossax.set_xlabel(xtimelabel)
+    beamlossax.spines['left'].set_visible(True)
+    beamlossax.spines['right'].set_position(('outward', 0.0))
+    beamlossax.yaxis.tick_right()
+    beamlossax.yaxis.set_label_position("right")
+    beamlossax.spines['right'].set_visible(True)
+    beamlossax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
 
     neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     neqax.set_ylabel(neqlabel)
@@ -341,7 +353,7 @@ def plot_everything(data, **kwargs):
     tidax.set_zorder(1)
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
-    tidax.set_ylim(ymin, 1.05*ymax) #make some room for labels
+    tidax.set_ylim(ymin, 1.1*ymax) #make some room for labels
     
     n_scan = len(data['scan_start'])
     tick_dist = n_scan/5
