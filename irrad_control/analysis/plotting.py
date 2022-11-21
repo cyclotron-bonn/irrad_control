@@ -268,27 +268,26 @@ def fluence_row_hist(start, end, fluence):
 def plot_tid_per_row(data, **kwargs):
     fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
                                           'ylabel': f"Accumulated TID / Mrad",
-                                          'title': "Radiation damage per scan"},
+                                          'title': "Rowwise radiation damage"},
                                 figsize=(8,6))
-    
+    ax.grid(False)
     rows = [row for row in range(len(data))]
     bar_heights = np.zeros(len(rows))
     datalen = len(data[0])
-    for scan_j in range(0,2):
-        color, label = ('C0', "Alternating") if int(scan_j)==0 else ('C1', "scans")
+    for scan_j in range(0,1):
+        color, label = ('C0', "Damage")
         ax.bar(x=rows, height=data[:,scan_j], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01, label=label)
         bar_heights = bar_heights+data[:,scan_j]
     ax.legend()
-    for scan_i in range(2,datalen):
-        color = 'C0' if int(scan_i%2)==0 else 'C1'
-        ax.bar(x=rows, height=data[:,scan_i], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01)
+    for scan_i in range(1,datalen):
+        ax.bar(x=rows, height=data[:,scan_i], bottom=bar_heights, color="C0", edgecolor=(0,0,0), linewidth=0.01)
         bar_heights = bar_heights+data[:,scan_i]
     ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
     ax.set_ylim(ymax=ax.get_ylim()[1]*1.1)
     neqax = ax.twinx()
     neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     neqax.set_ylabel(neqlabel)
-    
+    neqax.grid(axis='y')
     neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in ax.get_ylim()]
     neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
     return fig, ax
@@ -310,37 +309,32 @@ def plot_everything(data, **kwargs):
                                           'title': fig_title,
                                           'fmt': '--C1'},
                                figsize=(8,6))
+    beamax.grid(False)
     beamax.set_zorder(3)
     beamax.set_facecolor('none')
     bymin, bymax = beamax.get_ylim()
-    beamax.set_ylim(bymin, 1.2*bymax) #make some room for labels
-    
-    fluenceax = beamax.twinx()
-    fluenceax.yaxis.tick_left()
-    fluenceax.yaxis.set_label_position("left")
-    fluenceax.spines.left.set_visible(True)
-    
-    beamax.spines.left.set_position(("axes", -0.1))
-    beamax.yaxis.tick_left()
-    beamax.yaxis.set_label_position("left")
-    beamax.spines.left.set_visible(True)
-    
+    beamax.set_ylim(bymin, 1.05*bymax) #make some room for labels
+    tidax = beamax.twinx()
     neqax = beamax.twinx()
     
-    
+    beamax.spines['left'].set_visible(False)
+    beamax.spines['right'].set_position(('outward', 0.0))
+    beamax.yaxis.tick_right()
+    beamax.yaxis.set_label_position("right")
+    beamax.spines['right'].set_visible(True)
+    beamax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+
     neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     neqax.set_ylabel(neqlabel)
-
-    fluenceax.plot(dtime_row_start, data['proton_fluence'], color='C2', label="Fluence")
-    flxlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}\mathrm{s}^{-1}$'
-    fluenceax.set_ylabel(flxlabel)
-    fluenceax.set_ylim(fluenceax.get_ylim()[0], 1.1*fluenceax.get_ylim()[1])
+    neqax.spines['left'].set_position(('outward', 0))
+    neqax.spines['left'].set_visible(True)
+    neqax.yaxis.set_label_position("left")
+    neqax.yaxis.tick_left()
     
-    tidax = beamax.twinx()
-    tidax.spines['right'].set_position(('outward', 55))
-    tidax.spines['right'].set_visible(True)
-    
-    
+    tidax.spines['left'].set_position(('outward', 55))
+    tidax.spines['left'].set_visible(True)
+    tidax.yaxis.set_label_position("left")
+    tidax.yaxis.tick_left()
     
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
     tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge') #add tid per scan
@@ -348,9 +342,6 @@ def plot_everything(data, **kwargs):
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
     tidax.set_ylim(ymin, 1.05*ymax) #make some room for labels
-    
-    beamax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
-    fig.autofmt_xdate()
     
     n_scan = len(data['scan_start'])
     tick_dist = n_scan/5
@@ -360,15 +351,13 @@ def plot_everything(data, **kwargs):
     dtime_scan_start = [datetime.fromtimestamp(data['scan_start'][i]) for i in range(n_scan) if (i-19)%tick_dist==0]
     scanax.set_xticks(dtime_scan_start)
     scanax.set_xticklabels(scanaxlabel)
-    
+    scanax.grid()
 
-    
     neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in tidax.get_ylim()]
     neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
-    
-    beamax.legend(loc='upper left')
-    tidax.legend(loc='upper right')
-    fluenceax.legend(loc='upper center')
+    neqax.grid(axis='y')
+    beamax.legend(loc='upper right')
+    tidax.legend(loc='upper left')
     return fig
     
 #******* Beamplotting ********#
@@ -440,8 +429,8 @@ def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=Non
     ystd = np.std(horizontal_deviation)
     xlabel = "({:.2f}±{:.2f}) %".format(xmean, xstd)
     ylabel = "({:.2f}±{:.2f}) %".format(ymean, ystd)
-    _, xbins, _ = ax_histx.hist(vertical_deviation, bins=n_bins, label=xlabel)
-    _, ybins, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal', label=ylabel)
+    _, _, _ = ax_histx.hist(vertical_deviation, bins=n_bins, label=xlabel)
+    _, _, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal', label=ylabel)
     ax_histx.legend()
     ax_histy.legend()
     ax_histx.tick_params(axis="x", labelbottom=False)

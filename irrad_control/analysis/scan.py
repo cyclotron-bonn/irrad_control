@@ -2,7 +2,6 @@ import logging
 import numpy as np
 from irrad_control.analysis import plotting
 from irrad_control.analysis import constants
-from tqdm import tqdm
 
 def during_scan(data, server):
     mask = np.zeros_like(data[server]['Beam']['timestamp'], dtype=bool)
@@ -24,11 +23,7 @@ def analyse_scan(data, **scan_kwargs):
     figs = []
     server = scan_kwargs['server']
     mask = during_scan(data, server)
-    # stamps = stamps_scanning(timestamps = data[server]['Beam']['timestamp'],
-    #                         start_timestamps=data[server]['Scan']['row_start_timestamp'],
-    #                         stop_timestamps=data[server]['Scan']['row_stop_timestamp'])
     nano = np.array(constants.nano)
-    #beam_current_nA = data[server]['Beam']['beam_current']/nano #beam current in nA
     logging.info("Generating plots ...")
     #Beam current over time while scanning
     timestamps_while_scan = data[server]['Beam']['timestamp'][mask]
