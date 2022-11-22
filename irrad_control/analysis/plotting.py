@@ -309,6 +309,8 @@ def plot_everything(data, **kwargs):
     xtimelabel = "Time on {} {} {}".format(day, month, year)
     beamax.plot(dtime_row_start, data['beam_current'], color="C1", label="Beam")
     beamax.set_ylabel(f"Beam current / nA")
+    scanax = beamax.twiny()
+    scanax.set_xlim(beamax.get_xlim())
     
     beamax.grid(False)
     beamax.set_zorder(3)
@@ -321,20 +323,6 @@ def plot_everything(data, **kwargs):
     beamax.spines['right'].set_position(('outward', 0.0))
     beamax.yaxis.tick_right()
     beamax.yaxis.set_label_position("right")
-    beamax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
-    
-    beamlossax = fig.add_subplot(gs[1, 0], sharex=beamax)
-    beamlossax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
-    beamlossax.legend()
-    beamlossax.grid()
-    beamlossax.set_ylabel(f"Current loss / nA")
-    beamlossax.set_xlabel(xtimelabel)
-    beamlossax.spines['left'].set_visible(True)
-    beamlossax.spines['right'].set_position(('outward', 0.0))
-    beamlossax.yaxis.tick_right()
-    beamlossax.yaxis.set_label_position("right")
-    beamlossax.spines['right'].set_visible(True)
-    beamlossax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
 
     neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     neqax.set_ylabel(neqlabel)
@@ -350,26 +338,37 @@ def plot_everything(data, **kwargs):
     
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
     tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge') #add tid per scan
-    tidax.set_zorder(1)
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
     tidax.set_ylim(ymin, 1.1*ymax) #make some room for labels
     
     n_scan = len(data['scan_start'])
     tick_dist = n_scan/5
-    scanaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if (i-19)%tick_dist==0]
-    scanax = beamax.twiny()
-    scanax.set_xlim(beamax.get_xlim())
+    beamaxlabel = ["Scan {}".format(i+1) for i in range(n_scan) if (i-19)%tick_dist==0]
     dtime_scan_start = [datetime.fromtimestamp(data['scan_start'][i]) for i in range(n_scan) if (i-19)%tick_dist==0]
-    scanax.set_xticks(dtime_scan_start)
-    scanax.set_xticklabels(scanaxlabel)
-    scanax.grid()
+    beamax.set_xticks(dtime_scan_start)
+    beamax.set_xticklabels(beamaxlabel)
+    scanax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+    scanax.set_xlabel(xtimelabel)
+    
+    beamlossax = fig.add_subplot(gs[1, 0], sharex=beamax)
+    beamlossax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
+    beamlossax.legend()
+    beamlossax.set_ylabel(f"Current loss / nA")
+    beamlossax.spines['left'].set_visible(True)
+    beamlossax.spines['right'].set_position(('outward', 0.0))
+    beamlossax.yaxis.tick_right()
+    beamlossax.yaxis.set_label_position("right")
+    beamlossax.spines['right'].set_visible(True)
+    #beamlossax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
 
     neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in tidax.get_ylim()]
     neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
-    neqax.grid(axis='y')
     beamax.legend(loc='upper right')
     tidax.legend(loc='upper left')
+    neqax.grid(axis='y')
+    beamax.grid(axis='x')
+    beamlossax.grid()
     return fig
     
 #******* Beamplotting ********#
@@ -393,7 +392,7 @@ def plot_beam_current(timestamps, beam_currents, while_scan=None):
     fig.autofmt_xdate()
     return fig, ax
 
-def plot_beam_current_hist(beam_currents,  start, end, while_scan=None):
+def plot_beam_current_hist(beam_currents, start, end, while_scan=None):
     tss = datetime.fromtimestamp(start)
     tse = datetime.fromtimestamp(end)
     tdiff = tse-tss
@@ -401,7 +400,6 @@ def plot_beam_current_hist(beam_currents,  start, end, while_scan=None):
     tdiffh = (tdiff-tdiff%3600)/3600
     tdiff = tdiff%3600
     tdiffm = (tdiff-tdiff%60)/60
-    
 
     fig_label = "Mean beam current over {} hours, {} mins.:\n({:.0f}±{:.0f}) nA".format(int(tdiffh), int(tdiffm), np.mean(beam_currents), np.std(beam_currents))
     fig_title = "Beam-Current Distribution" if while_scan is None else "Beam-current distribution during scan"
