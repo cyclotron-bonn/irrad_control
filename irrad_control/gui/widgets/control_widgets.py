@@ -557,7 +557,7 @@ class ScanControlWidget(ControlWidget):
         dut_rect_container = GridContainer(name='Dut rectangle')
         dut_rect_container.setToolTip('Define the DUT area relative to the scan origin. Complete scan area will be calculated according to scan speed and beam fwhm')
         
-        label_start = QtWidgets.QLabel('Rect. start:')
+        label_start = QtWidgets.QLabel('Start:')
         spx_start_x = QtWidgets.QDoubleSpinBox()
         spx_start_x.setRange(-300., 300.)
         spx_start_x.setValue(0)
@@ -574,7 +574,7 @@ class ScanControlWidget(ControlWidget):
         spx_start_y.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_upper=[spx_start_x.value(), v]))
 
         # End point
-        label_end = QtWidgets.QLabel('Rect. stop:')
+        label_end = QtWidgets.QLabel('    Stop:')
         spx_end_x = QtWidgets.QDoubleSpinBox()
         spx_end_x.setRange(-300., 300.)
         spx_end_x.setValue(0)
@@ -594,10 +594,8 @@ class ScanControlWidget(ControlWidget):
         checkbox_scan_rect.setToolTip('Use DUT rectangle as scan rectangle instead. No modifications will be made w.r.t scan speed or beam fwhm')
         checkbox_scan_rect.stateChanged.connect(lambda state: self.update_scan_params(dut_rect_is_scan_area=bool(state)))
 
-        dut_rect_container.add_widget(widget=[label_start, spx_start_x, spx_start_y])
-        dut_rect_container.add_widget(widget=[label_end, spx_end_x, spx_end_y])
-        dut_rect_container.add_widget(widget=checkbox_scan_rect)
-
+        dut_rect_container.add_widget(widget=[label_start, spx_start_x, spx_start_y, label_end, spx_end_x, spx_end_y, checkbox_scan_rect])
+        
         scan_interaction_container = GridContainer(name='Scan interaction')
         scan_interaction_container.setToolTip("Interact with the scanning routine during the scan")
 
