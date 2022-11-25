@@ -157,6 +157,9 @@ class DUTScan(object):
             start.append(self._scan_params['origin'][i] + dut_rect_upper)
             end.append(self._scan_params['origin'][i] + dut_rect_lower)
 
+        self._scan_params['dut_rect_start'] = tuple(start)
+        self._scan_params['dut_rect_stop'] = tuple(end)
+
         # We take the given rectangle as the DUT area and need modifications
         if not self._scan_params['dut_rect_is_scan_area']:
             # Beam-caused additional spacing we need: 3 sigma in each plane
@@ -166,8 +169,8 @@ class DUTScan(object):
             # Distance travelled until scan speed is reached
             accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
             # Resulting offsets in x and y
-            scan_offset_x = axis_mm_to_native(0, 5 * beam_sigma_x + 2 * accel_distance)
-            scan_offset_y = axis_mm_to_native(1, 5 * beam_sigma_y)
+            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + 2 * accel_distance)
+            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
 
             # Apply offset
             start[0] -= scan_offset_x
@@ -398,8 +401,8 @@ class DUTScan(object):
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
                      'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
-                     'dut_rect_upper': self.scan_config['dut_rect_upper'],
-                     'dut_rect_lower': self.scan_config['dut_rect_lower'],
+                     'dut_rect_start': self.scan_config['dut_rect_start'],
+                     'dut_rect_stop': self.scan_config['dut_rect_stop'],
                      'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data
