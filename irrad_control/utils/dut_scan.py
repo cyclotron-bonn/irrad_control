@@ -170,8 +170,8 @@ class DUTScan(object):
             scan_offset_y = axis_mm_to_native(1, 5 * beam_sigma_y)
 
             # Apply ofset
-            start[0] += scan_offset_x
-            end[0] -= scan_offset_x
+            start[0] -= scan_offset_x
+            end[0] += scan_offset_x
             start[1] += scan_offset_y
             end[1] -= scan_offset_y
             
