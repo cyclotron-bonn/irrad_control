@@ -169,11 +169,11 @@ class DUTScan(object):
             scan_offset_x = axis_mm_to_native(0, 5 * beam_sigma_x + 2 * accel_distance)
             scan_offset_y = axis_mm_to_native(1, 5 * beam_sigma_y)
 
-            # Apply ofset
+            # Apply offset
             start[0] -= scan_offset_x
             end[0] += scan_offset_x
-            start[1] += scan_offset_y
-            end[1] -= scan_offset_y
+            start[1] -= scan_offset_y
+            end[1] += scan_offset_y
             
 
         self._scan_params['start'] = tuple(start)
@@ -398,6 +398,8 @@ class DUTScan(object):
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
                      'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
+                     'dut_rect_start': self.scan_config['dut_rect_upper'],
+                     'dut_rect_stop': self.scan_config['dut_rect_lower'],
                      'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data
