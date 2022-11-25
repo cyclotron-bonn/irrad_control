@@ -434,6 +434,11 @@ class DUTScan(object):
                     # Scan row
                     self._scan_row(row=row, scan=scan, data_pub=data_pub)
 
+                _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
+                _data = {'status': 'scan_complete', 'scan': scan}
+
+                data_pub.send_json({'meta': _meta, 'data': _data})
+
                 # Increment
                 scan += 1
 

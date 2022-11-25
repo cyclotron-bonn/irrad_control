@@ -409,7 +409,8 @@ class ScanControlWidget(ControlWidget):
                             'beam_fwhm': [10, 10],
                             'dut_rect_upper': [0, 0],
                             'dut_rect_lower': [0, 0],
-                            'dut_rect_is_scan_area': False}
+                            'dut_rect_is_scan_area': False,
+                            'server': self.server}
 
         self._after_scan_container = None
         self.n_rows = None
