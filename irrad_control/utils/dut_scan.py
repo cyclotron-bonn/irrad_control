@@ -166,8 +166,8 @@ class DUTScan(object):
             # Distance travelled until scan speed is reached
             accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
             # Resulting offsets in x and y
-            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + accel_distance)
-            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
+            scan_offset_x = axis_mm_to_native(0, 5 * beam_sigma_x + 2 * accel_distance)
+            scan_offset_y = axis_mm_to_native(1, 5 * beam_sigma_y)
 
             # Apply ofset
             start[0] += scan_offset_x
@@ -397,7 +397,8 @@ class DUTScan(object):
                      'min_current': self.scan_config['min_current'],
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
-                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)]}
+                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
+                     'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data
             data_pub.send_json({'meta': _meta, 'data': _data})
