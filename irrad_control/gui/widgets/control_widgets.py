@@ -406,7 +406,7 @@ class ScanControlWidget(ControlWidget):
                             'min_current': 0.0,
                             'aim_damage': 'primary',
                             'aim_value': 1e14,
-                            'beam_fwhm': [0, 0],
+                            'beam_fwhm': [10, 10],
                             'dut_rect_upper': [0, 0],
                             'dut_rect_lower': [0, 0],
                             'dut_rect_is_scan_area': False}
@@ -457,10 +457,13 @@ class ScanControlWidget(ControlWidget):
 
     def _init_ui(self):
 
-        # Step size
-        label_row_sep = QtWidgets.QLabel('Row separation:')
-        label_row_sep.setToolTip("Separation of rows with which the scan grid is set up")
+        scan_parameters_container = GridContainer('Scan parameters')
+        scan_parameters_container.setToolTip('Set up fixed scan parameters')
+
+        # Row separation
         spx_row_sep = QtWidgets.QDoubleSpinBox()
+        spx_row_sep.setToolTip("Separation of rows with which the scan grid is set up")
+        spx_row_sep.setPrefix('Row separation: ')
         spx_row_sep.setMinimum(0.01)
         spx_row_sep.setMaximum(20.0)
         spx_row_sep.setDecimals(3)
@@ -469,9 +472,9 @@ class ScanControlWidget(ControlWidget):
         spx_row_sep.setValue(self.scan_params['row_sep'])
 
         # Scan speed
-        label_scan_speed = QtWidgets.QLabel('Scan speed:')
-        label_scan_speed.setToolTip("Speed with which the DUT is scanned through each row")
         spx_scan_speed = QtWidgets.QDoubleSpinBox()
+        spx_scan_speed.setToolTip("Speed with which the DUT is scanned through each row")
+        spx_scan_speed.setPrefix('Scan speed: ')
         spx_scan_speed.setMinimum(0.1)
         spx_scan_speed.setMaximum(110.0)
         spx_scan_speed.setDecimals(3)
@@ -480,18 +483,27 @@ class ScanControlWidget(ControlWidget):
         spx_scan_speed.setValue(self.scan_params['scan_speed'])
 
         # Beam current
-        label_min_current = QtWidgets.QLabel('Minimum current:')
-        label_min_current.setToolTip("Minimum current which is required for a row to be scanned")
         spx_min_current = QtWidgets.QSpinBox()
+        spx_min_current.setToolTip("Minimum current which is required for a row to be scanned")
+        spx_min_current.setPrefix('Min. beam current: ')
         spx_min_current.setRange(0, 4000)
         spx_min_current.setSingleStep(50)
         spx_min_current.setSuffix(' nA')
         spx_min_current.setValue(0)
         spx_min_current.valueChanged.connect(lambda v: self.update_scan_params(min_current=v))
 
-        # Fluence
-        label_aim_damage = QtWidgets.QLabel('Aim damage:')
-        label_aim_damage.setToolTip('Select type and quantity of damage to be introduced to DUT')
+        scan_parameters_container.add_widget(widget=[spx_row_sep, spx_scan_speed, spx_min_current])
+
+        damage_container = GridContainer('Radiation damage')
+               
+        label_damage_target = QtWidgets.QLabel('Target:')
+        spx_damage_val = QtWidgets.QDoubleSpinBox()
+        spx_damage_val.setRange(1e-3, 10)
+        spx_damage_val.setDecimals(3)
+        spx_damage_exp = QtWidgets.QSpinBox()
+        spx_damage_exp.setPrefix('e ')
+
+        label_damage_type = QtWidgets.QLabel('    Type:')
         rbtn_neq = QtWidgets.QRadioButton('NEQ')
         rbtn_tid = QtWidgets.QRadioButton('TID')
         rbtn_primary = QtWidgets.QRadioButton('Primary')
@@ -499,29 +511,26 @@ class ScanControlWidget(ControlWidget):
         damage_buttons.addButton(rbtn_neq)
         damage_buttons.addButton(rbtn_tid)
         damage_buttons.addButton(rbtn_primary)
-        layout_aim_damage = QtWidgets.QHBoxLayout()
 
         # Add radio buttons for different types of damage
         if self.daq_setup['kappa'] is None:
             damage_buttons.removeButton(rbtn_neq)    
         if self.daq_setup['stopping_power'] is None:
-            damage_buttons.removeButton(rbtn_tid)            
-
-        spx_damage_val = QtWidgets.QDoubleSpinBox()
-        spx_damage_val.setRange(1e-3, 10)
-        spx_damage_val.setDecimals(3)
-        spx_damage_exp = QtWidgets.QSpinBox()
-        spx_damage_exp.setPrefix('e ')
+            damage_buttons.removeButton(rbtn_tid)
 
         for btn in damage_buttons.buttons():
             btn.toggled.connect(lambda _, bg=damage_buttons, sv=spx_damage_val, se=spx_damage_exp: self._damage_toggled(bg, sv, se))
-            layout_aim_damage.addWidget(btn)
         
         spx_damage_val.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{v}e{spx_damage_exp.value()}')))
         spx_damage_exp.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{spx_damage_val.value()}e{v}')))
 
         # Toggle initially
         rbtn_primary.toggle()
+
+        damage_container.add_widget(widget=[label_damage_target, spx_damage_val, spx_damage_exp, label_damage_type] + damage_buttons.buttons()+[])
+        #damage_container.add_widget(widget=[spx_damage_val, spx_damage_exp])
+
+        beam_container = GridContainer(name='Beam parameters')
 
         # Beam FWHM
         label_fwhm = QtWidgets.QLabel('Beam FWHM:')
@@ -539,16 +548,15 @@ class ScanControlWidget(ControlWidget):
         spx_fwhm_y.setSuffix(' mm')
         spx_fwhm_x.valueChanged.connect(lambda v, s=spx_fwhm_y: self.update_scan_params(beam_fwhm=[v, s.value()]))
         spx_fwhm_y.valueChanged.connect(lambda v, s=spx_fwhm_x: self.update_scan_params(beam_fwhm=[s.value(), v]))
+
+        beam_container.add_widget(widget=[label_fwhm, spx_fwhm_x, spx_fwhm_y])
         
         
         # Define DUT rectangle relative to the origin of the scan coordinate system
-        label_dut_rect = QtWidgets.QLabel('DUT rectangle')
-        label_dut_rect.setToolTip('Define the DUT area relative to the scan origin. Complete scan area will be calculated according to scan speed and beam fwhm')
-        checkbox_scan_rect = QtWidgets.QCheckBox('Use as scan area')
-        checkbox_scan_rect.setToolTip('Use DUT rectangle as scan rectangle instead. No modifications will be made w.r.t scan speed or beam fwhm')
-        checkbox_scan_rect.stateChanged.connect(lambda state: self.update_scan_params(dut_rect_is_scan_area=bool(state)))
+        dut_rect_container = GridContainer(name='Dut rectangle')
+        dut_rect_container.setToolTip('Define the DUT area relative to the scan origin. Complete scan area will be calculated according to scan speed and beam fwhm')
         
-        label_start = QtWidgets.QLabel('Upper DUT point:')
+        label_start = QtWidgets.QLabel('DUT rect. upper:')
         spx_start_x = QtWidgets.QDoubleSpinBox()
         spx_start_x.setRange(-300., 300.)
         spx_start_x.setValue(0)
@@ -565,7 +573,7 @@ class ScanControlWidget(ControlWidget):
         spx_start_y.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_upper=[spx_start_x.value(), v]))
 
         # End point
-        label_end = QtWidgets.QLabel('Lower DUT point:')
+        label_end = QtWidgets.QLabel('DUT rect. lower:')
         spx_end_x = QtWidgets.QDoubleSpinBox()
         spx_end_x.setRange(-300., 300.)
         spx_end_x.setValue(0)
@@ -581,13 +589,18 @@ class ScanControlWidget(ControlWidget):
         spx_end_x.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_lower=[v, spx_end_y.value()]))
         spx_end_y.valueChanged.connect(lambda v: self.update_scan_params(dut_rect_lower=[spx_end_x.value(), v]))
 
-        # Auto finish scan
-        checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
-        checkbox_auto_finish.setToolTip("Automatically finish scan procedure when target damage is reached.")
-        checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
-        checkbox_auto_finish.setChecked(True)
+        checkbox_scan_rect = QtWidgets.QCheckBox('Use as scan area')
+        checkbox_scan_rect.setToolTip('Use DUT rectangle as scan rectangle instead. No modifications will be made w.r.t scan speed or beam fwhm')
+        checkbox_scan_rect.stateChanged.connect(lambda state: self.update_scan_params(dut_rect_is_scan_area=bool(state)))
 
-        # Scan
+        dut_rect_container.add_widget(widget=[label_start, spx_start_x, spx_start_y])
+        dut_rect_container.add_widget(widget=[label_end, spx_end_x, spx_end_y])
+        dut_rect_container.add_widget(widget=checkbox_scan_rect)
+
+        scan_interaction_container = GridContainer(name='Scan interaction')
+        scan_interaction_container.setToolTip("Interact with the scanning routine during the scan")
+
+        # Scan buttons
         btn_start = QtWidgets.QPushButton('START')
         btn_start.setToolTip("Start scan.")
         btn_start.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
@@ -622,25 +635,25 @@ class ScanControlWidget(ControlWidget):
         btn_pause.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
         btn_stop.setStyleSheet('QPushButton {color: red;}')
+        
+        # Cheboxes
+        # Auto finish scan
+        checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
+        checkbox_auto_finish.setToolTip("Automatically finish scan procedure when target damage is reached.")
+        checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
+        checkbox_auto_finish.setChecked(True)
 
-        layout_scan = QtWidgets.QHBoxLayout()
-        layout_scan.setSpacing(self.grid.horizontalSpacing())
-        layout_scan.addWidget(btn_start)
-        layout_scan.addWidget(btn_pause)
-        layout_scan.addWidget(btn_finish)
-        layout_scan.addWidget(btn_stop)
-        layout_scan.addWidget(checkbox_auto_finish)
+        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_stop])
+        scan_interaction_container.add_widget(widget=checkbox_auto_finish)
 
         # Add to layout
-        self.add_widget(widget=[label_row_sep, spx_row_sep])
-        self.add_widget(widget=[label_scan_speed, spx_scan_speed])
-        self.add_widget(widget=[label_min_current, spx_min_current])
-        self.add_widget(widget=[label_aim_damage, layout_aim_damage])
-        self.add_widget(widget=[QtWidgets.QLabel(''), spx_damage_val, spx_damage_exp])
-        self.add_widget(widget=[label_fwhm, spx_fwhm_x, spx_fwhm_y])
-        self.add_widget(widget=[label_start, spx_start_x, spx_start_y])
-        self.add_widget(widget=[label_end, spx_end_x, spx_end_y])
-        self.grid.addLayout(layout_scan, self.grid.rowCount(), 0, 1, 3)
+        self.add_widget(damage_container)
+        self.add_widget(scan_parameters_container)
+        self.add_widget(beam_container)
+        self.add_widget(dut_rect_container)
+        self.add_widget(scan_interaction_container)
+
+        self.widgets['scan_interaction_container'] = scan_interaction_container
 
     def init_after_scan_ui(self):
 
@@ -670,7 +683,7 @@ class ScanControlWidget(ControlWidget):
                                                                                     'repeat': spx_repeat.value()}}))
 
             self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
-            self.grid.addWidget(self._after_scan_container, self.grid.rowCount(), 0, 1, 3)
+            self.add_widget(self._after_scan_container)
 
 
 class DAQControlWidget(ControlWidget):

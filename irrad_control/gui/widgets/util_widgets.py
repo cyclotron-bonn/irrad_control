@@ -182,7 +182,7 @@ class GridContainer(QtWidgets.QGroupBox):
 class NoBackgroundScrollArea(QtWidgets.QScrollArea):
     """Scroll area which conserves the background color of its content and is frameless"""
 
-    def __init__(self, parent=None):
+    def __init__(self, widget=None, parent=None):
         super(NoBackgroundScrollArea, self).__init__(parent)
         # Set resizeable
         self.setWidgetResizable(True)
@@ -193,6 +193,9 @@ class NoBackgroundScrollArea(QtWidgets.QScrollArea):
         self._p, self._b, = self.palette(), self.backgroundRole()
         self.setAutoFillBackground(True)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
+
+        if widget is not None:
+            self.setWidget(widget)
 
     def setWidget(self, QWidget):
         self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.AlternateBase))
