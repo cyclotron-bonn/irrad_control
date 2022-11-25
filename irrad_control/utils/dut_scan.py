@@ -181,13 +181,14 @@ class DUTScan(object):
 
         # Store number of rows in this scan
         n_rows = abs(self._scan_params['end'][1] - self._scan_params['start'][1])
-        n_rows /= axis_mm_to_native(1, self._scan_params['row_sep'])
+        row_sep = axis_mm_to_native(1, self._scan_params['row_sep'])
+        n_rows /= row_sep
         self._scan_params['n_rows'] = int(n_rows + 1)  # Always round up to next largest int
 
         # Make dictionary with absolute position in native units of each row
         rows = {}
         for row in range(self._scan_params['n_rows']):
-            rows[row] = self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep'])
+            rows[row] = self._scan_params['start'][1] + row * row_sep
         self._scan_params['rows'] = rows
 
     def _check_scan(self):
