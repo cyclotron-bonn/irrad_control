@@ -546,6 +546,12 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['irrad']['scan_area_start_y'] = data['scan_area_start'][1]
             self.data_arrays[server]['irrad']['scan_area_stop_x'] = data['scan_area_stop'][0]
             self.data_arrays[server]['irrad']['scan_area_stop_y'] = data['scan_area_stop'][1]
+            self.data_arrays[server]['irrad']['dut_rect_start_x'] = data['dut_rect_start'][0]
+            self.data_arrays[server]['irrad']['dut_rect_start_y'] = data['dut_rect_start'][1]
+            self.data_arrays[server]['irrad']['dut_rect_stop_x'] = data['dut_rect_stop'][0]
+            self.data_arrays[server]['irrad']['dut_rect_stop_y'] = data['dut_rect_stop'][1]
+            self.data_arrays[server]['irrad']['beam_fwhm_x'] = data['beam_fwhm'][0]
+            self.data_arrays[server]['irrad']['beam_fwhm_y'] = data['beam_fwhm'][1]
 
             # Fluence hist
             self._row_fluence_hist[server] = [0] * data['n_rows']

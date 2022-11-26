@@ -105,10 +105,10 @@ class ProcessManager(object):
 
         # Check whether we're looking for a pid file on server or localhost
         if hostname in self.client:
-            pid_file = '/home/{}/.config/irrad_control/irrad_control.pid'.format(self.server[hostname])
+            pid_file_client = '/home/{}/.config/irrad_control/irrad_control.pid'.format(self.server[hostname])
             pid_file_local = os.path.join(tmp_path, '{}_server.pid'.format(hostname))
-            if self._check_file_exits(hostname=hostname, file_path=pid_file):
-                self.get_from_server(hostname=hostname, remote_filepath=pid_file, local_filepath=pid_file_local)
+            if self._check_file_exits(hostname=hostname, file_path=pid_file_client):
+                self.get_from_server(hostname=hostname, remote_filepath=pid_file_client, local_filepath=pid_file_local)
         else:
             pid_file_local = pid_file
 

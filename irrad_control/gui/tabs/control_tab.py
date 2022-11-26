@@ -6,6 +6,7 @@ from setuptools import setup
 
 # Pacakage imports
 import irrad_control.gui.widgets.control_widgets as ic_cntrl_wdgts
+from irrad_control.gui.widgets import NoBackgroundScrollArea
 
 
 class IrradControlTab(QtWidgets.QWidget):
@@ -77,7 +78,7 @@ class IrradControlTab(QtWidgets.QWidget):
         splitter.addWidget(splitter_lower)
 
         # Add this to tab
-        self.tabs.addTab(splitter, self.setup[server]['name'])
+        self.tabs.addTab(NoBackgroundScrollArea(widget=splitter), self.setup[server]['name'])
 
         # Add to container
         self.tab_widgets[server]['motorstage'] = motorstage_widget
@@ -128,10 +129,16 @@ class IrradControlTab(QtWidgets.QWidget):
 
 
     def scan_status(self, server, status='started'):
-        read_only_state = status == 'started'
         # Set everything read-only when scan starts
         for t, w in self.tab_widgets[server].items():
-            w.set_read_only(read_only=read_only_state, omit=None if t != 'scan' else QtWidgets.QPushButton)
-
+            w.set_read_only(read_only=True)
+        # Always have scan interactino stuff enabled
+        if status == 'started':
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
+        else:
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(False)
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(True)
+            
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)

@@ -125,34 +125,74 @@ class DUTScan(object):
             step size of vertical steps in mm
         """
 
+        self._scan_params.update(scan_config)
+
+        self._generate_scan_area()
+
+        self.scan_config = scan_config
+
+        return self._scan_params
+
+    def _generate_scan_area(self):
+        """
+        Sets the 'start' and 'end' key values in the self.scan_params dict which define the scan area rectangle.
+        The scan area is constructed with respect to the beam FWHM and scan velocity as well as acceleration.
+        If the self.scan_params['dut_rect_is_scan_area'] is True, the scan area is consructed directly as the dut
+        rect without considering acceleration, etc.
+        """
+
         # Convert mm to native axis unit
         axis_mm_to_native = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_from_unit(val, unit='mm')
 
         # Store origin of relative coordinate system used for scan
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units
 
-        # Start position of the scan in native units
-        self._scan_params['start'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_start'][i]) for i in (0, 1))
+        start, end = [], []
 
-        # Start position of the scan in native units
-        self._scan_params['end'] = tuple(self._scan_params['origin'][i] - axis_mm_to_native(i, scan_config['rel_end'][i]) for i in (0, 1))
+        for i in range(2):
 
-        # Store scan speed
-        self._scan_params['scan_speed'] = scan_config['scan_speed']  # mm/s
+            dut_rect_upper = axis_mm_to_native(i, self._scan_params['dut_rect_upper'][i])
+            dut_rect_lower = axis_mm_to_native(i, self._scan_params['dut_rect_lower'][i])
 
-        # Store step size
-        self._scan_params['row_sep'] = scan_config['row_sep']  # mm
+            start.append(self._scan_params['origin'][i] + dut_rect_upper)
+            end.append(self._scan_params['origin'][i] + dut_rect_lower)
+
+        self._scan_params['dut_rect_start'] = tuple(start)
+        self._scan_params['dut_rect_stop'] = tuple(end)
+
+        # We take the given rectangle as the DUT area and need modifications
+        if not self._scan_params['dut_rect_is_scan_area']:
+            # Beam-caused additional spacing we need: 3 sigma in each plane
+            beam_sigma_x, beam_sigma_y = (x / 2.3548 for x in self._scan_params['beam_fwhm'])
+            # De/Acceleration when scanning a row
+            scan_accel = self.scan_stage.axis[0].get_accel(unit='mm/s^2')
+            # Distance travelled until scan speed is reached
+            accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
+            # Resulting offsets in x and y
+            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + 2 * accel_distance)
+            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
+
+            # Apply offset
+            start[0] -= scan_offset_x
+            end[0] += scan_offset_x
+            start[1] -= scan_offset_y
+            end[1] += scan_offset_y
+            
+
+        self._scan_params['start'] = tuple(start)
+        self._scan_params['end'] = tuple(end)
 
         # Store number of rows in this scan
-        self._scan_params['n_rows'] = int(abs(self._scan_params['end'][1] - self._scan_params['start'][1]) / axis_mm_to_native(1, scan_config['row_sep']))
+        n_rows = abs(self._scan_params['end'][1] - self._scan_params['start'][1])
+        row_sep = axis_mm_to_native(1, self._scan_params['row_sep'])
+        n_rows /= row_sep
+        self._scan_params['n_rows'] = int(n_rows + 1)  # Always round up to next largest int
 
         # Make dictionary with absolute position in native units of each row
-        self._scan_params['rows'] = dict([(row, self._scan_params['start'][1] - row * axis_mm_to_native(1, self._scan_params['row_sep']))
-                                         for row in range(self._scan_params['n_rows'])])
-
-        self.scan_config = scan_config
-
-        return self._scan_params
+        rows = {}
+        for row in range(self._scan_params['n_rows']):
+            rows[row] = self._scan_params['start'][1] + row * row_sep
+        self._scan_params['rows'] = rows
 
     def _check_scan(self):
         """
@@ -360,7 +400,10 @@ class DUTScan(object):
                      'min_current': self.scan_config['min_current'],
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
-                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)]}
+                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
+                     'dut_rect_start': self.scan_config['dut_rect_start'],
+                     'dut_rect_stop': self.scan_config['dut_rect_stop'],
+                     'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data
             data_pub.send_json({'meta': _meta, 'data': _data})
@@ -395,6 +438,11 @@ class DUTScan(object):
 
                     # Scan row
                     self._scan_row(row=row, scan=scan, data_pub=data_pub)
+
+                _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
+                _data = {'status': 'scan_complete', 'scan': scan}
+
+                data_pub.send_json({'meta': _meta, 'data': _data})
 
                 # Increment
                 scan += 1

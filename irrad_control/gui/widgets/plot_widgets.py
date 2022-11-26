@@ -9,6 +9,7 @@ from collections import OrderedDict
 
 # Package imports
 import irrad_control.analysis as analysis
+from irrad_control.ions import get_ions
 from irrad_control.gui.widgets.util_widgets import GridContainer
 
 # Matplotlib default colors
@@ -475,7 +476,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.plt.setTitle('' if self.name is None else self.name)
 
         # Additional axis if specified
-        if 'right' in self.units:
+        if self.units is not None and 'right' in self.units:
             self.plt.setLabel('right', text='Signal', units=self.units['right'])
 
         # X-axis is time
@@ -769,18 +770,19 @@ class PlotPushButton(pg.TextItem):
 class BeamCurrentPlot(ScrollingIrradDataPlot):
     """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
 
-    def __init__(self, channels, daq_device=None, parent=None):
+    def __init__(self, channels, ion, parent=None):
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(BeamCurrentPlot, self).__init__(channels=channels, units={'left': 'A', 'right': 'A'},
-                                              name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+        super(BeamCurrentPlot, self).__init__(channels=channels,
+                                              name=type(self).__name__,
                                               parent=parent)
-
-        self.plt.setLabel('left', text='Beam current', units='A')
-        self.plt.hideAxis('left')
-        self.plt.showAxis('right')
-        self.plt.setLabel('right', text='Beam current', units='A')
-
+        # Scale between beam current and number of ions per second
+        ion_scale = get_ions()[ion].rate(1)
+        self.plt.setLabel('right', text=f'Ion rate', units=f'{ion.capitalize()}s / s')
+        self.plt.setLabel('left', text='Beam current', units='A')                                  
+        self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(scale=ion_scale)
+        
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
 
@@ -1108,9 +1110,9 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
         self.plt.setLabel('right', text='Neutron fluence', units='cm^-2')
         self.plt.setLabel('bottom', text='Scan row')
-        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)

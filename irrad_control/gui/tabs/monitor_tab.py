@@ -60,7 +60,7 @@ class IrradMonitorTab(QtWidgets.QWidget):
                     if 'blm' in self.setup[server]['readout']['types']:
                         channels += ('beam_loss', )
 
-                    self.plots[server]['current_plot'] = plots.BeamCurrentPlot(channels=channels)
+                    self.plots[server]['current_plot'] = plots.BeamCurrentPlot(channels=channels, ion=self.setup[server]['daq']['ion'])
                     self.plots[server]['pos_plot'] = plots.BeamPositionPlot(self.setup[server])
 
                     beam_current_wrapper = self._create_plot_wrapper(plot_name='current_plot', server=server)
