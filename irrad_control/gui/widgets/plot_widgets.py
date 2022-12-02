@@ -5,7 +5,6 @@ import numpy as np
 import os
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
-from collections import OrderedDict
 
 # Package imports
 import irrad_control.analysis as analysis
@@ -294,11 +293,11 @@ class IrradPlotWidget(pg.PlotWidget):
         self.plt = self.getPlotItem()
 
         # Store curves to be displayed and active curves under cursor
-        self.curves = OrderedDict()
-        self.active_curves = OrderedDict()  # Store channel which is currently active (e.g. statistics are shown)
+        self.curves = dict()
+        self.active_curves = dict()  # Store channel which is currently active (e.g. statistics are shown)
 
         # Hold data
-        self._data = OrderedDict()
+        self._data = dict()
         self._data_is_set = False
 
         # Timer for refreshing plots with a given time interval to avoid unnecessary updating / high load
@@ -490,7 +489,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
+        # Make dict of curves and dict to hold active value indicating whether the user interacts with the curve
         for i, ch in enumerate(self.channels):
             self.curves[ch] = pg.PlotCurveItem(pen=self._colors[i % len(self._colors)])
             self.curves[ch].opts['mouseWidth'] = 20  # Needed for indication of active curves
@@ -607,7 +606,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Create new data and time
         shape = int(round(self._drate) * self._period + 1)
-        new_data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for ch in self.channels])
+        new_data = dict([(ch, np.full(shape=shape, fill_value=np.nan)) for ch in self.channels])
         new_time = np.full(shape=shape, fill_value=np.nan)
 
         # Check whether new time and data hold more or less indices
