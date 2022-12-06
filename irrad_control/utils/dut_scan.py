@@ -143,6 +143,7 @@ class DUTScan(object):
 
         # Convert mm to native axis unit
         axis_mm_to_native = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_from_unit(val, unit='mm')
+        axis_native_to_mm = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_to_unit(val, unit='mm')
 
         # Store origin of relative coordinate system used for scan
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units
@@ -157,8 +158,8 @@ class DUTScan(object):
             start.append(self._scan_params['origin'][i] + dut_rect_upper)
             end.append(self._scan_params['origin'][i] + dut_rect_lower)
 
-        self._scan_params['dut_rect_start'] = tuple(start)
-        self._scan_params['dut_rect_stop'] = tuple(end)
+        self._scan_params['dut_rect_start'] = tuple(axis_native_to_mm(i, start[i]) for i in range(2))
+        self._scan_params['dut_rect_stop'] = tuple(axis_native_to_mm(i, end[i]) for i in range(2))
 
         # We take the given rectangle as the DUT area and need modifications
         if not self._scan_params['dut_rect_is_scan_area']:
@@ -401,8 +402,8 @@ class DUTScan(object):
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
                      'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
-                     'dut_rect_start': self.scan_config['dut_rect_start'],
-                     'dut_rect_stop': self.scan_config['dut_rect_stop'],
+                     'dut_rect_start': self._scan_params['dut_rect_start'],
+                     'dut_rect_stop': self._scan_params['dut_rect_stop'],
                      'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data

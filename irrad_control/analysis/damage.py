@@ -7,9 +7,6 @@ from irrad_control.analysis import formulas
 def analyse_radiation_damage(data, config=None):
 
     figs = []
-
-    beam_sigma = (2*2.01, 2*1.37)  # mm FIXME: get value from measurement outside vacuum; this value corresponds to 'visual' + measurement in vacuum
-    dut_rectangle = (25, 25)  # mm FIXME: get from *IRRAD* data
     bins = (100, 100)
 
     # Dict that holds results and error maps; bin centers
@@ -46,7 +43,7 @@ def analyse_radiation_damage(data, config=None):
 
                 results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
                                                                                                                        scan_data=data_part[server]['Scan'],
-                                                                                                                       beam_sigma=beam_sigma,
+                                                                                                                       irrad_data=data_part[server]['Irrad'],
                                                                                                                        bins=bins)
                 # Generate eqivalent fluence map as well as TID map
                 if server_config['daq']['kappa'] is None:
@@ -60,11 +57,14 @@ def analyse_radiation_damage(data, config=None):
                 else:
                     results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
 
+                # Define DUT rectangle once from initial file
+                dut_rectangle = None
+
                 continue
 
             fluence_map_part, fluence_map_part_error, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
                                                                                           scan_data=data_part[server]['Scan'],
-                                                                                          beam_sigma=beam_sigma,
+                                                                                          irrad_data=data_part[server]['Irrad'],
                                                                                           bins=bins)
             # Add to overall map
             results['primary'] += fluence_map_part
@@ -86,7 +86,7 @@ def analyse_radiation_damage(data, config=None):
                     
         results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
-                                                                                                               beam_sigma=beam_sigma,
+                                                                                                               irrad_data=data[server]['Irrad'],
                                                                                                                bins=bins)
         # Generate eqivalent fluence map as well as TID map
         if config['daq']['kappa'] is None:
@@ -100,6 +100,9 @@ def analyse_radiation_damage(data, config=None):
         else:
             results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=config['daq']['stopping_power'])
             errors['tid'] = formulas.tid_per_scan(primary_fluence=errors['primary'], stopping_power=config['daq']['stopping_power'])
+
+        # Define DUT rectangle from irrad_data
+        dut_rectangle = None
 
     if any(a is None for a in (list(bin_centers.values()) + list(results.values()))):
         raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
