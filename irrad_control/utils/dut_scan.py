@@ -401,8 +401,8 @@ class DUTScan(object):
                      'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
                      'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
                      'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
-                     'dut_rect_start': self.scan_config['dut_rect_start'],
-                     'dut_rect_stop': self.scan_config['dut_rect_stop'],
+                     'dut_rect_start': self._scan_params['dut_rect_start'],
+                     'dut_rect_stop': self._scan_params['dut_rect_stop'],
                      'beam_fwhm': self.scan_config['beam_fwhm']}
 
             # Put init data
