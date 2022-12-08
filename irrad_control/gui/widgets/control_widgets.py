@@ -561,7 +561,7 @@ class ScanControlWidget(ControlWidget):
         spx_fwhm_y.setRange(1e-3, 20)
         spx_fwhm_y.setValue(10)
         spx_fwhm_y.setDecimals(2)
-        spx_fwhm_y.setPrefix('x: ')
+        spx_fwhm_y.setPrefix('y: ')
         spx_fwhm_y.setSuffix(' mm')
         spx_fwhm_x.valueChanged.connect(lambda v, s=spx_fwhm_y: self.update_scan_params(beam_fwhm=[v, s.value()]))
         spx_fwhm_y.valueChanged.connect(lambda v, s=spx_fwhm_x: self.update_scan_params(beam_fwhm=[s.value(), v]))

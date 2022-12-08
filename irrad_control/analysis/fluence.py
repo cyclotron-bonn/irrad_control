@@ -78,7 +78,7 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
                                        map_bin_centers_x=map_bin_centers_x,
                                        map_bin_centers_y=map_bin_centers_y,
                                        beam_sigma=beam_sigma,
-                                       scan_y_offset=scan_area_end[-1],
+                                       scan_y_offset=scan_area_start[-1],
                                        current_row_idx=current_row_idx)
 
     logging.info(f"Finished generating fluence distribution.")
