@@ -537,8 +537,11 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
-            #print(data['data'])
-            pass  # TODO: handle direct axis info from server
+            # Update motorstage positions after every move
+            self.control_tab.tab_widgets[server]['motorstage'].update_motorstage_properties(motorstage=data['data']['axis_domain'],
+                                                                                            properties={'position': data['data']['position']},
+                                                                                            axis=data['data']['axis'])
+            
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
