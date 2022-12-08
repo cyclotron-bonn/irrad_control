@@ -95,6 +95,8 @@ class MotorStageControlWidget(ControlWidget):
             self._ms_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage]['speed'])
             self._ms_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage]['range'])
             self._ms_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage]['range'][0])
+            self._ms_widgets[motorstage]['label_pos'].setText(f"{self.motorstage_properties[motorstage]['position']:.3f} mm")
+
         else:
             axis_idx = self._ms_widgets[motorstage]['cbx_axis'].currentIndex()
             self._ms_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
@@ -102,13 +104,17 @@ class MotorStageControlWidget(ControlWidget):
             self._ms_widgets[motorstage]['spx_speed'].setValue(self.motorstage_properties[motorstage][axis_idx]['speed'])
             self._ms_widgets[motorstage]['spx_abs'].setRange(*self.motorstage_properties[motorstage][axis_idx]['range'])
             self._ms_widgets[motorstage]['spx_abs'].setValue(self.motorstage_properties[motorstage][axis_idx]['range'][0])
+            self._ms_widgets[motorstage]['label_pos'].setText(',    '.join(f"Axis {i}: {p['position']:.3f} mm" for i, p in self.motorstage_properties[motorstage].items()))
 
-    def update_motorstage_properties(self, motorstage, properties):
+    def update_motorstage_properties(self, motorstage, properties, axis=None):
 
         if motorstage in self.motorstage_properties:
             if 'n_axis' in DEVICES_CONFIG[motorstage]['init']:
-                for i in range(DEVICES_CONFIG[motorstage]['init']['n_axis']):
-                    self.motorstage_properties[motorstage][i].update(properties[i])
+                if axis is not None:
+                    self.motorstage_properties[motorstage][axis].update(properties)
+                else:
+                    for i in range(DEVICES_CONFIG[motorstage]['init']['n_axis']):
+                        self.motorstage_properties[motorstage][i].update(properties[i])
             else:
                 self.motorstage_properties[motorstage].update(properties)
 
@@ -118,6 +124,13 @@ class MotorStageControlWidget(ControlWidget):
 
         # Add only if not already a tab
         if motorstage not in self.motorstage_properties:
+
+            # Label for current positions
+            _label_curr_pos = QtWidgets.QLabel("Current position:")
+            if self._get_n_axis(motorstage) == 1:
+                label_curr_pos = QtWidgets.QLabel(f"{properties['position']} mm")
+            else:
+                label_curr_pos = QtWidgets.QLabel(';\t'.join(f"Axis {i}: {p['position']} mm" for i, p in enumerate(properties)))
 
             # Make stop button
             label_stop = QtWidgets.QLabel("Stop motorstage:")
@@ -287,6 +300,7 @@ class MotorStageControlWidget(ControlWidget):
                                                                                                'threaded': True}))  # Movement in separate thread
 
             # Add all widgets which need to be accessed by instance to dict
+            self._ms_widgets[motorstage]['label_pos'] = label_curr_pos
             self._ms_widgets[motorstage]['btn_stop'] = btn_stop
             self._ms_widgets[motorstage]['cbx_axis'] = cbx_axis
             self._ms_widgets[motorstage]['spxs_range'] = spxs_range
@@ -296,6 +310,8 @@ class MotorStageControlWidget(ControlWidget):
             
             # Add everything to container
             container = GridContainer(name='')
+            container.grid.addWidget(_label_curr_pos, container.grid.rowCount(), 0)
+            container.grid.addWidget(label_curr_pos, container.grid.rowCount() - 1, 1, 1, 2)
             container.grid.addWidget(label_stop, container.grid.rowCount(), 0)
             container.grid.addWidget(btn_stop, container.grid.rowCount() - 1, 1, 1, 2)
             if n_axis > 1:
@@ -545,7 +561,7 @@ class ScanControlWidget(ControlWidget):
         spx_fwhm_y.setRange(1e-3, 20)
         spx_fwhm_y.setValue(10)
         spx_fwhm_y.setDecimals(2)
-        spx_fwhm_y.setPrefix('x: ')
+        spx_fwhm_y.setPrefix('y: ')
         spx_fwhm_y.setSuffix(' mm')
         spx_fwhm_x.valueChanged.connect(lambda v, s=spx_fwhm_y: self.update_scan_params(beam_fwhm=[v, s.value()]))
         spx_fwhm_y.valueChanged.connect(lambda v, s=spx_fwhm_x: self.update_scan_params(beam_fwhm=[s.value(), v]))

@@ -12,7 +12,7 @@ from irrad_control.analysis.constants import elementary_charge
 
 
 # This is the main function
-def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
+def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
     
@@ -22,8 +22,8 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
         Beam data of irradiation
     scan_data : np.array, pytables.Table
         Scan data of irradiation
-    beam_sigma : tuple
-        Beam sigma of the 2D Gaussian beam profile in mm
+    irrad_data : np.array, pytables.Table
+        General data about the irradiation
     bins : tuple, optional
         Binning of the generated fluence map, by default (100, 100)
         CAUTION: the binning is numpy shape, therefore bins are (Y, X)
@@ -35,18 +35,16 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     """
 
     total_scans = np.max(scan_data['scan']) + 1
-    total_rows = total_scans * scan_data['n_rows'][0]
+    n_rows = irrad_data['n_rows'][0]
+    total_rows = total_scans * n_rows
+    beam_sigma = (irrad_data['beam_fwhm_x'][0]/2.3548, irrad_data['beam_fwhm_y'][0]/2.3548)
 
     logging.info(f"Generating fluence distribution from {total_scans} scans, containing {total_rows} total rows")
-    logging.info("Using Gaussian beam model with dimensions {}_x = {} mm, {}_y = {}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
-
-    # Get number of rows; FIXME: get n_rows from *Irrad* data
-    n_rows = np.max(scan_data['row']) + 1  # Rows start at 0
+    logging.info("Using Gaussian beam model with dimensions {}_x = {:.2f} mm, {}_y = {:.2f}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
     
-    # Get scan area; FIXME: get scan area from *Irrad* data
     # Everything in base unit mm
-    scan_area_start = (scan_data[0]['row_start_x'], scan_data[n_rows]['row_start_y'])
-    scan_area_end = (scan_data[0]['row_stop_x'], scan_data[0]['row_start_y'])
+    scan_area_start = (irrad_data['scan_area_start_x'][0], irrad_data['scan_area_start_y'][0])
+    scan_area_end = (irrad_data['scan_area_stop_x'][0], irrad_data['scan_area_stop_y'][0])
 
     # Fluence map
     fluence_map = np.zeros(shape=bins)
@@ -80,7 +78,7 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
                                        map_bin_centers_x=map_bin_centers_x,
                                        map_bin_centers_y=map_bin_centers_y,
                                        beam_sigma=beam_sigma,
-                                       scan_y_offset=scan_area_end[-1],
+                                       scan_y_offset=scan_area_start[-1],
                                        current_row_idx=current_row_idx)
 
     logging.info(f"Finished generating fluence distribution.")
@@ -464,7 +462,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     """
 
     # Update row bin times
-    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=2500)  # FIXME: get accel from Irrad data
+    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=row_data['row_scan_accel'])
 
     # Determine communication timing overhead; assume symmetric dead time at row start and end
     row_start_overhead = (row_data['row_stop_timestamp'] - row_data['row_start_timestamp'] - row_bin_transit_times.sum()) / 2.0
