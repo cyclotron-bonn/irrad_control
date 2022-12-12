@@ -2,45 +2,47 @@ host: 131.220.221.83
 server:
   131.220.221.101:
     daq:
-      ekin: 12.8
-      ekin_initial: 14.0
+      ekin: 4.485149383544922
+      ekin_initial: 7.0
       ion: proton
       kappa:
-        date: Wed Jul 15 11:00:00 2020
-        energy: 12.26
-        nominal: 4.1
-        sigma: 0.8
+        date: Sun Nov  8 04:46:40 2020
+        energy: 10.5
+        nominal: 5.1
+        sigma: 0.5
       lambda:
-        date: Wed May 18 09:00:00 2022
-        energy: 13.602
-        nominal: 0.937
+        date: Wed Aug 17 09:00:00 2022
+        energy: 13.452
+        nominal: 0.906
         sigma: 0.009
-      stopping_power: 28.593999999999998
-      stopping_power_initial: 26.67
+      stopping_power: 63.079198608398436
+      stopping_power_initial: 45.33
     devices:
       ADCBoard:
         init: None
-      ArduinoNTCReadout:
-        init:
-          baudrate: 115200
-          ntc_lim:
-          - -55
-          - 125
-          port: /dev/ttyUSB0
-          timeout: 5
-        setup:
-          0: FC
-          2: BLM
-          7: DUT
       IrradDAQBoard:
         init:
           address: 32
           port: /dev/ttyACM1
           version: v0.2
-      ZaberXYStage:
+      ScanStage:
         init:
-          serial_port: /dev/ttyACM2
-    name: HSR
+          axis_addrs:
+          - 1
+          - 2
+          axis_init:
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          config: scan_stage.yaml
+          invert_axis:
+          - 1
+          n_axis: 2
+          port: /dev/ttyACM2
+    name: Server_1
     readout:
       ch_groups:
       - sem
@@ -48,25 +50,22 @@ server:
       - sem
       - sem
       - sem
-      - ch12
       ch_numbers:
       - 0
       - 1
       - 2
       - 3
       - 4
-      - 5
       channels:
       - Left
       - Right
       - Up
       - Down
       - Sum
-      - BLM
       device: DAQBoard
       ro_group_scales:
-        ch12: 1000
-        sem: 500
+        ch12: 10000
+        sem: 10000
       sampling_rate: 100.0
       types:
       - sem_left
@@ -74,9 +73,8 @@ server:
       - sem_up
       - sem_down
       - sem_sum
-      - blm
       x10_jumper: false
 session:
   loglevel: NOTSET
-  outfile: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/LF_Monopix/W0209/lf_mono_w0209_1e15_part_2
-  outfolder: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/LF_Monopix/W0209
+  outfile: /home/irradiation/Desktop/test/irradiation_Thu_Dec_8_16:47:21_2022
+  outfolder: /home/irradiation/Desktop/test

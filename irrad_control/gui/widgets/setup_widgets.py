@@ -701,6 +701,7 @@ class DAQSetup(BaseSetupWidget):
             fill_combobox_items(cprop, calibration)
 
         senergy.setRange(*self.ions[ion].ekin_range())
+        senergy.setValue(senergy.maximum())
         senergy.valueChanged.emit(senergy.value())
 
     def _setup_energy_selection(self, ion, ckappa, cprop, senergy, lstop):

@@ -64,17 +64,18 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Add main widget
         self.left_widget.layout().addWidget(self.session_setup)
         self.left_widget.layout().addStretch()
-
-        # Button for completing the setup
-        self.btn_ok = QtWidgets.QPushButton('Ok')
-        self.btn_ok.clicked.connect(self.update_setup)
-        self.btn_ok.clicked.connect(lambda: self.setupCompleted.emit(self.setup))
-        self.btn_ok.clicked.connect(self._save_setup)
-        self.btn_ok.setEnabled(False)
-
-        self.left_widget.layout().addWidget(self.btn_ok)
         self.right_widget.layout().addWidget(QtWidgets.QLabel('Selected server(s)'))
         self.right_widget.layout().addWidget(self.server_setup)
+
+        # Button for completing the setup
+        self.btn_launch = QtWidgets.QPushButton('Start session')
+        self.btn_launch.clicked.connect(self.update_setup)
+        self.btn_launch.clicked.connect(lambda: self.setupCompleted.emit(self.setup))
+        self.btn_launch.clicked.connect(self._save_setup)
+        self.btn_launch.setEnabled(False)
+
+        self.left_widget.layout().addWidget(self.btn_launch)
+        
 
         # Connect
         self.session_setup.setupValid.connect(self._check_setup)
@@ -82,7 +83,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
     def _check_setup(self):
         self.isSetup = self.session_setup.isSetup and self.server_setup.isSetup
-        self.btn_ok.setEnabled(self.isSetup)
+        self.btn_launch.setEnabled(self.isSetup)
 
     def handle_server(self, selection):
 
@@ -162,4 +163,4 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Disable/enable main widgets to set to read_only
         self.session_setup.set_read_only(read_only)
         self.server_setup.set_read_only(read_only)
-        self.btn_ok.setEnabled(not read_only)
+        self.btn_launch.setEnabled(not read_only)

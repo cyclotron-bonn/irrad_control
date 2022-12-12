@@ -34,6 +34,7 @@ def analyse_radiation_damage(data, config=None):
             if server is None:
                 server = server_config['name']
                 ion_name = server_config['daq']['ion']
+                irrad_data=data_part[server]['Irrad']
 
             if server not in data_part:
                 raise KeyError(f"Server '{server}' not present in file {session_basename}!")
@@ -51,14 +52,10 @@ def analyse_radiation_damage(data, config=None):
                 else:
                     results['neq'] = results['primary'] * server_config['daq']['kappa']['nominal']
                 
-                print(server_config['daq']['stopping_power'], type(server_config['daq']['stopping_power']))
                 if server_config['daq']['stopping_power'] is None:
                     del results['tid']
                 else:
                     results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
-
-                # Define DUT rectangle once from initial file
-                dut_rectangle = None
 
                 continue
 
@@ -83,10 +80,11 @@ def analyse_radiation_damage(data, config=None):
 
         server = config['name']
         ion_name = config['daq']['ion']
+        irrad_data=data[server]['Irrad']
                     
         results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
-                                                                                                               irrad_data=data[server]['Irrad'],
+                                                                                                               irrad_data=irrad_data,
                                                                                                                bins=bins)
         # Generate eqivalent fluence map as well as TID map
         if config['daq']['kappa'] is None:
@@ -101,9 +99,6 @@ def analyse_radiation_damage(data, config=None):
             results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=config['daq']['stopping_power'])
             errors['tid'] = formulas.tid_per_scan(primary_fluence=errors['primary'], stopping_power=config['daq']['stopping_power'])
 
-        # Define DUT rectangle from irrad_data
-        dut_rectangle = None
-
     if any(a is None for a in (list(bin_centers.values()) + list(results.values()))):
         raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
 
@@ -115,15 +110,13 @@ def analyse_radiation_damage(data, config=None):
         dut_map, dut_centers_x, dut_centers_y = fluence.extract_dut_map(fluence_map=map,
                                                                         map_bin_centers_x=bin_centers['x'],
                                                                         map_bin_centers_y=bin_centers['y'],
-                                                                        dut_rectangle=dut_rectangle,  # FIXME: read from irrad data
-                                                                        center_symm=True)  # FIXME: read from irrad data
+                                                                        irrad_data=irrad_data)
 
         # Extract respective dut error map
         dut_error_map, _, _ = fluence.extract_dut_map(fluence_map=errors[damage],
                                                       map_bin_centers_x=bin_centers['x'],
                                                       map_bin_centers_y=bin_centers['y'],
-                                                      dut_rectangle=dut_rectangle,  # FIXME: read from irrad data
-                                                      center_symm=True)  # FIXME: read from irrad data
+                                                      irrad_data=irrad_data)
 
         for damage_map, centers_x, centers_y in [(map, bin_centers['x'], bin_centers['y']), (dut_map, dut_centers_x, dut_centers_y)]:
 

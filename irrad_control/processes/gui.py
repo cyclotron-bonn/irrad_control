@@ -4,7 +4,7 @@ import logging
 import platform
 import zmq
 import yaml
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from email import message_from_string
 from pkg_resources import get_distribution, DistributionNotFound
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -27,10 +27,6 @@ try:
     AUTHORS = message_from_string(pkgInfo)['Author']
 except (DistributionNotFound, KeyError):
     AUTHORS = 'Not defined'
-
-# needed to dump OrderedDict into file, representer for ordereddict (https://stackoverflow.com/a/8661021)
-represent_dict_order = lambda self, data: self.represent_mapping('tag:yaml.org,2002:map', data.items())
-yaml.add_representer(OrderedDict, represent_dict_order)
 
 
 class IrradGUI(QtWidgets.QMainWindow):
