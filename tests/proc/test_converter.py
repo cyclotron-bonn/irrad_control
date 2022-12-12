@@ -97,10 +97,10 @@ class TestConverter(unittest.TestCase):
 
         meta = {'timestamp': 0, 'name': 'localhost', 'type': 'raw_data'}
         data = {ch: None for ch in self.config['server']['localhost']['readout']['channels']}
-        data_dtype_names = [n for n in self.data['HSR']['Raw'].dtype.names if n != 'timestamp']
+        data_dtype_names = [n for n in self.data['Server_1']['Raw'].dtype.names if n != 'timestamp']
 
         # Loop over raw data
-        for raw in self.data['HSR']["Raw"]:
+        for raw in self.data['Server_1']["Raw"]:
             meta['timestamp'] = float(raw['timestamp'])
             for dtname in data_dtype_names:
                 data[dtname] = float(raw[dtname])
@@ -122,9 +122,9 @@ class TestConverter(unittest.TestCase):
                                       config_file=self.test_base+'.yaml',
                                       subtract_raw_offset=False)
 
-        assert len(out_data['HSR']) == len(self.data['HSR'])
-        assert len(out_data['HSR']['Raw']) == len(self.data['HSR']['Raw'])
-        assert np.array_equal(out_data['HSR']['Raw'], self.data['HSR']['Raw'])
+        assert len(out_data['Server_1']) == len(self.data['Server_1'])
+        assert len(out_data['Server_1']['Raw']) == len(self.data['Server_1']['Raw'])
+        assert np.array_equal(out_data['Server_1']['Raw'], self.data['Server_1']['Raw'])
         
                
 if __name__ == '__main__':

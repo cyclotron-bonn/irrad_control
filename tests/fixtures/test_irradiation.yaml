@@ -2,7 +2,7 @@ host: 131.220.221.83
 server:
   131.220.221.101:
     daq:
-      ekin: 12.8
+      ekin: 12.710813522338867
       ekin_initial: 14.0
       ion: proton
       kappa:
@@ -15,32 +15,42 @@ server:
         energy: 13.602
         nominal: 0.886
         sigma: 0.009
-      stopping_power: 28.593999999999998
+      stopping_power: 28.748968200683592
       stopping_power_initial: 26.67
     devices:
       ADCBoard:
         init: None
-      ArduinoNTCReadout:
-        init:
-          baudrate: 115200
-          ntc_lim:
-          - -55
-          - 125
-          port: /dev/ttyUSB0
-          timeout: 5
-        setup:
-          0: FC
-          2: BLM
-          7: DUT
       IrradDAQBoard:
         init:
           address: 32
           port: /dev/ttyACM1
           version: v0.2
-      ZaberXYStage:
+      ScanStage:
         init:
-          serial_port: /dev/ttyACM2
-    name: HSR
+          axis_addrs:
+          - 1
+          - 2
+          axis_init:
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          config: scan_stage.yaml
+          invert_axis:
+          - 1
+          n_axis: 2
+          port: /dev/ttyACM2
+      SetupTableStage:
+        init:
+          axis_addr: 3
+          config: setup_table_stage.yaml
+          model: LRQ300HL-E01T3A
+          port: /dev/ttyACM2
+          step: 1.953125e-07
+          travel: 0.284
+    name: Server_1
     readout:
       ch_groups:
       - sem
@@ -48,35 +58,31 @@ server:
       - sem
       - sem
       - sem
-      - ch12
       ch_numbers:
       - 0
       - 1
       - 2
       - 3
       - 4
-      - 5
       channels:
       - Left
       - Right
       - Up
       - Down
       - Sum
-      - BLM
       device: DAQBoard
       ro_group_scales:
-        ch12: 5000
-        sem: 500
-      sampling_rate: 100.0
+        ch12: 10000
+        sem: 10000
+      sampling_rate: 500.0
       types:
       - sem_left
       - sem_right
       - sem_up
       - sem_down
       - sem_sum
-      - blm
       x10_jumper: false
 session:
-  loglevel: NOTSET
-  outfile: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/ITkPixV1_CERN/W12M_100322/irradiation/itkpixv1_w12m_100322_1e16
-  outfolder: /home/irradiation/Messungen/PI/AGWermes/Bestrahlungen/ITkPixV1_CERN/W12M_100322/irradiation
+  loglevel: DEBUG
+  outfile: /home/irradiation/Desktop/test/irradiation_Mon_Dec_12_17:10:39_2022
+  outfolder: /home/irradiation/Desktop/test
