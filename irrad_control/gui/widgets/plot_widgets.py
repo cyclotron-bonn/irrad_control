@@ -1095,6 +1095,7 @@ class FluenceHist(IrradPlotWidget):
         self.daq_device = daq_device
         self.n_rows = n_rows
         self.kappa = kappa
+        self._y_base_scale = 1
 
         self._data['hist_rows'] = np.arange(self.n_rows + 1)
 
@@ -1111,7 +1112,6 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('bottom', text='Scan row')
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
-        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)
@@ -1144,14 +1144,19 @@ class FluenceHist(IrradPlotWidget):
     def set_data(self, data):
 
         # Meta data and data
-        _meta, _data = data['meta'], data['data']
+        _, _data = data['meta'], data['data']
+
+        # Get scale which is needed to scale y-axes; workaround for https://github.com/pyqtgraph/pyqtgraph/issues/1011
+        self._y_base_scale = np.max(_data['fluence_hist'])
+        self.plt.getAxis('left').setScale(self._y_base_scale)
+        self.plt.getAxis('right').setScale(self._y_base_scale * self.kappa)
 
         # Set data
-        self._data['hist'] = data['data']['fluence_hist']
-        self._data['hist_err'] = data['data']['fluence_hist_err']
+        self._data['hist'] = [dat/self._y_base_scale for dat in _data['fluence_hist']]
+        self._data['hist_err'] = [err/self._y_base_scale for err in _data['fluence_hist_err']]
 
         # Get stats
-        self._data['hist_mean'], self._data['hist_std'] = (f(self._data['hist']) for f in (np.mean, np.std))
+        self._data['hist_mean'], self._data['hist_std'] = np.mean(_data['fluence_hist']), np.std(_data['fluence_hist'])
 
         self._data_is_set = True
 
@@ -1160,15 +1165,13 @@ class FluenceHist(IrradPlotWidget):
         if self._data_is_set:
             for curve in self.curves:
                 if curve == 'hist':
-                    try:
-                        self.curves[curve].setData(x=self._data['hist_rows'], y=self._data['hist'], stepMode=True)
-                        self.curves['mean'].setValue(self._data['hist_mean'])
-                        self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'],
-                                                                                                self._data['hist_std']))
-                        self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(*[x * self.kappa for x in (self._data['hist_mean'],
-                                                                                                                       self._data['hist_std'])]))
-                    except Exception as e:
-                        logging.warning('Fluence histogram exception: {}'.format(e.message))
+                
+                    self.curves[curve].setData(x=self._data['hist_rows'], y=self._data['hist'], stepMode='center')
+                    self.curves['mean'].setValue(self._data['hist_mean'] / self._y_base_scale)
+                    self.p_label.setFormat('Mean: ({:.2E} +- {:.2E}) protons / cm^2'.format(self._data['hist_mean'],
+                                                                                            self._data['hist_std']))
+                    self.n_label.setFormat('Mean: ({:.2E} +- {:.2E}) neq / cm^2'.format(self._data['hist_mean'] * self.kappa,
+                                                                                        self._data['hist_std'] * self.kappa))
 
                 elif curve == 'points':
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'])
