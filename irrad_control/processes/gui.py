@@ -3,7 +3,6 @@ import time
 import logging
 import platform
 import zmq
-import yaml
 from collections import defaultdict
 from email import message_from_string
 from pkg_resources import get_distribution, DistributionNotFound
