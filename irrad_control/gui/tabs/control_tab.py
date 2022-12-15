@@ -48,7 +48,7 @@ class IrradControlTab(QtWidgets.QWidget):
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server)
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'])
         daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device)
-        status_widget = ic_cntrl_wdgts.StatusInfoWidget('Status')
+        status_widget = ic_cntrl_wdgts.StatusInfoWidget()
 
         # Connect command signals
         motorstage_widget.sendCmd.connect(lambda cmd: self.send_cmd(**cmd))
