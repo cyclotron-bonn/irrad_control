@@ -46,7 +46,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         # Make this window blocking parent window
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.screen = QtWidgets.QDesktopWidget().screenGeometry()
-        self.resize(0.5 * self.screen.width(), 0.5 * self.screen.height())
+        self.resize(int(0.5 * self.screen.width()), int(0.5 * self.screen.height()))
 
         # Main widget
         self.main_widget = QtWidgets.QWidget()

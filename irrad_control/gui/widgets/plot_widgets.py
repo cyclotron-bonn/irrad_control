@@ -265,7 +265,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
             for sub_plot in plots:
                 splitter.addWidget(sub_plot)
             self.main_splitter.addWidget(splitter)  # Add to main layout
-            splitter.setSizes([self.width() / len(plots)] * len(plots))  # Same width
+            splitter.setSizes([int(self.width() / len(plots))] * len(plots))  # Same width
         else:
             raise TypeError("*plot* must be individual or iterable of plot widgets")
 
