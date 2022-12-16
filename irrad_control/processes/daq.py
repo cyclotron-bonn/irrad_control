@@ -532,30 +532,27 @@ class DAQProcess(Process):
         Main function which is run: checks all the threads in which work is done and logs when an exception occurrs
         """
 
-        reported = []
-
         # Check threads until stop flag is set
         while not self.stop_flags['watch'].wait(1.0):
 
             # Loop over all threads and check whether exceptions have occurred
-            for daq_thread in self.threads:
+            for thread in self.threads:
+
+                is_alive = thread.is_alive()
 
                 # If an exception occurred and has not yet been reported
-                if daq_thread.exception is not None and daq_thread not in reported:
+                if thread.exception is not None:
 
                     # Construct error message
-                    msg = "A {} exception occurred in thread executing function '{}':\n".format(type(daq_thread.exception).__name__, daq_thread.name)
-                    msg += "{}\nThread is currently {}alive ".format(daq_thread.traceback_str, '' if daq_thread.is_alive() else 'not ')
+                    msg = "A {} exception occurred in thread executing function '{}':\n".format(type(thread.exception).__name__, thread.name)
+                    msg += "{}\nThread is currently {}alive ".format(thread.traceback_str, '' if is_alive else 'not ')
 
                     # Log message
                     logging.error(msg)
 
-                    # Append to list of already reported exceptions
-                    reported.append(daq_thread)
-
                 # Remove thread object from container for garbage collection
-                elif not daq_thread.is_alive():
-                    self.threads.remove(daq_thread)
+                if not is_alive:
+                    self.threads.remove(thread)
 
     def _close(self):
 

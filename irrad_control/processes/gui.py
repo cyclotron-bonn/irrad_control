@@ -684,17 +684,17 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                                                                               validate=reply.split('_')[0])
 
             # Debug
-            msg = 'Standard {} reply received: {}'.format(sender, reply)
+            msg = "Standard {} reply received: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.debug(msg)
 
         elif _type == 'ERROR':
-            msg = '{} error occurred: {}'.format(sender, reply)
+            msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.error(msg)
             if self.log_dock.isHidden():
                 self.log_dock.setVisible(True)
 
         else:
-            logging.info('Received reply {} from {}'.format(reply, sender))
+            logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
 
     def recv_data(self):
         
