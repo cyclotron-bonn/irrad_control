@@ -150,7 +150,7 @@ class ItemLinearStage(BaseAxis):
         self.udp = udp
 
         # Launch telnet server
-        self.item_server = subprocess.Popen(executable=executable)
+        self.item_server = subprocess.Popen(executable)
         time.sleep(3)
 
         # Init client
