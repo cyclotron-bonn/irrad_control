@@ -355,9 +355,9 @@ class MotorStageControlWidget(ControlWidget):
                     # Construct message for user
                     msg = f"Movement of {motorstage} is currently restricted due to {restricting_ms} position being not 0 mm"
                     msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']} mm)."
-                    msg += f"Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
+                    msg += f" Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
                     msg += f"Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
-                    msg += f"You can always stop {restricting_ms}s movement using the 'Stop' button."
+                    msg += f" You can always stop {restricting_ms}s movement using the 'Stop' button."
 
                     # Make MessageBox
                     mbox = QtWidgets.QMessageBox()
