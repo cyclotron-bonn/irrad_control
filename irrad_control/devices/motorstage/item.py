@@ -145,12 +145,12 @@ class ItemLinearStage(BaseAxis):
 
     props = {'position': 'POSACTUAL'}
 
-    def __init__(self, executable, host, port, udp, travel=716.5e-3, model=None, config=None):
+    def __init__(self, telnet_server_script, host, port, udp, travel=716.5e-3, model=None, config=None):
 
         self.udp = udp
 
         # Launch telnet server
-        self.item_server = subprocess.Popen(executable)
+        self.item_server = subprocess.Popen(telnet_server_script)
         time.sleep(3)
 
         # Init client
