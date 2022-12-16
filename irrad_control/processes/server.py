@@ -113,6 +113,8 @@ class IrradServer(DAQProcess):
                 else:
                     if dev == 'ADCBoard':
                         logging.error("Could not access SPI device file. Enable SPI interface!")
+                    else:
+                        logging.error(f"Error when initializing device '{dev}': {repr(e)}")
 
                 if dev in self.devices:
                     del self.devices[dev]
