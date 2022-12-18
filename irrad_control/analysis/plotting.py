@@ -252,9 +252,9 @@ def fluence_row_hist(start, end, fluence):
     tdiffm = (tdiff-tdiff%60)/60
     
     unit = r'$\mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_label = "Mean beam current over {} hours, {} mins.:\n({:.1e}±{:.1e}) {}".format(int(tdiffh), int(tdiffm), np.mean(fluence), np.std(fluence), unit)
+    fig_label = "Mean fluence over {} hours, {} mins.:\n({:.1e}±{:.1e}) {}".format(int(tdiffh), int(tdiffm), np.mean(fluence), np.std(fluence), unit)
     xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_title = "Histogram Of Fluence Per Row"
+    fig_title = "Histogram of fluence per row"
     fig, ax = plot_generic_fig(plot_data={'xdata': fluence,
                                           'xlabel': xlabel,
                                           'ylabel': f"#",
@@ -266,30 +266,19 @@ def fluence_row_hist(start, end, fluence):
     return fig, ax
 
 def plot_tid_per_row(data, **kwargs):
-    fig, ax = plot_generic_axis(axis_data={'xlabel': f"Row",
-                                          'ylabel': f"Accumulated TID / Mrad",
+    fig, ax = plot_generic_axis(axis_data={'xlabel': f"Scan",
+                                          'ylabel': f"Row",
                                           'title': "Rowwise radiation damage"},
                                 figsize=(8,6))
+    im = ax.imshow(data)
     ax.grid(False)
-    rows = [row for row in range(len(data))]
-    bar_heights = np.zeros(len(rows))
-    datalen = len(data[0])
-    for scan_j in range(0,1):
-        color, label = ('C0', "Damage")
-        ax.bar(x=rows, height=data[:,scan_j], bottom=bar_heights, color=color, edgecolor=(0,0,0), linewidth=0.01, label=label)
-        bar_heights = bar_heights+data[:,scan_j]
-    ax.legend()
-    for scan_i in range(1,datalen):
-        ax.bar(x=rows, height=data[:,scan_i], bottom=bar_heights, color="C0", edgecolor=(0,0,0), linewidth=0.01)
-        bar_heights = bar_heights+data[:,scan_i]
-    ax.set_xlim(left=rows[0]-1, right=rows[-1]+1)
-    ax.set_ylim(ymax=ax.get_ylim()[1]*1.1)
-    neqax = ax.twinx()
-    neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
-    neqax.set_ylabel(neqlabel)
-    neqax.grid(axis='y')
-    neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in ax.get_ylim()]
-    neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
+    cbar = plt.colorbar(mappable=im, ax=ax, cmap='viridis', location='bottom', orientation='horizontal', label="TID / Mrad")
+    # neqax = ax.twinx()
+    # neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
+    # neqax.set_ylabel(neqlabel)
+    # neqax.grid(axis='y')
+    # neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in ax.get_ylim()]
+    # neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
     return fig, ax
 
 def plot_everything(data, **kwargs):
@@ -298,7 +287,8 @@ def plot_everything(data, **kwargs):
                         #left=0.1, right=0.9, bottom=0.1, top=0.9,
                         #wspace=0.05, hspace=0.05)
     beamax = fig.add_subplot(gs[0, 0])
-    fig_title = "Row- and scanwise radiation damage"
+    scanax = beamax.twiny()
+    fig_title = "Row- and scanwise radiation data"
     fig.suptitle(fig_title)
     dtime_row_start = [datetime.fromtimestamp(ts) for ts in data['row_start']]
     dtime_row_stop = [datetime.fromtimestamp(ts) for ts in data['row_stop']]
@@ -307,13 +297,9 @@ def plot_everything(data, **kwargs):
     month = tss.strftime("%B")
     year = tss.strftime("%Y")
     xtimelabel = "Time on {} {} {}".format(day, month, year)
-    beamax.plot(dtime_row_start, data['beam_current'], color="C1", label="Beam")
+    beamax.plot(dtime_row_start, data['beam_current'], color="C1", label="Beam", zorder=6)
     beamax.set_ylabel(f"Beam current / nA")
-    scanax = beamax.twiny()
     scanax.set_xlim(beamax.get_xlim())
-    
-    beamax.grid(False)
-    beamax.set_zorder(3)
     beamax.set_facecolor('none')
     bymin, bymax = beamax.get_ylim()
     beamax.set_ylim(bymin, 1.05*bymax) #make some room for labels
@@ -337,7 +323,7 @@ def plot_everything(data, **kwargs):
     tidax.yaxis.tick_left()
     
     ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
-    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge') #add tid per scan
+    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge', zorder=5) #add tid per scan
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
     tidax.set_ylim(ymin, 1.1*ymax) #make some room for labels
@@ -414,35 +400,46 @@ def plot_beam_current_hist(beam_currents, start, end, while_scan=None):
     return fig, ax
 
 def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=None):
-    fig = plt.figure(figsize=(6, 6))
-    gs = fig.add_gridspec(2, 2,  width_ratios=(4, 1), height_ratios=(1, 4),
+    fig = plt.figure(figsize=(0.8*9.5,0.8*9))
+    gs = fig.add_gridspec(2, 3,  width_ratios=(7, 2, 0.5), height_ratios=(2, 7),
                         left=0.1, right=0.9, bottom=0.1, top=0.9,
                         wspace=0.05, hspace=0.05)
     ax = fig.add_subplot(gs[1, 0])
     ax_histx = fig.add_subplot(gs[0, 0], sharex=ax)
     ax_histy = fig.add_subplot(gs[1, 1], sharey=ax)
+    ax_cbar = fig.add_subplot(gs[1, 2])
+    ax_cbar.spines["left"].set_visible(False)
+    ax_cbar.spines["right"].set_visible(False)
+    ax_cbar.spines["top"].set_visible(False)
+    ax_cbar.spines["bottom"].set_visible(False)
+    ax_cbar.set_yticks([])
+    ax_cbar.set_xticks([])
+
+    
     ax_histy.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
-    ax.grid()
-    ax_histx.grid()
-    ax_histy.grid()
     fig_title = "Relative beam-distribution from mean position" if while_scan is None \
         else "Relative beam-distribution from mean position while scanning"
     fig.suptitle(fig_title)
-    ax.set_xlabel("x-deviation to left (-) and right (+) / % ")
-    ax.set_ylabel("y-deviation upwards (+) and downwards (-) / %")
+    ax.set_xlabel("Horizontal / % ")
+    ax.set_ylabel("Vertical / %")
     n_bins = 100 #bins of 2% each
-    _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(n_bins, n_bins),norm=LogNorm(), cmap='viridis', cmin=1)
-    plt.colorbar(mappable=im, ax=ax_histy)
     xmean = np.mean(vertical_deviation)
     xstd = np.std(vertical_deviation)
     ymean = np.mean(horizontal_deviation)
     ystd = np.std(horizontal_deviation)
-    xlabel = "({:.2f}±{:.2f}) %".format(xmean, xstd)
-    ylabel = "({:.2f}±{:.2f}) %".format(ymean, ystd)
-    _, _, _ = ax_histx.hist(vertical_deviation, bins=n_bins, label=xlabel)
-    _, _, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal', label=ylabel)
-    ax_histx.legend()
-    ax_histy.legend()
+    xlabel = "x-deviation:\n({:.2f}±{:.2f}) %".format(xmean, xstd)
+    _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(n_bins, n_bins),norm=LogNorm(), cmap='viridis', cmin=1)
+    plt.colorbar(mappable=im, ax=ax_cbar, fraction=1., pad=0.)
+    xlabel = "hor. dev.:\n({:.2f}±{:.2f}) %".format(xmean, xstd)
+    ylabel = "ver. dev.:\n({:.2f}±{:.2f}) %".format(ymean, ystd)
+    _, _, _ = ax_histx.hist(vertical_deviation, bins=n_bins)
+    _, _, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal')
+    ax_histx.set_yticks(ax_histy.get_xticks())
+    ax_histx.legend([xlabel])
+    ax_histy.legend([ylabel])
+    ax.grid()
+    ax_histx.grid()
+    ax_histy.grid()
     ax_histx.tick_params(axis="x", labelbottom=False)
     ax_histy.tick_params(axis="y", labelleft=False)
     

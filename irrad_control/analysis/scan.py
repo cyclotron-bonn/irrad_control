@@ -12,11 +12,10 @@ def create_scan_mask(data, server):
         mask[idx_row_start:idx_row_stop] = True
     return mask
 
-def data_per_row(n_scan, n_rows, rows, data):
-    res = np.empty(shape=(0, n_scan+1))
-    for i in range(n_rows):
-        temp = [[data[j] for j in range(len(data)) if rows[j]==i]]
-        res = np.concatenate((res,temp))
+def heatmap_damage(rows, scan, damage):
+    res = np.zeros(shape=(np.max(rows)+1, np.max(scan)+1), dtype=float)
+    for i in range(len(scan)):
+        res[rows[i],scan[i]]=damage[i]
     return res
         
 def analyse_scan(data, **scan_kwargs):
@@ -57,10 +56,9 @@ def analyse_scan(data, **scan_kwargs):
     figs.append(fig)
     
     #accumulated tid per row as bar diagram
-    res = data_per_row(n_scan=data[server]['Scan']['scan'][-1],
-                       n_rows=data[server]['Scan']['n_rows'][0],
-                       rows=data[server]['Scan']['row'],
-                       data=data[server]['Scan']['row_tid'])
+    res = heatmap_damage(rows=data[server]['Scan']['row'],
+                       scan=data[server]['Scan']['scan'],
+                       damage=data[server]['Scan']['row_tid'])
     fig, _ = plotting.plot_tid_per_row(data=res, hardness_factor=scan_kwargs['hardness_factor'], stopping_power=scan_kwargs['stopping_power'])
     figs.append(fig)
     
