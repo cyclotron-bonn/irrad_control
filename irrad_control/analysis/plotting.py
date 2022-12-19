@@ -317,9 +317,9 @@ def plot_everything(data, **kwargs):
     tidax.spines['left'].set_visible(True)
     tidax.yaxis.set_label_position("left")
     tidax.yaxis.tick_left()
-    
-    ruderzeit = [dtime_row_stop[i] - dtime_row_start[i] for i in range(len(dtime_row_start))]
-    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge', zorder=5) #add tid per scan
+    ruderzeit = np.array([dtime_row_start[i+1] - dtime_row_start[i] for i in range(len(dtime_row_start)-1)])
+    ruderzeit = np.append(arr=ruderzeit, values=(dtime_row_start[-1] - dtime_row_stop[-1]))
+    tidax.bar(x=dtime_row_start, height=data['row_tid'], width=ruderzeit, label="Damage", color='C0', align='edge', zorder=-10) #add tid per scan
     tidax.set_ylabel("TID / Mrad")
     ymin, ymax = tidax.get_ylim()
     tidax.set_ylim(ymin, 1.1*ymax) #make some room for labels
@@ -333,7 +333,7 @@ def plot_everything(data, **kwargs):
     scanax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     scanax.set_xlabel(xtimelabel)
     
-    beamax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
+    beamax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2", zorder=50)
     beamax.legend()
     #beamlossax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
 
@@ -341,8 +341,8 @@ def plot_everything(data, **kwargs):
     neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
     beamax.legend(loc='upper right')
     tidax.legend(loc='upper left')
-    neqax.grid(axis='y')
-    beamax.grid(axis='x')
+    neqax.grid(axis='y', zorder=11)
+    beamax.grid(axis='x', zorder=10)
     return fig
     
 #******* Beamplotting ********#
