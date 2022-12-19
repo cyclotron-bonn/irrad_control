@@ -33,6 +33,9 @@ class ItemTelnetClient(object):
         # try to connect
         self._establish_connection()
 
+    def close(self):
+        self._client.close()
+
     def _establish_connection(self):
 
         # Send dummy bytes
@@ -180,7 +183,7 @@ class ItemLinearStage(BaseAxis):
         """
         Start the item GmbH propriatary telnet server to control the stage; requires sudo privileges inside the script
         """
-        self._daemon = subprocess.Popen(f"{os.path.join(script_path, 'item_daemon.sh')} --start")
+        self._daemon = subprocess.Popen([f"{os.path.join(script_path, 'item_daemon.sh')}", '--start'])
         time.sleep(3)
 
     def stop_daemon(self):
