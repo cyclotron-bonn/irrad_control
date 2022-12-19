@@ -4,7 +4,16 @@
 # Unfortunately, this needs sudo priveleges to launch.
 # In order to prevent needing to launch the server process with sudo,
 # this bash script is called as a subprocess, launching/stopping the 
-# controller daemon with sudo.
+# controller daemon with sudo. The start script itself,
+# located at $ITEM_DAEMON_START_SCRIPT, should look like this
+
+#   #!/bin/bash
+#   # Get current directory
+#   SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+#   # Switch to actual subdir containing the daemon for the respective platform
+#    cd $SCRIPT_DIR/linux64
+#   ./itemControllerDaemon
+
 
 
 # Function to stop the item controller daemon
@@ -43,7 +52,8 @@ function start_daemon {
 
 # Needed variables
 ITEM_DAEMON_PNAME="itemControllerD"
-ITEM_DAEMON_START_SCRIPT=$HOME/item/controllerdaemon/start.sh
+USER_HOME=$(getent passwd $USER | cut -d: -f6) 
+ITEM_DAEMON_START_SCRIPT=$USER_HOME/item/controllerdaemon/start.sh
 START=true
 
 # Parse command line arguments
