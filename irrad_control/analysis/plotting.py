@@ -282,11 +282,7 @@ def plot_tid_per_row(data, **kwargs):
     return fig, ax
 
 def plot_everything(data, **kwargs):
-    fig = plt.figure(figsize=(6, 6))
-    gs = fig.add_gridspec(2, 1, height_ratios=(5, 1))#,
-                        #left=0.1, right=0.9, bottom=0.1, top=0.9,
-                        #wspace=0.05, hspace=0.05)
-    beamax = fig.add_subplot(gs[0, 0])
+    fig, beamax = plt.subplots(figsize=(8,6))
     scanax = beamax.twiny()
     fig_title = "Row- and scanwise radiation data"
     fig.suptitle(fig_title)
@@ -337,15 +333,8 @@ def plot_everything(data, **kwargs):
     scanax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     scanax.set_xlabel(xtimelabel)
     
-    beamlossax = fig.add_subplot(gs[1, 0], sharex=beamax)
-    beamlossax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
-    beamlossax.legend()
-    beamlossax.set_ylabel(f"Current loss / nA")
-    beamlossax.spines['left'].set_visible(True)
-    beamlossax.spines['right'].set_position(('outward', 0.0))
-    beamlossax.yaxis.tick_right()
-    beamlossax.yaxis.set_label_position("right")
-    beamlossax.spines['right'].set_visible(True)
+    beamax.plot(dtime_row_start, data['beam_loss'], label="Beam loss", color="C2")
+    beamax.legend()
     #beamlossax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
 
     neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in tidax.get_ylim()]
@@ -354,7 +343,6 @@ def plot_everything(data, **kwargs):
     tidax.legend(loc='upper left')
     neqax.grid(axis='y')
     beamax.grid(axis='x')
-    beamlossax.grid()
     return fig
     
 #******* Beamplotting ********#
@@ -427,16 +415,17 @@ def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=Non
     xstd = np.std(vertical_deviation)
     ymean = np.mean(horizontal_deviation)
     ystd = np.std(horizontal_deviation)
-    xlabel = "x-deviation:\n({:.2f}±{:.2f}) %".format(xmean, xstd)
+    xlabel = '\t'+ r'Horizontal: $(%.2f\pm%.2f)$' % (xmean, xstd) + r'$\%$' + '\t'
+    ylabel =  '\t'+r'Vertical: $(%.2f\pm%.2f)$' % (ymean, ystd) + r'$\%$' + '\t'
     _, _, _, im = ax.hist2d(horizontal_deviation, vertical_deviation, bins=(n_bins, n_bins),norm=LogNorm(), cmap='viridis', cmin=1)
     plt.colorbar(mappable=im, ax=ax_cbar, fraction=1., pad=0.)
-    xlabel = "hor. dev.:\n({:.2f}±{:.2f}) %".format(xmean, xstd)
-    ylabel = "ver. dev.:\n({:.2f}±{:.2f}) %".format(ymean, ystd)
     _, _, _ = ax_histx.hist(vertical_deviation, bins=n_bins)
     _, _, _ = ax_histy.hist(horizontal_deviation, bins=n_bins, orientation='horizontal')
     ax_histx.set_yticks(ax_histy.get_xticks())
-    ax_histx.legend([xlabel])
-    ax_histy.legend([ylabel])
+    ax.plot([],[],ls='none',label=xlabel)
+    p1, = ax.plot([], [], ls='none')
+    leg = ax.legend((p1,p1),(xlabel,ylabel),loc='lower center')
+    ax.add_artist(leg)
     ax.grid()
     ax_histx.grid()
     ax_histy.grid()
