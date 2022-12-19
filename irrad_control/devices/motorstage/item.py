@@ -171,10 +171,10 @@ class ItemLinearStage(BaseAxis):
             config['axis']['position']['unit'] = 'mm'
             config['axis']['travel']['unit'] = 'mm'
 
-        super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
-
         if full_launch:
             self.launch()
+
+        super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
 
     def start_daemon(self):
         """
