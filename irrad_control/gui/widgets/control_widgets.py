@@ -13,23 +13,35 @@ class ControlWidget(GridContainer):
 
     sendCmd = QtCore.pyqtSignal(dict)
 
+    def __init__(self, name, x_space=20, y_space=10, parent=None, enable=True):
+        super().__init__(name, x_space, y_space, parent)
+
+        if enable:
+            self._init_widget()
+        else:
+            self.add_widget(widget=QtWidgets.QLabel(f'{self.name} currently not available!'))
+
+
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         self.sendCmd.emit({'hostname': hostname,
                            'target': target,
                            'cmd': cmd,
                            'cmd_data': cmd_data})
 
+    def _init_widget(self):
+        raise NotImplementedError
+
 
 class MotorStageControlWidget(ControlWidget):
 
     motorstagePropertiesUpdated = QtCore.pyqtSignal(str)
 
-    def __init__(self, server, parent=None):
-        super(MotorStageControlWidget, self).__init__(name='Motorstage Control', parent=parent)
-
+    def __init__(self, server, parent=None, enable=True):
         # Store server hostname
         self.server = server
+        super(MotorStageControlWidget, self).__init__(name='Motorstage Control', parent=parent, enable=enable)
 
+    def _init_widget(self):
         # Main widget
         self.tabs = QtWidgets.QTabWidget()
 
@@ -53,7 +65,7 @@ class MotorStageControlWidget(ControlWidget):
 
         self.motorstage_properties = defaultdict(dict)
 
-        self._ms_widgets =defaultdict(dict)
+        self._ms_widgets = defaultdict(dict)
 
         self._init_buttons()
 
@@ -410,8 +422,7 @@ class ScanControlWidget(ControlWidget):
 
     scanParamsUpdated = QtCore.pyqtSignal(dict)
 
-    def __init__(self, server, daq_setup, parent=None):
-        super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent)
+    def __init__(self, server, daq_setup, parent=None, enable=True):
 
         # Store server hostname
         self.server = server
@@ -432,6 +443,10 @@ class ScanControlWidget(ControlWidget):
         self.n_rows = None
         self.auto_finish_scan = True
 
+        super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
+    
+    def _init_widget(self):
+        
         self._init_ui()
 
         spacer = QtWidgets.QVBoxLayout()
@@ -705,20 +720,14 @@ class DAQControlWidget(ControlWidget):
 
     enableDAQRec = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, server, ro_device, parent=None):
-        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent)
-
+    def __init__(self, server, ro_device, parent=None, enable=True):
         self.server = server
-
         self.ro_device = ro_device
-
         self._style = QtWidgets.qApp.style()
-        
-        if self.ro_device is not None:
-            self._init_ui()
-        else:
-            self.add_widget(widget=QtWidgets.QLabel('No readout device!'))
+        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
 
+    def _init_widget(self):
+        self._init_ui()
         spacer = QtWidgets.QVBoxLayout()
         spacer.addStretch()
         self.add_widget(spacer)

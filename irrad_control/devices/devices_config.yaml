@@ -44,7 +44,6 @@ SetupTableStage:
 ExternalCupStage:
   init:
     config: external_cup_stage.yaml
-    telnet_server_script: /home/pi/item/controllerdaemon/start.sh
     host: localhost
     port: 45000
     udp:

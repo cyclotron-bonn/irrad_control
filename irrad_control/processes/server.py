@@ -317,6 +317,8 @@ class IrradServer(DAQProcess):
         for dev in self.devices:
             if hasattr(self.devices[dev], 'save_config'):
                 self.devices[dev].save_config()
+            if hasattr(self.devices[dev], 'shutdown'):
+                self.devices[dev].shutdown()
 
 
 def run(blocking=True):
