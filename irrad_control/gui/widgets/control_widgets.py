@@ -366,9 +366,9 @@ class MotorStageControlWidget(ControlWidget):
                 else:
                     # Construct message for user
                     msg = f"Movement of {motorstage} is currently restricted due to {restricting_ms} position being not 0 mm"
-                    msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']} mm)."
+                    msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']:.3f} mm)."
                     msg += f" Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
-                    msg += f"Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
+                    msg += f" Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
                     msg += f" You can always stop {restricting_ms}s movement using the 'Stop' button."
 
                     # Make MessageBox
@@ -422,6 +422,16 @@ class ScanControlWidget(ControlWidget):
 
     scanParamsUpdated = QtCore.pyqtSignal(dict)
 
+    @property
+    def remaining_rows(self):
+        return self._remaining_individual_rows
+
+    @remaining_rows.setter
+    def remaining_rows(self, rr):
+        if self._after_scan_container is not None:
+            self._after_scan_container.set_read_only(rr != 0)
+        self._remaining_individual_rows = rr
+
     def __init__(self, server, daq_setup, parent=None, enable=True):
 
         # Store server hostname
@@ -440,6 +450,7 @@ class ScanControlWidget(ControlWidget):
                             'server': self.server}
 
         self._after_scan_container = None
+        self._remaining_individual_rows = 0
         self.n_rows = None
         self.auto_finish_scan = True
 
@@ -454,7 +465,10 @@ class ScanControlWidget(ControlWidget):
         self.add_widget(spacer)
 
     def launch_scan(self):
-        self.send_cmd(hostname=self.server, target='__scan__', cmd='scan_device')
+        self.send_cmd(hostname=self.server,
+                      target='__scan__',
+                      cmd='_scan_device',
+                      cmd_data={'threaded': True})
 
     def update_scan_params(self, **kwargs):
         self.scan_params.update(kwargs)
@@ -703,14 +717,16 @@ class ScanControlWidget(ControlWidget):
             spx_speed.setValue(self.scan_params['scan_speed'])
             spx_repeat = QtWidgets.QSpinBox()
             spx_repeat.setPrefix('Repeat: ')
-            spx_repeat.setRange(1, 10)
+            spx_repeat.setRange(1, 100)
             btn_scan_row = QtWidgets.QPushButton('Scan row')
+            btn_scan_row.clicked.connect(lambda _: setattr(self, 'remaining_rows', spx_repeat.value()))
             btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                                 target='__scan__',
-                                                                cmd='scan_row',
+                                                                cmd='_scan_row',
                                                                 cmd_data={'kwargs': {'row': spx_row.value(),
                                                                                     'speed': spx_speed.value(),
-                                                                                    'repeat': spx_repeat.value()}}))
+                                                                                    'repeat': spx_repeat.value()},
+                                                                          'threaded': True}))
 
             self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
             self.add_widget(self._after_scan_container)
