@@ -236,11 +236,6 @@ class DUTScan(object):
         if not self._check_scan():
             return
 
-        # Check row is in self._scan_params['rows']
-        if row not in self._scan_params['rows']:
-            logging.error("Row {} is not in range of 0 - {} of this scan. Abort".format(row, self._scan_params['n_rows']))
-            return
-
         # Start scan in separate thread
         scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat})
         scan_thread.start()
@@ -251,10 +246,6 @@ class DUTScan(object):
         fixed speed horizontally. Uses info about scan parameters from self._scan_params dict. Does sanity checks.
         The actual scan is done in a separate thread which calls self._scan_device.
         """
-
-        # Check scan configuration dict
-        if not self._check_scan():
-            return
 
         # Start scan in separate thread
         scan_thread = threading.Thread(target=self._scan_device)
@@ -278,6 +269,11 @@ class DUTScan(object):
             Number of times *row* should be scanned with *speed*
         """
 
+        # Check row is in self._scan_params['rows']
+        if row not in self._scan_params['rows']:
+            logging.error("Row {} is not in range of 0 - {} of this scan. Abort".format(row, self._scan_params['n_rows']))
+            return
+
         # Check socket, if no socket is given and ZMQ is setup for this instance, open one
         spawn_pub = data_pub is None and self.zmq_config
 
@@ -295,6 +291,14 @@ class DUTScan(object):
 
         # Make x start and end variables
         x_start, x_end = self._scan_params['start'][0], self._scan_params['end'][0]
+
+        if data_pub is not None:
+            # Publish stop data
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
+            _data = {'status': 'scan_row_initiated', 'scan': scan, 'row': row}
+
+            # Publish data
+            data_pub.send_json({'meta': _meta, 'data': _data})
 
         # Check whether we are scanning from origin
         if from_origin:
@@ -368,19 +372,31 @@ class DUTScan(object):
                 # Publish data
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
-        if spawn_pub:
-            data_pub.close()
-
         if from_origin:
             # Move back to origin; move y first in order to not scan over device
             self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
             self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
+
+        if data_pub is not None:
+            # Publish stop data
+            _meta = {'timestamp': time.time(), 'name': self.zmq_config['sender'], 'type': 'scan'}
+            _data = {'status': 'scan_row_completed', 'scan': scan, 'row': row}
+
+            # Publish data
+            data_pub.send_json({'meta': _meta, 'data': _data})
+
+        if spawn_pub:
+            data_pub.close()
 
     def _scan_device(self):
         """
         Method which is supposed to be called by self.scan_device. See docstring there.
 
         """
+
+        # Check scan configuration dict
+        if not self._check_scan():
+            return
 
         # Initialize zmq data publisher if zmq is setup
         data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
