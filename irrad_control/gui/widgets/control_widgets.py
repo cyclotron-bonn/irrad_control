@@ -422,16 +422,6 @@ class ScanControlWidget(ControlWidget):
 
     scanParamsUpdated = QtCore.pyqtSignal(dict)
 
-    @property
-    def remaining_rows(self):
-        return self._remaining_individual_rows
-
-    @remaining_rows.setter
-    def remaining_rows(self, rr):
-        if self._after_scan_container is not None:
-            self._after_scan_container.set_read_only(rr != 0)
-        self._remaining_individual_rows = rr
-
     def __init__(self, server, daq_setup, parent=None, enable=True):
 
         # Store server hostname
@@ -719,7 +709,6 @@ class ScanControlWidget(ControlWidget):
             spx_repeat.setPrefix('Repeat: ')
             spx_repeat.setRange(1, 100)
             btn_scan_row = QtWidgets.QPushButton('Scan row')
-            btn_scan_row.clicked.connect(lambda _: setattr(self, 'remaining_rows', spx_repeat.value()))
             btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                                 target='__scan__',
                                                                 cmd='_scan_row',
@@ -730,6 +719,10 @@ class ScanControlWidget(ControlWidget):
 
             self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
             self.add_widget(self._after_scan_container)
+
+    def enable_after_scan_ui(self, enable):
+        if self._after_scan_container is not None:
+            self._after_scan_container.set_read_only(read_only=not enable)
 
 
 class DAQControlWidget(ControlWidget):
