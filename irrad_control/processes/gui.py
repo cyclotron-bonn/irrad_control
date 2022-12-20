@@ -504,8 +504,8 @@ class IrradGUI(QtWidgets.QMainWindow):
 
                 # We are scanning individual rows
                 if data['data']['scan'] == -1:
-                    read_only = data['data']['status'] == 'scan_row_initiated'
-                    self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(read_only)
+                    enable = data['data']['status'] == 'scan_row_completed'
+                    self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(enable)
 
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
