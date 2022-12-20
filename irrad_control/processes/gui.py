@@ -594,7 +594,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             logging.error(msg.format(cmd_dict['cmd'],
                                      cmd_dict['target'],
                                      timeout // 1000,
-                                     self.setup['server'][hostname]['name']))
+                                     'localhost' if hostname not in self.setup['server'] else self.setup['server'][hostname]['name']))
         finally:
             req.close()
 
@@ -708,6 +708,10 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Data subscriber
         data_sub = self.context.socket(zmq.SUB)
 
+        # Wait 1 sec for messages to be received
+        data_sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        data_sub.setsockopt(zmq.LINGER, 0)
+
         # Loop over servers and connect to their data streams
         for server in self.setup['server']:
             data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
@@ -720,13 +724,19 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
-
-            self.data_received.emit(data_sub.recv_json())
+            try:
+                self.data_received.emit(data_sub.recv_json())
+            except zmq.Again:
+                pass
             
     def recv_log(self):
         
         # Log subscriber
         log_sub = self.context.socket(zmq.SUB)
+
+        # Wait 1 sec for messages to be received
+        log_sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        log_sub.setsockopt(zmq.LINGER, 0)
 
         # Connect to log messages from remote server and local interpreter process
         # Loop over servers and connect to their data streams
@@ -741,21 +751,24 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.info('Log receiver ready')
         
         while not self.stop_recv_log.is_set():
-            log = log_sub.recv()
-            if log:
-                log_dict = {}
+            try:
+                log = log_sub.recv()
+                if log:
+                    log_dict = {}
 
-                # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
-                # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
-                # therefore this will work in Py2 and Py3
-                log = log.decode()
+                    # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+                    # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+                    # therefore this will work in Py2 and Py3
+                    log = log.decode()
 
-                if log.upper() in self._loglevel_names:
-                    log_dict['level'] = getattr(logging, log.upper(), None)
-                else:
-                    log_dict['log'] = log.strip()
+                    if log.upper() in self._loglevel_names:
+                        log_dict['level'] = getattr(logging, log.upper(), None)
+                    else:
+                        log_dict['log'] = log.strip()
 
-                self.log_received.emit(log_dict)
+                    self.log_received.emit(log_dict)
+            except zmq.Again:
+                pass
 
     def handle_messages(self, message, ms=4000):
         """Handles messages from the tabs shown in QMainWindows statusBar"""
