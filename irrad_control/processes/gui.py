@@ -500,6 +500,12 @@ class IrradGUI(QtWidgets.QMainWindow):
                     #self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
                     pass
 
+            elif data['data']['status'] == 'scan_row_completed':
+                
+                # We are scanning individual rows
+                if data['data']['scan'] == -1:
+                    self.control_tab.tab_widgets[server]['scan'].remaining_rows -= 1
+
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
 
