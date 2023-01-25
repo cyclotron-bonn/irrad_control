@@ -796,14 +796,24 @@ class IrradGUI(QtWidgets.QMainWindow):
             # Unfortunately, we could not verify the close, inform user and close
             else:
 
-                msg = "Shutdown of the converter and server processes could not be validated. " \
-                      "Click 'Retry' to restart the shutdown and validation process. " \
-                      "Click 'Ignore' to shut down the application anyway."
-                
-                reply = QtWidgets.QMessageBox.question(self, 'Shutdown could not be validated',
-                                                       msg, QtWidgets.QMessageBox.Ignore, QtWidgets.QMessageBox.Retry)
+                msg = "Shutdown of the converter and server processes could not be validated.\n" \
+                      "Click 'Retry' to restart the shutdown and validation process.\n" \
+                      "Click 'Abort' to kill all remaining processes and close the application.\n" \
+                      "Click 'Ignore' to do nothing and close the application."
+
+                msg_box = QtWidgets.QMessageBox(self)
+                msg_box.setWindowTitle('Shutdown could not be validated')
+                msg_box.setText(msg)
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.Abort)
+                reply = msg_box.exec()
 
                 if reply == QtWidgets.QMessageBox.Ignore:
+                    self._shutdown_complete = True
+                elif reply == QtWidgets.QMessageBox.Abort:
+                    for host in self.proc_mngr.active_pids:
+                        for pid in self.proc_mngr.active_pids[host]:
+                            if self.proc_mngr.active_pids[host][pid]['active']:
+                                self.proc_mngr.kill_proc(hostname=host, pid=pid)
                     self._shutdown_complete = True
                 else:
                     self._shutdown_initiated = False
