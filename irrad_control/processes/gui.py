@@ -781,7 +781,7 @@ class IrradGUI(QtWidgets.QMainWindow):
     def _validate_close(self):
 
         # If all servers and the converters have responded to the shutdown, we proceed
-        if len(self._stopped_daq_proc_hostnames) == len(self.setup['server']) + 1:
+        if len(self._stopped_daq_proc_hostnames) == len(self.proc_mngr.active_pids):
             
             # Check if all processes have indeed terminated; give it a couple of tries due to the shutdown of a server can take a second or two 
             for _ in range(10):
