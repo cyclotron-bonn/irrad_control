@@ -59,6 +59,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self._started_daq_proc_hostnames = []
 
         # Shutdown related variables
+        self._procs_launched = False
         self._shutdown_initiated = False
         self._shutdown_complete = False
         self._stopped_daq_proc_hostnames = []
@@ -285,6 +286,8 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.threadpool.start(server_config_workers[server])
 
         self.start_interpreter()
+
+        self._procs_launched = True
 
     def _started_daq_proc(self, hostname):
         """A DQAProcess has been sucessfully started on *hostname*"""
@@ -810,8 +813,14 @@ class IrradGUI(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         """Catches closing event and invokes customized closing routine"""
 
+        shutdown = False
+
+        # No process have been launched yet
+        if not self._procs_launched:
+            shutdown = True
+
         # We are initiating the shutdown routine
-        if not self._shutdown_initiated:
+        elif not self._shutdown_initiated:
 
             logging.info('Initiating shutdown of servers and converter...')
 
@@ -836,13 +845,14 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.threadpool.start(shutdown_worker)
 
             self._shutdown_initiated = True
-            event.ignore()
 
         elif self._shutdown_complete:
             logging.info("Shutdown complete.")
+            shutdown = True
+
+        if shutdown:
             self._clean_up()
             event.accept()
-
         else:
             event.ignore()
 
