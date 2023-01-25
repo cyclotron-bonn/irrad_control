@@ -1,9 +1,12 @@
 import time
 import telnetlib
 import logging
+import subprocess
+import os
 
 # Package imports
 from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config
+from irrad_control import script_path
 
 
 class ItemTelnetClient(object):
@@ -29,6 +32,9 @@ class ItemTelnetClient(object):
 
         # try to connect
         self._establish_connection()
+
+    def close(self):
+        self._client.close()
 
     def _establish_connection(self):
 
@@ -144,22 +150,16 @@ class ItemLinearStage(BaseAxis):
 
     props = {'position': 'POSACTUAL'}
 
-    def __init__(self, host, port, udp, travel=716.5e-3, model=None, config=None):
+    def __init__(self, host, port, udp, travel=716.5e-3, model=None, config=None, full_launch=True):
 
+        self.host = host
+        self.port = port
         self.udp = udp
-
-        # Init client
-        self.item_client = ItemTelnetClient(host=host, port=port, timeout=2)
-
-        # Login stage
-        self.item_client.send_cmd(cmd='LOGIN Stage Hochstromraum')
-
-        # Connect to udp
-        self.item_client.send_cmd(cmd='CONNECT udp', data=udp)
-
-        self.controller_id = self.get_id()
         self.model = model
         self.travel = travel  # meter
+
+        self._daemon = None
+        self._client = None
 
         # Make intial config because this stage lives off bare values
         config = load_base_axis_config(config=config)
@@ -174,11 +174,54 @@ class ItemLinearStage(BaseAxis):
             config['axis']['position']['unit'] = 'mm'
             config['axis']['travel']['unit'] = 'mm'
 
+        if full_launch:
+            self.launch()
+
         super(ItemLinearStage, self).__init__(config=config, native_unit='mm')
+
+    def start_daemon(self):
+        """
+        Start the item GmbH propriatary telnet server to control the stage; requires sudo privileges inside the script
+        """
+        self._daemon = subprocess.Popen([f"{os.path.join(script_path, 'item_daemon.sh')}", '--start'])
+        time.sleep(3)
+
+    def stop_daemon(self):
+        """
+        Stop the item GmbH propriatary telnet server; unfortunately, the daemon requires sudo privileges.
+        This makes it impossible to stop it by sending SIGTERM (as intended by item...) from within the
+        Python interpreter (aka self._daemon.terminate()) since it is not called with sudo privileges.
+        Instead call a dedicated script using sudo as subprocess again 
+        """
+        subprocess.call([f"{os.path.join(script_path, 'item_daemon.sh')}", '--stop'])
+        self._daemon.wait(timeout=3)
+        logging.info(f"")
+
+    def start_client(self):
+        # Init client
+        self._client = ItemTelnetClient(host=self.host, port=self.port, timeout=2)
+
+        # Login stage
+        self._client.send_cmd(cmd='LOGIN Stage Hochstromraum')
+
+        # Connect to udp
+        self._client.send_cmd(cmd='CONNECT udp', data=self.udp)
+
+    def stop_client(self):
+        self._client.close()
+
+    def launch(self):
+        self.start_daemon()
+        self.start_client()
+        self.controller_id = self.get_id()
+
+    def shutdown(self):
+        self.stop_daemon()
+        self.stop_client()
 
     def _get_property(self, prop):
 
-        reply = self.item_client.send_cmd(cmd='GET', data=[self.controller_id, prop])
+        reply = self._client.send_cmd(cmd='GET', data=[self.controller_id, prop])
         prop_value = reply.split(':')[-1]
 
         try:
@@ -188,10 +231,10 @@ class ItemLinearStage(BaseAxis):
         except ValueError:
             res = prop_value
 
-        return 0 if self.item_client.error else res
+        return 0 if self._client.error else res
 
     def _set_enabled(self, state=True):
-        self.item_client.send_cmd(cmd='{} {}'.format('ENABLE' if state else 'DISABLE', self.controller_id))
+        self._client.send_cmd(cmd='{} {}'.format('ENABLE' if state else 'DISABLE', self.controller_id))
 
     def _check_move(self, value):
         """Checks whether the target *value* is within the axis range"""
@@ -240,7 +283,7 @@ class ItemLinearStage(BaseAxis):
         self._set_enabled(False)
 
     def get_id(self):
-        stage_id = self.item_client.send_and_recv_multiple(msg='LIST')[-1]
+        stage_id = self._client.send_and_recv_multiple(msg='LIST')[-1]
         return int(stage_id)
 
     def get_position(self, unit=None):
@@ -358,10 +401,10 @@ class ItemLinearStage(BaseAxis):
             unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
-        actual_move = lambda t: self.item_client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
-                                                                                t,
-                                                                                int(self.get_speed()),
-                                                                                int(self.get_accel())])
+        actual_move = lambda t: self._client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
+                                                                            t,
+                                                                            int(self.get_speed()),
+                                                                            int(self.get_accel())])
 
         # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)

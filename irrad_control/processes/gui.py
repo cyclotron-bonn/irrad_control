@@ -3,8 +3,6 @@ import time
 import logging
 import platform
 import zmq
-import yaml
-from collections import defaultdict
 from email import message_from_string
 from pkg_resources import get_distribution, DistributionNotFound
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -57,14 +55,14 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Class to manage the server, interpreter and additional subprocesses
         self.proc_mngr = ProcessManager()
 
-        # Keep track of send commands in order to wait for their response
-        self._cmd_id = 0
-        self._cmd_reply = defaultdict(list)
-        self._try_close = False
-        self._log_close = False
-
         # Keep track of successfully started daq processes
         self._started_daq_proc_hostnames = []
+
+        # Shutdown related variables
+        self._procs_launched = False
+        self._shutdown_initiated = False
+        self._shutdown_complete = False
+        self._stopped_daq_proc_hostnames = []
         
         # Connect signals
         self.data_received.connect(lambda data: self.handle_data(data))
@@ -79,10 +77,6 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Init user interface
         self._init_ui()
         self._init_logging()
-
-        # Timer starting when application should be closed
-        self.close_timer = QtCore.QTimer()
-        self.close_timer.timeout.connect(self.close)
         
     def _init_ui(self):
         """
@@ -287,12 +281,13 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             # Connect workers exception to log
             self._connect_worker_exception(worker=server_config_workers[server])
-            self._connect_worker_close(server_config_workers[server], server)
 
             # Launch worker on QThread
             self.threadpool.start(server_config_workers[server])
 
         self.start_interpreter()
+
+        self._procs_launched = True
 
     def _started_daq_proc(self, hostname):
         """A DQAProcess has been sucessfully started on *hostname*"""
@@ -339,7 +334,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def send_start_cmd(self):
 
         for server in self.setup['server']:
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+            # Start server without timeout: server can take arbitrary amount of time to start because of varying hardware startup times
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=None)
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
@@ -403,12 +399,6 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def _connect_worker_exception(self, worker):
         worker.signals.exception.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
-
-    def _connect_worker_close(self, worker, hostname):
-        self._cmd_reply[hostname].append(self._cmd_id)
-        for con in [lambda _hostname=hostname, cmd_id=self._cmd_id: self._cmd_reply[_hostname].remove(cmd_id), self._check_close]:
-            worker.signals.finished.connect(con)
-        self._cmd_id += 1
         
     def _tcp_addr(self, port, ip='*'):
         """Creates string of complete tcp address which sockets can bind to"""
@@ -492,6 +482,13 @@ class IrradGUI(QtWidgets.QMainWindow):
 
                 self.control_tab.tab_widgets[server]['status'].update_status(status='scan', status_values=data['data'])
 
+            elif data['data']['status'] in ('scan_row_initiated', 'scan_row_completed'):
+
+                # We are scanning individual rows
+                if data['data']['scan'] == -1:
+                    enable = data['data']['status'] == 'scan_row_completed'
+                    self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(enable)
+
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
 
@@ -526,8 +523,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                                                             properties={'position': data['data']['position']},
                                                                                             axis=data['data']['axis'])
             
-
-    def send_cmd(self, hostname, target, cmd, cmd_data=None, check_reply=True, timeout=None):
+    def send_cmd(self, hostname, target, cmd, cmd_data=None, timeout=5):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
         The command can have respective data *cmd_data*."""
 
@@ -536,10 +532,6 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Make connections
         self._connect_worker_exception(worker=cmd_worker)
-
-        # Keep track of commands
-        if check_reply:
-            self._connect_worker_close(cmd_worker, hostname)
 
         # Start
         self.threadpool.start(cmd_worker)
@@ -553,8 +545,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         req_port = self.setup['server'][hostname]['ports']['cmd'] if hostname in self.setup['server'] else self.setup['ports']['cmd']
 
         if timeout:
-            req.setsockopt(zmq.RCVTIMEO, int(timeout))
-            req.setsockopt(zmq.LINGER, 0)
+            req.setsockopt(zmq.RCVTIMEO, int(timeout * 1000))
+            req.setsockopt(zmq.LINGER, 0)  # Required if RCVTIMEO is used
 
         req.connect(self._tcp_addr(req_port, hostname))
 
@@ -571,11 +563,11 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.reply_received.emit(reply)
 
         except zmq.Again:
-            msg = 'Command {} with target {} timed out after {} seconds: no reply from server {}'
+            msg = "Command '{}' with target '{}' timed out after {} seconds: no reply from server '{}'"
             logging.error(msg.format(cmd_dict['cmd'],
                                      cmd_dict['target'],
-                                     timeout // 1000,
-                                     self.setup['server'][hostname]['name']))
+                                     timeout,
+                                     'localhost' if hostname not in self.setup['server'] else self.setup['server'][hostname]['name']))
         finally:
             req.close()
 
@@ -601,10 +593,6 @@ class IrradGUI(QtWidgets.QMainWindow):
                 elif reply == 'shutdown':
 
                     logging.info("Server at {} confirmed shutdown".format(hostname))
-
-                    # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
-                    # Try to close
-                    self.close()
 
                 elif reply == 'motorstages':
                     for ms, ms_config in reply_data.items():
@@ -635,9 +623,6 @@ class IrradGUI(QtWidgets.QMainWindow):
                 if reply == 'shutdown':
 
                     logging.info("Interpreter confirmed shutdown")
-
-                    # Try to close
-                    self.close()
 
             elif sender == '__scan__':
 
@@ -672,22 +657,26 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                                                                               validate=reply.split('_')[0])
 
             # Debug
-            msg = 'Standard {} reply received: {}'.format(sender, reply)
+            msg = "Standard {} reply received: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.debug(msg)
 
         elif _type == 'ERROR':
-            msg = '{} error occurred: {}'.format(sender, reply)
+            msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.error(msg)
             if self.log_dock.isHidden():
                 self.log_dock.setVisible(True)
 
         else:
-            logging.info('Received reply {} from {}'.format(reply, sender))
+            logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
 
     def recv_data(self):
         
         # Data subscriber
         data_sub = self.context.socket(zmq.SUB)
+
+        # Wait 1 sec for messages to be received
+        data_sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        data_sub.setsockopt(zmq.LINGER, 0)
 
         # Loop over servers and connect to their data streams
         for server in self.setup['server']:
@@ -701,13 +690,19 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.info('Data receiver ready')
         
         while not self.stop_recv_data.is_set():
-
-            self.data_received.emit(data_sub.recv_json())
+            try:
+                self.data_received.emit(data_sub.recv_json())
+            except zmq.Again:
+                pass
             
     def recv_log(self):
         
         # Log subscriber
         log_sub = self.context.socket(zmq.SUB)
+
+        # Wait 1 sec for messages to be received
+        log_sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        log_sub.setsockopt(zmq.LINGER, 0)
 
         # Connect to log messages from remote server and local interpreter process
         # Loop over servers and connect to their data streams
@@ -722,21 +717,24 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.info('Log receiver ready')
         
         while not self.stop_recv_log.is_set():
-            log = log_sub.recv()
-            if log:
-                log_dict = {}
+            try:
+                log = log_sub.recv()
+                if log:
+                    log_dict = {}
 
-                # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
-                # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
-                # therefore this will work in Py2 and Py3
-                log = log.decode()
+                    # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+                    # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+                    # therefore this will work in Py2 and Py3
+                    log = log.decode()
 
-                if log.upper() in self._loglevel_names:
-                    log_dict['level'] = getattr(logging, log.upper(), None)
-                else:
-                    log_dict['log'] = log.strip()
+                    if log.upper() in self._loglevel_names:
+                        log_dict['level'] = getattr(logging, log.upper(), None)
+                    else:
+                        log_dict['log'] = log.strip()
 
-                self.log_received.emit(log_dict)
+                    self.log_received.emit(log_dict)
+            except zmq.Again:
+                pass
 
     def handle_messages(self, message, ms=4000):
         """Handles messages from the tabs shown in QMainWindows statusBar"""
@@ -754,17 +752,11 @@ class IrradGUI(QtWidgets.QMainWindow):
     def file_quit(self):
         self.close()
 
-    def _check_close(self):
-        """Check whether we're waiting for cmd replies in order to close"""
-        if self._try_close:
-            self.close()
-
     def _clean_up(self):
 
         # Stop receiver threads
         self.stop_recv_data.set()
         self.stop_recv_log.set()
-        self.close_timer.stop()
 
         # Store all plots on close; AttributeError when app was not launched fully
         try:
@@ -772,65 +764,96 @@ class IrradGUI(QtWidgets.QMainWindow):
         except AttributeError:
             pass
 
-        # Wait 1 second for all threads to finish
-        self.threadpool.waitForDone(1000)
+        # Wait 5 second for all threads to finish
+        self.threadpool.waitForDone(5000)
+
+    def _validate_close(self):
+
+        # If all servers and the converters have responded to the shutdown, we proceed
+        if len(self._stopped_daq_proc_hostnames) == len(self.proc_mngr.active_pids):
+            
+            # Check if all processes have indeed terminated; give it a couple of tries due to the shutdown of a server can take a second or two 
+            for _ in range(10):
+                time.sleep(0.5)
+                self.proc_mngr.check_active_processes()
+                
+                if not any(self.proc_mngr.active_pids[h][pid]['active'] for h in self.proc_mngr.active_pids for pid in self.proc_mngr.active_pids[h]):
+                    self._shutdown_complete = True
+                    break
+            
+            # Unfortunately, we could not verify the close, inform user and close
+            else:
+
+                msg = "Shutdown of the converter and server processes could not be validated.\n" \
+                      "Click 'Retry' to restart the shutdown and validation process.\n" \
+                      "Click 'Abort' to kill all remaining processes and close the application.\n" \
+                      "Click 'Ignore' to do nothing and close the application."
+
+                msg_box = QtWidgets.QMessageBox(self)
+                msg_box.setWindowTitle('Shutdown could not be validated')
+                msg_box.setText(msg)
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.Abort)
+                reply = msg_box.exec()
+
+                if reply == QtWidgets.QMessageBox.Ignore:
+                    self._shutdown_complete = True
+                elif reply == QtWidgets.QMessageBox.Abort:
+                    for host in self.proc_mngr.active_pids:
+                        for pid in self.proc_mngr.active_pids[host]:
+                            if self.proc_mngr.active_pids[host][pid]['active']:
+                                self.proc_mngr.kill_proc(hostname=host, pid=pid)
+                    self._shutdown_complete = True
+                else:
+                    self._shutdown_initiated = False
+                    self._stopped_daq_proc_hostnames.clear()
+
+            self.close()
 
     def closeEvent(self, event):
         """Catches closing event and invokes customized closing routine"""
 
-        # Repeatedly check if we can close with 0.5 sec interval
-        self.close_timer.start(500)
+        shutdown = False
 
-        # Indicate that we want to close
-        self._try_close = True
+        # No process have been launched yet
+        if not self._procs_launched:
+            shutdown = True
 
-        if any(val for val in self._cmd_reply.values()):
+        # We are initiating the shutdown routine
+        elif not self._shutdown_initiated:
 
-            if not self._log_close:
-                for host in self._cmd_reply:
-                    if self._cmd_reply[host]:
-                        msg = "Waiting for reply from {} with command ID(s): {}".format(host, ', '.join([str(i) for i in self._cmd_reply[host]]))
-                        logging.warning(msg)
-
-                logging.warning("{} will be closed after all remaining replies have been received".format(PROJECT_NAME))
-                self._log_close = True
-
-            # Ignore closing
-            event.ignore()
-
-        # There are subprocesses to shut down
-        elif any(self.proc_mngr.active_pids[h][pid]['active'] for h in self.proc_mngr.active_pids for pid in self.proc_mngr.active_pids[h]):
-
-            # If we're here, there's no more processecs; we will launch closing workers, they should not give warning to user
-            self._log_close = True
+            logging.info('Initiating shutdown of servers and converter...')
 
             # Check
             self.proc_mngr.check_active_processes()
 
             # Loop over all started processes and send shutdown cmd
             for host in self.proc_mngr.active_pids:
+                
+                target = 'interpreter' if host == 'localhost' else 'server'
+                
+                shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
+                                           hostname=host,
+                                           cmd_dict={'target': target, 'cmd': 'shutdown'},
+                                           timeout=5)
+                # Make connections
+                self._connect_worker_exception(worker=shutdown_worker)
+                shutdown_worker.signals.finished.connect(lambda h=host: self._stopped_daq_proc_hostnames.append(h))
+                shutdown_worker.signals.finished.connect(self._validate_close)
 
-                # Shutdown all the servers
-                if host in self.setup['server']:
-                    logging.info("Shutting down server at {}".format(host))
-                    # FIXME: server does not always send a reply https://github.com/zeromq/libzmq/issues/1264
-                    self.send_cmd(host, 'server', 'shutdown', check_reply=False)
+                # Start
+                self.threadpool.start(shutdown_worker)
 
-                # Shutdown interpreter
-                if host == 'localhost':
-                    logging.info("Shutting down interpreter...")
-                    self.send_cmd(host, 'interpreter', 'shutdown', check_reply=False)
+            self._shutdown_initiated = True
 
-            # Ignore closing
-            event.ignore()
+        elif self._shutdown_complete:
+            logging.info("Shutdown complete.")
+            shutdown = True
 
-        else:
-
+        if shutdown:
             self._clean_up()
-
-            # Close
             event.accept()
-
+        else:
+            event.ignore()
 
 def run():
     app = QtWidgets.QApplication(sys.argv)

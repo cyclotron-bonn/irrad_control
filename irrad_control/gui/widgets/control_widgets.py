@@ -13,23 +13,35 @@ class ControlWidget(GridContainer):
 
     sendCmd = QtCore.pyqtSignal(dict)
 
+    def __init__(self, name, x_space=20, y_space=10, parent=None, enable=True):
+        super().__init__(name, x_space, y_space, parent)
+
+        if enable:
+            self._init_widget()
+        else:
+            self.add_widget(widget=QtWidgets.QLabel(f'{self.name} currently not available!'))
+
+
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         self.sendCmd.emit({'hostname': hostname,
                            'target': target,
                            'cmd': cmd,
                            'cmd_data': cmd_data})
 
+    def _init_widget(self):
+        raise NotImplementedError
+
 
 class MotorStageControlWidget(ControlWidget):
 
     motorstagePropertiesUpdated = QtCore.pyqtSignal(str)
 
-    def __init__(self, server, parent=None):
-        super(MotorStageControlWidget, self).__init__(name='Motorstage Control', parent=parent)
-
+    def __init__(self, server, parent=None, enable=True):
         # Store server hostname
         self.server = server
+        super(MotorStageControlWidget, self).__init__(name='Motorstage Control', parent=parent, enable=enable)
 
+    def _init_widget(self):
         # Main widget
         self.tabs = QtWidgets.QTabWidget()
 
@@ -53,7 +65,7 @@ class MotorStageControlWidget(ControlWidget):
 
         self.motorstage_properties = defaultdict(dict)
 
-        self._ms_widgets =defaultdict(dict)
+        self._ms_widgets = defaultdict(dict)
 
         self._init_buttons()
 
@@ -354,10 +366,10 @@ class MotorStageControlWidget(ControlWidget):
                 else:
                     # Construct message for user
                     msg = f"Movement of {motorstage} is currently restricted due to {restricting_ms} position being not 0 mm"
-                    msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']} mm)."
-                    msg += f"Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
-                    msg += f"Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
-                    msg += f"You can always stop {restricting_ms}s movement using the 'Stop' button."
+                    msg += f" (current position at {self.motorstage_properties[restricting_ms]['position']:.3f} mm)."
+                    msg += f" Do you wish to move {restricting_ms} to its 0 position first? Make sure {restricting_ms} can be moved without obstacles!"
+                    msg += f" Press 'OK' to move {restricting_ms}, press 'Abort' to cancel."
+                    msg += f" You can always stop {restricting_ms}s movement using the 'Stop' button."
 
                     # Make MessageBox
                     mbox = QtWidgets.QMessageBox()
@@ -410,8 +422,7 @@ class ScanControlWidget(ControlWidget):
 
     scanParamsUpdated = QtCore.pyqtSignal(dict)
 
-    def __init__(self, server, daq_setup, parent=None):
-        super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent)
+    def __init__(self, server, daq_setup, parent=None, enable=True):
 
         # Store server hostname
         self.server = server
@@ -429,9 +440,14 @@ class ScanControlWidget(ControlWidget):
                             'server': self.server}
 
         self._after_scan_container = None
+        self._remaining_individual_rows = 0
         self.n_rows = None
         self.auto_finish_scan = True
 
+        super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
+    
+    def _init_widget(self):
+        
         self._init_ui()
 
         spacer = QtWidgets.QVBoxLayout()
@@ -439,7 +455,10 @@ class ScanControlWidget(ControlWidget):
         self.add_widget(spacer)
 
     def launch_scan(self):
-        self.send_cmd(hostname=self.server, target='__scan__', cmd='scan_device')
+        self.send_cmd(hostname=self.server,
+                      target='__scan__',
+                      cmd='_scan_device',
+                      cmd_data={'threaded': True})
 
     def update_scan_params(self, **kwargs):
         self.scan_params.update(kwargs)
@@ -688,37 +707,36 @@ class ScanControlWidget(ControlWidget):
             spx_speed.setValue(self.scan_params['scan_speed'])
             spx_repeat = QtWidgets.QSpinBox()
             spx_repeat.setPrefix('Repeat: ')
-            spx_repeat.setRange(1, 10)
+            spx_repeat.setRange(1, 100)
             btn_scan_row = QtWidgets.QPushButton('Scan row')
             btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                                 target='__scan__',
-                                                                cmd='scan_row',
+                                                                cmd='_scan_row',
                                                                 cmd_data={'kwargs': {'row': spx_row.value(),
                                                                                     'speed': spx_speed.value(),
-                                                                                    'repeat': spx_repeat.value()}}))
+                                                                                    'repeat': spx_repeat.value()},
+                                                                          'threaded': True}))
 
             self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
             self.add_widget(self._after_scan_container)
+
+    def enable_after_scan_ui(self, enable):
+        if self._after_scan_container is not None:
+            self._after_scan_container.set_read_only(read_only=not enable)
 
 
 class DAQControlWidget(ControlWidget):
 
     enableDAQRec = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, server, ro_device, parent=None):
-        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent)
-
+    def __init__(self, server, ro_device, parent=None, enable=True):
         self.server = server
-
         self.ro_device = ro_device
-
         self._style = QtWidgets.qApp.style()
-        
-        if self.ro_device is not None:
-            self._init_ui()
-        else:
-            self.add_widget(widget=QtWidgets.QLabel('No readout device!'))
+        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
 
+    def _init_widget(self):
+        self._init_ui()
         spacer = QtWidgets.QVBoxLayout()
         spacer.addStretch()
         self.add_widget(spacer)

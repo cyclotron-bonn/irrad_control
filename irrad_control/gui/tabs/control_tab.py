@@ -45,10 +45,17 @@ class IrradControlTab(QtWidgets.QWidget):
         ro_device = None if 'readout' not in self.setup[server] else self.setup[server]['readout']['device']
 
         # Get widgets
+<<<<<<< HEAD
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server)
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'])
         daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device)
         status_widget = ic_cntrl_wdgts.StatusInfoWidget()
+=======
+        motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server, enable=any(x in self.setup[server]['devices'] for x in ('ScanStage', 'SetupTableStage', 'ExternalCupStage')))
+        scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'], enable='ScanStage' in self.setup[server]['devices'] and ro_device is not None)
+        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None)
+        status_widget = ic_cntrl_wdgts.StatusInfoWidget('Status')
+>>>>>>> release_v2
 
         # Connect command signals
         motorstage_widget.sendCmd.connect(lambda cmd: self.send_cmd(**cmd))

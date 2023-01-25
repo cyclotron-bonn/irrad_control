@@ -46,7 +46,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         # Make this window blocking parent window
         self.setWindowModality(QtCore.Qt.ApplicationModal)
         self.screen = QtWidgets.QDesktopWidget().screenGeometry()
-        self.resize(0.5 * self.screen.width(), 0.5 * self.screen.height())
+        self.resize(int(0.5 * self.screen.width()), int(0.5 * self.screen.height()))
 
         # Main widget
         self.main_widget = QtWidgets.QWidget()
@@ -166,6 +166,12 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             else:
                 self._positions_buffer[motorstage][name] = {'value': coordinates, 'unit': unit, 'date': date if date is not None else time.asctime(), 'delete': False}
 
+            def _update_pos(val, axis, ms, psname):
+                if isinstance(self._positions_buffer[ms][psname]['value'], list):
+                    self._positions_buffer[ms][psname]['value'][axis] = val
+                else:
+                    self._positions_buffer[ms][psname]['value'] = val
+
             # Make spinboxes for position
             spxs = []
             for i in range(len(coordinates)):
@@ -177,7 +183,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
                 spx.setValue(coordinates[i])
                 spx.wheelEvent = lambda e: None  # Disable wheel event
-                spx.valueChanged.connect(lambda val, axis=i: self._positions_buffer[motorstage][name]['value'].__setitem__(axis, val))
+                spx.valueChanged.connect(lambda val, axis=i: _update_pos(val=val, axis=axis, ms=motorstage, psname=name))
                 spx.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
                 spxs.append(spx)
 
