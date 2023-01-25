@@ -334,7 +334,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def send_start_cmd(self):
 
         for server in self.setup['server']:
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server})
+            # Start server without timeout: server can take arbitrary amount of time to start because of varying hardware startup times
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=None)
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
@@ -574,7 +575,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.reply_received.emit(reply)
 
         except zmq.Again:
-            msg = 'Command {} with target {} timed out after {} seconds: no reply from server {}'
+            msg = "Command '{}' with target '{}' timed out after {} seconds: no reply from server '{}'"
             logging.error(msg.format(cmd_dict['cmd'],
                                      cmd_dict['target'],
                                      timeout,
@@ -795,8 +796,8 @@ class IrradGUI(QtWidgets.QMainWindow):
             # Unfortunately, we could not verify the close, inform user and close
             else:
 
-                msg = "Shutdown of the converter and server processes could not be validated." \
-                      "Click 'Retry' to restart the shutdown and validation process." \
+                msg = "Shutdown of the converter and server processes could not be validated. " \
+                      "Click 'Retry' to restart the shutdown and validation process. " \
                       "Click 'Ignore' to shut down the application anyway."
                 
                 reply = QtWidgets.QMessageBox.question(self, 'Shutdown could not be validated',
