@@ -49,23 +49,45 @@ class GridContainer(QtWidgets.QGroupBox):
         for itm in item:
             yield itm
 
-    def add_layout(self, layout):
-        self.add_item(layout)
+    def add_layout(self, layout, row=None):
+        self.add_item(layout, row)
 
-    def add_widget(self, widget):
-        self.add_item(widget)
+    def add_widget(self, widget, row=None):
+        self.add_item(widget, row)
 
-    def add_item(self, item):
+    def add_item(self, item, row=None):
         """Adds *widget* to container where *widget* can be any QWidget or an iterable of QWidgets."""
 
-        row_count = self.grid.rowCount()
+        if row is not None:
+            if isinstance(row, (int, float)):
+                pass
+            elif row == 'current':
+                row = self.grid.rowCount() - 1
+
+            row_offset = self.columns_in_row(row=row)
+        else:
+            row_offset = 0
+            row = self.grid.rowCount()
 
         if not self._valid_item(item):
             raise TypeError("Only QWidgets and QLayouts can be added to layout!")
         else:
             # Loop over all items and add to grid
             for i, itm in enumerate(self._prepare_item(item)):
-                self._add_to_grid(itm, row_count, i)
+                self._add_to_grid(itm, row, i + row_offset)
+
+    def columns_in_row(self, row):
+        row_count = self.grid.rowCount()
+        if row > row_count:
+            raise IndexError(f"GridContainer only has {row_count} rows, index {row} invalid.")
+        
+        n_cols = 0
+        item = self.grid.itemAtPosition(row, n_cols)
+        while isinstance(item, QtWidgets.QLayoutItem):
+            item = self.grid.itemAtPosition(row, n_cols)
+            n_cols += 1
+
+        return n_cols
 
     def _add_to_grid(self, item, row, col):
 
