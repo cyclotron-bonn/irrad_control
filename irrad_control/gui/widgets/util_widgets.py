@@ -78,7 +78,7 @@ class GridContainer(QtWidgets.QGroupBox):
 
     def columns_in_row(self, row):
         row_count = self.grid.rowCount()
-        if row > row_count:
+        if row >= row_count:
             raise IndexError(f"GridContainer only has {row_count} rows, index {row} invalid.")
         
         n_cols = 0
