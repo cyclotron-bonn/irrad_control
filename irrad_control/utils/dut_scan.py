@@ -415,9 +415,9 @@ class DUTScan(object):
             _data = {'status': 'scan_init', 'row_sep': self._scan_params['row_sep'], 'n_rows': self._scan_params['n_rows'],
                      'aim_damage': self.scan_config['aim_damage'], 'aim_value': self.scan_config['aim_value'],
                      'min_current': self.scan_config['min_current'],
-                     'scan_origin': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)],
-                     'scan_area_start': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)],
-                     'scan_area_stop': [self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)],
+                     'scan_origin': tuple(self.scan_stage.axis[i].convert_to_unit(self._scan_params['origin'][i], 'mm') for i in range(2)),
+                     'scan_area_start': tuple(self.scan_stage.axis[i].convert_to_unit(self._scan_params['start'][i], 'mm') for i in range(2)),
+                     'scan_area_stop': tuple(self.scan_stage.axis[i].convert_to_unit(self._scan_params['end'][i], 'mm') for i in range(2)),
                      'dut_rect_start': self._scan_params['dut_rect_start'],
                      'dut_rect_stop': self._scan_params['dut_rect_stop'],
                      'beam_fwhm': self.scan_config['beam_fwhm']}
