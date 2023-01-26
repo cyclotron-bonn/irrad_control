@@ -76,7 +76,10 @@ class GridContainer(QtWidgets.QGroupBox):
             for i, itm in enumerate(self._prepare_item(item)):
                 self._add_to_grid(itm, row, i + row_offset)
 
-    def columns_in_row(self, row):
+    def columns_in_row(self, row=None):
+        if row is None:
+            row = self.grid.rowCount()
+            row = row - 1 if row != 0 else row
         row_count = self.grid.rowCount()
         if row >= row_count:
             raise IndexError(f"GridContainer only has {row_count} rows, index {row} invalid.")
