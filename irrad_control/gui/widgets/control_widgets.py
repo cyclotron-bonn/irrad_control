@@ -803,36 +803,46 @@ class DAQControlWidget(ControlWidget):
 
 class StatusInfoWidget(GridContainer):
 
-    def __init__(self):
+    def __init__(self, n_status_columns=4, allowed_status_types=(int, float, str, tuple)):
         super().__init__(name='Status')
 
         # Contains the GridContainer
         self._status_containers = {}
         self._status_labels = defaultdict(dict)
+        self.n_status_columns = n_status_columns
+        self.allowed_status_types = allowed_status_types
 
-    def format(self, status, status_values):
-        """
-        Return a string for a given status and its values.
-        Formatting for specific status
+    def _add_unit(self, status_key, status_text):
 
-        Parameters
-        ----------
-        status : str
-            status description e.g. scan
-        status_values : dict
-            dict descibing the correspoding status
+        if 'tid' in status_key:
+            status_text += ' MRad'
+        elif 'primary' in status_key:
+            status_text += ' ion/cm^2'
+        elif any(x in status_key for x in ('position', 'start', 'stop', 'sep', 'fwhm')):
+            status_text += ' mm'
+        elif 'neq' in status_key:
+            status_text += ' neq/cm^2'
+        elif 'current' in status_key:
+            status_text += ' nA'
+        elif 'seconds' in status_key:
+            status_text += ' s'
+        
+        return status_text
 
-        Returns
-        -------
-        str
-            status description string
-        """
+    def _format_float(self, val):
+        if val < 1 or val > 1e3:
+                formattedf = f'{val:.2E}'
+        else:
+            formattedf = f'{val:.2f}'
+        return formattedf
 
-        res = None
+    def format_status(self, status_key, status_value):
 
-        # TODO
-
-        return res
+        if isinstance(status_value, tuple) and len(status_value) == 2:
+            status_text = f"{status_key}=({self._format_float(status_value[0])}+-{self._format_float(status_value[1])})"
+        elif isinstance(status_value, float):
+            status_text = f'{status_key}={self._format_float(status_value)}'
+        return self._add_unit(status_key, status_text)
     
     def add_status(self, status):
         
@@ -840,8 +850,14 @@ class StatusInfoWidget(GridContainer):
             return
 
         status_container = GridContainer(name=status.capitalize())
-        self.add_widget(status_container)
         self._status_containers[status] = status_container
+
+        # Get current number of status columns
+        n_cols = self.columns_in_row()
+        if n_cols < self.n_status_columns:
+            self.add_widget(status_container, row='current')
+        else:
+            self.add_widget(status_container)
 
     def update_status(self, status, status_values):
 
@@ -849,12 +865,16 @@ class StatusInfoWidget(GridContainer):
         if status not in self._status_containers:
             self.add_status(status=status)
 
+        # Get container
         container = self._status_containers[status]
+        
         for k, v in status_values.items():
-            text = self.format(status, status_values)
-            text = f'{k}={v}' if text is None else text 
-            if k in self._status_labels[status]:
-                self._status_labels[status][k].setText(text)
-            else:    
-                self._status_labels[status][k] = QtWidgets.QLabel(text)
-                container.add_widget(self._status_labels[status][k])
+            # Only make status entry for allowed types e.g. ignore lists, arrays, etc
+            if isinstance(v, self.allowed_status_types):
+                
+                status_text = self.format_status(status_key=k, status_value=v)
+                if k in self._status_labels[status]:
+                    self._status_labels[status][k].setText(status_text)
+                else:    
+                    self._status_labels[status][k] = QtWidgets.QLabel(status_text)
+                    container.add_widget(self._status_labels[status][k])
