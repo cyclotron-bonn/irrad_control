@@ -517,7 +517,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
-            self.control_tab.tab_widgets[server]['status'].update_status(status='motorstage', status_values=data['data'])
+            self.control_tab.tab_widgets[server]['status'].update_status(status=data['data']['axis_domain'], status_values=data['data'])
             # Update motorstage positions after every move
             self.control_tab.tab_widgets[server]['motorstage'].update_motorstage_properties(motorstage=data['data']['axis_domain'],
                                                                                             properties={'position': data['data']['position']},
