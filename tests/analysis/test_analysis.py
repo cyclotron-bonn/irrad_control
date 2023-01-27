@@ -8,13 +8,13 @@ class TestAnalysisCLI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
 
-        cls.fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures')
+        cls.fixture_path = os.path.join(os.path.dirname(__file__), '../fixtures')
         cls.fixtures = {'calibration': os.path.join(cls.fixture_path, 'test_calibration'),
                         'irradiation': os.path.join(cls.fixture_path, 'test_irradiation'),
                         'multipart': [os.path.join(cls.fixture_path, f'test_irradiation_multipart_part_{i}') for i in '12']}
         
         # Make output dir
-        cls.output_dir = os.path.abspath(os.path.join(cls.fixture_path, '../output'))
+        cls.output_dir = os.path.join(os.path.dirname(__file__), 'output')
         if not os.path.isdir(cls.output_dir):
             os.mkdir(cls.output_dir)
 

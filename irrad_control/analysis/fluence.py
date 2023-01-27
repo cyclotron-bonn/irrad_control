@@ -12,7 +12,7 @@ from irrad_control.analysis.constants import elementary_charge
 
 
 # This is the main function
-def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
+def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
     
@@ -22,8 +22,8 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
         Beam data of irradiation
     scan_data : np.array, pytables.Table
         Scan data of irradiation
-    beam_sigma : tuple
-        Beam sigma of the 2D Gaussian beam profile in mm
+    irrad_data : np.array, pytables.Table
+        General data about the irradiation
     bins : tuple, optional
         Binning of the generated fluence map, by default (100, 100)
         CAUTION: the binning is numpy shape, therefore bins are (Y, X)
@@ -35,18 +35,16 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     """
 
     total_scans = np.max(scan_data['scan']) + 1
-    total_rows = total_scans * scan_data['n_rows'][0]
+    n_rows = irrad_data['n_rows'][0]
+    total_rows = total_scans * n_rows
+    beam_sigma = (irrad_data['beam_fwhm_x'][0]/2.3548, irrad_data['beam_fwhm_y'][0]/2.3548)
 
     logging.info(f"Generating fluence distribution from {total_scans} scans, containing {total_rows} total rows")
-    logging.info("Using Gaussian beam model with dimensions {}_x = {} mm, {}_y = {}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
-
-    # Get number of rows; FIXME: get n_rows from *Irrad* data
-    n_rows = np.max(scan_data['row']) + 1  # Rows start at 0
+    logging.info("Using Gaussian beam model with dimensions {}_x = {:.2f} mm, {}_y = {:.2f}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
     
-    # Get scan area; FIXME: get scan area from *Irrad* data
     # Everything in base unit mm
-    scan_area_start = (scan_data[0]['row_start_x'], scan_data[n_rows]['row_start_y'])
-    scan_area_end = (scan_data[0]['row_stop_x'], scan_data[0]['row_start_y'])
+    scan_area_start = (irrad_data['scan_area_start_x'][0], irrad_data['scan_area_start_y'][0])
+    scan_area_end = (irrad_data['scan_area_stop_x'][0], irrad_data['scan_area_stop_y'][0])
 
     # Fluence map
     fluence_map = np.zeros(shape=bins)
@@ -80,7 +78,7 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
                                        map_bin_centers_x=map_bin_centers_x,
                                        map_bin_centers_y=map_bin_centers_y,
                                        beam_sigma=beam_sigma,
-                                       scan_y_offset=scan_area_end[-1],
+                                       scan_y_offset=scan_area_start[-1],
                                        current_row_idx=current_row_idx)
 
     logging.info(f"Finished generating fluence distribution.")
@@ -88,14 +86,14 @@ def generate_fluence_map(beam_data, scan_data, beam_sigma, bins=(100, 100)):
     # Take sqrt of error map squared
     fluence_map_error = np.sqrt(fluence_map_error)                                  
 
-    # Scale from protons / mm² (intrinsic unit) to protons / cm²
+    # Scale from ions / mm² (intrinsic unit) to ions / cm²
     fluence_map *= 100
     fluence_map_error *= 100
 
     return fluence_map, fluence_map_error, map_bin_centers_x, map_bin_centers_y
 
 
-def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, dut_rectangle, center_symm=False):
+def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_data=None, dut_rectangle=None, center_symm=False):
     """
     Extracts the DUT region from the fluence map.
 
@@ -132,11 +130,8 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, dut_recta
         (2D np.ndarray, 1D np.ndarray, 1D np.ndarray) -> (DUT_fluence_map, DUT_map_bins_x, DUT_map_bins_y)
     """
 
-    if center_symm and len(dut_rectangle) != 2:
-        raise ValueError("*dut_rectangle* needs to be in the form of (x_width, y_width)")
-    
-    if not center_symm and len(dut_rectangle) != 4:
-        raise ValueError("*dut_rectangle needs to be in the form of (x_min, y_min, x_max, y_max)")
+    if irrad_data is None and dut_rectangle is None:
+        raise ValueError("Either *irrad_data* or a *dut_rectangle* has to be given")
 
     scan_area_x = map_bin_centers_x[-1] + (map_bin_centers_x[1] - map_bin_centers_x[0])/2.
     scan_area_y = map_bin_centers_y[-1] + (map_bin_centers_y[1] - map_bin_centers_y[0])/2.
@@ -145,10 +140,24 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, dut_recta
     map_bin_edges_x = np.linspace(0, scan_area_x, len(map_bin_centers_x)+1)
     map_bin_edges_y = np.linspace(0, scan_area_y, len(map_bin_centers_y)+1)
 
-    if center_symm:
-        # Extract scan dimensions    
-        dut_rectangle = ((scan_area_x - dut_rectangle[0])/2., (scan_area_y - dut_rectangle[1])/2.,
-                         (scan_area_x + dut_rectangle[0])/2., (scan_area_y + dut_rectangle[1])/2.)
+    get_dut_rect = lambda sax, say, dr: ((sax - dr[0])/2., (say - dr[1])/2., (sax + dr[0])/2., (say + dr[1])/2.)
+    
+    # Prioritize irrad data 
+    if irrad_data is not None:
+        
+        dut_rectangle = (irrad_data['dut_rect_start_x'][0] - irrad_data['scan_area_start_x'][0],
+                         irrad_data['dut_rect_start_y'][0] - irrad_data['scan_area_start_y'][0],
+                         irrad_data['dut_rect_stop_x'][0] - irrad_data['scan_area_start_x'][0],
+                         irrad_data['dut_rect_stop_y'][0] - irrad_data['scan_area_start_y'][0])
+
+    elif dut_rectangle is not None:
+        if center_symm and len(dut_rectangle) != 2:
+            raise ValueError("*dut_rectangle* needs to be in the form of (x_width, y_width)")
+        else:
+            # Extract scan dimensions
+            dut_rectangle = get_dut_rect(scan_area_x, scan_area_y, dut_rectangle)
+        if not center_symm and len(dut_rectangle) != 4:
+            raise ValueError("*dut_rectangle needs to be in the form of (x_min, y_min, x_max, y_max)")
 
     x_min_idx, x_max_idx = np.searchsorted(map_bin_edges_x, dut_rectangle[0]), np.searchsorted(map_bin_edges_x, dut_rectangle[-2], side='right')
     y_min_idx, y_max_idx = np.searchsorted(map_bin_edges_y, dut_rectangle[1]), np.searchsorted(map_bin_edges_y, dut_rectangle[-1], side='right')
@@ -403,7 +412,7 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
     wait_mu_y = row_data['row_start_y'] - scan_y_offset
 
     # Add variation to the uncertainty
-    wait_protons_std = np.std(wait_beam_data['beam_current'])
+    wait_ions_std = np.std(wait_beam_data['beam_current'])
     
     # Loop over currents and apply Gauss kernel at given position
     for i in range(wait_beam_data.shape[0] - 1):
@@ -415,16 +424,16 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
         # Calculate how many seconds this current was present while waiting
         wait_interval = wait_beam_data[i+1]['timestamp'] - wait_beam_data[i]['timestamp']
 
-        # Integrate over *wait_interval* to obtain number of protons induced
-        wait_protons = wait_current * wait_interval / elementary_charge
-        wait_protons_error = wait_current_error * wait_interval / elementary_charge
-        wait_protons_error = (wait_protons_error**2 + wait_protons_std**2)**.5
+        # Integrate over *wait_interval* to obtain number of ions induced
+        wait_ions = wait_current * wait_interval / elementary_charge
+        wait_ions_error = wait_current_error * wait_interval / elementary_charge
+        wait_ions_error = (wait_ions_error**2 + wait_ions_std**2)**.5
 
-        # Apply Gaussian kernel for protons
+        # Apply Gaussian kernel for ions
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               map_2d_error=fluence_map_error,
-                              amplitude=wait_protons,
-                              amplitude_error=wait_protons_error,
+                              amplitude=wait_ions,
+                              amplitude_error=wait_ions_error,
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=wait_mu_x,
@@ -464,7 +473,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     """
 
     # Update row bin times
-    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=2500)  # FIXME: get accel from Irrad data
+    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=row_data['row_scan_accel'])
 
     # Determine communication timing overhead; assume symmetric dead time at row start and end
     row_start_overhead = (row_data['row_stop_timestamp'] - row_data['row_start_timestamp'] - row_bin_transit_times.sum()) / 2.0
@@ -479,23 +488,23 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     row_bin_center_currents = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current'])
     row_bin_center_current_errors = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current_error'])
 
-    # Integrate the current measurements with the times spent in each bin to calculate the amount of protons in the bin
-    row_bin_center_protons = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
-    row_bin_center_proton_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
-    row_bin_center_proton_errors = (row_bin_center_proton_errors**2 + np.std(row_bin_center_protons)**2)**.5
+    # Integrate the current measurements with the times spent in each bin to calculate the amount of ions in the bin
+    row_bin_center_ions = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
+    row_bin_center_ion_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
+    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.std(row_bin_center_ions)**2)**.5
 
     # Loop over row times
-    for i in range(row_bin_center_protons.shape[0]):
+    for i in range(row_bin_center_ions.shape[0]):
         
         # Update mean location of the distribution
         mu_x = map_bin_centers_x[(-(i+1) if row_data['row'] % 2 else i)]
         mu_y = row_data['row_start_y'] - scan_y_offset
         
-        # Apply Gaussian kernel for protons
+        # Apply Gaussian kernel for ions
         apply_gauss_2d_kernel(map_2d=fluence_map,
                               map_2d_error=fluence_map_error,
-                              amplitude=row_bin_center_protons[i],
-                              amplitude_error=row_bin_center_proton_errors[i],
+                              amplitude=row_bin_center_ions[i],
+                              amplitude_error=row_bin_center_ion_errors[i],
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
                               mu_x=mu_x,

@@ -1,13 +1,12 @@
-import yaml
-import os
 from PyQt5 import QtWidgets, QtCore
 from copy import deepcopy
-from irrad_control import network_config, config_path
+from irrad_control import config, config_file
+from irrad_control.utils.tools import save_yaml
 from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets.setup_widgets import SessionSetupWidget, ServerSetupWidget
 
 
-initial_network_config = deepcopy(network_config)
+initial_config = deepcopy(config)
 
 
 class IrradSetupTab(QtWidgets.QWidget):
@@ -65,17 +64,18 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Add main widget
         self.left_widget.layout().addWidget(self.session_setup)
         self.left_widget.layout().addStretch()
-
-        # Button for completing the setup
-        self.btn_ok = QtWidgets.QPushButton('Ok')
-        self.btn_ok.clicked.connect(self.update_setup)
-        self.btn_ok.clicked.connect(lambda: self.setupCompleted.emit(self.setup))
-        self.btn_ok.clicked.connect(self._save_setup)
-        self.btn_ok.setEnabled(False)
-
-        self.left_widget.layout().addWidget(self.btn_ok)
         self.right_widget.layout().addWidget(QtWidgets.QLabel('Selected server(s)'))
         self.right_widget.layout().addWidget(self.server_setup)
+
+        # Button for completing the setup
+        self.btn_launch = QtWidgets.QPushButton('Start session')
+        self.btn_launch.clicked.connect(self.update_setup)
+        self.btn_launch.clicked.connect(lambda: self.setupCompleted.emit(self.setup))
+        self.btn_launch.clicked.connect(self._save_setup)
+        self.btn_launch.setEnabled(False)
+
+        self.left_widget.layout().addWidget(self.btn_launch)
+        
 
         # Connect
         self.session_setup.setupValid.connect(self._check_setup)
@@ -83,7 +83,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
     def _check_setup(self):
         self.isSetup = self.session_setup.isSetup and self.server_setup.isSetup
-        self.btn_ok.setEnabled(self.isSetup)
+        self.btn_launch.setEnabled(self.isSetup)
 
     def handle_server(self, selection):
 
@@ -101,15 +101,18 @@ class IrradSetupTab(QtWidgets.QWidget):
     def _save_setup(self):
         """Save setup dict to yaml file and save in output path"""
 
-        with open(self.setup['session']['outfile'] + '.yaml', 'w') as _setup:
-            yaml.safe_dump(self.setup, _setup, default_flow_style=False)
+        # Save setup
+        save_yaml(path=f"{self.setup['session']['outfile']}.yaml", data=self.setup)
 
-        # Open the network_config.yaml and overwrites it with current server_ips if something changed
-        inc_all = initial_network_config['server']['all']
-        nc_all = network_config['server']['all']
-        if len(inc_all) != len(nc_all) or not all(nc_all[k] == inc_all[k] for k in inc_all):
-            with open(os.path.join(config_path, 'network_config.yaml'), 'w') as nc:
-                yaml.safe_dump(network_config, nc, default_flow_style=False)
+        initial_servers = initial_config['server']['all']
+        current_servers = config['server']['all']
+
+        n_servers_changed = len(initial_servers) != len(current_servers)
+        content_servers_changed = not all(current_servers[k] == initial_servers[k] for k in initial_servers)
+
+        # Open the config.yaml and overwrite it with current server_ips if something changed
+        if n_servers_changed or content_servers_changed:
+            save_yaml(path=config_file, data=config)
 
     def update_setup(self):
         """Update the info into the setup dict"""
@@ -130,7 +133,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
             # Update server name
             server_setup['name'] = server_name
-            network_config['server']['all'][server_ip] = server_name
+            config['server']['all'][server_ip] = server_name
 
             # Readout
             if self.server_setup.setup_widgets[server_ip]['readout_sel'].setup() != 'None':
@@ -160,4 +163,4 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Disable/enable main widgets to set to read_only
         self.session_setup.set_read_only(read_only)
         self.server_setup.set_read_only(read_only)
-        self.btn_ok.setEnabled(not read_only)
+        self.btn_launch.setEnabled(not read_only)

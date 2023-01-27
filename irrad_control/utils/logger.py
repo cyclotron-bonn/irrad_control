@@ -2,11 +2,9 @@ import sys
 import logging
 from PyQt5 import QtCore
 
-try:
-    log_levels = dict(logging._levelToName)  # Py3
-    log_levels.update({k: v for (v, k) in log_levels.items()})
-except AttributeError:
-    log_levels = logging._levelNames  # Py2
+
+log_levels = dict(logging._levelToName)
+log_levels.update({k: v for (v, k) in log_levels.items()})
 
 
 class LoggingStream(QtCore.QObject):

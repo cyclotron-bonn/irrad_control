@@ -1,0 +1,80 @@
+host: 131.220.221.83
+server:
+  131.220.221.101:
+    daq:
+      ekin: 4.485149383544922
+      ekin_initial: 7.0
+      ion: proton
+      kappa:
+        date: Sun Nov  8 04:46:40 2020
+        energy: 10.5
+        nominal: 5.1
+        sigma: 0.5
+      lambda:
+        date: Wed Aug 17 09:00:00 2022
+        energy: 13.452
+        nominal: 0.906
+        sigma: 0.009
+      stopping_power: 63.079198608398436
+      stopping_power_initial: 45.33
+    devices:
+      ADCBoard:
+        init: None
+      IrradDAQBoard:
+        init:
+          address: 32
+          port: /dev/ttyACM1
+          version: v0.2
+      ScanStage:
+        init:
+          axis_addrs:
+          - 1
+          - 2
+          axis_init:
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          - model: LRQ300HL-E01T3A
+            step: 1.953125e-07
+            travel: 0.3
+          config: scan_stage.yaml
+          invert_axis:
+          - 1
+          n_axis: 2
+          port: /dev/ttyACM2
+    name: Server_1
+    readout:
+      ch_groups:
+      - sem
+      - sem
+      - sem
+      - sem
+      - sem
+      ch_numbers:
+      - 0
+      - 1
+      - 2
+      - 3
+      - 4
+      channels:
+      - Left
+      - Right
+      - Up
+      - Down
+      - Sum
+      device: DAQBoard
+      ro_group_scales:
+        ch12: 10000
+        sem: 10000
+      sampling_rate: 100.0
+      types:
+      - sem_left
+      - sem_right
+      - sem_up
+      - sem_down
+      - sem_sum
+      x10_jumper: false
+session:
+  loglevel: NOTSET
+  outfile: /home/irradiation/Desktop/test/irradiation_Thu_Dec_8_16:47:21_2022
+  outfolder: /home/irradiation/Desktop/test

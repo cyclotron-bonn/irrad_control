@@ -5,10 +5,10 @@ import numpy as np
 import os
 from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt5 import QtWidgets, QtCore, QtGui
-from collections import OrderedDict
 
 # Package imports
 import irrad_control.analysis as analysis
+from irrad_control.ions import get_ions
 from irrad_control.gui.widgets.util_widgets import GridContainer
 
 # Matplotlib default colors
@@ -265,7 +265,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
             for sub_plot in plots:
                 splitter.addWidget(sub_plot)
             self.main_splitter.addWidget(splitter)  # Add to main layout
-            splitter.setSizes([self.width() / len(plots)] * len(plots))  # Same width
+            splitter.setSizes([int(self.width() / len(plots))] * len(plots))  # Same width
         else:
             raise TypeError("*plot* must be individual or iterable of plot widgets")
 
@@ -293,11 +293,11 @@ class IrradPlotWidget(pg.PlotWidget):
         self.plt = self.getPlotItem()
 
         # Store curves to be displayed and active curves under cursor
-        self.curves = OrderedDict()
-        self.active_curves = OrderedDict()  # Store channel which is currently active (e.g. statistics are shown)
+        self.curves = dict()
+        self.active_curves = dict()  # Store channel which is currently active (e.g. statistics are shown)
 
         # Hold data
-        self._data = OrderedDict()
+        self._data = dict()
         self._data_is_set = False
 
         # Timer for refreshing plots with a given time interval to avoid unnecessary updating / high load
@@ -475,7 +475,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.plt.setTitle('' if self.name is None else self.name)
 
         # Additional axis if specified
-        if 'right' in self.units:
+        if self.units is not None and 'right' in self.units:
             self.plt.setLabel('right', text='Signal', units=self.units['right'])
 
         # X-axis is time
@@ -489,7 +489,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         self.legend = pg.LegendItem(offset=(80, -50))
         self.legend.setParentItem(self.plt)
 
-        # Make OrderedDict of curves and dict to hold active value indicating whether the user interacts with the curve
+        # Make dict of curves and dict to hold active value indicating whether the user interacts with the curve
         for i, ch in enumerate(self.channels):
             self.curves[ch] = pg.PlotCurveItem(pen=self._colors[i % len(self._colors)])
             self.curves[ch].opts['mouseWidth'] = 20  # Needed for indication of active curves
@@ -606,7 +606,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Create new data and time
         shape = int(round(self._drate) * self._period + 1)
-        new_data = OrderedDict([(ch, np.full(shape=shape, fill_value=np.nan)) for ch in self.channels])
+        new_data = dict([(ch, np.full(shape=shape, fill_value=np.nan)) for ch in self.channels])
         new_time = np.full(shape=shape, fill_value=np.nan)
 
         # Check whether new time and data hold more or less indices
@@ -769,18 +769,19 @@ class PlotPushButton(pg.TextItem):
 class BeamCurrentPlot(ScrollingIrradDataPlot):
     """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
 
-    def __init__(self, channels, daq_device=None, parent=None):
+    def __init__(self, channels, ion, parent=None):
 
         # Call __init__ of ScrollingIrradDataPlot
-        super(BeamCurrentPlot, self).__init__(channels=channels, units={'left': 'A', 'right': 'A'},
-                                              name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+        super(BeamCurrentPlot, self).__init__(channels=channels,
+                                              name=type(self).__name__,
                                               parent=parent)
-
-        self.plt.setLabel('left', text='Beam current', units='A')
-        self.plt.hideAxis('left')
-        self.plt.showAxis('right')
-        self.plt.setLabel('right', text='Beam current', units='A')
-
+        # Scale between beam current and number of ions per second
+        ion_scale = get_ions()[ion].rate(1)
+        self.plt.setLabel('right', text=f'Ion rate', units=f'{ion.capitalize()}s / s')
+        self.plt.setLabel('left', text='Beam current', units='A')                                  
+        self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(scale=ion_scale)
+        
 
 class TemperatureDataPlot(ScrollingIrradDataPlot):
 
@@ -995,9 +996,11 @@ class BeamPositionPlot(IrradPlotWidget):
         get_scale = lambda plt_range, n_bins: float(abs(plt_range[0] - plt_range[1])) / n_bins
 
         # Add and manage position
+        tr = pg.QtGui.QTransform()
+        tr.translate(plot_range[0][0], plot_range[1][0])
+        tr.scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
         self.curves[hist_name] = pg.ImageItem(**kwargs)
-        self.curves[hist_name].translate(plot_range[0][0], plot_range[1][0])
-        self.curves[hist_name].scale(get_scale(plot_range[0], bins[0]), get_scale(plot_range[1], bins[1]))
+        self.curves[hist_name].setTransform(tr)
         self.curves[hist_name].setZValue(-10)
 
     def set_data(self, data):
@@ -1106,9 +1109,9 @@ class FluenceHist(IrradPlotWidget):
         self.plt.setLabel('left', text='Proton fluence', units='cm^-2')
         self.plt.setLabel('right', text='Neutron fluence', units='cm^-2')
         self.plt.setLabel('bottom', text='Scan row')
-        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.getAxis('left').enableAutoSIPrefix(False)
         self.plt.getAxis('right').enableAutoSIPrefix(False)
+        self.plt.getAxis('right').setScale(self.kappa)
         self.plt.setLimits(xMin=0, xMax=self.n_rows, yMin=0)
         self.legend = pg.LegendItem(offset=(80, 80))
         self.legend.setParentItem(self.plt)

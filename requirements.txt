@@ -1,6 +1,6 @@
 numpy  # C-like arrays and vectorized functions
 pyzmq  # 0MQ
-paramiko  # SSH API in python
+paramiko==2.11  # SSH API in python
 pyyaml  # yaml
 tables  # pytables HDF5 library in Python
 matplotlib  # Plotting colors
@@ -9,5 +9,5 @@ pytest  # Tests
 numba  # NumPy -aware JIT Compiler
 tqdm  # Progressbar for analysis
 scipy  # Optimizer
-pyqtgraph==0.11  # Fast plotting
-pyqt5==5.12  # Qt library in Python
+pyqtgraph>=0.13  # Fast plotting
+pyqt5>=5.15.2,<6   # Qt library in Python
