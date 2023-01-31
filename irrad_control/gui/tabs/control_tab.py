@@ -129,18 +129,16 @@ class IrradControlTab(QtWidgets.QWidget):
 
 
     def scan_status(self, server, status='started'):
-        # Set everything read-only when scan starts
+        read_only = status == 'started'
+        # Set read-only state according to 'status'
         for t, w in self.tab_widgets[server].items():
-            w.set_read_only(read_only=True)
-        # Always have scan interactino stuff enabled
-        if status == 'started':
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
-        else:
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(False)
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(True)
-
+            w.set_read_only(read_only=read_only)
+        
+        # Always have scan interactino stuff and status enabled
+        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
+        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
         self.tab_widgets[server]['status'].set_read_only(False)
+        self.tab_widgets[server]['scan'].enable_after_scan_ui(not read_only)
             
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)

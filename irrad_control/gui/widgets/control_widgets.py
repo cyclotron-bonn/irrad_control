@@ -694,32 +694,42 @@ class ScanControlWidget(ControlWidget):
 
         if self.n_rows is not None:
             # Make container
-            self._after_scan_container = GridContainer('After scan')
+            if self._after_scan_container is None:
+        
+                self._after_scan_container = GridContainer('After scan')
+                self.add_widget(self._after_scan_container)
 
-            # Individual row scanning
-            label_scan_row = QtWidgets.QLabel('Scan individual row:')
-            spx_row = QtWidgets.QSpinBox()
-            spx_row.setPrefix('Row: ')
-            spx_row.setRange(0, self.n_rows - 1)
-            spx_speed = QtWidgets.QDoubleSpinBox()
-            spx_speed.setPrefix('Scan speed: ')
-            spx_speed.setSuffix(' mm/s')
-            spx_speed.setRange(1e-3, 110)
-            spx_speed.setValue(self.scan_params['scan_speed'])
-            spx_repeat = QtWidgets.QSpinBox()
-            spx_repeat.setPrefix('Repeat: ')
-            spx_repeat.setRange(1, 100)
-            btn_scan_row = QtWidgets.QPushButton('Scan row')
-            btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                                target='__scan__',
-                                                                cmd='_scan_row',
-                                                                cmd_data={'kwargs': {'row': spx_row.value(),
-                                                                                    'speed': spx_speed.value(),
-                                                                                    'repeat': spx_repeat.value()},
-                                                                          'threaded': True}))
+                # Individual row scanning
+                label_scan_row = QtWidgets.QLabel('Scan individual row:')
+                spx_row = QtWidgets.QSpinBox()
+                spx_row.setPrefix('Row: ')
+                spx_row.setRange(0, self.n_rows - 1)
+                spx_speed = QtWidgets.QDoubleSpinBox()
+                spx_speed.setPrefix('Scan speed: ')
+                spx_speed.setSuffix(' mm/s')
+                spx_speed.setRange(1e-3, 110)
+                spx_speed.setValue(self.scan_params['scan_speed'])
+                spx_repeat = QtWidgets.QSpinBox()
+                spx_repeat.setPrefix('Repeat: ')
+                spx_repeat.setRange(1, 100)
+                btn_scan_row = QtWidgets.QPushButton('Scan row')
+                btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                                    target='__scan__',
+                                                                    cmd='_scan_row',
+                                                                    cmd_data={'kwargs': {'row': self._after_scan_container.widgets['spx_row'].value(),
+                                                                                        'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                                                                        'repeat': self._after_scan_container.widgets['spx_repeat'].value()},
+                                                                            'threaded': True}))
 
-            self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
-            self.add_widget(self._after_scan_container)
+                self._after_scan_container.widgets['spx_row'] = spx_row
+                self._after_scan_container.widgets['spx_speed'] = spx_speed
+                self._after_scan_container.widgets['spx_repeat'] = spx_repeat
+
+                self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
+
+            else:
+                self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)
+                self._after_scan_container.widgets['spx_speed'].setValue(self.scan_params['scan_speed'])
 
     def enable_after_scan_ui(self, enable):
         if self._after_scan_container is not None:
@@ -804,7 +814,7 @@ class DAQControlWidget(ControlWidget):
 
 class StatusInfoWidget(GridContainer):
 
-    def __init__(self, n_status_columns=4, allowed_status_types=(int, float, str, tuple, list)):
+    def __init__(self, n_status_columns=3, allowed_status_types=(int, float, str, tuple, list)):
         super().__init__(name='Status')
 
         # Contains the GridContainer

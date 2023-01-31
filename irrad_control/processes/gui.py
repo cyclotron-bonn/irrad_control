@@ -495,6 +495,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 if data['data']['scan'] == -1:
                     enable = data['data']['status'] == 'scan_row_completed'
                     self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(enable)
+                    self.control_tab.scan_status(server=server, status='started' if not enable else 'stopped')
                     self.control_tab.tab_widgets[server]['scan'].scan_in_progress = not enable
 
             elif data['data']['status'] == 'scan_finished':
@@ -505,6 +506,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.daq_info_widget.record_btns[server].setEnabled(True)
                 self.control_tab.tab_widgets[server]['scan'].init_after_scan_ui()
                 self.control_tab.tab_widgets[server]['scan'].scan_in_progress = False
+                self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(True)
 
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
@@ -647,6 +649,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                       n_rows=reply_data['result']['n_rows'])
                     
                     self.control_tab.scan_status(server=hostname, status='started')
+                    self.control_tab.tab_widgets[hostname]['scan'].enable_after_scan_ui(False)
                     self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
                     self.control_tab.tab_widgets[hostname]['scan'].launch_scan()
                     self.control_tab.tab_widgets[hostname]['scan'].scan_in_progress = True
