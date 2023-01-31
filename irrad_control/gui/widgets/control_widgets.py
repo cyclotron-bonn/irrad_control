@@ -803,7 +803,7 @@ class DAQControlWidget(ControlWidget):
 
 class StatusInfoWidget(GridContainer):
 
-    def __init__(self, n_status_columns=4, allowed_status_types=(int, float, str, tuple)):
+    def __init__(self, n_status_columns=4, allowed_status_types=(int, float, str, tuple, list)):
         super().__init__(name='Status')
 
         # Contains the GridContainer
@@ -842,12 +842,15 @@ class StatusInfoWidget(GridContainer):
 
     def format_status(self, status_key, status_value):
 
-        if isinstance(status_value, tuple) and len(status_value) == 2:
+        if isinstance(status_value, (list, tuple)) and len(status_value) == 2:
             status_text = f"{status_key}=({self._format_float(status_value[0])}+-{self._format_float(status_value[1])})"
         elif isinstance(status_value, float):
             status_text = f'{status_key}={self._format_float(status_value)}'
         else:
             status_text = f'{status_key}={status_value}'
+
+        if len(status_text) > 30:
+            status_text = '{0}=\n{1}'.format(*status_text.split('='))
 
         return self._add_unit(status_key, status_text)
     
@@ -866,7 +869,7 @@ class StatusInfoWidget(GridContainer):
         else:
             self.add_widget(status_container)
 
-    def update_status(self, status, status_values):
+    def update_status(self, status, status_values, ignore_status=(), only_status='all'):
 
         # We have not yet seen this status
         if status not in self._status_containers:
@@ -876,12 +879,19 @@ class StatusInfoWidget(GridContainer):
         container = self._status_containers[status]
         
         for k, v in status_values.items():
-            # Only make status entry for allowed types e.g. ignore lists, arrays, etc
-            if isinstance(v, self.allowed_status_types):
+            # Only make status entry for allowed types e.g. ignore arrays, etc
+            if not isinstance(v, self.allowed_status_types):
+                continue
+            # If we ignore the status
+            if k in ignore_status:
+                continue
+
+            if only_status != 'all' and k not in only_status:
+                continue
                 
-                status_text = self.format_status(status_key=k, status_value=v)
-                if k in self._status_labels[status]:
-                    self._status_labels[status][k].setText(status_text)
-                else:    
-                    self._status_labels[status][k] = QtWidgets.QLabel(status_text)
-                    container.add_widget(self._status_labels[status][k])
+            status_text = self.format_status(status_key=k, status_value=v)
+            if k in self._status_labels[status]:
+                self._status_labels[status][k].setText(status_text)
+            else:    
+                self._status_labels[status][k] = QtWidgets.QLabel(status_text)
+                container.add_widget(self._status_labels[status][k])

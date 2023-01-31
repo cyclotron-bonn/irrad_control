@@ -480,7 +480,14 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
-                self.control_tab.tab_widgets[server]['status'].update_status(status='scan', status_values=data['data'])
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan',
+                                                                             status_values=data['data'],
+                                                                             ignore_status=('speed',
+                                                                                            'accel',
+                                                                                            'x_start',
+                                                                                            'x_stop',
+                                                                                            'y_start',
+                                                                                            'y_stop'))
 
             elif data['data']['status'] in ('scan_row_initiated', 'scan_row_completed'):
 
@@ -501,7 +508,11 @@ class IrradGUI(QtWidgets.QMainWindow):
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
                 
-                self.control_tab.tab_widgets[server]['status'].update_status(status='scan', status_values=data['data'])
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan',
+                                                                             status_values=data['data'],
+                                                                             ignore_status=('fluence_hist',
+                                                                                            'fluence_hist_err',
+                                                                                            'status'))
 
                 # Finish the scan programatically, if wanted
                 self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
@@ -517,7 +528,9 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
-            self.control_tab.tab_widgets[server]['status'].update_status(status=data['data']['axis_domain'], status_values=data['data'])
+            self.control_tab.tab_widgets[server]['status'].update_status(status=data['data']['axis_domain'],
+                                                                         status_values=data['data'],
+                                                                         ignore_status=('axis_domain',))
             # Update motorstage positions after every move
             self.control_tab.tab_widgets[server]['motorstage'].update_motorstage_properties(motorstage=data['data']['axis_domain'],
                                                                                             properties={'position': data['data']['position']},
@@ -634,6 +647,10 @@ class IrradGUI(QtWidgets.QMainWindow):
                     self.control_tab.scan_status(server=hostname, status='started')
                     self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
                     self.control_tab.tab_widgets[hostname]['scan'].launch_scan()
+
+                    self.control_tab.tab_widgets[hostname]['status'].update_status(status='scan',
+                                                                                   status_values=reply_data['result'],
+                                                                                   only_status=('n_rows',))
 
             # Get motorstage responses
             elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
