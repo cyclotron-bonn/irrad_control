@@ -443,6 +443,7 @@ class ScanControlWidget(ControlWidget):
         self._remaining_individual_rows = 0
         self.n_rows = None
         self.auto_finish_scan = True
+        self.scan_in_progress = False
 
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
     
