@@ -334,8 +334,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def send_start_cmd(self):
 
         for server in self.setup['server']:
-            # Start server without timeout: server can take arbitrary amount of time to start because of varying hardware startup times
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=None)
+            # Start server with 60s timeout: server can take some amount of time to start because of varying hardware startup times
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=60)
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
@@ -495,6 +495,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 if data['data']['scan'] == -1:
                     enable = data['data']['status'] == 'scan_row_completed'
                     self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(enable)
+                    self.control_tab.tab_widgets[server]['scan'].scan_in_progress = not enable
 
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
@@ -503,6 +504,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
                 self.control_tab.tab_widgets[server]['scan'].init_after_scan_ui()
+                self.control_tab.tab_widgets[server]['scan'].scan_in_progress = False
 
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
@@ -647,6 +649,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                     self.control_tab.scan_status(server=hostname, status='started')
                     self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
                     self.control_tab.tab_widgets[hostname]['scan'].launch_scan()
+                    self.control_tab.tab_widgets[hostname]['scan'].scan_in_progress = True
 
                     self.control_tab.tab_widgets[hostname]['status'].update_status(status='scan',
                                                                                    status_values=reply_data['result'],
@@ -826,6 +829,31 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             self.close()
 
+    def _validate_no_scan(self):
+
+        scan_in_progress_servers = [s for s in self.setup['server'] if self.control_tab.tab_widgets[s]['scan'].scan_in_progress]
+
+        if scan_in_progress_servers:
+            server_names = ','.join(self.setup['server'][s]['name'] for s in scan_in_progress_servers)
+            msg = "The following server(s) is currently conducting a scan: {}!\n" \
+                  "Are you sure you want to close? This will terminate the scan and shut down the application.\n" \
+                  "Click 'Abort' to terminate the scan and close the application.\n" \
+                  "Click 'Cancel' to continue the scan and the application.".format(server_names)
+
+            msg_box = QtWidgets.QMessageBox(self)
+            msg_box.setWindowTitle('Scan in progress!')
+            msg_box.setText(msg)
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Abort)
+            reply = msg_box.exec()
+
+            if reply == QtWidgets.QMessageBox.Cancel:
+                return False
+            else:
+                for s in scan_in_progress_servers:
+                    self.send_cmd(hostname=s, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'abort'}})
+
+        return True
+
     def closeEvent(self, event):
         """Catches closing event and invokes customized closing routine"""
 
@@ -838,29 +866,32 @@ class IrradGUI(QtWidgets.QMainWindow):
         # We are initiating the shutdown routine
         elif not self._shutdown_initiated:
 
-            logging.info('Initiating shutdown of servers and converter...')
+            # Check if a scan is currently in progress
+            if self._validate_no_scan():
 
-            # Check
-            self.proc_mngr.check_active_processes()
+                logging.info('Initiating shutdown of servers and converter...')
 
-            # Loop over all started processes and send shutdown cmd
-            for host in self.proc_mngr.active_pids:
-                
-                target = 'interpreter' if host == 'localhost' else 'server'
-                
-                shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
-                                           hostname=host,
-                                           cmd_dict={'target': target, 'cmd': 'shutdown'},
-                                           timeout=5)
-                # Make connections
-                self._connect_worker_exception(worker=shutdown_worker)
-                shutdown_worker.signals.finished.connect(lambda h=host: self._stopped_daq_proc_hostnames.append(h))
-                shutdown_worker.signals.finished.connect(self._validate_close)
+                # Check
+                self.proc_mngr.check_active_processes()
 
-                # Start
-                self.threadpool.start(shutdown_worker)
+                # Loop over all started processes and send shutdown cmd
+                for host in self.proc_mngr.active_pids:
+                    
+                    target = 'interpreter' if host == 'localhost' else 'server'
+                    
+                    shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
+                                            hostname=host,
+                                            cmd_dict={'target': target, 'cmd': 'shutdown'},
+                                            timeout=5)
+                    # Make connections
+                    self._connect_worker_exception(worker=shutdown_worker)
+                    shutdown_worker.signals.finished.connect(lambda h=host: self._stopped_daq_proc_hostnames.append(h))
+                    shutdown_worker.signals.finished.connect(self._validate_close)
 
-            self._shutdown_initiated = True
+                    # Start
+                    self.threadpool.start(shutdown_worker)
+
+                self._shutdown_initiated = True
 
         elif self._shutdown_complete:
             logging.info("Shutdown complete.")
