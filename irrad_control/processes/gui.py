@@ -334,8 +334,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def send_start_cmd(self):
 
         for server in self.setup['server']:
-            # Start server without timeout: server can take arbitrary amount of time to start because of varying hardware startup times
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=None)
+            # Start server with 60s timeout: server can take some amount of time to start because of varying hardware startup times
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=60)
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
