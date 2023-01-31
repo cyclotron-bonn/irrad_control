@@ -818,7 +818,7 @@ class StatusInfoWidget(GridContainer):
             status_text += ' MRad'
         elif 'primary' in status_key:
             status_text += ' ion/cm^2'
-        elif any(x in status_key for x in ('position', 'start', 'stop', 'sep', 'fwhm')):
+        elif any(x in status_key for x in ('position', 'start', 'stop', 'sep', 'fwhm', 'travel')):
             status_text += ' mm'
         elif 'neq' in status_key:
             status_text += ' neq/cm^2'
@@ -826,6 +826,10 @@ class StatusInfoWidget(GridContainer):
             status_text += ' nA'
         elif 'seconds' in status_key:
             status_text += ' s'
+        elif 'speed' in status_key:
+            status_text += ' mm/s'
+        elif 'accel' in status_key:
+            status_text += ' mm/s^2'
         
         return status_text
 
@@ -842,6 +846,9 @@ class StatusInfoWidget(GridContainer):
             status_text = f"{status_key}=({self._format_float(status_value[0])}+-{self._format_float(status_value[1])})"
         elif isinstance(status_value, float):
             status_text = f'{status_key}={self._format_float(status_value)}'
+        else:
+            status_text = f'{status_key}={status_value}'
+
         return self._add_unit(status_key, status_text)
     
     def add_status(self, status):
