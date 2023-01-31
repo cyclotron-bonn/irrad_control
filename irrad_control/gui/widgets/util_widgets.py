@@ -23,6 +23,8 @@ class GridContainer(QtWidgets.QGroupBox):
         self.grid.setHorizontalSpacing(x_space)
         self.setLayout(self.grid)
 
+        self._cols_in_row = {}
+
         self._allowed_items = [QtWidgets.QWidget, QtWidgets.QLayout]
 
     def add_allowed_item(self, item):
@@ -58,39 +60,28 @@ class GridContainer(QtWidgets.QGroupBox):
     def add_item(self, item, row=None):
         """Adds *widget* to container where *widget* can be any QWidget or an iterable of QWidgets."""
 
-        if row is not None:
-            if isinstance(row, (int, float)):
-                pass
-            elif row == 'current':
-                row = self.grid.rowCount() - 1
-
-            row_offset = self.columns_in_row(row=row)
+        if row is None:
+            add_to_row = self.grid.rowCount()
+        elif row == 'current':
+            add_to_row = self.grid.rowCount() - 1
         else:
-            row_offset = 0
-            row = self.grid.rowCount()
+            add_to_row = row
+
+        if add_to_row not in self._cols_in_row:
+            self._cols_in_row[add_to_row] = 0
 
         if not self._valid_item(item):
             raise TypeError("Only QWidgets and QLayouts can be added to layout!")
         else:
             # Loop over all items and add to grid
             for i, itm in enumerate(self._prepare_item(item)):
-                self._add_to_grid(itm, row, i + row_offset)
+                self._add_to_grid(itm, add_to_row, i + self._cols_in_row[add_to_row])
+                self._cols_in_row[add_to_row] += 1
 
     def columns_in_row(self, row=None):
-        if row is None:
-            row = self.grid.rowCount()
-            row = row - 1 if row != 0 else row
-        row_count = self.grid.rowCount()
-        if row >= row_count:
-            raise IndexError(f"GridContainer only has {row_count} rows, index {row} invalid.")
-        
-        n_cols = 0
-        item = self.grid.itemAtPosition(row, n_cols)
-        while isinstance(item, QtWidgets.QLayoutItem):
-            item = self.grid.itemAtPosition(row, n_cols)
-            n_cols += 1
-
-        return n_cols
+        if not self._cols_in_row:  # Nothing has been added to widget yet
+            return 0
+        return self._cols_in_row[self.grid.rowCount() - 1 if row is None else row]
 
     def _add_to_grid(self, item, row, col):
 
