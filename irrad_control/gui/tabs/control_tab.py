@@ -139,6 +139,8 @@ class IrradControlTab(QtWidgets.QWidget):
         else:
             self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(False)
             self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(True)
+
+        self.tab_widgets[server]['status'].set_read_only(False)
             
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)
