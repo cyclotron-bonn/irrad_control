@@ -45,7 +45,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
         self.setWindowTitle('Add / edit motorstage positions')
         # Make this window blocking parent window
         self.setWindowModality(QtCore.Qt.ApplicationModal)
-        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
+        self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.resize(int(0.5 * self.screen.width()), int(0.5 * self.screen.height()))
 
         # Main widget

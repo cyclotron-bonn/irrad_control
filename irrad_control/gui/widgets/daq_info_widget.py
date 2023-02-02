@@ -55,7 +55,7 @@ class DaqInfoWidget(QtWidgets.QWidget):
         self.v_space = 50
 
         # Style used for icons
-        self._style = QtWidgets.qApp.style()
+        self._style = QtWidgets.QApplication.style()
 
         # Init user interface
         self._init_ui()

@@ -32,9 +32,9 @@ class PlotWindow(QtWidgets.QMainWindow):
         
         # Window appearance settings
         self.setWindowTitle(type(plot).__name__)
-        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
+        self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.setMinimumSize(0.25 * self.screen.width(), 0.25 * self.screen.height())
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         
         # Set plot as central widget
         self.setCentralWidget(self.pw)
@@ -145,7 +145,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         # Button to reset the contents of the self.pw
         if hasattr(self.pw, 'reset_plot'):
             self.btn_reset = QtWidgets.QPushButton()
-            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.SP_BrowserReload))
+            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
             self.btn_reset.setToolTip('Reset plot')
             self.btn_reset.setFixedSize(25, 25)
             self.btn_reset.clicked.connect(self.pw.reset_plot)
@@ -153,7 +153,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to save contents of self.pw.plt instance
         self.btn_save = QtWidgets.QPushButton()
-        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
+        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DriveFDIcon))
         self.btn_save.setToolTip('Save plot as PNG')
         self.btn_save.setFixedSize(25, 25)
         self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(False))
@@ -162,7 +162,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to move self.pw to PlotWindow instance
         self.btn_open = QtWidgets.QPushButton()
-        self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton))
+        self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton))
         self.btn_open.setToolTip('Open plot in window')
         self.btn_open.setFixedSize(25, 25)
         self.btn_open.clicked.connect(self.move_to_win)
@@ -172,7 +172,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to close self.pw to PlotWindow instance
         self.btn_close = QtWidgets.QPushButton()
-        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
+        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton))
         self.btn_close.setToolTip('Close plot in window')
         self.btn_close.setFixedSize(25, 25)
         self.btn_close.setEnabled(False)
@@ -231,7 +231,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
 
         # Main widget is a vertical splitter
         self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.main_splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
 
         # Colors
@@ -259,7 +259,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
         elif isinstance(plots, (list, tuple)):
             # Create a horizontal splitter
             splitter = QtWidgets.QSplitter()
-            splitter.setOrientation(QtCore.Qt.Horizontal)
+            splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
             splitter.setChildrenCollapsible(False)
             # Loop over individual plots and add them
             for sub_plot in plots:

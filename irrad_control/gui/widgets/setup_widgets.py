@@ -143,11 +143,11 @@ class SessionSetup(BaseSetupWidget):
         edit_folder.setText(self.output_path)
         edit_folder.setReadOnly(True)
         btn_folder = QtWidgets.QPushButton(' Set folder')
-        btn_folder.setIcon(btn_folder.style().standardIcon(QtWidgets.QStyle.SP_DirIcon))
+        btn_folder.setIcon(btn_folder.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DirIcon))
         btn_folder.clicked.connect(self._get_output_folder)
         btn_folder.clicked.connect(lambda _: edit_folder.setText(self.output_path))
         btn_dump = QtWidgets.QPushButton(' Dump')
-        btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
+        btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TrashIcon))
         btn_dump.clicked.connect(lambda _: edit_folder.setText(tmp_path))
 
         # Add to layout

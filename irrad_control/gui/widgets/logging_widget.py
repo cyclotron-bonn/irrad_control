@@ -21,7 +21,7 @@ class LoggingWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.tabs)
 
         # Orientation of tabs on the left side; "West" == 2
-        self.tabs.setTabPosition(0)
+        self.tabs.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
 
         # All available tabs and their priority
         self.log_tabs = [log_levels[lvl] for lvl in sorted([n_lvl for n_lvl in log_levels if isinstance(n_lvl, int)])]
@@ -32,7 +32,7 @@ class LoggingWidget(QtWidgets.QWidget):
         self.log_consoles = {}
 
         # Style for icons
-        self._style = QtWidgets.qApp.style()
+        self._style = QtWidgets.QApplication.style()
 
         # Connect
         self.tabs.currentChanged.connect(lambda idx: self._clear_icon(idx))
@@ -46,11 +46,11 @@ class LoggingWidget(QtWidgets.QWidget):
     def _get_icon(self, level):
 
         # Icons
-        log_icons = {'DEBUG': self._style.SP_MessageBoxInformation,
-                     'INFO': self._style.SP_MessageBoxInformation,
-                     'WARNING': self._style.SP_MessageBoxWarning,
-                     'ERROR': self._style.SP_MessageBoxCritical,
-                     'NOTSET': self._style.SP_MessageBoxQuestion}
+        log_icons = {'DEBUG': self._style.StandardPixmap.SP_MessageBoxInformation,
+                     'INFO': self._style.StandardPixmap.SP_MessageBoxInformation,
+                     'WARNING': self._style.StandardPixmap.SP_MessageBoxWarning,
+                     'ERROR': self._style.StandardPixmap.SP_MessageBoxCritical,
+                     'NOTSET': self._style.StandardPixmap.SP_MessageBoxQuestion}
 
         if level in log_icons:
             return self._style.standardIcon(log_icons[level])
@@ -66,7 +66,7 @@ class LoggingWidget(QtWidgets.QWidget):
                 self.tabs.addTab(self.log_consoles[tab], tab)
 
         # Go to current log level
-        self.tabs.setTabPosition(self.tabs.indexOf(self.log_consoles[self._loglevel]))
+        self.tabs.setCurrentIndex(self.tabs.indexOf(self.log_consoles[self._loglevel]))
 
     def _check_level(self, log):
         # Loop over all logging levels and check which is in log message

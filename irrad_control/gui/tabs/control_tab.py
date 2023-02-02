@@ -58,13 +58,13 @@ class IrradControlTab(QtWidgets.QWidget):
 
         # Split tab in quadrants
         splitter = QtWidgets.QSplitter()
-        splitter.setOrientation(QtCore.Qt.Vertical)
+        splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         splitter.setChildrenCollapsible(False)
         splitter_upper = QtWidgets.QSplitter()
-        splitter_upper.setOrientation(QtCore.Qt.Horizontal)
+        splitter_upper.setOrientation(QtCore.Qt.Orientation.Horizontal)
         splitter_upper.setChildrenCollapsible(False)
         splitter_lower = QtWidgets.QSplitter()
-        splitter_lower.setOrientation(QtCore.Qt.Horizontal)
+        splitter_lower.setOrientation(QtCore.Qt.Orientation.Horizontal)
         splitter_lower.setChildrenCollapsible(False)
 
         # Make quadrants

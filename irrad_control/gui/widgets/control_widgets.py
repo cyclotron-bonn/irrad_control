@@ -743,7 +743,7 @@ class DAQControlWidget(ControlWidget):
     def __init__(self, server, ro_device, parent=None, enable=True):
         self.server = server
         self.ro_device = ro_device
-        self._style = QtWidgets.qApp.style()
+        self._style = QtWidgets.QApplication.style()
         super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
 
     def _init_widget(self):
@@ -804,7 +804,7 @@ class DAQControlWidget(ControlWidget):
         self.update_rec_state(state=True)
 
     def update_rec_state(self, state):
-        icon = self._style.standardIcon(self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton)
+        icon = self._style.standardIcon(self._style.StandardPixmap.SP_DialogYesButton if state else self._style.StandardPixmap.SP_DialogNoButton)
         tooltip = "Recording" if state else "Data recording paused"
         btn_text = "Pause" if state else "Resume"
         self.btn_record.setText(btn_text)

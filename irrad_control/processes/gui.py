@@ -85,10 +85,10 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Main window settings
         self.setWindowTitle(PROJECT_NAME)
-        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
+        self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.setMinimumSize(MINIMUM_RESOLUTION[0], MINIMUM_RESOLUTION[1])
         self.resize(self.screen.width(), self.screen.height())
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
 
         # Create main layout
         self.main_widget = QtWidgets.QWidget()
@@ -100,12 +100,12 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Main splitter
         self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.main_splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
 
         # Sub splitter for log and displaying raw data as it comes in
         self.sub_splitter = QtWidgets.QSplitter()
-        self.sub_splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.sub_splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.sub_splitter.setChildrenCollapsible(False)
 
         # Add to main layout
@@ -125,7 +125,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         """Initialize the menu bar of the IrradControlWin"""
 
         self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction('&Quit', self.file_quit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+        self.file_menu.addAction('&Quit', QtCore.Qt.Key.Key_Control + QtCore.Qt.Key.Key_Q, self.file_quit)
         self.menuBar().addMenu(self.file_menu)
 
         self.settings_menu = QtWidgets.QMenu('&Settings', self)
@@ -135,7 +135,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
         self.appearance_menu.setToolTipsVisible(True)
-        self.appearance_menu.addAction('&Show/hide log', self.handle_log_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
+        self.appearance_menu.addAction('&Show/hide log', QtCore.Qt.Key.Key_Control + QtCore.Qt.Key.Key_L, self.handle_log_ui)
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -204,8 +204,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Dock in which text widget is placed to make it closable without losing log content
         self.log_dock = QtWidgets.QDockWidget()
         self.log_dock.setWidget(self.log_widget)
-        self.log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.log_dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.log_dock.setWindowTitle('Log')
 
         # Add to main layout
@@ -220,7 +220,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Dock in which text widget is placed to make it closable without losing log content
         self.daq_info_dock = QtWidgets.QDockWidget()
         self.daq_info_dock.setWidget(self.daq_info_widget)
-        self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.daq_info_dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea)
         self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
         self.daq_info_dock.setWindowTitle('Data acquisition')
 
