@@ -23,6 +23,8 @@ class GridContainer(QtWidgets.QGroupBox):
         self.grid.setHorizontalSpacing(x_space)
         self.setLayout(self.grid)
 
+        self._cols_in_row = {}
+
         self._allowed_items = [QtWidgets.QWidget, QtWidgets.QLayout]
 
     def add_allowed_item(self, item):
@@ -49,23 +51,37 @@ class GridContainer(QtWidgets.QGroupBox):
         for itm in item:
             yield itm
 
-    def add_layout(self, layout):
-        self.add_item(layout)
+    def add_layout(self, layout, row=None):
+        self.add_item(layout, row)
 
-    def add_widget(self, widget):
-        self.add_item(widget)
+    def add_widget(self, widget, row=None):
+        self.add_item(widget, row)
 
-    def add_item(self, item):
+    def add_item(self, item, row=None):
         """Adds *widget* to container where *widget* can be any QWidget or an iterable of QWidgets."""
 
-        row_count = self.grid.rowCount()
+        if row is None:
+            add_to_row = self.grid.rowCount()
+        elif row == 'current':
+            add_to_row = self.grid.rowCount() - 1
+        else:
+            add_to_row = row
+
+        if add_to_row not in self._cols_in_row:
+            self._cols_in_row[add_to_row] = 0
 
         if not self._valid_item(item):
             raise TypeError("Only QWidgets and QLayouts can be added to layout!")
         else:
             # Loop over all items and add to grid
             for i, itm in enumerate(self._prepare_item(item)):
-                self._add_to_grid(itm, row_count, i)
+                self._add_to_grid(itm, add_to_row, i + self._cols_in_row[add_to_row])
+                self._cols_in_row[add_to_row] += 1
+
+    def columns_in_row(self, row=None):
+        if not self._cols_in_row:  # Nothing has been added to widget yet
+            return 0
+        return self._cols_in_row[self.grid.rowCount() - 1 if row is None else row]
 
     def _add_to_grid(self, item, row, col):
 
@@ -182,7 +198,7 @@ class GridContainer(QtWidgets.QGroupBox):
 class NoBackgroundScrollArea(QtWidgets.QScrollArea):
     """Scroll area which conserves the background color of its content and is frameless"""
 
-    def __init__(self, parent=None):
+    def __init__(self, widget=None, parent=None):
         super(NoBackgroundScrollArea, self).__init__(parent)
         # Set resizeable
         self.setWidgetResizable(True)
@@ -193,6 +209,9 @@ class NoBackgroundScrollArea(QtWidgets.QScrollArea):
         self._p, self._b, = self.palette(), self.backgroundRole()
         self.setAutoFillBackground(True)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
+
+        if widget is not None:
+            self.setWidget(widget)
 
     def setWidget(self, QWidget):
         self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.AlternateBase))

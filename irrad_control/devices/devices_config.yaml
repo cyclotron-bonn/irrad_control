@@ -10,13 +10,47 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
-    port: /dev/ttyACM1
+    port: /dev/ttyUSB2
     version: v0.2
     address: 0x20
 
-ZaberXYStage:
+ScanStage:
   init:
-    serial_port: /dev/ttyACM2
+    config: scan_stage.yaml
+    port: /dev/ttyACM0
+    n_axis: 2
+    axis_addrs:
+      - 1
+      - 2
+    invert_axis:
+      - 1
+    axis_init:
+      - step: 0.1953125e-6
+        travel: 300.0e-3
+        model: LRQ300HL-E01T3A
+      - step: 0.1953125e-6
+        travel: 300.0e-3
+        model: LRQ300HL-E01T3A
+
+SetupTableStage:
+  init:
+    config: setup_table_stage.yaml
+    port: /dev/ttyACM0
+    axis_addr: 3
+    step: 0.1953125e-6
+    travel: 284.0e-3
+    model: LRQ300HL-E01T3A
+
+ExternalCupStage:
+  init:
+    config: external_cup_stage.yaml
+    host: localhost
+    port: 45000
+    udp:
+      - 131.220.221.98
+      - 8802
+    travel: 716.5e-3
+    model: ITEM-Linear-Stage
 
 ArduinoNTCReadout:
   init:
@@ -30,5 +64,5 @@ ArduinoNTCReadout:
 RadiationMonitor:
   init:
     counter_type: GasCounter
-    counter_port: '/dev/ttyACM0'
+    counter_port: '/dev/ttyACM1'
     hv_port: '/dev/ttyUSB1'

@@ -1,38 +1,38 @@
 # Imports
 import os
-import yaml
+from .utils import tools
 
 # Version
-__version__ = '1.2.0'
+__version__ = '2.0.0'
+
+# Dirs to be checked / made
+tmp_dir = '/tmp/irrad_control'
+config_dir = f"{os.path.expanduser('~')}/.config/irrad_control"
 
 # Paths
 package_path = os.path.dirname(__file__)
-config_path = os.path.join(package_path, 'config')
-xy_stage_config_yaml = os.path.join(package_path, 'devices/stage/xy_stage_config.yaml')
-tmp_dir = '/tmp/irrad_control'
+config_path = os.path.abspath(config_dir)
+tmp_path = os.path.abspath(tmp_dir)
+script_path = os.path.abspath(os.path.join(package_path, '../scripts'))
 
-# Shell script to config server
-config_server_script = os.path.join(package_path, 'configure_server.sh')
+# Files
+config_file = os.path.join(config_path, 'config.yaml')
+pid_file = os.path.join(config_path, 'irrad_control.pid')
+lock_file = os.path.join(config_path, 'irrad_control.lck')
 
-# Make tmp folder to store temp files in
-if not os.path.isdir(tmp_dir):
-    os.mkdir(tmp_dir)
+# Check / make
+for check_path in (tmp_path, config_path):
+    if not os.path.isdir(check_path):
+        os.mkdir(check_path)
 
-# Load network and data acquisition config
-with open(os.path.join(config_path, 'network_config.yaml'), 'r') as _nc:
-    network_config = yaml.safe_load(_nc)
+# Check for config.yaml
+if os.path.isfile(config_file):
+    config = tools.load_yaml(path=config_file)
+else:
+    # Create empty config yaml
+    config = {'server': {'all': {}, 'default': None}, 'git': None}
+    tools.save_yaml(path=config_file, data=config)
 
-with open(os.path.join(config_path, 'daq_config.yaml'), 'r') as _dc:
-    daq_config = yaml.safe_load(_dc)
-
-# Keep track of xy stage travel and known positions
-if not os.path.isfile(xy_stage_config_yaml):
-    # Open xy stats template and safe a copy
-    with open(os.path.join(config_path, 'xy_stage_config.yaml'), 'r') as _xys_l:
-        _xy_stage_config_tmp = yaml.safe_load(_xys_l)
-
-    with open(xy_stage_config_yaml, 'w') as _xys_s:
-        yaml.safe_dump(_xy_stage_config_tmp, _xys_s)
-
-with open(os.path.join(package_path, 'devices/stage/xy_stage_config.yaml'), 'r') as _xys:
-    xy_stage_config = yaml.safe_load(_xys)
+if not os.path.isfile(lock_file):
+    with open(lock_file, 'a'):
+        pass

@@ -5,6 +5,8 @@ import subprocess
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
+from matplotlib.pyplot import ion
+
 # Package imports
 import irrad_control.devices.readout as ro
 from irrad_control.utils.logger import log_levels
@@ -13,8 +15,9 @@ from irrad_control.gui.utils import check_unique_input, fill_combobox_items, rem
 from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
-from irrad_control import network_config, daq_config, config_path, tmp_dir
-from irrad_control.utils.tools import safe_yaml, make_path
+from irrad_control import config, config_file, tmp_path
+from irrad_control.utils.tools import save_yaml
+from irrad_control.ions import get_ions
 
 
 def _check_has_text(_edit):
@@ -82,8 +85,8 @@ class SessionSetupWidget(QtWidgets.QWidget):
         network_setup.serverIPsFound.connect(
             lambda ips: None if len(ips) == 0 else
             server_selection.widgets[ips[0]]['checkbox'].setChecked(1)
-            if (network_config['server']['default'] not in ips or len(ips) == 1)
-            else server_selection.widgets[network_config['server']['default']]['checkbox'].setChecked(1)
+            if (config['server']['default'] not in ips or len(ips) == 1)
+            else server_selection.widgets[config['server']['default']]['checkbox'].setChecked(1)
         )
 
         self.layout().addWidget(session_setup)
@@ -145,7 +148,7 @@ class SessionSetup(BaseSetupWidget):
         btn_folder.clicked.connect(lambda _: edit_folder.setText(self.output_path))
         btn_dump = QtWidgets.QPushButton(' Dump')
         btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
-        btn_dump.clicked.connect(lambda _: edit_folder.setText(make_path(tmp_dir)))
+        btn_dump.clicked.connect(lambda _: edit_folder.setText(tmp_path))
 
         # Add to layout
         self.add_widget(widget=[label_folder, edit_folder, btn_dump, btn_folder])
@@ -229,9 +232,9 @@ class NetworkSetup(BaseSetupWidget):
         label_add_server = QtWidgets.QLabel('Add server IP:')
         edit_server = QtWidgets.QLineEdit()
         edit_server.setInputMask("000.000.000.000;_")
-        edit_server.textEdited.connect(lambda text: btn_add_server.setEnabled(text != '...' and text not in network_config['server']['all']))
+        edit_server.textEdited.connect(lambda text: btn_add_server.setEnabled(text != '...' and text not in config['server']['all']))
         edit_server.textEdited.connect(lambda text: btn_add_server.setToolTip(
-            "IP already in list of known server IPs" if text in network_config['server']['all'] else "Add IP to list of known servers"))
+            "IP already in list of known server IPs" if text in config['server']['all'] else "Add IP to list of known servers"))
         btn_add_server = QtWidgets.QPushButton('Add')
         btn_add_server.clicked.connect(lambda _: self._add_to_known_servers(ip=edit_server.text()))
         btn_add_server.clicked.connect(lambda _: self.find_servers())
@@ -242,7 +245,7 @@ class NetworkSetup(BaseSetupWidget):
         self.add_widget(widget=[label_add_server, edit_server, btn_add_server])
 
         self.label_status = QtWidgets.QLabel("Status")
-        self.serverIPsFound.connect(lambda ips: self.label_status.setText("{} of {} known servers found.".format(len(ips), len(network_config['server']['all']))))
+        self.serverIPsFound.connect(lambda ips: self.label_status.setText("{} of {} known servers found.".format(len(ips), len(config['server']['all']))))
 
         # Add to layout
         self.add_widget(widget=self.label_status)
@@ -257,12 +260,12 @@ class NetworkSetup(BaseSetupWidget):
         reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
-            network_config['server']['default'] = ip
+            config['server']['default'] = ip
 
-        network_config['server']['all'][ip] = 'none'
+        config['server']['all'][ip] = 'none'
 
-        # Open the network_config.yaml and overwrites it with current server_ips
-        safe_yaml(path=make_path(config_path, 'network_config.yaml'), data=network_config)
+        # Open the config.yaml and overwrite it with current server_ips
+        save_yaml(path=config_file, data=config)
 
     def find_servers(self):
 
@@ -271,11 +274,11 @@ class NetworkSetup(BaseSetupWidget):
 
     def _find_available_servers(self, timeout=10):
 
-        n_available = len(network_config['server']['all'])
+        n_available = len(config['server']['all'])
         start = time.time()
         while len(self.available_servers) != n_available and time.time() - start < timeout:
 
-            for ip in network_config['server']['all']:
+            for ip in config['server']['all']:
                 # If we already have found this server in the network, continue
                 if ip in self.available_servers:
                     continue
@@ -317,7 +320,7 @@ class ServerSelection(BaseSetupWidget):
             chbx = QtWidgets.QCheckBox(str(ip))
             edit = QtWidgets.QLineEdit()
             default = 'Server_{}'.format(i + 1)
-            edit.setPlaceholderText(default if ip not in network_config['server']['all'] else network_config['server']['all'][ip] if network_config['server']['all'][ip] != 'none' else default)
+            edit.setPlaceholderText(default if ip not in config['server']['all'] else config['server']['all'][ip] if config['server']['all'][ip] != 'none' else default)
 
             # Connect
             chbx.stateChanged.connect(self._setup_changed)
@@ -621,46 +624,123 @@ class DAQSetup(BaseSetupWidget):
     def __init__(self, name, parent=None):
         super(DAQSetup, self).__init__(name=name, parent=parent)
 
+        self.ions = get_ions()
+        self.ion_names = list(self.ions.keys())
+
         # Call setup
         self._init_setup()
 
     def _init_setup(self):
+        
         # Label for name of DAQ device which is represented by the ADC
-        label_sem = QtWidgets.QLabel('SEM name:')
-        label_sem.setToolTip('Name of DAQ SEM e.g. SEM_C')
-        combo_sem = QtWidgets.QComboBox()
-        combo_sem.addItems(daq_config['sem']['all'])
-        combo_sem.setCurrentIndex(daq_config['sem']['all'].index(daq_config['sem']['default']))
+        label_ion = QtWidgets.QLabel('Ion:')
+        combo_ion = QtWidgets.QComboBox()
+        fill_combobox_items(combo_ion, self.ions)
 
         # Add to layout
-        self.add_widget(widget=[label_sem, combo_sem])
+        self.add_widget(widget=[label_ion, combo_ion])
+
+        # Label for name of DAQ device which is represented by the ADC
+        label_energy = QtWidgets.QLabel('Kinetic energy [MeV]:')
+        spbx_energy = QtWidgets.QDoubleSpinBox()
+        spbx_energy.setDecimals(3)
+
+        # Add to layout
+        self.add_widget(widget=[label_energy, spbx_energy])
+
+        # Label for name of DAQ device which is represented by the ADC
+        label_stopping_power = QtWidgets.QLabel('Stopping power [MeV cm²/g]:')
+        label_stopping_power_value = QtWidgets.QLabel()
+
+        # Add to layout
+        self.add_widget(widget=[label_stopping_power, label_stopping_power_value])
 
         # Label for readout scale combobox
-        label_kappa = QtWidgets.QLabel('Proton hardness factor %s:' % u'\u03ba')
+        label_kappa = QtWidgets.QLabel('Hardness factor %s:' % u'\u03ba')
         combo_kappa = QtWidgets.QComboBox()
-        fill_combobox_items(combo_kappa, daq_config['kappa'])
 
         # Add to layout
         self.add_widget(widget=[label_kappa, combo_kappa])
 
         # Proportionality constant related widgets
-        label_prop = QtWidgets.QLabel('Proportionality constant %s [1/V]:' % u'\u03bb')
+        label_prop = QtWidgets.QLabel('Calibration factor %s [1/V]:' % u'\u03bb')
         label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
         combo_prop = QtWidgets.QComboBox()
-        fill_combobox_items(combo_prop, daq_config['lambda'])
 
         # Add to layout
         self.add_widget(widget=[label_prop, combo_prop])
 
+        # Connections
+        combo_ion.currentTextChanged.connect(lambda text: self._setup_ion_selection(ion=text, ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy))
+        spbx_energy.valueChanged.connect(lambda _: self._setup_energy_selection(ion=combo_ion.currentText(), ckappa=combo_kappa, cprop=combo_prop, senergy=spbx_energy, lstop=label_stopping_power_value))
+    
+        combo_ion.currentTextChanged.emit(combo_ion.currentText())
+
         # Store all daq related widgets in dict
-        self.widgets['sem_combo'] = combo_sem
+        self.widgets['ion_combo'] = combo_ion
+        self.widgets['energy_spbx'] = spbx_energy
         self.widgets['kappa_combo'] = combo_kappa
-        self.widgets['prop_combo'] = combo_prop
+        self.widgets['lambda_combo'] = combo_prop
+
+    def _setup_ion_selection(self, ion, ckappa, cprop, senergy):
+
+        hardness = self.ions[ion].hardness_factor(as_dict=True)
+        if hardness is None:
+            ckappa.setEnabled(False)
+            fill_combobox_items(ckappa, {f'Unavailable for {ion}': None})
+        else:
+            ckappa.setEnabled(True)
+            fill_combobox_items(ckappa, hardness)
+
+        calibration = self.ions[ion].calibration(as_dict=True)
+        if calibration is None:
+            cprop.setEnabled(False)
+            fill_combobox_items(cprop, {f'Unavailable for {ion}': None})
+        else:
+            cprop.setEnabled(True)
+            fill_combobox_items(cprop, calibration)
+
+        senergy.setRange(*self.ions[ion].ekin_range())
+        senergy.setValue(senergy.maximum())
+        senergy.valueChanged.emit(senergy.value())
+
+    def _setup_energy_selection(self, ion, ckappa, cprop, senergy, lstop):
+
+        ckappa_idx = self.ions[ion].hardness_factor(at_energy=self.ions[ion].ekin_at_dut(senergy.value()), return_index=True)
+        ckappa.setCurrentIndex(ckappa_idx if ckappa_idx is not None else ckappa.currentIndex())
+
+        cprop_idx = self.ions[ion].calibration(at_energy=senergy.value(), return_index=True)
+        cprop.setCurrentIndex(cprop_idx if cprop_idx is not None else cprop.currentIndex())
+
+        ekin_at_dut = self.ions[ion].ekin_at_dut(energy=senergy.value())
+        if ekin_at_dut != senergy.value():
+            senergy.setSuffix(f" ({ekin_at_dut:.3f} at DUT)")
+        else:
+            senergy.setSuffix('')
+
+        stopping_power = self.ions[ion].stopping_power(energy=senergy.value())
+        if stopping_power:
+            stop_text = f"{stopping_power:.3f}"
+            stopping_power_at_dut = self.ions[ion].stopping_power(energy=senergy.value(), at_dut=True)
+            if stopping_power != stopping_power_at_dut:
+                stop_text += f" ({stopping_power_at_dut:.3f} at DUT)"
+        else:
+            stop_text = f"Unavailable for {ion}"
+        
+        lstop.setText(stop_text)
 
     def setup(self):
-        return {'sem': self.widgets['sem_combo'].currentText(),
-                'lambda': float(self.widgets['prop_combo'].currentText().split()[0]),
-                'kappa': float(self.widgets['kappa_combo'].currentText().split()[0])}
+
+        setup = {}
+        setup['ion'] = self.widgets['ion_combo'].currentText()
+        setup['ekin_initial'] = self.widgets['energy_spbx'].value()
+        setup['stopping_power_initial'] = self.ions[setup['ion']].stopping_power(energy=setup['ekin_initial'])
+        setup['ekin'] = self.ions[setup['ion']].ekin_at_dut(energy=setup['ekin_initial'])
+        setup['stopping_power'] = self.ions[setup['ion']].stopping_power(energy=setup['ekin'])
+        setup['kappa'] = self.ions[setup['ion']].hardness_factor(as_dict=True, at_index=self.widgets['kappa_combo'].currentIndex())
+        setup['lambda'] = self.ions[setup['ion']].calibration(as_dict=True, at_index=self.widgets['lambda_combo'].currentIndex())
+        
+        return setup
 
 
 class ReadoutDeviceSelection(BaseSetupWidget):

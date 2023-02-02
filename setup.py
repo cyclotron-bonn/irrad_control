@@ -9,7 +9,7 @@ _server = 'server' in sys.argv
 if _server:
     sys.argv.remove('server')
 
-version = '1.3.0'
+version = '2.0.0'
 author = 'Pascal Wolf'
 author_email = 'wolf@physik.uni-bonn.de'
 
@@ -19,8 +19,8 @@ with open('requirements.txt' if not _server else 'requirements_server.txt') as f
 # Make dict to pass to setup
 setup_kwargs = {'name': 'irrad_control',
                 'version': version,
-                'description': 'Control software for irradiation facility at HISKP cyclotron at Bonn University',
-                'url': 'https://github.com/SiLab-Bonn/irrad_control',
+                'description': 'Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University',
+                'url': 'https://github.com/Cyclotron-Bonn/irrad_control',
                 'license': 'MIT License',
                 'long_description': '',
                 'author': author,
@@ -34,7 +34,7 @@ setup_kwargs = {'name': 'irrad_control',
                 'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
                 'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
                 'platforms': 'any',
-                'entry_points': {'console_scripts': [('irrad_server = {0}.server:main' if _server else '{0} = {0}.main:main').format('irrad_control'), 'irrad_analyse = irrad_control.analysis.main:main']}
+                'entry_points': {'console_scripts': ['irrad_control = irrad_control.main:main', 'irrad_analyse = irrad_control.analysis.main:main']}
                 }
 
 # Setup
