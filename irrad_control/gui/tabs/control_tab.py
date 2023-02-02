@@ -48,7 +48,7 @@ class IrradControlTab(QtWidgets.QWidget):
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server, enable=any(x in self.setup[server]['devices'] for x in ('ScanStage', 'SetupTableStage', 'ExternalCupStage')))
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'], enable='ScanStage' in self.setup[server]['devices'] and ro_device is not None)
         daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None)
-        status_widget = ic_cntrl_wdgts.StatusInfoWidget('Status')
+        status_widget = ic_cntrl_wdgts.StatusInfoWidget()
 
         # Connect command signals
         motorstage_widget.sendCmd.connect(lambda cmd: self.send_cmd(**cmd))
@@ -129,16 +129,16 @@ class IrradControlTab(QtWidgets.QWidget):
 
 
     def scan_status(self, server, status='started'):
-        # Set everything read-only when scan starts
+        read_only = status == 'started'
+        # Set read-only state according to 'status'
         for t, w in self.tab_widgets[server].items():
-            w.set_read_only(read_only=True)
-        # Always have scan interactino stuff enabled
-        if status == 'started':
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
-        else:
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(False)
-            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(True)
+            w.set_read_only(read_only=read_only)
+        
+        # Always have scan interactino stuff and status enabled
+        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
+        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
+        self.tab_widgets[server]['status'].set_read_only(False)
+        self.tab_widgets[server]['scan'].enable_after_scan_ui(not read_only)
             
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)

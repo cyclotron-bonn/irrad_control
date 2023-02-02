@@ -274,7 +274,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='release_v2', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='status_widget', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -334,8 +334,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def send_start_cmd(self):
 
         for server in self.setup['server']:
-            # Start server without timeout: server can take arbitrary amount of time to start because of varying hardware startup times
-            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=None)
+            # Start server with 60s timeout: server can take some amount of time to start because of varying hardware startup times
+            self.send_cmd(hostname=server, target='server', cmd='start', cmd_data={'setup': self.setup, 'server': server}, timeout=60)
 
         self.send_cmd(hostname='localhost', target='interpreter', cmd='start', cmd_data=self.setup)
 
@@ -468,9 +468,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
 
         elif data['meta']['type'] == 'damage':
-
-            #update_info(scan=data['data']['scan_primary_fluence'][0], unit='p/cm^2')
-            pass
+            self.control_tab.tab_widgets[server]['status'].update_status(status='damage', status_values=data['data'])
 
         elif data['meta']['type'] == 'scan':
 
@@ -482,13 +480,14 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 
-                #self.control_tab.update_info(status='Scanning' if data['data']['status'] == 'scan_start' else 'Turning')
-
-                if data['data']['status'] == 'scan_start':
-                    # Update control
-                    #update_scan_parameters(scan=data['data']['scan'], row=data['data']['row'])
-                    #self.control_tab.update_scan_parameters(scan_speed=data['data']['speed'], unit='mm/s')
-                    pass
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan',
+                                                                             status_values=data['data'],
+                                                                             ignore_status=('speed',
+                                                                                            'accel',
+                                                                                            'x_start',
+                                                                                            'x_stop',
+                                                                                            'y_start',
+                                                                                            'y_stop'))
 
             elif data['data']['status'] in ('scan_row_initiated', 'scan_row_completed'):
 
@@ -496,6 +495,8 @@ class IrradGUI(QtWidgets.QMainWindow):
                 if data['data']['scan'] == -1:
                     enable = data['data']['status'] == 'scan_row_completed'
                     self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(enable)
+                    self.control_tab.scan_status(server=server, status='started' if not enable else 'stopped')
+                    self.control_tab.tab_widgets[server]['scan'].scan_in_progress = not enable
 
             elif data['data']['status'] == 'scan_finished':
                 self.control_tab.scan_status(server=server, status=data['data']['status'])
@@ -504,17 +505,18 @@ class IrradGUI(QtWidgets.QMainWindow):
                 self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(True)
                 self.daq_info_widget.record_btns[server].setEnabled(True)
                 self.control_tab.tab_widgets[server]['scan'].init_after_scan_ui()
+                self.control_tab.tab_widgets[server]['scan'].scan_in_progress = False
+                self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(True)
 
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-                #self.control_tab.update_info(row=data['data']['row_primary_fluence'][0], unit='p/cm^2')
-                #self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-
-                if data['data']['eta_n_scans'] >= 0:
-                    # self.control_tab.update_info(nscan=data['data']['eta_n_scans'])
-                    # FIXME: more precise result would be helpful
-                    pass
+                
+                self.control_tab.tab_widgets[server]['status'].update_status(status='scan',
+                                                                             status_values=data['data'],
+                                                                             ignore_status=('fluence_hist',
+                                                                                            'fluence_hist_err',
+                                                                                            'status'))
 
                 # Finish the scan programatically, if wanted
                 self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
@@ -530,6 +532,9 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
             
         elif data['meta']['type'] == 'axis':
+            self.control_tab.tab_widgets[server]['status'].update_status(status=data['data']['axis_domain'],
+                                                                         status_values=data['data'],
+                                                                         ignore_status=('axis_domain',))
             # Update motorstage positions after every move
             self.control_tab.tab_widgets[server]['motorstage'].update_motorstage_properties(motorstage=data['data']['axis_domain'],
                                                                                             properties={'position': data['data']['position']},
@@ -644,8 +649,14 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                       n_rows=reply_data['result']['n_rows'])
                     
                     self.control_tab.scan_status(server=hostname, status='started')
+                    self.control_tab.tab_widgets[hostname]['scan'].enable_after_scan_ui(False)
                     self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
                     self.control_tab.tab_widgets[hostname]['scan'].launch_scan()
+                    self.control_tab.tab_widgets[hostname]['scan'].scan_in_progress = True
+
+                    self.control_tab.tab_widgets[hostname]['status'].update_status(status='scan',
+                                                                                   status_values=reply_data['result'],
+                                                                                   only_status=('n_rows',))
 
             # Get motorstage responses
             elif sender in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
@@ -821,6 +832,31 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             self.close()
 
+    def _validate_no_scan(self):
+
+        scan_in_progress_servers = [s for s in self.setup['server'] if self.control_tab.tab_widgets[s]['scan'].scan_in_progress]
+
+        if scan_in_progress_servers:
+            server_names = ','.join(self.setup['server'][s]['name'] for s in scan_in_progress_servers)
+            msg = "The following server(s) is currently conducting a scan: {}!\n" \
+                  "Are you sure you want to close? This will terminate the scan and shut down the application.\n" \
+                  "Click 'Abort' to terminate the scan and close the application.\n" \
+                  "Click 'Cancel' to continue the scan and the application.".format(server_names)
+
+            msg_box = QtWidgets.QMessageBox(self)
+            msg_box.setWindowTitle('Scan in progress!')
+            msg_box.setText(msg)
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Abort)
+            reply = msg_box.exec()
+
+            if reply == QtWidgets.QMessageBox.Cancel:
+                return False
+            else:
+                for s in scan_in_progress_servers:
+                    self.send_cmd(hostname=s, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'abort'}})
+
+        return True
+
     def closeEvent(self, event):
         """Catches closing event and invokes customized closing routine"""
 
@@ -833,29 +869,32 @@ class IrradGUI(QtWidgets.QMainWindow):
         # We are initiating the shutdown routine
         elif not self._shutdown_initiated:
 
-            logging.info('Initiating shutdown of servers and converter...')
+            # Check if a scan is currently in progress
+            if self._validate_no_scan():
 
-            # Check
-            self.proc_mngr.check_active_processes()
+                logging.info('Initiating shutdown of servers and converter...')
 
-            # Loop over all started processes and send shutdown cmd
-            for host in self.proc_mngr.active_pids:
-                
-                target = 'interpreter' if host == 'localhost' else 'server'
-                
-                shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
-                                           hostname=host,
-                                           cmd_dict={'target': target, 'cmd': 'shutdown'},
-                                           timeout=5)
-                # Make connections
-                self._connect_worker_exception(worker=shutdown_worker)
-                shutdown_worker.signals.finished.connect(lambda h=host: self._stopped_daq_proc_hostnames.append(h))
-                shutdown_worker.signals.finished.connect(self._validate_close)
+                # Check
+                self.proc_mngr.check_active_processes()
 
-                # Start
-                self.threadpool.start(shutdown_worker)
+                # Loop over all started processes and send shutdown cmd
+                for host in self.proc_mngr.active_pids:
+                    
+                    target = 'interpreter' if host == 'localhost' else 'server'
+                    
+                    shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
+                                            hostname=host,
+                                            cmd_dict={'target': target, 'cmd': 'shutdown'},
+                                            timeout=5)
+                    # Make connections
+                    self._connect_worker_exception(worker=shutdown_worker)
+                    shutdown_worker.signals.finished.connect(lambda h=host: self._stopped_daq_proc_hostnames.append(h))
+                    shutdown_worker.signals.finished.connect(self._validate_close)
 
-            self._shutdown_initiated = True
+                    # Start
+                    self.threadpool.start(shutdown_worker)
+
+                self._shutdown_initiated = True
 
         elif self._shutdown_complete:
             logging.info("Shutdown complete.")

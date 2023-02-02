@@ -443,6 +443,7 @@ class ScanControlWidget(ControlWidget):
         self._remaining_individual_rows = 0
         self.n_rows = None
         self.auto_finish_scan = True
+        self.scan_in_progress = False
 
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
     
@@ -693,32 +694,42 @@ class ScanControlWidget(ControlWidget):
 
         if self.n_rows is not None:
             # Make container
-            self._after_scan_container = GridContainer('After scan')
+            if self._after_scan_container is None:
+        
+                self._after_scan_container = GridContainer('After scan')
+                self.add_widget(self._after_scan_container)
 
-            # Individual row scanning
-            label_scan_row = QtWidgets.QLabel('Scan individual row:')
-            spx_row = QtWidgets.QSpinBox()
-            spx_row.setPrefix('Row: ')
-            spx_row.setRange(0, self.n_rows - 1)
-            spx_speed = QtWidgets.QDoubleSpinBox()
-            spx_speed.setPrefix('Scan speed: ')
-            spx_speed.setSuffix(' mm/s')
-            spx_speed.setRange(1e-3, 110)
-            spx_speed.setValue(self.scan_params['scan_speed'])
-            spx_repeat = QtWidgets.QSpinBox()
-            spx_repeat.setPrefix('Repeat: ')
-            spx_repeat.setRange(1, 100)
-            btn_scan_row = QtWidgets.QPushButton('Scan row')
-            btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                                target='__scan__',
-                                                                cmd='_scan_row',
-                                                                cmd_data={'kwargs': {'row': spx_row.value(),
-                                                                                    'speed': spx_speed.value(),
-                                                                                    'repeat': spx_repeat.value()},
-                                                                          'threaded': True}))
+                # Individual row scanning
+                label_scan_row = QtWidgets.QLabel('Scan individual row:')
+                spx_row = QtWidgets.QSpinBox()
+                spx_row.setPrefix('Row: ')
+                spx_row.setRange(0, self.n_rows - 1)
+                spx_speed = QtWidgets.QDoubleSpinBox()
+                spx_speed.setPrefix('Scan speed: ')
+                spx_speed.setSuffix(' mm/s')
+                spx_speed.setRange(1e-3, 110)
+                spx_speed.setValue(self.scan_params['scan_speed'])
+                spx_repeat = QtWidgets.QSpinBox()
+                spx_repeat.setPrefix('Repeat: ')
+                spx_repeat.setRange(1, 100)
+                btn_scan_row = QtWidgets.QPushButton('Scan row')
+                btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                                    target='__scan__',
+                                                                    cmd='_scan_row',
+                                                                    cmd_data={'kwargs': {'row': self._after_scan_container.widgets['spx_row'].value(),
+                                                                                        'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                                                                        'repeat': self._after_scan_container.widgets['spx_repeat'].value()},
+                                                                            'threaded': True}))
 
-            self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
-            self.add_widget(self._after_scan_container)
+                self._after_scan_container.widgets['spx_row'] = spx_row
+                self._after_scan_container.widgets['spx_speed'] = spx_speed
+                self._after_scan_container.widgets['spx_repeat'] = spx_repeat
+
+                self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
+
+            else:
+                self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)
+                self._after_scan_container.widgets['spx_speed'].setValue(self.scan_params['scan_speed'])
 
     def enable_after_scan_ui(self, enable):
         if self._after_scan_container is not None:
@@ -802,4 +813,96 @@ class DAQControlWidget(ControlWidget):
 
 
 class StatusInfoWidget(GridContainer):
-    pass
+
+    def __init__(self, n_status_columns=3, allowed_status_types=(int, float, str, tuple, list)):
+        super().__init__(name='Status')
+
+        # Contains the GridContainer
+        self._status_containers = {}
+        self._status_labels = defaultdict(dict)
+        self.n_status_columns = n_status_columns
+        self.allowed_status_types = allowed_status_types
+
+    def _add_unit(self, status_key, status_text):
+
+        if 'tid' in status_key:
+            status_text += ' MRad'
+        elif 'primary' in status_key:
+            status_text += ' ion/cm^2'
+        elif any(x in status_key for x in ('position', 'start', 'stop', 'sep', 'fwhm', 'travel')):
+            status_text += ' mm'
+        elif 'neq' in status_key:
+            status_text += ' neq/cm^2'
+        elif 'current' in status_key:
+            status_text += ' nA'
+        elif 'seconds' in status_key:
+            status_text += ' s'
+        elif 'speed' in status_key:
+            status_text += ' mm/s'
+        elif 'accel' in status_key:
+            status_text += ' mm/s^2'
+        
+        return status_text
+
+    def _format_float(self, val):
+        if val < 1 or val > 1e3:
+                formattedf = f'{val:.2E}'
+        else:
+            formattedf = f'{val:.2f}'
+        return formattedf
+
+    def format_status(self, status_key, status_value):
+
+        if isinstance(status_value, (list, tuple)) and len(status_value) == 2:
+            status_text = f"{status_key}=({self._format_float(status_value[0])}+-{self._format_float(status_value[1])})"
+        elif isinstance(status_value, float):
+            status_text = f'{status_key}={self._format_float(status_value)}'
+        else:
+            status_text = f'{status_key}={status_value}'
+
+        if len(status_text) > 30:
+            status_text = '{0}=\n{1}'.format(*status_text.split('='))
+
+        return self._add_unit(status_key, status_text)
+    
+    def add_status(self, status):
+        
+        if status in self._status_containers:
+            return
+
+        status_container = GridContainer(name=status.capitalize())
+        self._status_containers[status] = status_container
+
+        # Get current number of status columns
+        n_cols = self.columns_in_row()
+        if n_cols < self.n_status_columns:
+            self.add_widget(status_container, row='current')
+        else:
+            self.add_widget(status_container)
+
+    def update_status(self, status, status_values, ignore_status=(), only_status='all'):
+
+        # We have not yet seen this status
+        if status not in self._status_containers:
+            self.add_status(status=status)
+
+        # Get container
+        container = self._status_containers[status]
+        
+        for k, v in status_values.items():
+            # Only make status entry for allowed types e.g. ignore arrays, etc
+            if not isinstance(v, self.allowed_status_types):
+                continue
+            # If we ignore the status
+            if k in ignore_status:
+                continue
+
+            if only_status != 'all' and k not in only_status:
+                continue
+                
+            status_text = self.format_status(status_key=k, status_value=v)
+            if k in self._status_labels[status]:
+                self._status_labels[status][k].setText(status_text)
+            else:    
+                self._status_labels[status][k] = QtWidgets.QLabel(status_text)
+                container.add_widget(self._status_labels[status][k])

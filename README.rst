@@ -30,7 +30,7 @@ Installation
 ============
 
 Python >= 3.8 is required (Py3.8 & 3.9 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
-After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.8 environment, named ``irrad``, type
+After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.9 environment, named ``irrad``, type
 
 .. code-block:: bash
 
@@ -77,6 +77,10 @@ Offline Analysis
 From version v1.3.0 onwards, ``irrad_control`` ships with offline analysis utilities, allowing to analyse e.g. irradiation or calibration data.
 The output of ``irrad_control`` are two different file types with the same base name (e.g. ``my_irrad_file``), one containing the configuration (*YAML*) and the other the actual data (*HDF5*).
 Both files are required to be present in the same directory.
+
+**Note**: *Irradiation output files recorded with version 1.3.0 are not compatible with the analysis of versions 2.x.x and greater.
+Please check out the software to the respective version to analyse older files!*
+
 To analyse irradiation data (e.g. NIEL / TID / fluence) use the ``irrad_analyse`` CLI:
 
 .. code-block:: bash
@@ -139,10 +143,11 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 ========
 
-- v1.3.0: Included module for offline analysis of e.g. irradiation data
-- v1.2.0: First version with partial support for updated irradiation setup running on Python 3 
-- v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup
-- v1.0.1: Initial release with semantic verisoning
+- v2.0.0: Full support for the updated irradiation setup, major restructure, flexible irradiation procedures, new features, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.0>`_
+- v1.3.0: Included module for offline analysis of e.g. irradiation data, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.3.0>`_
+- v1.2.0: First version with partial support for updated irradiation setup running on Python 3, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.2.0>`_
+- v1.1.0: Deprecated version supporting Python 2/3 as well as deprecated irradiation setup, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.1.0>`_
+- v1.0.1: Initial release with semantic versioning, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.0.1>`_
 
 Documentation
 =============
