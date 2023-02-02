@@ -77,6 +77,10 @@ Offline Analysis
 From version v1.3.0 onwards, ``irrad_control`` ships with offline analysis utilities, allowing to analyse e.g. irradiation or calibration data.
 The output of ``irrad_control`` are two different file types with the same base name (e.g. ``my_irrad_file``), one containing the configuration (*YAML*) and the other the actual data (*HDF5*).
 Both files are required to be present in the same directory.
+
+**Note**: *Irradiation output files recorded with version 1.3.0 are not compatible with the analysis of versions 2.x.x and greater.
+Please check out the software to the respective version to analyse older files!*
+
 To analyse irradiation data (e.g. NIEL / TID / fluence) use the ``irrad_analyse`` CLI:
 
 .. code-block:: bash
