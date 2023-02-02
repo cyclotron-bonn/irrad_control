@@ -1,6 +1,6 @@
 import logging
 import time
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from collections import defaultdict
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices import DEVICES_CONFIG

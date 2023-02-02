@@ -4,7 +4,7 @@ import pyqtgraph.exporters as pg_ex
 import numpy as np
 import os
 from matplotlib import cm as mcmaps, colors as mcolors
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui
 
 # Package imports
 import irrad_control.analysis as analysis

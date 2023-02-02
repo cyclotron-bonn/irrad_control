@@ -5,7 +5,7 @@ import platform
 import zmq
 from email import message_from_string
 from pkg_resources import get_distribution, DistributionNotFound
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 from threading import Event
 
 # Package imports

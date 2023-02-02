@@ -2,7 +2,7 @@ import os
 import time
 import logging
 import subprocess
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from collections import defaultdict
 
 from matplotlib.pyplot import ion

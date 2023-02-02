@@ -3,7 +3,7 @@ import time
 import logging
 import unittest
 
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 from irrad_control.processes.gui import IrradGUI
 

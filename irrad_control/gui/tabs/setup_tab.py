@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from copy import deepcopy
 from irrad_control import config, config_file
 from irrad_control.utils.tools import save_yaml
