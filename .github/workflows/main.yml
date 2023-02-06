@@ -47,8 +47,11 @@ jobs:
 
       - name: Qt6 default installation
         run: |
-          sudo add-apt-repository ppa:okirby/qt6-backports
-          sudo apt update
+          if [[ ${{ matrix.os }} == 'ubuntu-20.04' ]]; then
+            sudo add-apt-repository ppa:okirby/qt6-backports
+            sudo apt update
+          fi
+          
           sudo apt install qt6-base-dev
         
       - name: Headless display setup
