@@ -51,7 +51,7 @@ jobs:
             sudo add-apt-repository ppa:okirby/qt6-backports
           fi
           sudo apt-get update
-          sudo apt-get install qt6-base-dev
+          sudo apt-get install qt6-base-dev --fix-missing
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
