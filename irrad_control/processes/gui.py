@@ -125,7 +125,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         """Initialize the menu bar of the IrradControlWin"""
 
         self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction('&Quit', QtCore.Qt.Key.Key_Control + QtCore.Qt.Key.Key_Q, self.file_quit)
+        self.file_menu.addAction('&Quit', self.file_quit, QtGui.QKeySequence(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_Q))
         self.menuBar().addMenu(self.file_menu)
 
         self.settings_menu = QtWidgets.QMenu('&Settings', self)
@@ -135,7 +135,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
         self.appearance_menu.setToolTipsVisible(True)
-        self.appearance_menu.addAction('&Show/hide log', QtCore.Qt.Key.Key_Control + QtCore.Qt.Key.Key_L, self.handle_log_ui)
+        self.appearance_menu.addAction('&Show/hide log', self.handle_log_ui, QtGui.QKeySequence(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_L))
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -913,7 +913,7 @@ def run():
     app.setFont(font)
     icg = IrradGUI()
     icg.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
