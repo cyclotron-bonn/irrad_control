@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-18.04, ubuntu-20.04]
         python-version: ["3.9", "3.10"]
 
     runs-on: ${{matrix.os}}    
@@ -47,7 +47,7 @@ jobs:
 
       - name: Qt6 default installation
         run: |
-          if [[ ${{ matrix.os }} == 'ubuntu-20.04' ]]; then
+          if [[ ${{ matrix.os }} != 'ubuntu-latest' ]]; then
             echo "Adding Qt6 backport for ${{ matrix.os }}"
             sudo add-apt-repository ppa:okirby/qt6-backports
           fi
