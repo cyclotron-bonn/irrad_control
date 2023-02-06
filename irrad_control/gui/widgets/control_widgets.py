@@ -380,7 +380,7 @@ class MotorStageControlWidget(ControlWidget):
                     mbox.addButton(QtWidgets.QMessageBox.Abort)
 
                     # Move restricting motorstage first
-                    if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                    if mbox.exec() == QtWidgets.QMessageBox.Ok:
                         self.send_cmd(hostname=self.server,
                                       target=restricting_ms,
                                       cmd='move_abs',
@@ -408,7 +408,7 @@ class MotorStageControlWidget(ControlWidget):
                 mbox.addButton(QtWidgets.QMessageBox.Abort)
 
                 # Move anyway
-                if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                if mbox.exec() == QtWidgets.QMessageBox.Ok:
                     move = True
         # Target motorstage is not restricted, just move
         else:

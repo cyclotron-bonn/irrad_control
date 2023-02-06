@@ -239,7 +239,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             mbox.addButton(QtWidgets.QMessageBox.Yes)
             mbox.addButton(QtWidgets.QMessageBox.Cancel)
 
-            if mbox.exec_() == QtWidgets.QMessageBox.Yes:
+            if mbox.exec() == QtWidgets.QMessageBox.Yes:
                 self.statusBar().showMessage('Apply changes...', 4000)
             else:
                 self.statusBar().showMessage('Cancel', 2000)
