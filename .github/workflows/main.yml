@@ -49,9 +49,8 @@ jobs:
         run: |
           if [[ ${{ matrix.os }} == 'ubuntu-20.04' ]]; then
             sudo add-apt-repository ppa:okirby/qt6-backports
-            sudo apt-get update
           fi
-
+          sudo apt-get update
           sudo apt-get install qt6-base-dev
         
       - name: Headless display setup
