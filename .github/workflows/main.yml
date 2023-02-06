@@ -45,8 +45,11 @@ jobs:
       - name: Package installation
         run: pip install -e .
 
-#      - name: Qt6 default installation
-#        run: sudo apt install qt6-default  # Does not exist 
+      - name: Qt6 default installation
+        run: |
+          sudo add-apt-repository ppa:okirby/qt6-backports
+          sudo apt update
+          sudo apt install qt6-base-dev
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
