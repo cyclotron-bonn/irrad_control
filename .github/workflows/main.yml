@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-20.04, ubuntu-latest]
         python-version: ["3.9", "3.10"]
 
     runs-on: ${{matrix.os}}    
@@ -51,6 +51,7 @@ jobs:
             echo "Adding Qt6 backport for ${{ matrix.os }}"
             sudo add-apt-repository ppa:okirby/qt6-backports
           fi
+          sudo add-apt-repository universe
           sudo apt-get update
           sudo apt-get install qt6-base-dev
           sudo apt-get install -f
