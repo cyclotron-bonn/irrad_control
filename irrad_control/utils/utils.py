@@ -1,8 +1,16 @@
 import logging
 import time
 import  fcntl
+from git import Repo
 
-from irrad_control import lock_file
+
+from irrad_control import lock_file, package_path
+
+
+def get_current_git_branch():
+    
+    # Make repo object and get name
+    return Repo(package_path).head.ref.name
 
 
 def check_zmq_addr(addr):
