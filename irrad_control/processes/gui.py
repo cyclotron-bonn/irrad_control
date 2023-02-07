@@ -274,7 +274,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='status_widget', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='main', git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
