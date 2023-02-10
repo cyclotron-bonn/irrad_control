@@ -14,6 +14,7 @@ from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
+from irrad_control.gui.widgets.sub_windows import MonitorGUI
 
 
 PROJECT_NAME = 'Irrad Control'
@@ -907,55 +908,21 @@ class IrradGUI(QtWidgets.QMainWindow):
             event.ignore()
 
 
-class MonitorGUI(IrradGUI):
-    """
-    GUI for just monitoring e.g. adjustments of the beam by operators or simply observing beam / environmental parameters.
-    Subclass of *IrradGUI* with limited functionality.
-
-    Parameters
-    ----------
-    IrradGUI : _type_
-        _description_
-    """
-    def __init__(self, setup, parent=None):
-        super().__init__(parent)
-
-        self._init_setup(setup=self.setup)
-
-    def _process_setup(self, setup):
-        pass
-
-    def _init_tabs(self):
-        """
-        Initializes the tabs for the monitor window
-        """
-        # Add tab_widget and widgets for the different analysis steps
-        self.tab_order = ('Control',)
-
-        for tab in self.tab_order:
-            tw = QtWidgets.QWidget()
-            self.tabs.addTab(tw, tab)
-
-    def update_tabs(self):
-
-        self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs, plot_path=self.setup['session']['outfolder'])
-
-        # Make temporary dict for updated tabs
-        tmp_tw = {'Monitor': self.monitor_tab}
-
-        for tab in self.tab_order:
-            # Remove old tab, insert updated tab at same index and set status
-            self.tabs.removeTab(self.tab_order.index(tab))
-            self.tabs.insertTab(self.tab_order.index(tab), tmp_tw[tab], tab)
-
-
 def run(mode='irrad'):
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
-    font.setPointSize(11)
+    
+    if mode == 'irrad':
+        font.setPointSize(11)
+        gui = IrradGUI()
+        gui.show()
+    elif mode == 'monitor':
+        font.setPointSize(12)  # A slightly bigger fontsize for the operators ;)
+        gui = MonitorGUI()
+    else:
+        raise RuntimeError(f"Unknown GUI mode '{mode}'")
+    
     app.setFont(font)
-    gui = IrradGUI() if mode == 'irrad' else MonitorGUI()
-    gui.show()
     sys.exit(app.exec())
 
 

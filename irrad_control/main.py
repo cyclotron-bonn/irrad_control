@@ -32,6 +32,7 @@ def main():
     process_group = process_parser.add_mutually_exclusive_group()
 
     process_group.add_argument('--gui', required=False, action='store_true')
+    process_group.add_argument('--monitor', required=False, action='store_true')
     process_group.add_argument('--server', required=False, action='store_true')
     process_group.add_argument('--converter', required=False, action='store_true')
     process_group.add_argument('--version', required=False, action='store_true')  # Get irrad_control version
@@ -48,6 +49,10 @@ def main():
 
     elif parsed['gui']:
         _run_irrad_control_process(proc='gui')
+    
+    elif parsed['monitor']:
+        gui = _load_irrad_control_process(proc='gui')
+        gui.run(mode='monitor')
 
     elif parsed['converter']:
         _run_irrad_control_process(proc='converter')
