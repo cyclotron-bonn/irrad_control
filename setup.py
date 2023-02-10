@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 from setuptools import setup, find_packages  # This setup relies on setuptools since distutils is insufficient and badly hacked code
-from .scripts.init_desktop_file import make_desktop_entry
+from scripts.init_desktop_file import make_desktop_entry
 
 
 # Figure out if we're installing on control PC or on server
