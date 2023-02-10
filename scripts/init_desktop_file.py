@@ -6,7 +6,6 @@ import configparser
 def generate_desktop_file(version):
     # Generate .dektop file
     abs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    print(abs_dir)
     desktop_file = configparser.ConfigParser()
     desktop_file.optionxform = str  # Case sensitive
     desktop_file.read(os.path.join(abs_dir, 'assets', 'irrad_control.desktop'))
@@ -15,6 +14,7 @@ def generate_desktop_file(version):
     desktop_file['Desktop Entry']['Icon'] = os.path.join(abs_dir, 'assets', 'icon.png')
     desktop_file['Desktop Action control-window']['Exec'] = ' '.join([sys.executable, os.path.join(abs_dir, 'irrad_control', 'main.py'), '--gui'])
     desktop_file['Desktop Action monitor-window']['Exec'] = ' '.join([sys.executable, os.path.join(abs_dir, 'irrad_control', 'main.py'), '--monitor'])
+    return desktop_file
 
 
 def register_desktop_file(conf_parser):
