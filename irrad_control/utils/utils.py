@@ -10,7 +10,7 @@ from irrad_control import lock_file, package_path
 def get_current_git_branch():
     
     # Make repo object and get name
-    return Repo(package_path).head.ref.name
+    return Repo(package_path, search_parent_directories=True).head.ref.name
 
 
 def check_zmq_addr(addr):
