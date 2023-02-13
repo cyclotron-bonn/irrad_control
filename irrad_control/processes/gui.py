@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import time
 import logging
 import platform
@@ -14,7 +14,12 @@ from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
-from irrad_control.gui.widgets.sub_windows import MonitorGUI
+from irrad_control.gui.widgets.setup_widgets import SessionSetup
+from irrad_control.ions import get_ions
+from irrad_control.gui.utils import fill_combobox_items
+from irrad_control.gui.widgets.util_widgets import GridContainer
+from irrad_control.utils.tools import load_yaml
+from irrad_control import config_path
 
 
 PROJECT_NAME = 'Irrad Control'
@@ -908,21 +913,13 @@ class IrradGUI(QtWidgets.QMainWindow):
             event.ignore()
 
 
-def run(mode='irrad'):
+def run():
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
-    
-    if mode == 'irrad':
-        font.setPointSize(11)
-        gui = IrradGUI()
-        gui.show()
-    elif mode == 'monitor':
-        font.setPointSize(12)  # A slightly bigger fontsize for the operators ;)
-        gui = MonitorGUI()
-    else:
-        raise RuntimeError(f"Unknown GUI mode '{mode}'")
-    
+    font.setPointSize(11)
     app.setFont(font)
+    gui = IrradGUI()
+    gui.show()
     sys.exit(app.exec())
 
 
