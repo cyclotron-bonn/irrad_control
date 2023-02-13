@@ -6,14 +6,15 @@ import configparser
 def generate_desktop_file(version):
     # Generate .dektop file
     abs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    irrad_control_bin = os.path.join(os.path.dirname(sys.executable), 'irrad_control')
     desktop_file = configparser.ConfigParser()
     desktop_file.optionxform = str  # Case sensitive
     desktop_file.read(os.path.join(abs_dir, 'assets', 'irrad_control.desktop'))
     desktop_file['Desktop Entry']['Version'] = version
-    desktop_file['Desktop Entry']['Exec'] = ' '.join([sys.executable, os.path.join(abs_dir, 'irrad_control', 'main.py')])
+    desktop_file['Desktop Entry']['Exec'] = irrad_control_bin
     desktop_file['Desktop Entry']['Icon'] = os.path.join(abs_dir, 'assets', 'icon.png')
-    desktop_file['Desktop Action control-window']['Exec'] = ' '.join([sys.executable, os.path.join(abs_dir, 'irrad_control', 'main.py'), '--gui'])
-    desktop_file['Desktop Action monitor-window']['Exec'] = ' '.join([sys.executable, os.path.join(abs_dir, 'irrad_control', 'main.py'), '--monitor'])
+    desktop_file['Desktop Action control-window']['Exec'] = f'{irrad_control_bin} --gui'
+    desktop_file['Desktop Action monitor-window']['Exec'] = f'{irrad_control_bin} --monitor'
     return desktop_file
 
 
