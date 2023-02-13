@@ -526,7 +526,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Set color and text
         current_stat_color = (100, 100, 100) if n_actives != 1 else self.curves[current_actives[0]].opts['pen'].color()
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
     def reset_plot(self):
@@ -1064,7 +1064,7 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Set color and text
         current_stat_color = (100, 100, 100)
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
     def refresh_plot(self):
@@ -1271,7 +1271,7 @@ class SEYFractionHist(IrradPlotWidget):
 
         # Set color and text
         current_stat_color = (100, 100, 100)
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
     def refresh_plot(self):
