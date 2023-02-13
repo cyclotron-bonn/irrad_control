@@ -575,7 +575,7 @@ class NTCSetup(BaseSetupWidget):
             chbx.stateChanged.connect(lambda state, e=edit: e.setEnabled(state))
             if i == 0:
                 chbx.setChecked(True)
-            chbx.stateChanged.emit(chbx.checkState())
+            chbx.stateChanged.emit(int(chbx.isChecked()))
             chbxs.append(chbx)
             edits.append(edit)
 

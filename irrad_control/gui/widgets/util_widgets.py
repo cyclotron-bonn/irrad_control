@@ -203,17 +203,17 @@ class NoBackgroundScrollArea(QtWidgets.QScrollArea):
         # Set resizeable
         self.setWidgetResizable(True)
         # Set scroll bars
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         # Palette and background role
         self._p, self._b, = self.palette(), self.backgroundRole()
         self.setAutoFillBackground(True)
-        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
 
         if widget is not None:
             self.setWidget(widget)
 
     def setWidget(self, QWidget):
-        self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.AlternateBase))
+        self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.ColorRole.AlternateBase))
         self.setPalette(self._p)
         super(NoBackgroundScrollArea, self).setWidget(QWidget)
