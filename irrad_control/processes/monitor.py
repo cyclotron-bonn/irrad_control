@@ -24,7 +24,7 @@ class MonitorGUI(IrradGUI):
     """
     def __init__(self, setup=None, parent=None):
         super().__init__(parent)
-        
+
         self.setup = setup
 
         self.ions = get_ions()
@@ -76,7 +76,7 @@ class MonitorGUI(IrradGUI):
         # Loop over servers in setup
         for server in self.setup['server']:
 
-            server_name = self.setup['sever'][server]['name']
+            server_name = self.setup['server'][server]['name']
 
             # Monitor specific inputs
             monitor_widget = GridContainer('Monitor input')
@@ -85,14 +85,20 @@ class MonitorGUI(IrradGUI):
             label_ion = QtWidgets.QLabel('Ion type:')
             combo_ion = QtWidgets.QComboBox()
             fill_combobox_items(combo_ion, self.ions)
-            # Update ion type
-            combo_ion.currentTextChanged.connect(lambda ion, s=server: self.setup['server'][s]['daq'].update({'ion': ion}))
 
             # Energy
             label_energy = QtWidgets.QLabel('Kinetic energy:')
             spbx_energy = QtWidgets.QDoubleSpinBox()
             spbx_energy.setDecimals(3)
             spbx_energy.setSuffix(' MeV')
+
+            # Connections
+            
+            # Update ion type
+            for con in [lambda ion, s=server: self.setup['server'][s]['daq'].update({'ion': ion}),
+                        lambda ion, spx=spbx_energy: spx.setRange(*self.ions[ion].ekin_range())]:
+                combo_ion.currentTextChanged.connect(con)
+             
             # Update energy, energy at dut and calibration
             for con in [lambda ene, s=server: 
                         self.setup['server'][s]['daq'].update({'ekin_initial': ene,
@@ -117,10 +123,11 @@ class MonitorGUI(IrradGUI):
         
         # Button start
         btn_start = QtWidgets.QPushButton('Start monitor')
-        btn_start.clicked.connect(lambda _: self._init_setup(setup=self.setup))
         btn_start.clicked.connect(lambda _, mw=main_widget: mw.setEnabled(False))
         btn_start.clicked.connect(self.minimal_input_window.close)
         btn_start.clicked.connect(self.show)
+        btn_start.clicked.connect(lambda _: self._init_setup(setup=self.setup))
+        
         main_widget.layout().addStretch()
         main_widget.layout().addWidget(btn_start)
         self.minimal_input_window.show()
@@ -130,7 +137,7 @@ class MonitorGUI(IrradGUI):
         Initializes the tabs for the monitor window
         """
         # Add tab_widget and widgets for the different analysis steps
-        self.tab_order = ('Control',)
+        self.tab_order = ('Monitor',)
 
         for tab in self.tab_order:
             tw = QtWidgets.QWidget()
@@ -155,7 +162,6 @@ def run():
     font.setPointSize(12)
     app.setFont(font)
     gui = MonitorGUI()
-    gui.show()
     sys.exit(app.exec())
 
 
