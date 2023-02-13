@@ -5,15 +5,13 @@ import subprocess
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
-from matplotlib.pyplot import ion
-
 # Package imports
 import irrad_control.devices.readout as ro
 from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.utils import check_unique_input, fill_combobox_items, remove_widget, get_host_ip
 from irrad_control.devices import DEVICES_CONFIG
-from irrad_control.gui.widgets import GridContainer, NoBackgroundScrollArea
+from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control import config, config_file, tmp_path
 from irrad_control.utils.tools import save_yaml
