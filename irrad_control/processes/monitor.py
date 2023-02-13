@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from irrad_control.processes.gui import IrradGUI
@@ -104,7 +105,7 @@ class MonitorGUI(IrradGUI):
                         self.setup['server'][s]['daq'].update({'ekin_initial': ene,
                                                                'ekin': self.ions[self.setup['server'][s]['daq']['ion']].ekin_at_dut(ene)}),
                         lambda ene, s=server: 
-                        self.setup['server'][s]['daq']['lambda'].update(self.ions[self.setup['server'][s]['daq']['ion']].calibration(at_energy=ene, to_dict=True))]:
+                        self.setup['server'][s]['daq'].update({'lambda': self.ions[self.setup['server'][s]['daq']['ion']].calibration(at_energy=ene, as_dict=True)})]:
             
                 spbx_energy.valueChanged.connect(con)
 
@@ -154,6 +155,123 @@ class MonitorGUI(IrradGUI):
             # Remove old tab, insert updated tab at same index and set status
             self.tabs.removeTab(self.tab_order.index(tab))
             self.tabs.insertTab(self.tab_order.index(tab), tmp_tw[tab], tab)
+
+    def _started_daq_proc(self, hostname):
+        """A DQAProcess has been sucessfully started on *hostname*"""
+        
+        self._started_daq_proc_hostnames.append(hostname)
+
+        # Enable Control and Monitor tabs for this
+        if hostname in self.setup['server']:
+            self.monitor_tab.enable_monitor(server=hostname)
+
+        # All servers have launched successfully
+        if all(s in self._started_daq_proc_hostnames for s in self.setup['server']):
+            # The interpreter has also succesfully started
+            if 'localhost' in self._started_daq_proc_hostnames:
+
+                # The application has started succesfully
+                logging.info("All servers and the converter have started successfully!")
+                self.pdiag.setLabelText('Application launched successfully!')
+                self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
+                QtCore.QTimer.singleShot(1500, self.pdiag.close)
+
+    def handle_data(self, data):
+
+        server = data['meta']['name']
+
+        # Check whether data is interpreted
+        if data['meta']['type'] == 'raw':
+            self.daq_info_widget.update_raw_data(data)
+            self.monitor_tab.plots[server]['raw_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        # Check whether data is interpreted
+        elif data['meta']['type'] == 'beam':
+            self.daq_info_widget.update_beam_current(data)
+            self.monitor_tab.plots[server]['pos_plot'].set_data(data)
+            self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
+
+            if 'frac_h' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
+            if 'frac_v' in data['data']['sey']:
+                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
+
+        elif data['meta']['type'] == 'hist':
+            if 'beam_position_idxs' in data['data']:
+                self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
+            if 'sey_horizontal_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['sey_horizontal_idx'])
+            if 'sey_vertical_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
+
+        elif data['meta']['type'] == 'temp_arduino':
+
+            self.monitor_tab.plots[server]['temp_arduino_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'temp_daq_board':
+            self.monitor_tab.plots[server]['temp_daq_board_plot'].set_data(meta=data['meta'], data=data['data'])
+
+        elif data['meta']['type'] == 'dose_rate':
+            self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
+
+    def handle_reply(self, reply_dict):
+
+        reply = reply_dict['reply']
+        _type = reply_dict['type']
+        sender = reply_dict['sender']
+        hostname = reply_dict['hostname']
+        reply_data = None if 'data' not in reply_dict else reply_dict['data']
+
+        if _type == 'STANDARD':
+
+            if sender == 'server':
+
+                if reply == 'start':
+                    logging.info("Successfully started server on at IP {} with PID {}".format(hostname, reply_data))
+                    self._started_daq_proc(hostname=hostname)
+
+                elif reply == 'shutdown':
+
+                    logging.info("Server at {} confirmed shutdown".format(hostname))
+
+            elif sender == 'IrradDAQBoard':
+
+                if reply == 'set_ifs':
+                    cmd_data = {'server': hostname,
+                                'ifs': reply_data['callback']['result'],
+                                'group': reply_data['call']['kwargs']['group']}
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='update_group_ifs', cmd_data=cmd_data)
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='record_data', cmd_data=(hostname, True))
+
+            elif sender == 'interpreter':
+
+                if reply == 'start':
+                    logging.info("Successfully started interpreter on {} with PID {}".format(hostname, reply_data))
+                    self._started_daq_proc(hostname=hostname)
+
+                if reply == 'record_data':
+                    server, state = reply_data
+                    self.daq_info_widget.update_rec_state(server=server, state=state)
+
+                if reply == 'shutdown':
+
+                    logging.info("Interpreter confirmed shutdown")
+
+            # Debug
+            msg = "Standard {} reply received: '{}' with data '{}'".format(sender, reply, reply_data)
+            logging.debug(msg)
+
+        elif _type == 'ERROR':
+            msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
+            logging.error(msg)
+            if self.log_dock.isHidden():
+                self.log_dock.setVisible(True)
+
+        else:
+            logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
+
+    def _validate_no_scan(self):
+        return True
 
 
 def run():
