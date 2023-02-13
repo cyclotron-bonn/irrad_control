@@ -817,7 +817,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 msg_box = QtWidgets.QMessageBox(self)
                 msg_box.setWindowTitle('Shutdown could not be validated')
                 msg_box.setText(msg)
-                msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.StandardButton.Abort)
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ignore | QtWidgets.QMessageBox.StandardButton.Retry | QtWidgets.QMessageBox.StandardButton.Abort)
                 reply = msg_box.exec()
 
                 if reply == QtWidgets.QMessageBox.StandardButton.Ignore:
