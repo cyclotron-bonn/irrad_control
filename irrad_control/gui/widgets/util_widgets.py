@@ -190,8 +190,8 @@ class GridContainer(QtWidgets.QGroupBox):
 
         # Set color palette to indicate status
         palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Base, QtCore.Qt.gray if read_only else QtCore.Qt.white)
-        palette.setColor(QtGui.QPalette.Text, QtCore.Qt.darkGray if read_only else QtCore.Qt.black)
+        palette.setColor(QtGui.QPalette.ColorRole.Base, QtCore.Qt.gray if read_only else QtCore.Qt.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.darkGray if read_only else QtCore.Qt.black)
         widget.setPalette(palette)
 
 

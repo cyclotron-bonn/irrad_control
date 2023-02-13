@@ -56,7 +56,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # PlotWidget to display; set size policy 
         self.pw = plot
-        self.pw.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.pw.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         self.external_win = None
 
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
@@ -113,7 +113,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             label = self.pw.plt.getAxis('left').labelText or 'Value'
             self.helper_line = pg.InfiniteLine(angle=0, label=label + ': {value:.2E} ' + unit)
             self.helper_line.setMovable(True)
-            self.helper_line.setPen(color='w', style=pg.QtCore.Qt.DashLine, width=2)
+            self.helper_line.setPen(color='w', style=pg.QtCore.Qt.PenStyle.DashLine, width=2)
             if hasattr(self.pw, 'unitChanged'):
                 self.pw.unitChanged.connect(lambda u: setattr(self.helper_line.label, 'format', self.pw.plt.getAxis('left').labelText + ': {value:.2E} ' + u))
                 self.pw.unitChanged.connect(self.helper_line.label.valueChanged)
@@ -224,7 +224,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
         super(MultiPlotWidget, self).__init__(parent)
 
         # Some basic settings
-        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -236,7 +236,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
 
         # Colors
         p, r = self.palette(), self.backgroundRole()
-        p.setColor(r, self.main_splitter.palette().color(QtGui.QPalette.AlternateBase))
+        p.setColor(r, self.main_splitter.palette().color(QtGui.QPalette.ColorRole.AlternateBase))
         self.setPalette(p)
         self.setAutoFillBackground(True)
 
@@ -313,7 +313,7 @@ class IrradPlotWidget(pg.PlotWidget):
         self._in_plot_btns = []
 
         # TextItem for showing statistic of curves; set invisible first, only show on user request
-        self.stats_text = pg.TextItem(text='No statistics to show', border=pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine))
+        self.stats_text = pg.TextItem(text='No statistics to show', border=pg.mkPen(color='w', style=pg.QtCore.Qt.PenStyle.SolidLine))
         self._static_stats_text = False
         self._show_stats = False  # Show statistics of curves
         self.stats_text.setVisible(False)
@@ -736,7 +736,7 @@ class PlotPushButton(pg.TextItem):
     def __init__(self, plotitem, **kwargs):
 
         if 'border' not in kwargs:
-            kwargs['border'] = pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine)
+            kwargs['border'] = pg.mkPen(color='w', style=pg.QtCore.Qt.PenStyle.SolidLine)
 
         super(PlotPushButton, self).__init__(**kwargs)
 
@@ -815,9 +815,9 @@ class CrosshairItem:
         self.intersect = pg.ScatterPlotItem()
 
         # Drawing style
-        self.h_shift_line.setPen(color=color, style=pg.QtCore.Qt.SolidLine, width=2)
-        self.v_shift_line.setPen(color=color, style=pg.QtCore.Qt.SolidLine, width=2)
-        self.intersect.setPen(color=color, style=pg.QtCore.Qt.SolidLine)
+        self.h_shift_line.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine, width=2)
+        self.v_shift_line.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine, width=2)
+        self.intersect.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine)
         self.intersect.setBrush(color=color)
         self.intersect.setSymbol('o' if intersect_symbol is None else intersect_symbol)
         self.intersect.setSize(10)
@@ -943,8 +943,8 @@ class BeamPositionPlot(IrradPlotWidget):
 
         self.enable_stats()
 
-        v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
-        h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
+        v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.PenStyle.DashLine})
+        h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.PenStyle.DashLine})
         _ = pg.InfLineLabel(line=h_line, text='Left', position=0.05, movable=False)
         _ = pg.InfLineLabel(line=h_line, text='Right', position=0.95, movable=False)
         _ = pg.InfLineLabel(line=v_line, text='Up', position=0.95, movable=False)
@@ -1123,7 +1123,7 @@ class FluenceHist(IrradPlotWidget):
 
         # Points at respective row positions
         self.curves['points'] = pg.ScatterPlotItem()
-        self.curves['points'].setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.SolidLine)
+        self.curves['points'].setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.PenStyle.SolidLine)
         self.curves['points'].setBrush(color=_MPL_COLORS[2])
         self.curves['points'].setSymbol('o')
         self.curves['points'].setSize(10)

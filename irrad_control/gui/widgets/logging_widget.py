@@ -8,7 +8,7 @@ class LoggingWidget(QtWidgets.QWidget):
     Each log levels messages are displayed in a scrolling text edit in its own tab.
     """
 
-    def __init__(self, level='INFO', parent=None):
+    def __init__(self, level='NOTSET', parent=None):
         super(LoggingWidget, self).__init__(parent)
 
         # Layout

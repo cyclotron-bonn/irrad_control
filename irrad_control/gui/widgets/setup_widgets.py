@@ -257,9 +257,9 @@ class NetworkSetup(BaseSetupWidget):
         """Add IP address *ip* to irrad_control.server_ips. Sets default IP if wanted"""
 
         msg = 'Set {} as default server address?'.format(ip)
-        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.StandardButton.Yes, QtWidgets.QMessageBox.StandardButton.No)
 
-        if reply == QtWidgets.QMessageBox.Yes:
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             config['server']['default'] = ip
 
         config['server']['all'][ip] = 'none'

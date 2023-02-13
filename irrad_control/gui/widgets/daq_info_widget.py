@@ -170,7 +170,7 @@ class DaqInfoWidget(QtWidgets.QWidget):
 
     def update_rec_state(self, server, state=True):
 
-        icon = self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton
+        icon = self._style.StandardPixmap.SP_DialogYesButton if state else self._style.StandardPixmap.SP_DialogNoButton
         tooltip = "Recording" if state else "Data recording paused"
         btn_text = "Pause" if state else "Resume"
         self.record_btns[server].setText(btn_text)
@@ -202,15 +202,15 @@ class DaqInfoWidget(QtWidgets.QWidget):
                 table.horizontalHeaderItem(j).setToolTip('Channel of type %s' % self.ch_types[server][j])
                 table.horizontalHeaderItem(j).setFont(self.table_header_font)
                 table.setItem(0, j, QtWidgets.QTableWidgetItem(format(0, '.{}f'.format(self.n_digits[server]))))
-                table.item(0, j).setTextAlignment(QtCore.Qt.AlignCenter)
-                table.item(0, j).setFlags(QtCore.Qt.ItemIsEnabled)
+                table.item(0, j).setTextAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                table.item(0, j).setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
                 table.item(0, j).setFont(self.table_value_font)
                 table.resizeColumnToContents(j)
 
             # Set minimum widths and stretch policies
             table.setMinimumWidth(sum([table.columnWidth(k) for k in range(table.columnCount())]))
-            table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-            table.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+            table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
+            table.verticalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
 
             tables.append(table)
 

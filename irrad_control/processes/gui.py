@@ -187,7 +187,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.pdiag = QtWidgets.QProgressDialog()
         pdiag_label = QtWidgets.QLabel("Launching application:\n\n->Staring data converter...\n->Configuring {0} server(s)...\n->Starting {0} server(s)...".format(len(self.setup['server'])))
-        pdiag_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        pdiag_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.pdiag.setLabel(pdiag_label)
         self.pdiag.setRange(0, 0)
         self.pdiag.setMinimumDuration(0)
@@ -221,7 +221,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.daq_info_dock = QtWidgets.QDockWidget()
         self.daq_info_dock.setWidget(self.daq_info_widget)
         self.daq_info_dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea)
-        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
+        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
         self.daq_info_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
@@ -382,9 +382,9 @@ class IrradGUI(QtWidgets.QMainWindow):
                       " Proceeding without terminating the currently running process may lead to faulty behavior".format(proc_kind, pltfrm)
 
                 reply = QtWidgets.QMessageBox.question(self, 'Terminate running {} process and relaunch?'.format(proc_kind),
-                                                       msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+                                                       msg, QtWidgets.QMessageBox.StandardButton.Yes, QtWidgets.QMessageBox.StandardButton.No)
 
-                if reply == QtWidgets.QMessageBox.Yes:
+                if reply == QtWidgets.QMessageBox.StandardButton.Yes:
                     self.proc_mngr.kill_proc(hostname=hostname, pid=orphaned_proc['pid'])
                     self._start_daq_proc(hostname=hostname)  # Try again
 
@@ -817,12 +817,12 @@ class IrradGUI(QtWidgets.QMainWindow):
                 msg_box = QtWidgets.QMessageBox(self)
                 msg_box.setWindowTitle('Shutdown could not be validated')
                 msg_box.setText(msg)
-                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.Abort)
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.StandardButton.Abort)
                 reply = msg_box.exec()
 
-                if reply == QtWidgets.QMessageBox.Ignore:
+                if reply == QtWidgets.QMessageBox.StandardButton.Ignore:
                     self._shutdown_complete = True
-                elif reply == QtWidgets.QMessageBox.Abort:
+                elif reply == QtWidgets.QMessageBox.StandardButton.Abort:
                     for host in self.proc_mngr.active_pids:
                         for pid in self.proc_mngr.active_pids[host]:
                             if self.proc_mngr.active_pids[host][pid]['active']:
@@ -848,10 +848,10 @@ class IrradGUI(QtWidgets.QMainWindow):
             msg_box = QtWidgets.QMessageBox(self)
             msg_box.setWindowTitle('Scan in progress!')
             msg_box.setText(msg)
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Abort)
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel | QtWidgets.QMessageBox.StandardButton.Abort)
             reply = msg_box.exec()
 
-            if reply == QtWidgets.QMessageBox.Cancel:
+            if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
                 return False
             else:
                 for s in scan_in_progress_servers:

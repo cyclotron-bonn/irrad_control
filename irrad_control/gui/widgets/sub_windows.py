@@ -1,6 +1,6 @@
 import logging
 import time
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 from collections import defaultdict
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control.devices import DEVICES_CONFIG
@@ -44,7 +44,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
         self.setWindowTitle('Add / edit motorstage positions')
         # Make this window blocking parent window
-        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.resize(int(0.5 * self.screen.width()), int(0.5 * self.screen.height()))
 
@@ -81,8 +81,8 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
             def get_h_line():
                 h_line = QtWidgets.QFrame()
-                h_line.setFrameShape(QtWidgets.QFrame.HLine)
-                h_line.setFrameShadow(QtWidgets.QFrame.Sunken)
+                h_line.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+                h_line.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
                 return h_line
 
             self._edit_initiated[motorstage] = False
@@ -106,7 +106,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
             # Add containers for known positions and one for adding new ones
             self._containers[motorstage]['pos'] = GridContainer(name='Edit positions')
-            self._containers[motorstage]['pos'].grid.setAlignment(QtCore.Qt.AlignTop)
+            self._containers[motorstage]['pos'].grid.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
             self._containers[motorstage]['pos'].add_widget(widget=[QtWidgets.QLabel(col) for col in cols])
             self._containers[motorstage]['pos'].add_widget(widget=[get_h_line() for _ in cols])
 
@@ -236,10 +236,10 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
             mbox.setCheckBox(cb)
             mbox.setWindowTitle("Apply changes?")
             mbox.setText("Are you sure you want to apply changes? Changes are written to the {} configuration file".format(motorstage))
-            mbox.addButton(QtWidgets.QMessageBox.Yes)
-            mbox.addButton(QtWidgets.QMessageBox.Cancel)
+            mbox.addButton(QtWidgets.QMessageBox.StandardButton.Yes)
+            mbox.addButton(QtWidgets.QMessageBox.StandardButton.Cancel)
 
-            if mbox.exec() == QtWidgets.QMessageBox.Yes:
+            if mbox.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
                 self.statusBar().showMessage('Apply changes...', 4000)
             else:
                 self.statusBar().showMessage('Cancel', 2000)

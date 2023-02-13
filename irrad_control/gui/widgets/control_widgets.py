@@ -373,14 +373,14 @@ class MotorStageControlWidget(ControlWidget):
 
                     # Make MessageBox
                     mbox = QtWidgets.QMessageBox()
-                    mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                    mbox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
                     mbox.setWindowTitle(f"Movement of {motorstage} restricted by {restricting_ms}")
                     mbox.setText(msg)
-                    mbox.addButton(QtWidgets.QMessageBox.Ok)
-                    mbox.addButton(QtWidgets.QMessageBox.Abort)
+                    mbox.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
+                    mbox.addButton(QtWidgets.QMessageBox.StandardButton.Abort)
 
                     # Move restricting motorstage first
-                    if mbox.exec() == QtWidgets.QMessageBox.Ok:
+                    if mbox.exec() == QtWidgets.QMessageBox.StandardButton.Ok:
                         self.send_cmd(hostname=self.server,
                                       target=restricting_ms,
                                       cmd='move_abs',
@@ -401,14 +401,14 @@ class MotorStageControlWidget(ControlWidget):
 
                 # Make MessageBox
                 mbox = QtWidgets.QMessageBox()
-                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
                 mbox.setWindowTitle(f"Movement of {motorstage} may be restricted by {missing_ms}")
                 mbox.setText(msg)
-                mbox.addButton(QtWidgets.QMessageBox.Ok)
-                mbox.addButton(QtWidgets.QMessageBox.Abort)
+                mbox.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
+                mbox.addButton(QtWidgets.QMessageBox.StandardButton.Abort)
 
                 # Move anyway
-                if mbox.exec() == QtWidgets.QMessageBox.Ok:
+                if mbox.exec() == QtWidgets.QMessageBox.StandardButton.Ok:
                     move = True
         # Target motorstage is not restricted, just move
         else:
