@@ -11,4 +11,3 @@ tqdm  # Progressbar for analysis
 scipy  # Optimizer
 pyqtgraph>=0.13  # Fast plotting
 pyqt5>=5.15.2,<6   # Qt library in Python
-gitpython # Git stuff

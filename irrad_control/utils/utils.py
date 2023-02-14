@@ -1,17 +1,25 @@
 import logging
 import time
 import  fcntl
-from git import Repo
-
+from subprocess import check_output, CalledProcessError
 
 from irrad_control import lock_file, package_path
 
 
-def get_current_git_branch():
-    
-    # Make repo object and get name
-    return Repo(package_path, search_parent_directories=True).head.ref.name
+def get_current_git_branch(default='main'):
 
+    try:
+        # use git default installation via subprocess
+        local_branches = str(check_output(['git', 'branch'],
+                                          cwd=package_path,
+                                          universal_newlines=True))
+        # Fancy x, = [y] notation
+        active_branch, = [b.replace('*', '').strip() for b in local_branches.split('\n') if '*' in b]
+
+        return active_branch
+    
+    except (CalledProcessError, FileNotFoundError):
+        return default
 
 def check_zmq_addr(addr):
     """
