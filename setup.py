@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import sys
 from setuptools import setup, find_packages  # This setup relies on setuptools since distutils is insufficient and badly hacked code
+from scripts.init_desktop_file import make_desktop_entry
+
 
 # Figure out if we're installing on control PC or on server
 _server = 'server' in sys.argv
@@ -39,3 +41,6 @@ setup_kwargs = {'name': 'irrad_control',
 
 # Setup
 setup(**setup_kwargs)
+
+# Desktop file
+make_desktop_entry(version=version)

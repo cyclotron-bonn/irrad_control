@@ -1,0 +1,23 @@
+[Desktop Entry]
+Version=1.0.0
+Name=Irrad Control
+Comment=Control, DAQ, visualization and analysis software for Bonn University irradiation site
+GenericName=Irrad Control
+Keywords=DAQ;Control;Irradiation;Radiation;Damage
+Exec=irrad_control
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Icon=icon.png
+Categories=Appication;
+StartupNotify=True
+Actions=control-window;monitor-window;
+
+[Desktop Action control-window]
+Name=Open Irrad Control
+Exec=irrad_control --gui
+
+[Desktop Action monitor-window]
+Name=Open Irrad Monitor
+Exec=irrad_control --monitor
+
