@@ -19,7 +19,10 @@ def generate_desktop_file(version):
 
 
 def register_desktop_file(conf_parser):
-    with open(os.path.join(os.path.expanduser('~'), '.local', 'share', 'applications', 'irrad_control.desktop'), 'w') as dsktpfl:
+    target_path = os.path.join(os.path.expanduser('~'), '.local', 'share', 'applications')
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    with open(os.path.join(target_path, 'irrad_control.desktop'), 'w') as dsktpfl:
         conf_parser.write(dsktpfl, space_around_delimiters=False)
     st = os.stat(os.path.join(os.path.expanduser('~'), '.local', 'share', 'applications', 'irrad_control.desktop'))
     os.chmod(os.path.join(os.path.expanduser('~'), '.local', 'share', 'applications', 'irrad_control.desktop'), st.st_mode | 0o111)  # Make executable for everyone
