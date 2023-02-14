@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-20.04, ubuntu-latest]
         python-version: ["3.8", "3.9"]
 
     runs-on: ${{matrix.os}}    
@@ -47,8 +47,8 @@ jobs:
       - name: Package installation
         run: pip install -e .
 
-      - name: Qt5 default installation
-        run: sudo apt install qt5-default 
+      - name: Qt5 default installation  # Needed for running headless
+        run: sudo apt-get install qttools5-dev-tools
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
