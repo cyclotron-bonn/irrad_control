@@ -12,6 +12,7 @@ from threading import Event
 from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
+from irrad_control.utils.utils import get_current_git_branch
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 
@@ -274,7 +275,10 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='main', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server,
+                                                     hostname=server,
+                                                     branch=get_current_git_branch(),
+                                                     git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
