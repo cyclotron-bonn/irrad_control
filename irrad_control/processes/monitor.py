@@ -109,6 +109,9 @@ class MonitorGUI(IrradGUI):
             
                 spbx_energy.valueChanged.connect(con)
 
+            # Emit ion once to set correct energy ranges
+            combo_ion.currentTextChanged.emit(combo_ion.currentText())
+
             # Add widgets
             monitor_widget.add_widget(widget=[label_ion, combo_ion])
             monitor_widget.add_widget(widget=[label_energy, spbx_energy])
@@ -120,6 +123,7 @@ class MonitorGUI(IrradGUI):
         # Session input
         session_widget = SessionSetup('Session input')
         session_widget.setupChanged.connect(lambda stp: self.setup['session'].update(stp))
+        session_widget.widgets['logging_combo'].currentTextChanged.connect(lambda lvl: self.log_widget.change_level(lvl))
         main_widget.layout().addWidget(session_widget)
         
         # Button start
