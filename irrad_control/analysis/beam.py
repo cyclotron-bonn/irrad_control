@@ -3,8 +3,8 @@ import numpy as np
 from irrad_control.analysis import plotting, constants
 
 
-def main(data, **beam_kwargs):
-    server = beam_kwargs['server']
+def main(data, config=None):
+    server = config['name']
     #get data while scanning
     figs = []
     nano = np.array(constants.nano)
