@@ -1,11 +1,6 @@
 import logging
-from os import times
 import numpy as np
-from types import GeneratorType
-from irrad_control.analysis import plotting
-from irrad_control.analysis import constants
-import matplotlib.pyplot as plt
-from numba import njit 
+from irrad_control.analysis import plotting, constants
 
 
 def analyse_beam(data, **beam_kwargs):

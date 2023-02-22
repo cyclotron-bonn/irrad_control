@@ -1,7 +1,7 @@
 import logging
 import numpy as np
-from irrad_control.analysis import plotting
-from irrad_control.analysis import constants
+from irrad_control.analysis import plotting, constants
+
 
 def create_scan_mask(data, server):
     mask = np.zeros_like(data[server]['Beam']['timestamp'], dtype=bool)

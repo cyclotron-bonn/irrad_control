@@ -1,7 +1,5 @@
 import logging
-from irrad_control.analysis import plotting
-from irrad_control.analysis import fluence
-from irrad_control.analysis import formulas
+from irrad_control.analysis import plotting, fluence, formulas
 
 
 def analyse_radiation_damage(data, config=None):
