@@ -1,6 +1,6 @@
 import logging
 import time
-import  fcntl
+import fcntl
 
 from irrad_control import lock_file
 
