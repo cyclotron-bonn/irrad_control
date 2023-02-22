@@ -172,7 +172,7 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.analyse_radiation_damage(data=input_files(infiles=parsed['infile']), config=None)
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']), config=None)
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -199,14 +199,13 @@ def main():
 
                     if parsed['damage']:
                         
-                        res = irrad_analysis.damage.analyse_radiation_damage(data=data, config=content)
+                        res = irrad_analysis.damage.main(data=data, config=content)
 
                         save_plots(plots=res, outfile=out_pdf)
             
                     if parsed['calibration']:
 
-                        res = irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data,
-                                                                                  irrad_config=content)
+                        res = irrad_analysis.calibration.main(irrad_data=data, irrad_config=content)
 
                         save_plots(plots=res, outfile=out_pdf)
 

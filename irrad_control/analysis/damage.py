@@ -2,7 +2,7 @@ import logging
 from irrad_control.analysis import plotting, fluence, formulas
 
 
-def analyse_radiation_damage(data, config=None):
+def main(data, config=None):
 
     figs = []
     bins = (100, 100)

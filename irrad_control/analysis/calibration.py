@@ -32,7 +32,7 @@ def _get_ref_voltage(config):
     return 5.
 
 
-def beam_monitor_calibration(irrad_data, irrad_config):
+def main(irrad_data, irrad_config):
 
     server = irrad_config['name']
 
