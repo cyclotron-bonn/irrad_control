@@ -172,7 +172,7 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']), config=None)
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']))
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -211,17 +211,13 @@ def main():
 
                     if parsed['scan']:
                         
-                        res = irrad_analysis.scan.analyse_scan(data=data,
-                                                               server = content['name'],
-                                                               hardness_factor=content['daq']['kappa'],
-                                                               stopping_power=p_stop_Si)
+                        res = irrad_analysis.scan.main(data=data, config=content)
                         
                         save_plots(plots=res, outfile=out_pdf)
 
                     if parsed['beam']:
                         
-                        res = irrad_analysis.beam.analyse_beam(data=data,
-                                                               server = content['name'])
+                        res = irrad_analysis.beam.main(data=data, config=content)
                     
                         save_plots(plots=res, outfile=out_pdf)
                     

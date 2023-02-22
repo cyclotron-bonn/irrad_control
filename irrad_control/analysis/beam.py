@@ -3,7 +3,7 @@ import numpy as np
 from irrad_control.analysis import plotting, constants
 
 
-def analyse_beam(data, **beam_kwargs):
+def main(data, **beam_kwargs):
     server = beam_kwargs['server']
     #get data while scanning
     figs = []
