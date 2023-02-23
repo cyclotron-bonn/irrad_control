@@ -10,7 +10,7 @@ from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.gui.widgets.util_widgets import GridContainer
 from irrad_control.utils.tools import load_yaml
 from irrad_control.ions import get_ions
-from irrad_control import config_path
+from irrad_control import config_path, tmp_path
 
 
 class MonitorGUI(IrradGUI):
@@ -124,14 +124,20 @@ class MonitorGUI(IrradGUI):
         session_widget = SessionSetup('Session input')
         session_widget.setupChanged.connect(lambda stp: self.setup['session'].update(stp))
         session_widget.widgets['logging_combo'].currentTextChanged.connect(lambda lvl: self.log_widget.change_level(lvl))
+        session_widget.widgets['folder_edit'].setText(tmp_path)  # default to tmp dir
         main_widget.layout().addWidget(session_widget)
         
         # Button start
         btn_start = QtWidgets.QPushButton('Start monitor')
-        btn_start.clicked.connect(lambda _, mw=main_widget: mw.setEnabled(False))
-        btn_start.clicked.connect(self.minimal_input_window.close)
-        btn_start.clicked.connect(self.show)
-        btn_start.clicked.connect(lambda _: self._init_setup(setup=self.setup))
+
+        for con in [lambda _, mw=main_widget: mw.setEnabled(False),
+                    self.minimal_input_window.close,
+                    self.show,
+                    lambda _: self._init_setup(setup=self.setup),
+                    lambda _: self.log_dock.setVisible(False),
+                    lambda _: self.daq_info_dock.setVisible(False)]:
+
+            btn_start.clicked.connect(con)
         
         main_widget.layout().addStretch()
         main_widget.layout().addWidget(btn_start)
@@ -281,7 +287,7 @@ class MonitorGUI(IrradGUI):
 def run():
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
-    font.setPointSize(12)
+    font.setPointSize(13)  # Make font size chonky for the not-so-young operators ;)
     app.setFont(font)
     gui = MonitorGUI()
     sys.exit(app.exec())
