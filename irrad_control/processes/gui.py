@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import time
 import logging
 import platform
@@ -15,6 +15,12 @@ from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.utils.utils import get_current_git_branch
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
+from irrad_control.gui.widgets.setup_widgets import SessionSetup
+from irrad_control.ions import get_ions
+from irrad_control.gui.utils import fill_combobox_items
+from irrad_control.gui.widgets.util_widgets import GridContainer
+from irrad_control.utils.tools import load_yaml
+from irrad_control import config_path
 
 
 PROJECT_NAME = 'Irrad Control'
@@ -137,6 +143,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
         self.appearance_menu.setToolTipsVisible(True)
         self.appearance_menu.addAction('&Show/hide log', self.handle_log_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
+        self.appearance_menu.addAction('&Show/hide DAQ', self.handle_daq_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_D)
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -222,7 +229,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.daq_info_dock = QtWidgets.QDockWidget()
         self.daq_info_dock.setWidget(self.daq_info_widget)
         self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
+        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
         self.daq_info_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
@@ -770,11 +777,11 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def handle_log_ui(self):
         """Handle whether log widget is visible or not"""
-
-        if self.log_dock.isVisible():
-            self.log_dock.setVisible(False)
-        else:
-            self.log_dock.setVisible(True)
+        self.log_dock.setVisible(not self.log_dock.isVisible())
+    
+    def handle_daq_ui(self):
+        """Handle whether log widget is visible or not"""
+        self.daq_info_dock.setVisible(not self.daq_info_dock.isVisible())
 
     def file_quit(self):
         self.close()
@@ -910,14 +917,15 @@ class IrradGUI(QtWidgets.QMainWindow):
         else:
             event.ignore()
 
+
 def run():
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
     font.setPointSize(11)
     app.setFont(font)
-    icg = IrradGUI()
-    icg.show()
-    sys.exit(app.exec_())
+    gui = IrradGUI()
+    gui.show()
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import logging
 import time
-import  fcntl
+import fcntl
 from subprocess import check_output, CalledProcessError
 
 from irrad_control import lock_file, package_path
