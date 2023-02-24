@@ -27,31 +27,33 @@ class RadiationMonitor(ArduinoFreqCounter):
         # Gate interval in which pulses are counted in ms
         self.gate_interval = self.config['gate_interval']
 
-    def _ramp(self, direction='up'):
+    def _ramp(self, direction='up', blocking=True):
 
         n_seconds_to_ramp = self.hv.high_voltage // self.config['ramp_speed']
-        n_seconds_to_ramp *= 2  # Give twice the amount of time the ramping should take
+        n_seconds_to_ramp *= 1.25  # Give some more time than the ramping should take
 
         # We are ramping up
         if direction == 'up':
             self.hv.hv_on()
-            aim_volt = (self.hv.high_voltage, )
+            criteria = lambda volt: volt < self.hv.high_voltage - 1
             logging.info(f"Ramping voltage up to {self.hv.high_voltage} V...")
         # We are ramping down
         else:
             self.hv.hv_off()
-            aim_volt = (0, 1)  # Outut sometimes remains 1 V when shutting down
+            criteria = lambda volt: volt > 1  # Outut sometimes remains 1 V when shutting down
             logging.info(f"Ramping voltage down to 0 V...")
 
-        while self.hv.voltage not in aim_volt or not n_seconds_to_ramp:
-            sleep(1)
-            logging.debug(f"Ramping {direction} HV to {aim_volt[0]} V (Current value: {self.hv.voltage} V)")
-            n_seconds_to_ramp -= 1
+        if blocking:
 
-        if n_seconds_to_ramp == 0:
-            logging.warning(f"Ramping {direction} voltage resulted in output voltage of {self.hv.voltage} V, ecpected is {aim_volt} V")
-        else:
-            logging.info(f"Ramping voltage completed")
+            while criteria(self.hv.voltage) and n_seconds_to_ramp > 0:
+                sleep(1)
+                logging.debug(f"Ramping HV to {self.hv.high_voltage if direction == 'up' else 0} V (Current value: {self.hv.voltage} V)")
+                n_seconds_to_ramp -= 1
+
+            if n_seconds_to_ramp < 0:
+                logging.warning(f"Ramping {direction} voltage resulted in output voltage of {self.hv.voltage} V, ecpected is {self.hv.high_voltage if direction == 'up' else 0} V")
+            else:
+                logging.info(f"Ramping voltage completed")
 
     def ramp_up(self):
         self._ramp(direction='up')
@@ -62,4 +64,8 @@ class RadiationMonitor(ArduinoFreqCounter):
     def get_dose_rate(self, return_frequency=False):
         freq = self.frequency
         res = self.config['dose_rate_calibration'] * freq
-        return (res, freq) if return_frequency else res 
+        return (res, freq) if return_frequency else res
+
+    def shutdown(self):
+        if self.hv.voltage > 1:
+            self.ramp_down()
