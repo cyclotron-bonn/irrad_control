@@ -797,12 +797,25 @@ class DAQControlWidget(ControlWidget):
 
          # Start / Stop RadMonitor readout
         label_rad_monitor = QtWidgets.QLabel("Start/Stop RadMonitor:")
-        btn_toggle_rad_mon = QtWidgets.QPushButton("Start")
+        btn_toggle_rad_mon = QtWidgets.QPushButton("Start DAQ")
+        chkbx_rad_mon_hv = QtWidgets.QCheckBox()
+        chkbx_rad_mon_hv.setText('HV (off)')
+        chkbx_rad_mon_hv.setToolTip("Toggle radiation monitor high voltage on/off")
+
+        for con in [lambda state: self.send_cmd(hostname=self.send_cmd,
+                                                target='RadiationMonitor',
+                                                cmd='_ramp',
+                                                cmd_data={'kwargs': {'direction': 'up' if bool(state) else 'down',
+                                                                     'blocking': False}}),
+                    lambda state: chkbx_rad_mon_hv.setText(f"HV ({'on' if bool(state) else 'off'})")]:
+
+            chkbx_rad_mon_hv.stateChanged.connect(con)
         
         for con in [lambda _, btn=btn_toggle_rad_mon: self.send_cmd(hostname=self.server,
-                                                                    target='RadiationMonitor',
-                                                                    cmd=btn.text().lower()),
-                    lambda _, btn=btn_toggle_rad_mon: btn.setText('Start' if btn.text() == 'Stop' else 'Stop')]:
+                                                                    target='server',
+                                                                    cmd='rad_mon_daq',
+                                                                    cmd_data='Start' in btn.text()),
+                    lambda _, btn=btn_toggle_rad_mon: btn.setText('Start DAQ' if 'Stop' in btn.text() else 'Stop DAQ')]:
             
             btn_toggle_rad_mon.clicked.connect(con)
 
@@ -814,7 +827,7 @@ class DAQControlWidget(ControlWidget):
             self.add_widget(widget=[label_ro_scale, layout_scale, btn_ro_scale])
 
         if self._enable_rad_mon:
-            self.add_widget(widget=[label_rad_monitor, btn_toggle_rad_mon])
+            self.add_widget(widget=[label_rad_monitor, btn_toggle_rad_mon, chkbx_rad_mon_hv])
 
         self.update_rec_state(state=True)
 
