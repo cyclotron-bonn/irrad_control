@@ -1,15 +1,12 @@
-from cProfile import label
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
-from irrad_control.analysis import formulas as fm
 import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
 from matplotlib.colors import LogNorm
-from pkg_resources import VersionConflict
 
-from irrad_control.analysis.formulas import lin_odr
+from irrad_control.analysis.formulas import lin_odr, tid_per_scan
 
 
 def _get_damage_label_unit_target(damage, ion_name, dut=False):
@@ -265,14 +262,33 @@ def fluence_row_hist(start, end, fluence):
                                figsize=(8,6))
     return fig, ax
 
-def plot_tid_per_row(data, **kwargs):
-    fig, ax = plot_generic_axis(axis_data={'xlabel': f"Scan",
-                                          'ylabel': f"Row",
-                                          'title': "Rowwise radiation damage"},
+def plot_damage_resolved(primary_damage_resolved, stopping_power=None, hardness_factor=None, **damage_label_kwargs):
+    fig, ax = plot_generic_axis(axis_data={'xlabel': 'Row number',
+                                           'ylabel': 'Scan number',
+                                           'title': "Damage scan and row resolved"},
                                 figsize=(8,6))
-    im = ax.imshow(data)
-    ax.grid(False)
-    cbar = plt.colorbar(mappable=im, ax=ax, cmap='viridis', location='bottom', orientation='horizontal', label="TID / Mrad")
+
+    if hardness_factor is not None:
+        damage = primary_damage_resolved * hardness_factor
+    else:
+        damage = primary_damage_resolved
+
+    if stopping_power is not None:
+        tid = tid_per_scan(primary_damage_resolved, stopping_power=stopping_power)
+        secondary_cbar_axis = {'ylim': (tid.min(), tid.max()), 'ylabel': 'Total-ionizing dose / Mrad'}
+    else:
+        secondary_cbar_axis = {}
+    
+    extent = [0, primary_damage_resolved.shape[1], 0, primary_damage_resolved.shape[0]]
+
+    im = ax.imshow(damage, origin='lower', extent=extent)
+    #ax.grid(False)
+
+    _make_cbar(fig=fig,
+               damage_map=im,
+               damage='neq',
+               ion_name=damage_label_kwargs['ion_name'])
+
     # neqax = ax.twinx()
     # neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
     # neqax.set_ylabel(neqlabel)

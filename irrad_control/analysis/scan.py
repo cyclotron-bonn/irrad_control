@@ -33,11 +33,16 @@ def create_beam_scan_mask(beam_data, scan_data):
     
     return beam_during_scan_mask
 
-def heatmap_damage(rows, scan, damage):
-    res = np.zeros(shape=(np.max(rows)+1, np.max(scan)+1), dtype=float)
-    for i in range(len(scan)):
-        res[rows[i],scan[i]]=damage[i]
-    return res
+
+def damage_per_scan_and_row(scan_data, irrad_data, damage='row_primary_fluence'):
+
+    damage_map = np.zeros(shape=(scan_data['scan'][-1] + 1 or 1, irrad_data['n_rows'][0]), dtype=float)
+
+    for i in range(scan_data.shape[0]):
+        damage_map[scan_data['scan'][i], scan_data['row'][i]] = scan_data[damage][i]
+
+    return damage_map
+
         
 def main(data, config=None):
     
@@ -71,13 +76,9 @@ def main(data, config=None):
                                                  while_scan=True)
         figs.append(fig)
     
-        # Histogram of beam current diviation while scanning
-        hor_beam_pos_scan = data[server]['Beam']['horizontal_beam_position'][beam_during_scan_mask]
-        ver_beam_pos_scan = data[server]['Beam']['vertical_beam_position'][beam_during_scan_mask]
-    
-        fig, _ = plotting.plot_beam_deviation(horizontal_deviation=hor_beam_pos_scan,
-                                            vertical_deviation=ver_beam_pos_scan,
-                                            while_scan=True)
+        fig, _ = plotting.plot_beam_deviation(horizontal_deviation=beam_during_scan['horizontal_beam_position'],
+                                              vertical_deviation=beam_during_scan['vertical_beam_position'],
+                                              while_scan=True)
         figs.append(fig)
     
         #Histogram of proton fluence while scanning
@@ -87,13 +88,14 @@ def main(data, config=None):
         figs.append(fig)
     
         #accumulated tid per row as bar diagram
-        res = heatmap_damage(rows=data[server]['Scan']['row'],
-                        scan=data[server]['Scan']['scan'],
-                        damage=data[server]['Scan']['row_tid'])
-        fig, _ = plotting.plot_tid_per_row(data=res, hardness_factor=config['daq']['stopping_power'], stopping_power=config['daq']['kappa']['nominal'])
-        figs.append(fig)
+        damage_map_scan_row = damage_per_scan_and_row(scan_data=data[server]['Scan'],
+                                                      irrad_data=data[server]['Irrad'])
 
-        return figs
+        fig, _ = plotting.plot_damage_resolved(primary_damage_resolved=damage_map_scan_row,
+                                               stopping_power=config['daq']['stopping_power'],
+                                               hardness_factor=config['daq']['kappa']['nominal'],
+                                               ion_name=config['daq']['ion'])
+        figs.append(fig)
     
         #Trying to cramp all of the above diagrams (except positional deviation) into one superduperdiagram
         tid_per_scan = [[data[server]['Scan']['row_tid'][i] for i in range(len(data[server]['Scan']['row_tid'])) if data[server]['Scan']['scan'][i] == scan] for scan in range(data[server]['Scan']['scan'][-1]+1)]
