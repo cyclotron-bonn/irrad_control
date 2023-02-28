@@ -802,11 +802,12 @@ class DAQControlWidget(ControlWidget):
         chkbx_rad_mon_hv.setText('HV (off)')
         chkbx_rad_mon_hv.setToolTip("Toggle radiation monitor high voltage on/off")
 
-        for con in [lambda state: self.send_cmd(hostname=self.send_cmd,
+        for con in [lambda state: self.send_cmd(hostname=self.server,
                                                 target='RadiationMonitor',
                                                 cmd='_ramp',
                                                 cmd_data={'kwargs': {'direction': 'up' if bool(state) else 'down',
-                                                                     'blocking': False}}),
+                                                                     'blocking': True},
+                                                          'threaded': True}),
                     lambda state: chkbx_rad_mon_hv.setText(f"HV ({'on' if bool(state) else 'off'})")]:
 
             chkbx_rad_mon_hv.stateChanged.connect(con)

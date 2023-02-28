@@ -67,5 +67,5 @@ class RadiationMonitor(ArduinoFreqCounter):
         return (res, freq) if return_frequency else res
 
     def shutdown(self):
-        if self.hv.voltage > 1:
-            self.ramp_down()
+        # Always ramp down on shutdown
+        self._ramp(direction='down', blocking=False)
