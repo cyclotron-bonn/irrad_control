@@ -740,10 +740,9 @@ class DAQControlWidget(ControlWidget):
 
     enableDAQRec = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, server, ro_device, parent=None, enable=True, enable_rad_mon=False):
+    def __init__(self, server, ro_device, parent=None, enable=True):
         self.server = server
         self.ro_device = ro_device
-        self._enable_rad_mon = enable_rad_mon
         self._style = QtWidgets.qApp.style()
         super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
 
@@ -820,9 +819,10 @@ class DAQControlWidget(ControlWidget):
             
             btn_toggle_rad_mon.clicked.connect(con)
 
-        self.add_widget(widget=[label_offset, btn_offset])
-        self.add_widget(widget=[label_record, self.btn_record])
-        self.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+        if self.ro_device is not None:
+            self.add_widget(widget=[label_offset, btn_offset])
+            self.add_widget(widget=[label_record, self.btn_record])
+            self.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
 
         if self.ro_device == ro.RO_DEVICES.DAQBoard:
             self.add_widget(widget=[label_ro_scale, layout_scale, btn_ro_scale])
