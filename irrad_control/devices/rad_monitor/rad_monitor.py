@@ -30,7 +30,7 @@ class RadiationMonitor(ArduinoFreqCounter):
     def _ramp(self, direction='up', blocking=True):
 
         n_seconds_to_ramp = self.hv.high_voltage // self.config['ramp_speed']
-        n_seconds_to_ramp *= 1.25  # Give some more time than the ramping should take
+        n_seconds_to_ramp *= 2.  # Give some more time than the ramping should take
 
         # We are ramping up
         if direction == 'up':
