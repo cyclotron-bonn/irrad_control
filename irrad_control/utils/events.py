@@ -28,7 +28,7 @@ class BaseEvent(Event):
         super().set()
         self._last_triggered = time()
 
-    def ready(self):
+    def is_ready(self):
         return True if self._last_triggered is None else time() - self._last_triggered > self.cooldown
 
     
