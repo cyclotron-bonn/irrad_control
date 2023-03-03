@@ -456,6 +456,50 @@ class DAQProcess(Process):
             if self._check_addr(strm) and strm not in stream_container:
                 stream_container.append(strm)
 
+    def _recv_from_stream(self, kind, stream, callback, pub_results=False):
+        """Main method which receives raw data and calls interpretation and data storage methods"""
+
+        if stream:
+
+            logging.info(f'Start receiving {kind}')
+
+            # Create subscriber for raw and XY-Stage data
+            external_sub = self.context.socket(zmq.SUB)
+
+            # Loop over all servers and connect to their respective data streams
+            for s in stream:
+                external_sub.connect(s)
+
+            # Subscribe to all topics
+            external_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+
+            if pub_results:
+                internal_pub = self.create_internal_data_pub()
+
+            # While event not set receive data
+            while not self.stop_flags['recv'].is_set():
+
+                # Poll the command receiver socket for 1 ms; continue if there are no commands
+                if not external_sub.poll(timeout=1, flags=zmq.POLLIN):
+                    continue
+
+                # Get data
+                data = external_sub.recv_json(flags=zmq.NOBLOCK)
+
+                # Callback for data
+                result = callback(data)
+
+                # Publish data
+                if pub_results:
+                    for res in result:
+                        internal_pub.send_json(res)
+
+            external_sub.close()
+            if pub_results:
+                internal_pub.close()
+
+        else:
+            logging.error("No streams to connect to. Add streams via '_add_stream'-method")
 
     def add_daq_stream(self, daq_stream):
         """
@@ -471,45 +515,7 @@ class DAQProcess(Process):
 
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
-
-        if self.daq_streams:
-
-            logging.info('Start receiving data')
-
-            # Create subscriber for raw and XY-Stage data
-            external_data_sub = self.context.socket(zmq.SUB)
-
-            # Loop over all servers and connect to their respective data streams
-            for stream in self.daq_streams:
-                external_data_sub.connect(stream)
-
-            # Subscribe to all topics
-            external_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-
-            internal_data_pub = self.create_internal_data_pub()
-
-            # While event not set receive data
-            while not self.stop_flags['recv'].wait(1e-3):
-
-                # Poll the command receiver socket for 1 ms; continue if there are no commands
-                if not external_data_sub.poll(timeout=1, flags=zmq.POLLIN):
-                    continue
-
-                # Get data
-                data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
-
-                # Interpret data
-                interpreted_data = self.interpret_data(raw_data=data)
-
-                # Publish data to internal pub
-                for int_dat in interpreted_data:
-                    internal_data_pub.send_json(int_dat)
-
-            external_data_sub.close()
-            internal_data_pub.close()
-
-        else:
-            logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
+        self._recv_from_stream(kind='data', stream=self.daq_streams, callback=self.interpret_data, pub_results=True)
 
     def add_event_stream(self, event_stream):
         """
@@ -524,7 +530,8 @@ class DAQProcess(Process):
         self._add_stream(stream=event_stream, stream_container=self.event_streams)
 
     def recv_event(self):
-        pass
+        """Main method which receives events and calls handle event"""
+        self._recv_from_stream(kind='events', stream=self.event_streams, callback=self.handle_event)
 
     def shutdown(self, signum=None, frame=None):
         """
@@ -607,6 +614,9 @@ class DAQProcess(Process):
 
     def interpret_data(self, raw_data):
         raise NotImplementedError("Implement a *interpret_data* method for converter processes")
+
+    def handle_event(self, event_data):
+        raise NotImplementedError("Implement a *handle_event* method")
 
     def handle_cmd(self, target, cmd, data=None):
         raise NotImplementedError("Implement a *handle_cmd* method")
