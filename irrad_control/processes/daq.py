@@ -456,8 +456,23 @@ class DAQProcess(Process):
             if self._check_addr(strm) and strm not in stream_container:
                 stream_container.append(strm)
 
-    def _recv_from_stream(self, kind, stream, callback, pub_results=False):
-        """Main method which receives raw data and calls interpretation and data storage methods"""
+    def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
+        """
+        Method which receives data from specific streams and calls a callback as well as publishes results internally.
+
+        Parameters
+        ----------
+        kind : str
+            Kind of stream to receive e.g. 'data' or 'event'
+        stream : list
+            List of streams to connect to
+        callback : function
+            Callable to be called on incoming packets
+        pub_results : bool, optional
+            Whther to create an internal publisher which send data via the 'send_data' method, by default False
+        delay : float, optional
+            Time in seconds sleep in between incoming data checks; useful save resources, by default None
+        """
 
         if stream:
 
@@ -479,8 +494,11 @@ class DAQProcess(Process):
             # While event not set receive data
             while not self.stop_flags['recv'].is_set():
 
-                # Poll the command receiver socket for 1 ms; continue if there are no commands
+                # Poll the socket for 1 ms; continue if there is nothing
                 if not external_sub.poll(timeout=1, flags=zmq.POLLIN):
+                    # Allow the thread to release the GIL while sleeping if we don't need to check for incoming stream data full-speed
+                    if delay is not None:
+                        sleep(delay)
                     continue
 
                 # Get data
@@ -531,7 +549,7 @@ class DAQProcess(Process):
 
     def recv_event(self):
         """Main method which receives events and calls handle event"""
-        self._recv_from_stream(kind='events', stream=self.event_streams, callback=self.handle_event)
+        self._recv_from_stream(kind='events', stream=self.event_streams, callback=self.handle_event, delay=1e-2)
 
     def shutdown(self, signum=None, frame=None):
         """
