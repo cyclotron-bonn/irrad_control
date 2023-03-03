@@ -72,16 +72,16 @@ class DAQProcess(Process):
         self.threads = []
 
         # List of input data stream addresses
-        self.daq_streams = [] if daq_streams is None else daq_streams if isinstance(daq_streams, (list, tuple)) else [daq_streams]
-
-        # Quick check
-        self.daq_streams = [dstream for dstream in self.daq_streams if self._check_addr(addr=dstream)]
+        self.daq_streams = []
+        
+        if daq_streams is not None:
+            self.add_daq_stream(daq_stream=daq_streams)
 
          # List of input data stream addresses
-        self.event_streams = [] if event_streams is None else event_streams if isinstance(event_streams, (list, tuple)) else [event_streams]
+        self.event_streams = []
 
-        # Quick check
-        self.event_streams = [estream for estream in self.event_streams if self._check_addr(addr=estream)]
+        if event_streams is not None:
+            self.add_event_stream(event_stream=event_streams)
 
     def _check_addr(self, addr):
         """
@@ -259,9 +259,13 @@ class DAQProcess(Process):
 
         # If there is data
         if len(self.daq_streams) > 0:
-
             # Start data receiver thread
             self.launch_thread(target=self.recv_data)
+
+        # If there are events
+        if len(self.event_streams) > 0:
+            # Start data receiver thread
+            self.launch_thread(target=self.recv_event)
 
     def _setup_logging(self):
         """
@@ -429,6 +433,30 @@ class DAQProcess(Process):
 
         internal_data_sub.close()
 
+    def _add_stream(self, stream, stream_container):
+        """
+        Method to add a data/event stream address to listen to to
+
+        Parameters
+        ----------
+
+        stream: str, list, tuple
+            String or iterable of strings of zmq addresses of data streams to connect to
+        stream_container: list
+            List to which stream address is to be added to
+        """
+
+        streams_to_add = stream if isinstance(stream, (list, tuple)) else [stream]
+
+        if not all(isinstance(ds, str) for ds in streams_to_add):
+            logging.error("Data streams must be of type string")
+            return
+
+        for strm in streams_to_add:
+            if self._check_addr(strm) and strm not in stream_container:
+                stream_container.append(strm)
+
+
     def add_daq_stream(self, daq_stream):
         """
         Method to add a data stream address to listen to to convert data from
@@ -439,16 +467,7 @@ class DAQProcess(Process):
         daq_stream: str, list, tuple
             String or iterable of strings of zmq addresses of data streams to connect to
         """
-
-        streams_to_add = daq_stream if isinstance(daq_stream, (list, tuple)) else [daq_stream]
-
-        if not all(isinstance(ds, str) for ds in streams_to_add):
-            logging.error("Data streams must be of type string")
-            return
-
-        for ds in streams_to_add:
-            if self._check_addr(ds) and ds not in self.daq_streams:
-                self.daq_streams.append(ds)
+        self._add_stream(stream=daq_stream, stream_container=self.daq_streams)
 
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
@@ -491,6 +510,21 @@ class DAQProcess(Process):
 
         else:
             logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
+
+    def add_event_stream(self, event_stream):
+        """
+        Method to add a data stream address to listen to to convert data from
+
+        Parameters
+        ----------
+
+        event_stream: str, list, tuple
+            String or iterable of strings of zmq addresses of event streams to connect to
+        """
+        self._add_stream(stream=event_stream, stream_container=self.event_streams)
+
+    def recv_event(self):
+        pass
 
     def shutdown(self, signum=None, frame=None):
         """
