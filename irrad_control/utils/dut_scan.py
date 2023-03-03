@@ -335,7 +335,7 @@ class DUTScan(object):
                 time.sleep(self._between_checks_time)
 
                 # If beam does not recover and we need to stop manually
-                if self.stop_scan.wait(self._event_wait_time):
+                if self._events['stop'].wait(self._event_wait_time):
                     raise ScanError("Scan was stopped manually")
 
             # Publish if we have a socket
