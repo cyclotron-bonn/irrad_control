@@ -49,6 +49,14 @@ class IrradEvents(Enum):
     DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
 
     @classmethod
+    def beam_events(cls):
+        return Enum('BeamEvents', [(ev.name, ev.value) for ev in cls if 'Beam' in ev.name])
+
+    @classmethod
+    def beam_ok(cls):
+        return not any(ev.value.active for ev in cls.beam_events())
+
+    @classmethod
     def to_dict(cls, event):
         try:
             return {'event': cls[event].name,
