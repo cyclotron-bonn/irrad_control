@@ -47,3 +47,13 @@ class IrradEvents(Enum):
 
     # Misc
     DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
+
+    @classmethod
+    def to_dict(cls, event):
+        try:
+            return {'event': cls[event].name,
+                    'active': cls[event].value.active,
+                    'description': cls[event].value.description}
+        except KeyError:
+            raise KeyError(f"'{event}' not in IrradEvents! \
+                             Available events: {', '.join(ev.name for ev in cls)}")
