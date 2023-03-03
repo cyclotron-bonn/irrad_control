@@ -787,7 +787,7 @@ class IrradConverter(DAQProcess):
 
         self.data_flags[server][axis_domain] = True
 
-    def interpret_data(self, raw_data):
+    def handle_data(self, raw_data):
         """Interpretation of the data"""
 
         # Make list of interpreted result data

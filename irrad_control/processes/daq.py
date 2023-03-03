@@ -515,7 +515,7 @@ class DAQProcess(Process):
 
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
-        self._recv_from_stream(kind='data', stream=self.daq_streams, callback=self.interpret_data, pub_results=True)
+        self._recv_from_stream(kind='data', stream=self.daq_streams, callback=self.handle_data, pub_results=True)
 
     def add_event_stream(self, event_stream):
         """
@@ -612,8 +612,8 @@ class DAQProcess(Process):
         # Close everything
         self._close()
 
-    def interpret_data(self, raw_data):
-        raise NotImplementedError("Implement a *interpret_data* method for converter processes")
+    def handle_data(self, raw_data):
+        raise NotImplementedError("Implement a *handle_data* method for converter processes")
 
     def handle_event(self, event_data):
         raise NotImplementedError("Implement a *handle_event* method")
