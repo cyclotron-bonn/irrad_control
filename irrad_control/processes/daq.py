@@ -9,6 +9,7 @@ from threading import Event
 from zmq.log import handlers
 from irrad_control import pid_file
 from irrad_control.utils.worker import ThreadWorker
+from irrad_control.utils.utils import check_zmq_addr
 from collections import defaultdict
 
 
@@ -60,7 +61,7 @@ class DAQProcess(Process):
         # Sets internal subscriber address from which data is gathered (from potentially many sources) and published (on one port);
         # usually this is some intra-process communication protocol such as inproc/ipc. If not, this process listens to a different
         # DAQ processes DAQ threads in an attempt to distribute the load on multiple CPU cores more evenly
-        self._internal_sub_addr = internal_sub if internal_sub is not None and self._check_addr(internal_sub) else 'inproc://internal'
+        self._internal_sub_addr = internal_sub if internal_sub is not None and check_zmq_addr(internal_sub) else 'inproc://internal'
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
@@ -82,56 +83,6 @@ class DAQProcess(Process):
 
         if event_streams is not None:
             self.add_event_stream(event_stream=event_streams)
-
-    def _check_addr(self, addr):
-        """
-        Check address format for zmq sockets
-
-        Parameters
-        ----------
-
-        addr: str
-            String of zmq address
-
-        Returns
-        -------
-        bool:
-            Whether the address is valid
-        """
-
-        if not isinstance(addr, str):
-            logging.error("Address must be string")
-            return False
-
-        addr_components = addr.split(':')
-
-        # Not TCP or UDP
-        if len(addr_components) == 2:
-            protocol, endpoint = addr_components
-            if endpoint[:2] != '//':
-                logging.error("Incorrect address format. Must be 'protocol://endpoint'")
-                return False
-            elif protocol in ('tcp', 'udp'):
-                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
-                return False
-        # TCP / UDP
-        elif len(addr_components) == 3:
-            protocol, ip, port = addr_components
-            if ip[:2] != '//':
-                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
-                return False
-            try:
-                port = int(port)
-                if not 0 < port < 2 ** 16 - 1:
-                    raise ValueError
-            except ValueError:
-                logging.error("'port' must be an integer between 1 and {} (16 bit)".format(2 ** 16 - 1))
-                return False
-        else:
-            logging.error("Incorrect address format. Must be 'protocol://endpoint")
-            return False
-
-        return True if protocol else False
 
     def _enable_graceful_shutdown(self):
         """ Method that redirects systems interrupt and terminatioin signals to the instances *shutdown* method """
@@ -453,7 +404,7 @@ class DAQProcess(Process):
             return
 
         for strm in streams_to_add:
-            if self._check_addr(strm) and strm not in stream_container:
+            if check_zmq_addr(strm) and strm not in stream_container:
                 stream_container.append(strm)
 
     def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
