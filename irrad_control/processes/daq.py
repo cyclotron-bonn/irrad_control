@@ -15,7 +15,7 @@ from collections import defaultdict
 class DAQProcess(Process):
     """Base-class of data acquisition processes"""
 
-    def __init__(self, name, daq_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
+    def __init__(self, name, daq_streams=None, event_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
         """
         Init the process
 
@@ -26,6 +26,8 @@ class DAQProcess(Process):
             Name of the process
         daq_streams: str, list, tuple
             String or iterable of strings of zmq addresses of data streams to connect to
+        event_streams: str, list, tuple
+            String or iterable of strings of zmq addresses of event streams to connect to
         hwm: int
              High-water mark of zmq sockets
         internal_sub: str, None
@@ -44,13 +46,13 @@ class DAQProcess(Process):
 
         # Events to handle sending / receiving of data and commands
         self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
-        self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
+        self.state_flags = dict([(x, Event()) for x in ('busy',)])
         self.on_demand_events = defaultdict(Event)  # Create events in subclasses on demand
 
         # Ports/sockets used by this process
-        self.ports = {'log': None, 'cmd': None, 'data': None}
-        self.sockets = {'log': None, 'cmd': None, 'data': None}
-        self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB}
+        self.ports = {'log': None, 'cmd': None, 'data': None, 'event': None}
+        self.sockets = {'log': None, 'cmd': None, 'data': None, 'event': None}
+        self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB, 'event': zmq.PUB}
 
         # Attribute holding zmq context
         self.context = None
@@ -75,27 +77,11 @@ class DAQProcess(Process):
         # Quick check
         self.daq_streams = [dstream for dstream in self.daq_streams if self._check_addr(addr=dstream)]
 
-        # If the process is a converter, the 'data' socket will send out data as well as receive data
-        self.is_converter = len(self.daq_streams) > 0
+         # List of input data stream addresses
+        self.event_streams = [] if event_streams is None else event_streams if isinstance(event_streams, (list, tuple)) else [event_streams]
 
-    @property
-    def is_converter(self):
-        """Return whether this instance is also a converter"""
-        return self.state_flags['converter'].is_set()
-
-    @is_converter.setter
-    def is_converter(self, state):
-        """
-        Set whether this instance is a converter
-
-        Parameters
-        ----------
-
-        state: bool
-            Whether this instance should be a converter
-        """
-        # Set the flag
-        self.state_flags['converter'].set() if bool(state) else self.state_flags['converter'].clear()
+        # Quick check
+        self.event_streams = [estream for estream in self.event_streams if self._check_addr(addr=estream)]
 
     def _check_addr(self, addr):
         """
@@ -271,8 +257,8 @@ class DAQProcess(Process):
         # Start command receiver thread
         self.launch_thread(target=self.send_data)
 
-        # If the process is a converter
-        if self.is_converter:
+        # If there is data
+        if len(self.daq_streams) > 0:
 
             # Start data receiver thread
             self.launch_thread(target=self.recv_data)
@@ -586,8 +572,7 @@ class DAQProcess(Process):
         self._close()
 
     def interpret_data(self, raw_data):
-        if self.is_converter:
-            raise NotImplementedError("Implement a *interpret_data* method for converter processes")
+        raise NotImplementedError("Implement a *interpret_data* method for converter processes")
 
     def handle_cmd(self, target, cmd, data=None):
         raise NotImplementedError("Implement a *handle_cmd* method")

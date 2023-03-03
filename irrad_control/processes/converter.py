@@ -888,8 +888,6 @@ class IrradConverter(DAQProcess):
 
         self._setup_daq()
 
-        self.is_converter = True
-
         self.add_daq_stream(daq_stream=[self._tcp_addr(port=self.setup['server'][server]['ports']['data'], ip=server) for server in self.server])
 
         self.launch_thread(target=self.recv_data)
