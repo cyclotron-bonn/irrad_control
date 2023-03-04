@@ -586,9 +586,11 @@ class DAQProcess(Process):
 
     def handle_event(self, event_data):
         try:
-            self.irrad_events[event_data['event']].value.active = event_data['active']
-        except KeyError:
-            pass
+            event_name = event_data['event']
+            self.irrad_events[event_name].value.active = event_data['active']
+            self.irrad_events[event_name].value.disabled = event_data['disabled']
+        except KeyError as e:
+            logging.error(f"Event {event_name} unknown!")
 
     def handle_data(self, raw_data):
         raise NotImplementedError("Implement a *handle_data* method for converter processes")

@@ -3,18 +3,30 @@ from threading import Event
 from time import time
 
 
-class BaseEvent(Event):
+class BaseEvent(object):
 
     @property
     def active(self):
-        return self.is_set()
+        return self._active_event.is_set()
 
     @active.setter
     def active(self, status):
         if status:
-            self.set()
+            self._active_event.set()
+            self._last_triggered = time()
         else:
-            self.clear()
+            self._active_event.clear()
+
+    @property
+    def disabled(self):
+        return self._disabled_event.is_set()
+
+    @disabled.setter
+    def disabled(self, disabled):
+        if disabled:
+            self._disabled_event.set()
+        else:
+            self._disabled_event.clear()
 
     def __init__(self, cooldown=0, description=''):
         super().__init__()
@@ -23,10 +35,11 @@ class BaseEvent(Event):
         self.description = description
 
         self._last_triggered = None
+        self._active_event = Event()
+        self._disabled_event = Event()
 
-    def set(self):
-        super().set()
-        self._last_triggered = time()
+    def wait_for_active(self, timeout=None):
+        return self._active_event.wait(timeout=timeout)
 
     def is_ready(self):
         return True if self._last_triggered is None else time() - self._last_triggered > self.cooldown
@@ -61,6 +74,7 @@ class IrradEvents(Enum):
         try:
             return {'event': cls[event].name,
                     'active': cls[event].value.active,
+                    'disabled': cls[event].value.disabled,
                     'description': cls[event].value.description}
         except KeyError:
             raise KeyError(f"'{event}' not in IrradEvents! \
