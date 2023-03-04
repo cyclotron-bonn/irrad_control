@@ -67,7 +67,7 @@ class IrradEvents(Enum):
 
     @classmethod
     def beam_ok(cls):
-        return not any(ev.value.active for ev in cls.beam_events())
+        return not any(ev.value.active for ev in cls.beam_events() if not ev.value.disabled)
 
     @classmethod
     def to_dict(cls, event):
