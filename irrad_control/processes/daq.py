@@ -56,7 +56,7 @@ class DAQProcess(Process):
         self.sockets = {'log': None, 'cmd': None, 'data': None, 'event': None}
         self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB, 'event': zmq.PUB}
 
-        self.irrad_events = IrradEvents()
+        self.irrad_events = IrradEvents
 
         # Attribute holding zmq context
         self.context = None
