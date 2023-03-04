@@ -143,6 +143,7 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 ========
 
+- v2.0.1: Bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.1>`_
 - v2.0.0: Full support for the updated irradiation setup, major restructure, flexible irradiation procedures, new features, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.0>`_
 - v1.3.0: Included module for offline analysis of e.g. irradiation data, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.3.0>`_
 - v1.2.0: First version with partial support for updated irradiation setup running on Python 3, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.2.0>`_
