@@ -468,8 +468,6 @@ class IrradGUI(QtWidgets.QMainWindow):
             if 'frac_v' in data['data']['sey']:
                 self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
 
-            self.control_tab.check_no_beam(server=server, beam_current=data['data']['current']['beam_current'])
-
         elif data['meta']['type'] == 'hist':
             if 'beam_position_idxs' in data['data']:
                 self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
@@ -864,7 +862,10 @@ class IrradGUI(QtWidgets.QMainWindow):
                 return False
             else:
                 for s in scan_in_progress_servers:
-                    self.send_cmd(hostname=s, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'abort'}})
+                    self.send_cmd(hostname=s,
+                                  target='__scan__',
+                                  cmd='handle_interaction',
+                                  cmd_data={'kwargs': {'interaction': 'abort'}})
 
         return True
 

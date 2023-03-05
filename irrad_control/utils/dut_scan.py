@@ -46,7 +46,7 @@ class DUTScan(object):
         self.irrad_events = irrad_events
 
         # Events controlling the scanning procedure
-        self.interaction_events = {e: threading.Event() for e in ('abort', 'complete', 'pause')}
+        self.interaction_events = {e: threading.Event() for e in ('abort', 'finish', 'pause')}
 
         # Scan parameters; derived from scan config
         self._scan_params = {}
@@ -56,9 +56,9 @@ class DUTScan(object):
         if config is not None:
             self.setup_scan(scan_config=config)
 
-    def handle_event(self, event):
+    def handle_interaction(self, interaction):
         """
-        Method to handle an event. *event* is string and can be any of the following
+        Method to handle an interaction. *interaction* is string and can be any of the following
 
         abort:
             Scan stops immediately after scanning current row. Setup relocates to scan origin
@@ -70,16 +70,16 @@ class DUTScan(object):
             Scan continues after pausing.
         """
 
-        if event == 'abort':
+        if interaction == 'abort':
             logging.warning("Aborting scan!")
             self.interaction_events['abort'].set()
-        elif event == 'finish':
+        elif interaction == 'finish':
             logging.info("Finishing scan!")
-            self.interaction_events['complete'].set()
-        elif event == 'pause':
+            self.interaction_events['finish'].set()
+        elif interaction == 'pause':
             logging.info("Pausing scan!")
             self.interaction_events['pause'].set()
-        elif event == 'continue':
+        elif interaction == 'continue':
             logging.info("Continuing scan!")
             self.interaction_events['pause'].clear()
 
@@ -459,8 +459,8 @@ class DUTScan(object):
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
 
-            # Loop until self.interaction_events['abort'] or self.interaction_events['complete']
-            while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'complete')):
+            # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
+            while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
                 # Pause scan indefinitely until manually resuming
                 self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),

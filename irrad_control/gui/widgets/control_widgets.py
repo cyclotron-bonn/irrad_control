@@ -647,24 +647,24 @@ class ScanControlWidget(ControlWidget):
         btn_pause.setToolTip("Pause the scan. Allow remaining rows to be scanned before pausing.")
         btn_pause.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                           target='__scan__',
-                                                          cmd='handle_event',
-                                                          cmd_data={'kwargs': {'event': btn_pause.text().lower()}}))
+                                                          cmd='handle_interaction',
+                                                          cmd_data={'kwargs': {'interaction': btn_pause.text().lower()}}))
         btn_pause.clicked.connect(lambda _: btn_pause.setText('CONTINUE' if btn_pause.text() == 'PAUSE' else 'PAUSE'))
 
         btn_finish = QtWidgets.QPushButton('FINISH')
         btn_finish.setToolTip("Finish the scan. Allow remaining rows to be scanned before finishing.")
         btn_finish.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                            target='__scan__',
-                                                           cmd='handle_event',
-                                                           cmd_data={'kwargs': {'event': 'finish'}}))
+                                                           cmd='handle_interaction',
+                                                           cmd_data={'kwargs': {'interaction': 'finish'}}))
 
         # Stop button
         btn_stop = QtWidgets.QPushButton('STOP')
         btn_stop.setToolTip("Immediately cancel scan and return to scan origin")
         btn_stop.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                            target='__scan__',
-                                                           cmd='handle_event',
-                                                           cmd_data={'kwargs': {'event': 'abort'}}))
+                                                           cmd='handle_interaction',
+                                                           cmd_data={'kwargs': {'interaction': 'abort'}}))
 
         btn_start.setStyleSheet('QPushButton {color: green;}')
         btn_pause.setStyleSheet('QPushButton {color: green;}')
