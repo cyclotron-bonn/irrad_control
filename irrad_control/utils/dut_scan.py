@@ -46,7 +46,7 @@ class DUTScan(object):
         self.irrad_events = irrad_events
 
         # Events controlling the scanning procedure
-        self._events = {e: threading.Event() for e in ('stop', 'complete', 'pause')}
+        self.interaction_events = {e: threading.Event() for e in ('stop', 'complete', 'pause')}
 
         # Scan parameters; derived from scan config
         self._scan_params = {}
@@ -72,16 +72,16 @@ class DUTScan(object):
 
         if event == 'abort':
             logging.warning("Aborting scan!")
-            self._events['stop'].set()
+            self.interaction_events['stop'].set()
         elif event == 'finish':
             logging.info("Finishing scan!")
-            self._events['complete'].set()
+            self.interaction_events['complete'].set()
         elif event == 'pause':
             logging.info("Pausing scan!")
-            self._events['pause'].set()
+            self.interaction_events['pause'].set()
         elif event == 'continue':
             logging.info("Continuing scan!")
-            self._events['pause'].clear()
+            self.interaction_events['pause'].clear()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
         """
@@ -215,7 +215,7 @@ class DUTScan(object):
         ------
         ScanError
         """
-        if self._events['stop'].wait(self._event_wait_time):
+        if self.interaction_events['stop'].wait(self._event_wait_time):
             raise ScanError("Scan was stopped manually")
 
     def _wait_for_condition(self, condition_call, log_msg=None, log_level='INFO', check_call=None):
@@ -459,11 +459,11 @@ class DUTScan(object):
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
 
-            # Loop until self._events['stop'] or self._events['complete']
-            while not (self._events['stop'].wait(self._event_wait_time) or self._events['complete'].wait(self._event_wait_time)):
+            # Loop until self.interaction_events['stop'] or self.interaction_events['complete']
+            while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('stop', 'complete')):
 
                 # Pause scan indefinitely until manually resuming
-                self._wait_for_condition(condition_call=lambda: not self._events['pause'].wait(self._event_wait_time),
+                self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
                                          log_msg=f"Scan paused after {scan} scans. Waiting to continue",
                                          log_level='INFO')
 
@@ -474,7 +474,7 @@ class DUTScan(object):
                 for row in current_rows:
 
                     # Check for emergency stop; if so, raise error
-                    if self._events['stop'].wait(self._event_wait_time):
+                    if self.interaction_events['stop'].wait(self._event_wait_time):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
@@ -510,5 +510,5 @@ class DUTScan(object):
                 self.scan_stage.move_abs(axis=i, value=self._scan_params['origin'][i])
 
             # Reset signal so one can scan again
-            for _, e in self._events.items():
+            for _, e in self.interaction_events.items():
                 e.clear()
