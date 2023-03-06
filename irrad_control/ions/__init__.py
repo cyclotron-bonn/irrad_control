@@ -5,6 +5,7 @@ import numpy as np
 from importlib import import_module
 
 from irrad_control.analysis.constants import elementary_charge
+from irrad_control.analysis.formulas import bethe_bloch_Si
 
 
 class IrradIon(object):
@@ -76,6 +77,11 @@ class IrradIon(object):
             _data = self._to_dict(_data)
 
         return _data
+    
+    def mass(self):
+        # TODO: binding energy
+        m_proton, m_neutron = 938.272, 939.565  # MeV, MeV
+        return self.n_charge * m_proton + (self.n_nucleon - self.n_charge) * m_neutron
 
     def rate(self, current):
         """
@@ -116,12 +122,14 @@ class IrradIon(object):
 
     def stopping_power(self, energy, at_dut=False):
         
+        tmp_energy = energy if not at_dut else self.ekin_at_dut(energy=energy)
+
+        # Get data from e.g. NIST tables 
         if self._data['stopping'] is not None:
-            tmp_energy = energy if not at_dut else self.ekin_at_dut(energy=energy)
             return float(np.interp(x=tmp_energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1]))
         
-        logging.warning(f"No stopping power data available for {self.name}s.")
-        return None
+        logging.info(f"No stopping power data available for {self.name}s. Calculate from Bethe-Bloch")
+        return bethe_bloch_Si(charge=self.n_charge, mass=self.mass, energy=tmp_energy)
 
     def calibration(self, at_energy=None, at_index=None, as_dict=False, return_index=False):
         
