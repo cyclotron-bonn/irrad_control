@@ -44,6 +44,9 @@ class BaseEvent(object):
     def is_ready(self):
         return True if self._last_triggered is None else time() - self._last_triggered > self.cooldown
 
+    def is_valid(self):
+        return self.active and not self.disabled
+
     
 class IrradEvents(Enum):
 
@@ -54,12 +57,16 @@ class IrradEvents(Enum):
     BeamDrift = BaseEvent(cooldown=1, description="Beam position deviates from center")
     BeamLow = BaseEvent(cooldown=1, description="Beam current below threshold")
 
+    # Scan events
+    ScanComplete = BaseEvent(cooldown=10, description="Scan completed")
+
     # Temperature
     DUTTempHigh = BaseEvent(cooldown=20, description="Temperature of DUT high")
     BLMTempHigh = BaseEvent(cooldown=20, description="Temperature of beam loss monitor high")
 
     # Misc
     DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
+    ROScaleChange = BaseEvent(cooldown=1, description="DAQBoard changed R/O current scale")
 
     @classmethod
     def beam_events(cls):
@@ -67,7 +74,7 @@ class IrradEvents(Enum):
 
     @classmethod
     def beam_ok(cls):
-        return not any(ev.value.active for ev in cls.beam_events() if not ev.value.disabled)
+        return not any(ev.value.is_valid() for ev in cls.beam_events())
 
     @classmethod
     def to_dict(cls, event):
