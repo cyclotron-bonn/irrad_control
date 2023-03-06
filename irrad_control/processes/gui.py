@@ -701,72 +701,54 @@ class IrradGUI(QtWidgets.QMainWindow):
         else:
             logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
 
+    def _recv_from_stream(self, stream, recv_func, emit_signal, callback=None, recv_msg=''):
+
+        # Subscriber
+        sub = self.context.socket(zmq.SUB)
+
+        # Wait 1 sec for messages to be received
+        sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        sub.setsockopt(zmq.LINGER, 0)
+
+        # Loop over servers and connect to their data streams
+        for server in self.setup['server']:
+            sub.connect(self._tcp_addr(self.setup['server'][server]['ports'][stream], ip=server))
+
+        # Connect to interpreter data stream
+        sub.connect(self._tcp_addr(self.setup['ports'][stream], ip='localhost'))
+
+        sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+
+        logging.info(recv_msg or f"Start receiving from {stream} stream")
+        
+        while not self.stop_recv.is_set():
+            try:
+                res = getattr(sub, recv_func)()
+                # Only emit if we got something
+                if res:
+                    emit_signal.emit(res if callback is None else callback(res))
+            except zmq.Again:
+                pass
+
     def recv_data(self):
-        
-        # Data subscriber
-        data_sub = self.context.socket(zmq.SUB)
+        self._recv_from_stream(stream='data', recv_func='recv_json', emit_signal=self.data_received)
 
-        # Wait 1 sec for messages to be received
-        data_sub.setsockopt(zmq.RCVTIMEO, int(1000))
-        data_sub.setsockopt(zmq.LINGER, 0)
-
-        # Loop over servers and connect to their data streams
-        for server in self.setup['server']:
-            data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
-
-        # Connect to interpreter data stream
-        data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
-
-        data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-        
-        logging.info('Data receiver ready')
-        
-        while not self.stop_recv_data.is_set():
-            try:
-                self.data_received.emit(data_sub.recv_json())
-            except zmq.Again:
-                pass
-            
     def recv_log(self):
-        
-        # Log subscriber
-        log_sub = self.context.socket(zmq.SUB)
 
-        # Wait 1 sec for messages to be received
-        log_sub.setsockopt(zmq.RCVTIMEO, int(1000))
-        log_sub.setsockopt(zmq.LINGER, 0)
+        def callback(log):
+            # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+            # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+            # therefore this will work in Py2 and Py3
+            log = log.decode()
+            log_dict = {}
 
-        # Connect to log messages from remote server and local interpreter process
-        # Loop over servers and connect to their data streams
-        for server in self.setup['server']:
-            log_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['log'], ip=server))
+            if log.upper() in self._loglevel_names:
+                log_dict['level'] = getattr(logging, log.upper(), None)
+            else:
+                log_dict['log'] = log.strip()
+            return log_dict
 
-        # Connect to interpreter data stream
-        log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
-
-        log_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-        
-        logging.info('Log receiver ready')
-        
-        while not self.stop_recv_log.is_set():
-            try:
-                log = log_sub.recv()
-                if log:
-                    log_dict = {}
-
-                    # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
-                    # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
-                    # therefore this will work in Py2 and Py3
-                    log = log.decode()
-
-                    if log.upper() in self._loglevel_names:
-                        log_dict['level'] = getattr(logging, log.upper(), None)
-                    else:
-                        log_dict['log'] = log.strip()
-
-                    self.log_received.emit(log_dict)
-            except zmq.Again:
-                pass
+        self._recv_from_stream(stream='log', recv_func='recv', emit_signal=self.log_received, callback=callback)
 
     def handle_messages(self, message, ms=4000):
         """Handles messages from the tabs shown in QMainWindows statusBar"""
