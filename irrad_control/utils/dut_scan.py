@@ -462,6 +462,10 @@ class DUTScan(object):
             # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
             while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
+                # Break if the scan is completed
+                if self.irrad_events.ScanComplete.value.is_valid():
+                    break
+
                 # Pause scan indefinitely until manually resuming
                 self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
                                          log_msg=f"Scan paused after {scan} scans. Waiting to continue",
