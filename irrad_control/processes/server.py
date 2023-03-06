@@ -34,6 +34,7 @@ class IrradServer(DAQProcess):
         # Update setup
         self.server = setup['server']
         self.setup = setup['setup']
+        self.host = {'host': setup['host'], 'ports': setup['ports']}
 
         # Overwrite server setup with our server
         self.setup['server'] = self.setup['server'][self.server]
@@ -46,6 +47,8 @@ class IrradServer(DAQProcess):
         self._setup_devices()
 
         self._launch_daq_threads()
+
+        self._launch_recv_events()
 
     def _init_devices(self):
 
@@ -238,6 +241,10 @@ class IrradServer(DAQProcess):
         data = {'dose_rate': dose_rate, 'frequency': frequency}
 
         return meta, data
+    
+    def _launch_recv_events(self):
+        self.add_event_stream(event_stream=self._tcp_addr(ip=self.host['host'], port=self.host['ports']['event']))
+        self.launch_thread(target=self.recv_event)
 
     def _call_device_method(self, device, method, call_data):
 
