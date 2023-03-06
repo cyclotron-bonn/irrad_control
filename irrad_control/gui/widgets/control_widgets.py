@@ -659,17 +659,17 @@ class ScanControlWidget(ControlWidget):
                                                            cmd_data={'kwargs': {'interaction': 'finish'}}))
 
         # Stop button
-        btn_stop = QtWidgets.QPushButton('STOP')
-        btn_stop.setToolTip("Immediately cancel scan and return to scan origin")
-        btn_stop.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                           target='__scan__',
-                                                           cmd='handle_interaction',
-                                                           cmd_data={'kwargs': {'interaction': 'abort'}}))
+        btn_abort = QtWidgets.QPushButton('ABORT')
+        btn_abort.setToolTip("Immediately cancel scan and return to scan origin")
+        btn_abort.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                          target='__scan__',
+                                                          cmd='handle_interaction',
+                                                          cmd_data={'kwargs': {'interaction': 'abort'}}))
 
         btn_start.setStyleSheet('QPushButton {color: green;}')
         btn_pause.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
-        btn_stop.setStyleSheet('QPushButton {color: red;}')
+        btn_abort.setStyleSheet('QPushButton {color: red;}')
         
         # Cheboxes
         # Auto finish scan
@@ -678,7 +678,7 @@ class ScanControlWidget(ControlWidget):
         checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
         checkbox_auto_finish.setChecked(True)
 
-        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_stop])
+        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_abort])
         scan_interaction_container.add_widget(widget=checkbox_auto_finish)
 
         # Add to layout
