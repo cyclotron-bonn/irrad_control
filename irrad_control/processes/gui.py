@@ -13,6 +13,7 @@ from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.utils.utils import get_current_git_branch
+from irrad_control.utils.events import IrradEvents
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 from irrad_control.gui.widgets.setup_widgets import SessionSetup
@@ -51,6 +52,9 @@ class IrradGUI(QtWidgets.QMainWindow):
         
         # Needed in order to stop receiver threads
         self.stop_recv = Event()
+
+        # Keep track of evetns that are happening
+        self.irrad_events = IrradEvents
         
         # ZMQ context; THIS IS THREADSAFE! SOCKETS ARE NOT!
         # EACH SOCKET NEEDS TO BE CREATED WITHIN ITS RESPECTIVE THREAD/PROCESS!
@@ -447,8 +451,14 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Set the tab index to stay at the same tab after replacing old tabs
         self.tabs.setCurrentIndex(current_tab)
 
-    def handle_event(self, event):
-        print(event)
+    def handle_event(self, event_data):
+        try:
+            event_name = event_data['event']
+            self.irrad_events[event_name].value.active = event_data['active']
+            self.irrad_events[event_name].value.disabled = event_data['disabled']
+        except KeyError as e:
+            logging.error(f"Event {event_name} unknown!")
+        print(event_data)
     
     def handle_data(self, data):
 
