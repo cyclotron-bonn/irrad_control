@@ -39,8 +39,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     # PyQt signals
     data_received = QtCore.pyqtSignal(dict)  # Signal for data
-    reply_received = QtCore.pyqtSignal(dict)  # Signal for reply
     log_received = QtCore.pyqtSignal(dict)  # Signal for log
+    event_received = QtCore.pyqtSignal(dict)  # Signal for events
+    reply_received = QtCore.pyqtSignal(dict)  # Signal for reply
 
     def __init__(self, parent=None):
         super(IrradGUI, self).__init__(parent)
@@ -48,9 +49,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Setup dict of the irradiation; is set when setup tab is completed
         self.setup = None
         
-        # Needed in order to stop helper threads
-        self.stop_recv_data = Event()
-        self.stop_recv_log = Event()
+        # Needed in order to stop receiver threads
+        self.stop_recv = Event()
         
         # ZMQ context; THIS IS THREADSAFE! SOCKETS ARE NOT!
         # EACH SOCKET NEEDS TO BE CREATED WITHIN ITS RESPECTIVE THREAD/PROCESS!
@@ -73,8 +73,9 @@ class IrradGUI(QtWidgets.QMainWindow):
         
         # Connect signals
         self.data_received.connect(lambda data: self.handle_data(data))
-        self.reply_received.connect(lambda reply: self.handle_reply(reply))
         self.log_received.connect(lambda log: self.handle_log(log))
+        self.event_received.connect(lambda event: self.handle_event(event))
+        self.reply_received.connect(lambda reply: self.handle_reply(reply))
 
         # Tab widgets
         self.setup_tab = None
@@ -267,11 +268,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def _init_recv_threads(self):
 
-        # Start receiving log messages from other processes
-        self.threadpool.start(QtWorker(func=self.recv_log))
-
-        # Start receiving data from other processes
-        self.threadpool.start(QtWorker(func=self.recv_data))
+        # Start receiving data, events and log messages from other processes
+        for recv_func in (self.recv_data, self.recv_event, self.recv_log):
+            self.threadpool.start(QtWorker(func=recv_func))
 
     def _init_processes(self):
 
@@ -447,6 +446,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Set the tab index to stay at the same tab after replacing old tabs
         self.tabs.setCurrentIndex(current_tab)
+
+    def handle_event(self, event):
+        print(event)
     
     def handle_data(self, data):
 
@@ -730,6 +732,9 @@ class IrradGUI(QtWidgets.QMainWindow):
             except zmq.Again:
                 pass
 
+    def recv_event(self):
+        self._recv_from_stream(stream='event', recv_func='recv_json', emit_signal=self.event_received)
+
     def recv_data(self):
         self._recv_from_stream(stream='data', recv_func='recv_json', emit_signal=self.data_received)
 
@@ -769,8 +774,7 @@ class IrradGUI(QtWidgets.QMainWindow):
     def _clean_up(self):
 
         # Stop receiver threads
-        self.stop_recv_data.set()
-        self.stop_recv_log.set()
+        self.stop_recv.set()
 
         # Store all plots on close; AttributeError when app was not launched fully
         try:
