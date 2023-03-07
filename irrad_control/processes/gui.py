@@ -1,4 +1,4 @@
-import sys, os
+import sys
 import time
 import logging
 import platform
@@ -15,12 +15,6 @@ from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.utils.utils import get_current_git_branch
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
-from irrad_control.gui.widgets.setup_widgets import SessionSetup
-from irrad_control.ions import get_ions
-from irrad_control.gui.utils import fill_combobox_items
-from irrad_control.gui.widgets.util_widgets import GridContainer
-from irrad_control.utils.tools import load_yaml
-from irrad_control import config_path
 
 
 PROJECT_NAME = 'Irrad Control'
