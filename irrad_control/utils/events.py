@@ -47,42 +47,56 @@ class BaseEvent(object):
     def is_valid(self):
         return self.active and not self.disabled
 
-    
-class IrradEvents(Enum):
 
-    # Beam-related events
-    BeamOff = BaseEvent(cooldown=1, description="Beam current below measureable resolution")
-    BeamUnstable = BaseEvent(cooldown=1, description="Beam current fluctuates")
-    BeamLoss = BaseEvent(cooldown=1, description="Beam current lost at extraction")
-    BeamDrift = BaseEvent(cooldown=1, description="Beam position deviates from center")
-    BeamLow = BaseEvent(cooldown=1, description="Beam current below threshold")
+def create_irrad_events():
+    """
+    Create and return an enum of irradiation-related events.
+    Needed to create multiple insances of IrradEvents for multiple servers
 
-    # Scan events
-    ScanComplete = BaseEvent(cooldown=10, description="Scan completed")
+    Returns
+    -------
+    Enum
+        IrradEvents
+    """
 
-    # Temperature
-    DUTTempHigh = BaseEvent(cooldown=20, description="Temperature of DUT high")
-    BLMTempHigh = BaseEvent(cooldown=20, description="Temperature of beam loss monitor high")
+    class IrradEvents(Enum):
 
-    # Misc
-    DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
-    ROScaleChange = BaseEvent(cooldown=1, description="DAQBoard changed R/O current scale")
+        # Beam-related events
+        BeamOff = BaseEvent(cooldown=1, description="Beam current below measureable resolution")
+        BeamUnstable = BaseEvent(cooldown=1, description="Beam current fluctuates")
+        BeamLoss = BaseEvent(cooldown=1, description="Beam current lost at extraction")
+        BeamDrift = BaseEvent(cooldown=1, description="Beam position deviates from center")
+        BeamLow = BaseEvent(cooldown=1, description="Beam current below threshold")
 
-    @classmethod
-    def beam_events(cls):
-        return Enum('BeamEvents', [(ev.name, ev.value) for ev in cls if 'Beam' in ev.name])
+        # Scan events
+        ScanComplete = BaseEvent(cooldown=10, description="Scan completed")
 
-    @classmethod
-    def beam_ok(cls):
-        return not any(ev.value.is_valid() for ev in cls.beam_events())
+        # Temperature
+        DUTTempHigh = BaseEvent(cooldown=20, description="Temperature of DUT high")
+        BLMTempHigh = BaseEvent(cooldown=20, description="Temperature of beam loss monitor high")
 
-    @classmethod
-    def to_dict(cls, event):
-        try:
-            return {'event': cls[event].name,
-                    'active': cls[event].value.active,
-                    'disabled': cls[event].value.disabled,
-                    'description': cls[event].value.description}
-        except KeyError:
-            raise KeyError(f"'{event}' not in IrradEvents! \
-                             Available events: {', '.join(ev.name for ev in cls)}")
+        # Misc
+        DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
+        ROScaleChange = BaseEvent(cooldown=1, description="DAQBoard changed R/O current scale")
+
+        @classmethod
+        def beam_events(cls):
+            return Enum('BeamEvents', [(ev.name, ev.value) for ev in cls if 'Beam' in ev.name])
+
+        @classmethod
+        def beam_ok(cls):
+            return not any(ev.value.is_valid() for ev in cls.beam_events())
+
+        @classmethod
+        def to_dict(cls, event):
+            try:
+                return {'event': cls[event].name,
+                        'active': cls[event].value.active,
+                        'disabled': cls[event].value.disabled,
+                        'description': cls[event].value.description,
+                        'last_triggered': cls[event].value._last_triggered}
+            except KeyError:
+                raise KeyError(f"'{event}' not in IrradEvents! \
+                                Available events: {', '.join(ev.name for ev in cls)}")
+
+    return IrradEvents

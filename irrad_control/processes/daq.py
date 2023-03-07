@@ -10,7 +10,6 @@ from zmq.log import handlers
 from irrad_control import pid_file
 from irrad_control.utils.worker import ThreadWorker
 from irrad_control.utils.utils import check_zmq_addr
-from irrad_control.utils.events import IrradEvents
 from collections import defaultdict
 
 
@@ -55,8 +54,6 @@ class DAQProcess(Process):
         self.ports = {'log': None, 'cmd': None, 'data': None, 'event': None}
         self.sockets = {'log': None, 'cmd': None, 'data': None, 'event': None}
         self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB, 'event': zmq.PUB}
-
-        self.irrad_events = IrradEvents
 
         # Attribute holding zmq context
         self.context = None
@@ -585,12 +582,7 @@ class DAQProcess(Process):
         self._close()
 
     def handle_event(self, event_data):
-        try:
-            event_name = event_data['event']
-            self.irrad_events[event_name].value.active = event_data['active']
-            self.irrad_events[event_name].value.disabled = event_data['disabled']
-        except KeyError as e:
-            logging.error(f"Event {event_name} unknown!")
+        raise NotImplementedError("Implement a *handle_event* method")
 
     def handle_data(self, raw_data):
         raise NotImplementedError("Implement a *handle_data* method for converter processes")

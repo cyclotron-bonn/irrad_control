@@ -10,6 +10,7 @@ from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
 from irrad_control.processes.daq import DAQProcess
+from irrad_control.utils.events import create_irrad_events
 
 
 class IrradServer(DAQProcess):
@@ -24,6 +25,8 @@ class IrradServer(DAQProcess):
         self.devices = {}
 
         self._motorstages = []
+
+        self.irrad_events = create_irrad_events()
 
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
@@ -152,7 +155,8 @@ class IrradServer(DAQProcess):
         if 'ScanStage' in self.devices:
 
             # Add special __scan__ device which from now on can be accessed via the direct device calls
-            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'])
+            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'],
+                                               irrad_events=self.irrad_events)
 
             # Connect to ZMQ
             self.devices['__scan__'].setup_zmq(ctx=self.context,
@@ -308,6 +312,19 @@ class IrradServer(DAQProcess):
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
+
+    def handle_event(self, event_data):
+
+        # Only handle events of this server
+        if event_data['server'] != self.server:
+            return
+        
+        try:
+            event_name = event_data['event']
+            self.irrad_events[event_name].value.active = event_data['active']
+            self.irrad_events[event_name].value.disabled = event_data['disabled']
+        except KeyError:
+            logging.error(f"Event {event_name} unknown!")
 
     def clean_up(self):
         """Mandatory clean up - method"""

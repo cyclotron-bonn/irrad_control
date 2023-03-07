@@ -11,6 +11,7 @@ import irrad_control.analysis as analysis
 import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
 from irrad_control.ions import get_ions
+from irrad_control.utils.events import create_irrad_events
 
 
 class IrradConverter(DAQProcess):
@@ -31,6 +32,9 @@ class IrradConverter(DAQProcess):
         self.dtypes = analysis.dtype.IrradDtypes()
         self.hists = analysis.dtype.IrradHists()
         self.ions = get_ions()
+
+        # Irrad events on a per-server basis
+        self.irrad_events = defaultdict(create_irrad_events)
 
         # Call init of super class
         super(IrradConverter, self).__init__(name=name)
