@@ -118,7 +118,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Init widgets and add to main windowScatterPlotItem
         self._init_menu()
         self._init_tabs()
-        self._init_log_dock()
+        self._init_info_dock()
         
         self.sub_splitter.setSizes([int(1. / 3. * self.width()), int(2. / 3. * self.width())])
         self.main_splitter.setSizes([int(0.8 * self.height()), int(0.2 * self.height())])
@@ -137,8 +137,8 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
         self.appearance_menu.setToolTipsVisible(True)
-        self.appearance_menu.addAction('&Show/hide log', self.handle_log_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
-        self.appearance_menu.addAction('&Show/hide DAQ', self.handle_daq_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_D)
+        self.appearance_menu.addAction('&Show/hide info dock', self.handle_info_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
+        self.appearance_menu.addAction('&Show/hide DAQ dock', self.handle_daq_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_D)
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -198,7 +198,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.pdiag.setModal(True)
         self.pdiag.show()
 
-    def _init_log_dock(self):
+    def _init_info_dock(self):
         """Initializes corresponding log dock"""
 
         # Widget to display log in, we only want to read log
@@ -210,15 +210,15 @@ class IrradGUI(QtWidgets.QMainWindow):
         info_tabs.addTab(self.event_widget, 'Event')
         
         # Dock in which text widget is placed to make it closable without losing log content
-        self.log_dock = QtWidgets.QDockWidget()
-        self.log_dock.setWidget(info_tabs)
-        self.log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
-        self.log_dock.setWindowTitle('Log')
+        self.info_dock = QtWidgets.QDockWidget()
+        self.info_dock.setWidget(info_tabs)
+        self.info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.info_dock.setWindowTitle('Info')
 
         # Add to main layout
-        self.sub_splitter.addWidget(self.log_dock)
-        self.handle_log_ui()
+        self.sub_splitter.addWidget(self.info_dock)
+        self.handle_info_ui()
 
     def _init_daq_dock(self):
         """Initializes corresponding daq info dock"""
@@ -226,14 +226,14 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.daq_info_widget = DaqInfoWidget(setup=self.setup['server'])
 
         # Dock in which text widget is placed to make it closable without losing log content
-        self.daq_info_dock = QtWidgets.QDockWidget()
-        self.daq_info_dock.setWidget(self.daq_info_widget)
-        self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
-        self.daq_info_dock.setWindowTitle('Data acquisition')
+        self.daq_dock = QtWidgets.QDockWidget()
+        self.daq_dock.setWidget(self.daq_info_widget)
+        self.daq_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.daq_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.daq_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
-        self.sub_splitter.addWidget(self.daq_info_dock)
+        self.sub_splitter.addWidget(self.daq_dock)
 
     def _init_logging(self, loglevel=logging.INFO):
         """Initializes a custom logging handler and redirects stdout/stderr"""
@@ -696,8 +696,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         elif _type == 'ERROR':
             msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.error(msg)
-            if self.log_dock.isHidden():
-                self.log_dock.setVisible(True)
+            if self.info_dock.isHidden():
+                self.info_dock.setVisible(True)
 
         else:
             logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
@@ -759,13 +759,13 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.statusBar().showMessage(message, ms)
 
-    def handle_log_ui(self):
+    def handle_info_ui(self):
         """Handle whether log widget is visible or not"""
-        self.log_dock.setVisible(not self.log_dock.isVisible())
+        self.info_dock.setVisible(not self.info_dock.isVisible())
     
     def handle_daq_ui(self):
         """Handle whether log widget is visible or not"""
-        self.daq_info_dock.setVisible(not self.daq_info_dock.isVisible())
+        self.daq_dock.setVisible(not self.daq_dock.isVisible())
 
     def file_quit(self):
         self.close()
