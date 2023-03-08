@@ -13,8 +13,7 @@ from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.utils.utils import get_current_git_branch
-from irrad_control.utils.events import IrradEvents
-from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
+from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget, EventWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 
 
@@ -46,9 +45,6 @@ class IrradGUI(QtWidgets.QMainWindow):
         
         # Needed in order to stop receiver threads
         self.stop_recv = Event()
-
-        # Keep track of evetns that are happening
-        self.irrad_events = IrradEvents
         
         # ZMQ context; THIS IS THREADSAFE! SOCKETS ARE NOT!
         # EACH SOCKET NEEDS TO BE CREATED WITHIN ITS RESPECTIVE THREAD/PROCESS!
@@ -207,10 +203,15 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Widget to display log in, we only want to read log
         self.log_widget = LoggingWidget()
+        self.event_widget = EventWidget()
+
+        info_tabs = QtWidgets.QTabWidget()
+        info_tabs.addTab(self.log_widget, 'Log')
+        info_tabs.addTab(self.event_widget, 'Event')
         
         # Dock in which text widget is placed to make it closable without losing log content
         self.log_dock = QtWidgets.QDockWidget()
-        self.log_dock.setWidget(self.log_widget)
+        self.log_dock.setWidget(info_tabs)
         self.log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
         self.log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
         self.log_dock.setWindowTitle('Log')
@@ -446,13 +447,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.tabs.setCurrentIndex(current_tab)
 
     def handle_event(self, event_data):
-        try:
-            event_name = event_data['event']
-            self.irrad_events[event_name].value.active = event_data['active']
-            self.irrad_events[event_name].value.disabled = event_data['disabled']
-        except KeyError as e:
-            logging.error(f"Event {event_name} unknown!")
-        print(event_data)
+        self.event_widget.register_event(event_dict=event_data)
     
     def handle_data(self, data):
 
