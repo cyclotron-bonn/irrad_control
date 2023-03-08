@@ -740,11 +740,12 @@ class DAQControlWidget(ControlWidget):
 
     enableDAQRec = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, server, ro_device, parent=None, enable=True):
+    def __init__(self, server, ro_device, parent=None, enable=True, enable_rad_mon=False):
         self.server = server
         self.ro_device = ro_device
+        self._enable_rad_mon = enable_rad_mon
         self._style = QtWidgets.qApp.style()
-        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
+        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable or enable_rad_mon) 
 
     def _init_widget(self):
         self._init_ui()
