@@ -26,8 +26,8 @@ class IrradConverter(DAQProcess):
         self._data_flush_interval = 1.0
         self._last_data_flush = None
         self._n_offset_samples = 100
-        self._beam_cut_off_threshold = 0.1
-        self._beam_correction_threshold = 0.05
+        self._beam_cut_off_threshold = 0.05
+        self._beam_correction_threshold = 0.1
 
         self.dtypes = analysis.dtype.IrradDtypes()
         self.hists = analysis.dtype.IrradHists()
@@ -361,6 +361,11 @@ class IrradConverter(DAQProcess):
                 if 'sem_sum' in self._lookups[server]['ro_type_idx'] and self._lookups[server]['ro_type_idx']['sem_sum'] == ch_idx:
                     raw_data['data']['current'][ch] *= 4
 
+                    # Use 'sem_sum' voltage signal to determine whether the beam is off: off if smalle 1% of full scale voltage
+                    self._check_irrad_event(server=server,
+                                            event_name='BeamOff',
+                                            trigger_condition=lambda: data[ch] < 0.01 * self._lookups[server]['full_scale_voltage'])
+
             raw_data['data']['voltage'][ch] = data[ch]
 
         # Append data to table within this interpretation cycle
@@ -486,6 +491,10 @@ class IrradConverter(DAQProcess):
                             # Get beam loss
                             beam_loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
 
+                            self._check_irrad_event(server=server,
+                                                    event_name='BeamLoss',
+                                                    trigger_condition=lambda: beam_loss > self._beam_correction_threshold)
+
                             # Warn when cut-off is detected
                             if beam_loss >= self._beam_cut_off_threshold:
                                 logging.warning("Beam cut-off detected! Losing {:.2f} % of beam at extraction!".format(beam_loss * 100))
@@ -530,7 +539,49 @@ class IrradConverter(DAQProcess):
         # Append data to table within this interpretation cycle
         self.data_flags[server]['beam'] = True
 
+        # If beam leaves radius of 50% relative position, trigger BeamDrift event
+        self._check_irrad_event(server=server,
+                                event_name='BeamDrift',
+                                trigger_condition=lambda: (self.data_arrays[server]['beam']['horizontal_beam_position'][0] ** 2 + self.data_arrays[server]['beam']['vertical_beam_position'][0] ** 2) ** .5 > 50)
+        
+        # If beam is low during scan
+        self._check_irrad_event(server=server,
+                                event_name='BeamLow',
+                                trigger_condition=lambda: self.data_arrays[server]['beam']['beam_current'][0] < self.data_arrays[server]['irrad']['min_scan_current'][0])
+
         return beam_data
+    
+    def _check_irrad_event(self, server, event_name, trigger_condition):
+        """
+        Checks whether an event condition is fulfilled and the correspending event flag has the correct state
+
+        Parameters
+        ----------
+        server : str
+            string of server ip
+        event_name : str
+            Name of event to check, must be in self.irrad_events[server]
+        trigger_condition : Callable
+            Callable returning True/False indication whether condition for event is fulfilled
+        """
+        actual_irrad_event = self.irrad_events[server][event_name].value
+
+        # check if event is ready
+        if not actual_irrad_event.is_ready():
+            return
+        
+        # Evaluate trigger condition
+        tc = trigger_condition()
+        
+        triggered_but_inactive = tc and not actual_irrad_event.active
+        untriggered_but_active = not tc and actual_irrad_event.active
+
+        # Check if action need to be taken
+        if triggered_but_inactive or untriggered_but_active:
+            actual_irrad_event.active = tc
+            event_dict = {'server': server}
+            event_dict.update(self.irrad_events[server].to_dict(event_name))
+            self.sockets['event'].send_json(event_dict)
 
     def _interpret_scan_data(self, server, data, meta):
 
