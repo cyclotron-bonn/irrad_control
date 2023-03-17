@@ -82,8 +82,6 @@ class IrradConverter(DAQProcess):
             self._add_server_data(server=server, server_setup=server_setup)
             self._setup_daq_parameters(server=server, server_setup=server_setup)
 
-        self._scan_number = None
-
     def _add_server_data(self, server, server_setup):
         """Adds a group to the ouptut table for respective server"""
 
