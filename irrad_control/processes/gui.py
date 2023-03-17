@@ -368,8 +368,12 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             self.proc_mngr.launched_procs.append(hostname)
 
-            # All servers have been launched; start collecting info
-            if all(server in self.proc_mngr.launched_procs for server in self.setup['server']):
+            # Check if all servers and converter have been launched; if so start collecting process info and send start cmd
+            servers_launched = all(server in self.proc_mngr.launched_procs for server in self.setup['server'])
+            converter_launched = 'localhost' in self.proc_mngr.launched_procs
+
+            # Servers AND converter need to be launched before collecting infos for event distribution 
+            if servers_launched and converter_launched:
                 proc_info_worker = QtWorker(func=self.collect_proc_infos)
                 proc_info_worker.signals.finished.connect(self._init_recv_threads)
                 proc_info_worker.signals.finished.connect(self.send_start_cmd)
