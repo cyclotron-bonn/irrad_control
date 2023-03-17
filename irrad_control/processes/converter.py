@@ -28,6 +28,9 @@ class IrradConverter(DAQProcess):
         self._n_offset_samples = 100
         self._beam_cut_off_threshold = 0.05
         self._beam_correction_threshold = 0.1
+        self._shifted_beam_array_length = 1000
+        self._beam_unstable_time_window = 5  # Check the last 5 seconds of beam for stability
+        self._beam_unstable_std = 50e-9  # Consider beam unstable once it fluctuates by 50 nA
 
         self.dtypes = analysis.dtype.IrradDtypes()
         self.hists = analysis.dtype.IrradHists()
@@ -74,6 +77,12 @@ class IrradConverter(DAQProcess):
         self._row_fluence_hist = {}
         self._dtimes = defaultdict(dict)
         self._daq_params = defaultdict(dict)
+
+        # Beam current over time array
+        self._beam_currents = defaultdict(lambda: np.zeros(shape=self._shifted_beam_array_length,
+                                                                   dtype=self.dtypes.generic_dtype(names=['timestamp', 'beam', 'beam_err'],
+                                                                                                   dtypes=['<f8', '<f4', '<f4'])))
+        self._beam_idxs = defaultdict(lambda: 0)
 
         # R/O setup per server
         self.readout_setup = {}
@@ -325,6 +334,44 @@ class IrradConverter(DAQProcess):
 
         return hist_data
 
+    def _shift_beam_currents(self, server):
+        """
+        Function that keeps track of beam evolution
+
+        Parameters
+        ----------
+        server : _type_
+            _description_
+        """
+
+        # Roll array w/o full copy; data drops out on the right
+        tmp_array = self._beam_currents[:-1]
+        self._beam_currents[1:] = tmp_array
+
+        self._beam_currents[0]['timestamp'] = self.data_arrays[server]['beam']['timestamp']
+        self._beam_currents[0]['beam'] = self.data_arrays[server]['beam']['beam_current']
+        self._beam_currents[0]['beam_err'] = self.data_arrays[server]['beam']['beam_current_error']
+        
+        if self._beam_idxs[server] < self._shifted_beam_array_length - 1:
+            self._beam_idxs[server] += 1
+
+    def _check_beam_unstable(self, server):
+
+        # Look at beam currents which already have been filled
+        tmp_beam = self._beam_currents[:self._beam_idxs[server]]
+
+        # Look at latest beam data up to self._beam_unstable_time_window seconds in the past
+        latest_ts = tmp_beam['timestamp'][0]
+
+        # Get index of data + self._beam_unstable_time_window seconds
+        check_win_idx = np.searchsorted(tmp_beam['timestamp'], latest_ts + self._beam_unstable_time_window)
+
+        relevant_beam_data = tmp_beam[:check_win_idx]
+
+        if relevant_beam_data['beam'].std() > self._beam_unstable_std:
+            return True
+        return False
+
     def _interpret_event(self, server, event, parameters):
 
         self.data_arrays[server]['event']['timestamp'] = time()
@@ -534,6 +581,8 @@ class IrradConverter(DAQProcess):
             self._scan_currents[server].append(ufloat(self.data_arrays[server]['beam']['beam_current'][0],
                                                       self.data_arrays[server]['beam']['beam_current_error'][0]))
 
+        self._shift_beam_currents(server=server)
+
         # Append data to table within this interpretation cycle
         self.data_flags[server]['beam'] = True
 
@@ -546,6 +595,11 @@ class IrradConverter(DAQProcess):
         self._check_irrad_event(server=server,
                                 event_name='BeamLow',
                                 trigger_condition=lambda: self.data_arrays[server]['beam']['beam_current'][0] < self.data_arrays[server]['irrad']['min_scan_current'][0])
+
+        # If beam is unstable
+        self._check_irrad_event(server=server,
+                                event_name='BeamUnstable',
+                                trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
 
         return beam_data
     
