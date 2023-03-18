@@ -625,11 +625,10 @@ class IrradConverter(DAQProcess):
         # Evaluate trigger condition
         tc = trigger_condition()
         
-        triggered_but_inactive = tc and not actual_irrad_event.active
         untriggered_but_active = not tc and actual_irrad_event.active
 
         # Check if action need to be taken
-        if triggered_but_inactive or untriggered_but_active:
+        if tc or untriggered_but_active:
             actual_irrad_event.active = tc
             event_dict = {'server': server}
             event_dict.update(self.irrad_events[server].to_dict(event_name))
