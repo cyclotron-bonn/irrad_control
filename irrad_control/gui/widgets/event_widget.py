@@ -29,12 +29,13 @@ class EventWidget(QtWidgets.QWidget):
 
         status = 'active' if event_dict['active'] else 'inactive'
         status_color = 'red' if event_dict['active'] else 'green'
+        event_text = f"<b>{event_dict['event']}</b>(<b style='color:{status_color}';)>{status}</b>)"
         
         html_event = f"""
         <html>
           <body>
-            {strftime("%d/%m/%Y %H:%M:%S", gmtime())} | {event_dict['server']} | {event_dict["event"]}(<font color = {status_color})>{status}</font> | {event_dict['description']}
-          </body
+            {strftime("%d/%m/%Y %H:%M:%S", gmtime())} | {event_dict['server']} | {event_text} | {event_dict['description']}
+          </body>
         </html>
         """
 

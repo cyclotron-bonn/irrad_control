@@ -451,6 +451,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.tabs.setCurrentIndex(current_tab)
 
     def handle_event(self, event_data):
+        event_data['server'] = self.setup['server'][event_data['server']]['name']
         self.event_widget.register_event(event_dict=event_data)
     
     def handle_data(self, data):
