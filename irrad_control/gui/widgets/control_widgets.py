@@ -740,11 +740,12 @@ class DAQControlWidget(ControlWidget):
 
     enableDAQRec = QtCore.pyqtSignal(str, bool)
 
-    def __init__(self, server, ro_device, parent=None, enable=True):
+    def __init__(self, server, ro_device, parent=None, enable=True, enable_rad_mon=False):
         self.server = server
         self.ro_device = ro_device
+        self._enable_rad_mon = enable_rad_mon
         self._style = QtWidgets.qApp.style()
-        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable)
+        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable or enable_rad_mon) 
 
     def _init_widget(self):
         self._init_ui()
@@ -794,12 +795,41 @@ class DAQControlWidget(ControlWidget):
                                               'callback': {'method': 'get_ifs', 'kwargs': {'group': cbx_group.currentText()}}})]:
             btn_ro_scale.clicked.connect(action)
 
-        self.add_widget(widget=[label_offset, btn_offset])
-        self.add_widget(widget=[label_record, self.btn_record])
-        self.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
+         # Start / Stop RadMonitor readout
+        label_rad_monitor = QtWidgets.QLabel("Start/Stop RadMonitor:")
+        btn_toggle_rad_mon = QtWidgets.QPushButton("Start DAQ")
+        chkbx_rad_mon_hv = QtWidgets.QCheckBox()
+        chkbx_rad_mon_hv.setText('HV (off)')
+        chkbx_rad_mon_hv.setToolTip("Toggle radiation monitor high voltage on/off")
+
+        for con in [lambda state: self.send_cmd(hostname=self.server,
+                                                target='RadiationMonitor',
+                                                cmd='_ramp',
+                                                cmd_data={'kwargs': {'direction': 'up' if bool(state) else 'down',
+                                                                     'blocking': True},
+                                                          'threaded': True}),
+                    lambda state: chkbx_rad_mon_hv.setText(f"HV ({'on' if bool(state) else 'off'})")]:
+
+            chkbx_rad_mon_hv.stateChanged.connect(con)
+        
+        for con in [lambda _, btn=btn_toggle_rad_mon: self.send_cmd(hostname=self.server,
+                                                                    target='server',
+                                                                    cmd='rad_mon_daq',
+                                                                    cmd_data='Start' in btn.text()),
+                    lambda _, btn=btn_toggle_rad_mon: btn.setText('Start DAQ' if 'Stop' in btn.text() else 'Stop DAQ')]:
+            
+            btn_toggle_rad_mon.clicked.connect(con)
+
+        if self.ro_device is not None:
+            self.add_widget(widget=[label_offset, btn_offset])
+            self.add_widget(widget=[label_record, self.btn_record])
+            self.add_widget(widget=[QtWidgets.QLabel(''), chbx_record])
 
         if self.ro_device == ro.RO_DEVICES.DAQBoard:
             self.add_widget(widget=[label_ro_scale, layout_scale, btn_ro_scale])
+
+        if self._enable_rad_mon:
+            self.add_widget(widget=[label_rad_monitor, btn_toggle_rad_mon, chkbx_rad_mon_hv])
 
         self.update_rec_state(state=True)
 

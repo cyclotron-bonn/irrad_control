@@ -12,7 +12,7 @@ def _load_irrad_control_process(proc):
     try:
         return importlib.import_module(f'irrad_control.processes.{proc}')
     except (ImportError, ModuleNotFoundError) as e:
-        logging.debug(f"'irrad_control --{proc}' not available: {e.msg}!")
+        logging.error(f"'irrad_control --{proc}' not available: {e.msg}!")
 
 
 def _run_irrad_control_process(proc):
@@ -32,6 +32,7 @@ def main():
     process_group = process_parser.add_mutually_exclusive_group()
 
     process_group.add_argument('--gui', required=False, action='store_true')
+    process_group.add_argument('--monitor', required=False, action='store_true')
     process_group.add_argument('--server', required=False, action='store_true')
     process_group.add_argument('--converter', required=False, action='store_true')
     process_group.add_argument('--version', required=False, action='store_true')  # Get irrad_control version
@@ -48,6 +49,9 @@ def main():
 
     elif parsed['gui']:
         _run_irrad_control_process(proc='gui')
+    
+    elif parsed['monitor']:
+        _run_irrad_control_process(proc='monitor')
 
     elif parsed['converter']:
         _run_irrad_control_process(proc='converter')

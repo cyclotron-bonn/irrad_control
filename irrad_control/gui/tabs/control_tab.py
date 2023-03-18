@@ -2,8 +2,6 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
-from setuptools import setup
-
 # Pacakage imports
 import irrad_control.gui.widgets.control_widgets as ic_cntrl_wdgts
 from irrad_control.gui.widgets import NoBackgroundScrollArea
@@ -47,7 +45,7 @@ class IrradControlTab(QtWidgets.QWidget):
         # Get widgets
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server, enable=any(x in self.setup[server]['devices'] for x in ('ScanStage', 'SetupTableStage', 'ExternalCupStage')))
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'], enable='ScanStage' in self.setup[server]['devices'] and ro_device is not None)
-        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None)
+        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None, enable_rad_mon='RadiationMonitor' in self.setup[server]['devices'])
         status_widget = ic_cntrl_wdgts.StatusInfoWidget()
 
         # Connect command signals

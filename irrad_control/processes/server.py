@@ -1,6 +1,6 @@
 import logging
 from bitstring import CreationError
-from time import time
+from time import time, sleep
 from serial import SerialException
 
 # Package imports
@@ -143,8 +143,7 @@ class IrradServer(DAQProcess):
                 self._daq_board_ntc_ro = True
 
         if 'RadiationMonitor' in self.devices:
-            self.on_demand_events['stop_rad_monitor']
-            self.on_demand_events['rad_monitor_idle'].set()
+            self.on_demand_events['rad_monitor_ready'].clear()
 
         if 'ScanStage' in self.devices:
 
@@ -182,6 +181,9 @@ class IrradServer(DAQProcess):
 
             elif dev == 'ArduinoNTCReadout':
                 self.launch_thread(target=self.daq_thread, daq_func=self._daq_temp)
+
+            elif dev == 'RadiationMonitor':
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_rad_monitor)
 
     def _daq_adc(self):
         """
@@ -224,33 +226,18 @@ class IrradServer(DAQProcess):
         return _meta, _data
 
     def _daq_rad_monitor(self):
+
+        # Wait until we want to read the daq_monitor; less CPU-hungry than pure Event.wait() see https://stackoverflow.com/questions/29082268/python-time-sleep-vs-event-wait/29082411#29082411
+        while not self.on_demand_events['rad_monitor_ready'].is_set():
+            sleep(1)
         
-        # Check if another thread is running this method, if so, make the other thread stop and wait for it
-        if not self.on_demand_events['rad_monitor_idle'].is_set():
-            self.on_demand_events['stop_rad_monitor'].set()
-            self.on_demand_events['rad_monitor_idle'].wait()
+        dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
 
+        # Add meta data and data
+        meta = {'timestamp': time(), 'name': self.server, 'type': 'rad_monitor'}
+        data = {'dose_rate': dose_rate, 'frequency': frequency}
 
-        self.on_demand_events['stop_rad_monitor'].clear()
-        self.on_demand_events['rad_monitor_idle'].clear()
-        self.devices['RadiationMonitor'].ramp_up()
-        
-        internal_data_pub = self.create_internal_data_pub()
-
-        # Acquire data if not stop signal is set
-        while not self.on_demand_events['stop_rad_monitor'].is_set():
-
-            dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
-
-            # Add meta data and data
-            meta = {'timestamp': time(), 'name': self.server, 'type': 'rad_monitor'}
-            data = {'dose_rate': dose_rate, 'frequency': frequency}
-
-            # Put data into outgoing queue
-            internal_data_pub.send_json({'meta': meta, 'data': data})
-
-        self.devices['RadiationMonitor'].ramp_down()
-        self.on_demand_events['rad_monitor_idle'].set()
+        return meta, data
 
     def _call_device_method(self, device, method, call_data):
 
@@ -306,6 +293,13 @@ class IrradServer(DAQProcess):
             elif cmd == 'motorstages':
                 reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
+
+            elif cmd == 'rad_mon_daq':
+                # Toggle rad monitor DAQ
+                if data is True:
+                    self.on_demand_events['rad_monitor_ready'].set()
+                else:
+                    self.on_demand_events['rad_monitor_ready'].clear()
 
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
