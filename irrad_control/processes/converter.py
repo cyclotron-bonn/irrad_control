@@ -363,8 +363,8 @@ class IrradConverter(DAQProcess):
         # Look at latest beam data up to self._beam_unstable_time_window seconds in the past
         latest_ts = tmp_beam['timestamp'][0]
 
-        # Get index of data + self._beam_unstable_time_window seconds
-        check_win_idx = np.searchsorted(tmp_beam['timestamp'], latest_ts + self._beam_unstable_time_window)
+        # Get index of relevant data; searchsorted needs ASCENDING order, therefore negate argumenst
+        check_win_idx = np.searchsorted(-tmp_beam['timestamp'], -(latest_ts - self._beam_unstable_time_window))
 
         relevant_beam_data = tmp_beam[:check_win_idx]
 
