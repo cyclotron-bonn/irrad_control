@@ -345,12 +345,12 @@ class IrradConverter(DAQProcess):
         """
 
         # Roll array w/o full copy; data drops out on the right
-        tmp_array = self._beam_currents[:-1]
-        self._beam_currents[1:] = tmp_array
+        tmp_array = self._beam_currents[server][:-1]
+        self._beam_currents[server][1:] = tmp_array
 
-        self._beam_currents[0]['timestamp'] = self.data_arrays[server]['beam']['timestamp']
-        self._beam_currents[0]['beam'] = self.data_arrays[server]['beam']['beam_current']
-        self._beam_currents[0]['beam_err'] = self.data_arrays[server]['beam']['beam_current_error']
+        self._beam_currents[server][0]['timestamp'] = self.data_arrays[server]['beam']['timestamp']
+        self._beam_currents[server][0]['beam'] = self.data_arrays[server]['beam']['beam_current']
+        self._beam_currents[server][0]['beam_err'] = self.data_arrays[server]['beam']['beam_current_error']
         
         if self._beam_idxs[server] < self._shifted_beam_array_length - 1:
             self._beam_idxs[server] += 1
@@ -358,7 +358,7 @@ class IrradConverter(DAQProcess):
     def _check_beam_unstable(self, server):
 
         # Look at beam currents which already have been filled
-        tmp_beam = self._beam_currents[:self._beam_idxs[server]]
+        tmp_beam = self._beam_currents[server][:self._beam_idxs[server]]
 
         # Look at latest beam data up to self._beam_unstable_time_window seconds in the past
         latest_ts = tmp_beam['timestamp'][0]
