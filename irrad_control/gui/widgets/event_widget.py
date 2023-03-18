@@ -38,4 +38,4 @@ class EventWidget(QtWidgets.QWidget):
         </html>
         """
 
-        self.event_display.appendHtml(html=html_event) 
+        self.event_display.appendHtml(html_event) 
