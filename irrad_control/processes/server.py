@@ -37,6 +37,7 @@ class IrradServer(DAQProcess):
         # Update setup
         self.server = setup['server']
         self.setup = setup['setup']
+        self.name = setup['setup']['server'][self.server]['name']
 
         # Overwrite server setup with our server
         self.setup['server'] = self.setup['server'][self.server]
@@ -317,12 +318,14 @@ class IrradServer(DAQProcess):
 
         # Only handle events of this server
         if event_data['server'] != self.server:
+            logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")
             return
         
         try:
             event_name = event_data['event']
             self.irrad_events[event_name].value.active = event_data['active']
             self.irrad_events[event_name].value.disabled = event_data['disabled']
+            logging.debug(f"Event {event_data['event']} on server {self.name} is {'' if event_data['active'] else 'in'}active")
         except KeyError:
             logging.error(f"Event {event_name} unknown!")
 
