@@ -51,7 +51,7 @@ class IrradServer(DAQProcess):
         self._launch_daq_threads()
 
         # Listen to events from converter
-        self.add_event_stream(event_stream=self._tcp_addr(ip=setup['host'], port=setup['ports']['event']))
+        self.add_event_stream(event_stream=self._tcp_addr(ip=self.setup['host'], port=self.setup['ports']['event']))
         self.launch_thread(target=self.recv_event)
 
     def _init_devices(self):
