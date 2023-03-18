@@ -29,7 +29,7 @@ class IrradConverter(DAQProcess):
         self._beam_cut_off_threshold = 0.05
         self._beam_correction_threshold = 0.1
         self._shifted_beam_array_length = 1000
-        self._beam_unstable_time_window = 5  # Check the last 5 seconds of beam for stability
+        self._beam_unstable_time_window = 10  # Check the last 10 seconds of beam for stability
         self._beam_unstable_std = 50e-9  # Consider beam unstable once it fluctuates by 50 nA
 
         self.dtypes = analysis.dtype.IrradDtypes()
