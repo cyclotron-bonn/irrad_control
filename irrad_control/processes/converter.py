@@ -648,8 +648,8 @@ class IrradConverter(DAQProcess):
         """
         actual_irrad_event = self.irrad_events[server][event_name].value
 
-        # check if event is ready
-        if not actual_irrad_event.is_ready():
+        # If event is not yet ready or disabled return immediately
+        if not actual_irrad_event.is_ready() or actual_irrad_event.disabled:
             return
         
         # Evaluate trigger condition
