@@ -30,7 +30,7 @@ class IrradConverter(DAQProcess):
         self._beam_correction_threshold = 0.1
         self._shifted_beam_array_length = 10000  # Allow to cover for very slow scans ~O(1000s) at default rate
         self._beam_unstable_time_window = 10  # Check the last 10 seconds of beam for stability
-        self._beam_unstable_std = 50e-9  # Consider beam unstable once it fluctuates by 50 nA
+        self._beam_unstable_std_ratio = 5e-2  # Consider beam unstable once it fluctuates by 5% around its mean or the std is 5% of the I_FS
 
         self.dtypes = analysis.dtype.IrradDtypes()
         self.hists = analysis.dtype.IrradHists()
@@ -356,6 +356,10 @@ class IrradConverter(DAQProcess):
 
     def _check_beam_unstable(self, server):
 
+        # Dont check if beam is off
+        if self.irrad_events[server].BeamOff.value.is_valid():
+            return False
+
         # Look at beam currents which already have been filled
         tmp_beam = self._beam_currents[server][:self._beam_idxs[server]]
 
@@ -367,7 +371,16 @@ class IrradConverter(DAQProcess):
 
         relevant_beam_data = tmp_beam[:check_win_idx]
 
-        if relevant_beam_data['beam'].std() > self._beam_unstable_std:
+        I_FS = self._get_full_scale_current(server=server,
+                                            ch_idx=self._lookups[server]['ro_type_idx']['sem_sum'],
+                                            ro_device=self.readout_setup[server]['device'])
+        beam_std = relevant_beam_data['beam'].std()
+        beam_mean = relevant_beam_data['beam'].mean()
+
+        unstable_cond1 = beam_std >= self._beam_unstable_std_ratio * I_FS
+        unstable_cond2 = beam_std / beam_mean >= self._beam_unstable_std_ratio
+
+        if unstable_cond1 or unstable_cond2:
             return True
         return False
 
