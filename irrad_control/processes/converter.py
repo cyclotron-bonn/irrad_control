@@ -28,7 +28,7 @@ class IrradConverter(DAQProcess):
         self._n_offset_samples = 100
         self._beam_cut_off_threshold = 0.05
         self._beam_correction_threshold = 0.1
-        self._shifted_beam_array_length = 1000
+        self._shifted_beam_array_length = 10000  # Allow to cover for very slow scans ~O(1000s) at default rate
         self._beam_unstable_time_window = 10  # Check the last 10 seconds of beam for stability
         self._beam_unstable_std = 50e-9  # Consider beam unstable once it fluctuates by 50 nA
 
@@ -69,8 +69,7 @@ class IrradConverter(DAQProcess):
         # Flag indicating whether to store data
         self.data_flags = defaultdict(dict)
 
-        # Dict with lists to append beam current values to during scanning
-        self._scan_currents = defaultdict(list)
+        # Create various containers
         self._ntc_temps = defaultdict(dict)
         self._lookups = defaultdict(dict)
         self._raw_offsets = {}
@@ -372,6 +371,29 @@ class IrradConverter(DAQProcess):
             return True
         return False
 
+    def _extract_scan_currents(self, server):
+        """
+        Returns a view of the beam currents during scanning a row by searching the self._beam_currents[server] array.
+
+        Parameters
+        ----------
+        server : str
+            ip of server
+        """
+        # Get timestamps of start and stop of current scan
+        start_ts = self.data_arrays[server]['scan']['row_start_timestamp']
+        stop_ts = self.data_arrays[server]['scan']['row_stop_timestamp']
+
+        # Look at beam currents which already have been filled
+        tmp_beam = self._beam_currents[server][:self._beam_idxs[server]]
+
+        # Get indices of corresponding slice of beam currents
+        # Need to negate the search elements since searchsorted expects ASCENDING order of sorted array
+        start_idx = np.searchsorted(-tmp_beam['timestamp'], -stop_ts)
+        stop_idx = np.searchsorted(-tmp_beam['timestamp'], -start_ts)
+
+        return tmp_beam[start_idx:stop_idx]
+
     def _interpret_event(self, server, event, parameters):
 
         self.data_arrays[server]['event']['timestamp'] = time()
@@ -576,15 +598,7 @@ class IrradConverter(DAQProcess):
             except ZeroDivisionError:
                 pass
 
-        # Add to beam current container if stage is scanning
-        if self.data_flags[server]['scanning']:
-            self._scan_currents[server].append(ufloat(self.data_arrays[server]['beam']['beam_current'][0],
-                                                      self.data_arrays[server]['beam']['beam_current_error'][0]))
-
         self._shift_beam_currents(server=server)
-
-        # Append data to table within this interpretation cycle
-        self.data_flags[server]['beam'] = True
 
         # If beam leaves radius of 50% relative position, trigger BeamDrift event
         self._check_irrad_event(server=server,
@@ -600,6 +614,9 @@ class IrradConverter(DAQProcess):
         self._check_irrad_event(server=server,
                                 event_name='BeamUnstable',
                                 trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
+        
+        # Append data to table within this interpretation cycle
+        self.data_flags[server]['beam'] = True
 
         return beam_data
     
@@ -670,11 +687,8 @@ class IrradConverter(DAQProcess):
 
         elif data['status'] == 'scan_start':
 
-            del self._scan_currents[server][:]
             self.data_flags[server]['scanning'] = True
-
             self.data_arrays[server]['scan']['row_start_timestamp'] = meta['timestamp']
-
             self.data_arrays[server]['scan']['scan'] = data['scan']
             self.data_arrays[server]['scan']['row'] = data['row']
             self.data_arrays[server]['scan']['row_start_x'] = data['x_start']
@@ -685,9 +699,17 @@ class IrradConverter(DAQProcess):
         elif data['status'] == 'scan_stop':
 
             self.data_flags[server]['scanning'] = False
+            self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
+            self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
+            self.data_arrays[server]['scan']['row_stop_y'] = data['y_stop']
+
+            scan_currents = self._extract_scan_currents(server=server)
+
+            row_mean_beam_current = np.mean(scan_currents['beam'])
+            row_mean_beam_current_err = (np.std(scan_currents['beam'])**2 + (np.sqrt(np.sum(np.square(scan_currents['beam_err'])))/len(scan_currents))**2)**.5
 
             # Calculate mean row fluence and error
-            row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
+            # row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
 
             row_primary_fluence = analysis.formulas.fluence_per_scan(ion_current=ufloat(row_mean_beam_current, row_mean_beam_current_err),
                                                                      ion_n_charge=self._daq_params[server]['ion'].n_charge,
@@ -696,9 +718,6 @@ class IrradConverter(DAQProcess):
 
             row_tid = analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence, stopping_power=self._daq_params[server]['stopping_power'])
 
-            self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
-            self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
-            self.data_arrays[server]['scan']['row_stop_y'] = data['y_stop']
             self.data_arrays[server]['scan']['row_mean_beam_current'] = row_mean_beam_current
             self.data_arrays[server]['scan']['row_mean_beam_current_error'] = row_mean_beam_current_err
             self.data_arrays[server]['scan']['row_primary_fluence'] = row_primary_fluence.n
