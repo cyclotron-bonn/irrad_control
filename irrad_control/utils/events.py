@@ -74,6 +74,7 @@ def create_irrad_events():
         # Temperature
         DUTTempHigh = BaseEvent(cooldown=20, description="Temperature of DUT high")
         BLMTempHigh = BaseEvent(cooldown=20, description="Temperature of beam loss monitor high")
+        GenericTempHigh = BaseEvent(cooldown=20, description="Temperature reading high")
 
         # Misc
         DoseRateHigh = BaseEvent(cooldown=60, description="Dose rate high")
