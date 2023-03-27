@@ -407,14 +407,6 @@ class IrradConverter(DAQProcess):
 
         return tmp_beam[start_idx:stop_idx]
 
-    def _interpret_event(self, server, event, parameters):
-
-        self.data_arrays[server]['event']['timestamp'] = time()
-        self.data_arrays[server]['event']['event'] = event.encode('ascii')
-        self.data_arrays[server]['event']['parameters'] = parameters.encode('ascii')
-
-        self.data_flags[server]['event'] = True
-
     def _interpret_raw_data(self, server, data, meta):
 
         raw_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'raw'},
@@ -652,9 +644,16 @@ class IrradConverter(DAQProcess):
         if not actual_irrad_event.is_ready() or actual_irrad_event.disabled:
             return
         
+        # If it is a beam event but the BeamOff is active
+        if 'Beam' in event_name and event_name != 'BeamOff':
+            # If the beam is currently down, don't check for beam-related events
+            if self.irrad_events[server]['BeamOff'].value.active:
+                return
+        
         # Evaluate trigger condition
         tc = trigger_condition()
         
+        triggered_but_inactive = tc and not actual_irrad_event.active
         untriggered_but_active = not tc and actual_irrad_event.active
 
         # Check if action need to be taken
@@ -663,6 +662,10 @@ class IrradConverter(DAQProcess):
             event_dict = {'server': server}
             event_dict.update(self.irrad_events[server].to_dict(event_name))
             self.sockets['event'].send_json(event_dict)
+
+        # Store event data if an event changed state from active to inactive or vice-versa
+        if triggered_but_inactive or untriggered_but_active:
+            self._store_event_parameters(server=server, event=event_name, parameters=f'active={tc}')
 
     def _interpret_scan_data(self, server, data, meta):
 
@@ -925,6 +928,17 @@ class IrradConverter(DAQProcess):
 
         self.data_flags[server][axis_domain] = True
 
+    def _store_event_parameters(self, server, event, parameters):
+        """
+        Store event data; different from rest; since multiple events can happen along one interpretation cycle
+        we need to append to the data immediately and wait for next flush to file
+        """
+
+        self.data_arrays[server]['event']['timestamp'] = time()
+        self.data_arrays[server]['event']['event'] = event.encode('ascii')
+        self.data_arrays[server]['event']['parameters'] = parameters.encode('ascii')
+        self.data_tables[server]['event'].append(self.data_arrays[server]['event'])
+
     def handle_data(self, raw_data):
         """Interpretation of the data"""
 
@@ -1059,7 +1073,7 @@ class IrradConverter(DAQProcess):
             elif cmd == 'update_group_ifs':
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
-                self._interpret_event(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
+                self._store_event_parameters(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""
