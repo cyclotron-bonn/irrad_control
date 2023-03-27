@@ -665,7 +665,7 @@ class IrradConverter(DAQProcess):
 
         # Store event data if an event changed state from active to inactive or vice-versa
         if triggered_but_inactive or untriggered_but_active:
-            self._store_event_parameters(server=server, event=event_name, parameters=f'active={tc}')
+            self._store_event_parameters(server=server, event=event_name, parameters={'active': tc})
 
     def _interpret_scan_data(self, server, data, meta):
 
@@ -936,7 +936,7 @@ class IrradConverter(DAQProcess):
 
         self.data_arrays[server]['event']['timestamp'] = time()
         self.data_arrays[server]['event']['event'] = event.encode('ascii')
-        self.data_arrays[server]['event']['parameters'] = parameters.encode('ascii')
+        self.data_arrays[server]['event']['parameters'] = ','.join(f'{k}={v}' for k,v in parameters.items()).encode('ascii')[:256]
         self.data_tables[server]['event'].append(self.data_arrays[server]['event'])
 
     def handle_data(self, raw_data):
@@ -1073,7 +1073,7 @@ class IrradConverter(DAQProcess):
             elif cmd == 'update_group_ifs':
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
-                self._store_event_parameters(server=server, event=cmd, parameters='{} {} nA'.format(group, ifs))
+                self._store_event_parameters(server=server, event=cmd, parameters={'group': group, 'ifs': ifs, 'unit': 'nA'})
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

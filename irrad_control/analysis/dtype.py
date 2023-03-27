@@ -6,7 +6,7 @@ from dataclasses import dataclass
 # Event dtype; used to log events such as beam current shutdowns, state changes etc
 _event_dtype = [('timestamp', '<f8'),
                 ('event', '<S64'),
-                ('parameters', '<S256')]
+                ('parameters', '<S256')]  # Parameters is a comma-separated string of key=value entries e.g. 'param1=123,param2=ramadankareem,param3=1.1, ...' which is cut-off after 256 entries
 
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
