@@ -665,7 +665,7 @@ class IrradConverter(DAQProcess):
 
         # Store event data if an event changed state from active to inactive or vice-versa
         if triggered_but_inactive or untriggered_but_active:
-            self._store_event_parameters(server=server, event=event_name, parameters={'active': tc})
+            self._store_event_parameters(server=server, event=event_name, parameters={'active': tc, 'description': actual_irrad_event.description})
 
     def _interpret_scan_data(self, server, data, meta):
 
@@ -877,6 +877,21 @@ class IrradConverter(DAQProcess):
 
         self._ntc_temps[server][ntc_ch_name] = ntc_temp
 
+        # Generate Temp events
+        if 'blm' in ntc_ch_name.lower():
+            self._check_irrad_event(server=server,
+                                    event_name='BLMTempHigh',
+                                    trigger_condition=lambda t=ntc_temp: t > 100)
+        elif 'dut' in ntc_ch_name.lower():
+            self._check_irrad_event(server=server,
+                                    event_name='DUTTempHigh',
+                                    trigger_condition=lambda t=ntc_temp: t > -10)
+        else:
+            self._check_irrad_event(server=server,
+                                    event_name='GenericTempHigh',
+                                    trigger_condition=lambda t=ntc_temp: t > 100)
+
+
         # Collect data of all NTCs and then send; easier for plotting wrt timestamp
         if len(self._ntc_temps[server]) == len(self.readout_setup[server]['ntc']):
             ntc_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'temp_daq_board'},
@@ -893,6 +908,21 @@ class IrradConverter(DAQProcess):
         self.data_arrays[server]['temp_arduino']['timestamp'] = meta['timestamp']
 
         for temp in data:
+            
+            # Generate Temp events
+            if 'blm' in temp.lower():
+                self._check_irrad_event(server=server,
+                                        event_name='BLMTempHigh',
+                                        trigger_condition=lambda t=data[temp]: t > 100)
+            elif 'dut' in temp.lower():
+                self._check_irrad_event(server=server,
+                                        event_name='DUTTempHigh',
+                                        trigger_condition=lambda t=data[temp]: t > -10)
+            else:
+                self._check_irrad_event(server=server,
+                                        event_name='GenericTempHigh',
+                                        trigger_condition=lambda t=data[temp]: t > 100)
+
             self.data_arrays[server]['temp_arduino'][temp] = temp_data['data'][temp] = data[temp]
 
         self.data_flags[server]['temp_arduino'] = True
@@ -905,6 +935,10 @@ class IrradConverter(DAQProcess):
                      'data': {}}
                      
         self.data_arrays[server]['rad_monitor']['timestamp'] = meta['timestamp']
+
+        self._check_irrad_event(server=server,
+                                event_name='DoseRateHigh',
+                                trigger_condition=lambda d=data['dose_rate']: d > 500)  # uSv/h
         
         for rad in data:
             self.data_arrays[server]['rad_monitor'][rad] = rad_data['data'][rad] = data[rad]
