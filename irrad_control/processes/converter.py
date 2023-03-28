@@ -1108,6 +1108,9 @@ class IrradConverter(DAQProcess):
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
                 self._store_event_parameters(server=server, event=cmd, parameters={'group': group, 'ifs': ifs, 'unit': 'nA'})
+            
+            elif cmd == 'toggle_event':
+                self.irrad_events[data['server']][data['event']].value.disabled = data['disabled']
 
     def _close_tables(self):
         """Method to close the h5-files which were opened in the setup_daq method"""

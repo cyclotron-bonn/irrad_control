@@ -310,6 +310,9 @@ class IrradServer(DAQProcess):
                 else:
                     self.on_demand_events['rad_monitor_ready'].clear()
 
+            elif cmd == 'toggle_event':
+                self.irrad_events[data['event']].value.disabled = data['disabled']
+
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
