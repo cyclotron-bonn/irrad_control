@@ -685,8 +685,6 @@ class ScanControlWidget(ControlWidget):
         scan_interaction_container.add_widget(widget=QtWidgets.QLabel('Toggle events'))
 
         # Allow to toggle irrad events during scan
-        evt_chbxs_all = []
-        evt_chbxs_tmp = []
         for irr_ev in create_irrad_events():
 
             # Skip a certain set of events
@@ -704,14 +702,11 @@ class ScanControlWidget(ControlWidget):
                                                                                       target='server',
                                                                                       cmd='toggle_event',
                                                                                       cmd_data={'event': ev, 'disabled': not state}))
-            if len(evt_chbxs_tmp) == 3:
-                evt_chbxs_all.append(evt_chbxs_tmp)
-                evt_chbxs_tmp = []
+            
+            if scan_interaction_container.columns_in_row() < 4:
+                scan_interaction_container.add_widget(widget=evt_chbx, row='current')
             else:
-                evt_chbxs_tmp.append(evt_chbx)
-        
-        for chkbxs in evt_chbxs_all:
-            scan_interaction_container.add_widget(widget=chkbxs)
+                scan_interaction_container.add_widget(widget=evt_chbx)
             
         # Add to layout
         self.add_widget(damage_container)
