@@ -770,7 +770,10 @@ class IrradGUI(QtWidgets.QMainWindow):
     
     def handle_daq_ui(self):
         """Handle whether log widget is visible or not"""
-        self.daq_dock.setVisible(not self.daq_dock.isVisible())
+        try:
+            self.daq_dock.setVisible(not self.daq_dock.isVisible())
+        except AttributeError:  # DAQ dock has not yet been created
+            pass
 
     def file_quit(self):
         self.close()
