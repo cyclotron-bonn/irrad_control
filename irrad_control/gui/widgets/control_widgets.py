@@ -682,10 +682,12 @@ class ScanControlWidget(ControlWidget):
         scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_abort])
         scan_interaction_container.add_widget(widget=checkbox_auto_finish)
 
-        scan_interaction_container.add_widget(widget=QtWidgets.QLabel('Toggle events'))
+        label_toggle = QtWidgets.QLabel('Toggle events')
+        label_toggle.setToolTip("Event checkbox checked -> Event enabled; unchecked -> disabled")
+        scan_interaction_container.add_widget(widget=label_toggle)
 
         # Allow to toggle irrad events during scan
-        for irr_ev in create_irrad_events():
+        for i, irr_ev in enumerate(create_irrad_events()):
 
             # Skip a certain set of events
             if any(a in irr_ev.name.lower() for a in ('generic', 'roscale', 'doserate', 'blm', 'scan')):
@@ -693,7 +695,7 @@ class ScanControlWidget(ControlWidget):
 
             evt_chbx = QtWidgets.QCheckBox(irr_ev.name)
             evt_chbx.setChecked(True)
-            evt_chbx.setToolTip(f'Di/enable {irr_ev.name} event')
+            evt_chbx.setToolTip(f'Dis/enable {irr_ev.name} event')
             evt_chbx.stateChanged.connect(lambda state, ev=irr_ev.name: self.send_cmd(hostname='localhost',
                                                                                       target='interpreter',
                                                                                       cmd='toggle_event',
@@ -703,10 +705,10 @@ class ScanControlWidget(ControlWidget):
                                                                                       cmd='toggle_event',
                                                                                       cmd_data={'event': ev, 'disabled': not state}))
             
-            if scan_interaction_container.columns_in_row() < 4:
-                scan_interaction_container.add_widget(widget=evt_chbx, row='current')
-            else:
+            if i == 0 or scan_interaction_container.columns_in_row() > 5:
                 scan_interaction_container.add_widget(widget=evt_chbx)
+            else:
+                scan_interaction_container.add_widget(widget=evt_chbx, row='current')
             
         # Add to layout
         self.add_widget(damage_container)
