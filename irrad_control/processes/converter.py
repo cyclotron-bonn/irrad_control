@@ -402,8 +402,8 @@ class IrradConverter(DAQProcess):
 
         # Get indices of corresponding slice of beam currents
         # Need to negate the search elements since searchsorted expects ASCENDING order of sorted array
-        start_idx = np.searchsorted(-tmp_beam['timestamp'], -stop_ts)
-        stop_idx = np.searchsorted(-tmp_beam['timestamp'], -start_ts)
+        start_idx = np.searchsorted(-tmp_beam['timestamp'], -stop_ts)[0]
+        stop_idx = np.searchsorted(-tmp_beam['timestamp'], -start_ts)[0]
 
         return tmp_beam[start_idx:stop_idx]
 
