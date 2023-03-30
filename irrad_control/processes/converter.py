@@ -769,9 +769,13 @@ class IrradConverter(DAQProcess):
                 else:
                     remainder_primary = self.data_arrays[server]['irrad']['aim_value'][0] - _mean_primary_fluence
                     eta_n_scans = int(remainder_primary / row_primary_fluence.n)
-                    
 
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
+
+                # Check for event complete event
+                self._check_irrad_event(server=server,
+                                        event_name='IrradiationComplete',
+                                        trigger_condition=lambda n_s=eta_n_scans: n_s < 1)
 
             except (ZeroDivisionError, ValueError):  # ValueError if any of the values is np.nan
                 eta_time = eta_n_scans = -1

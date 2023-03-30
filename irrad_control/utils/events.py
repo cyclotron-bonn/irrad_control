@@ -68,8 +68,8 @@ def create_irrad_events():
         BeamDrift = BaseEvent(cooldown=1, description="Beam position deviates from center")
         BeamLow = BaseEvent(cooldown=1, description="Beam current below threshold")
 
-        # Scan events
-        ScanComplete = BaseEvent(cooldown=10, description="Scan completed")
+        # Irradiation events
+        IrradiationComplete = BaseEvent(cooldown=5, description="Irradiation up to target completed")
 
         # Temperature
         DUTTempHigh = BaseEvent(cooldown=20, description="Temperature of DUT high")

@@ -533,9 +533,6 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                                                             'fluence_hist_err',
                                                                                             'status'))
 
-                # Finish the scan programatically, if wanted
-                self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
-
         elif data['meta']['type'] == 'temp_arduino':
 
             self.monitor_tab.plots[server]['temp_arduino_plot'].set_data(meta=data['meta'], data=data['data'])

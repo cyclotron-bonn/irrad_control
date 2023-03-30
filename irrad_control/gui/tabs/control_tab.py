@@ -100,11 +100,6 @@ class IrradControlTab(QtWidgets.QWidget):
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         """Function emitting signal with command dict which is send to *server* in main"""
         self.sendCmd.emit({'hostname': hostname, 'target': target, 'cmd': cmd, 'cmd_data': cmd_data})
-   
-    def check_finish(self, server, eta_n_scans):
-        if eta_n_scans == 0 and self.tab_widgets[server]['scan'].auto_finish_scan:
-            self.send_cmd(hostname=server, target='__scan__', cmd='handle_interaction', cmd_data={'kwargs': {'interaction': 'finish'}})
-
 
     def scan_status(self, server, status='started'):
         read_only = status == 'started'

@@ -443,7 +443,6 @@ class ScanControlWidget(ControlWidget):
         self._after_scan_container = None
         self._remaining_individual_rows = 0
         self.n_rows = None
-        self.auto_finish_scan = True
         self.scan_in_progress = False
 
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
@@ -671,16 +670,8 @@ class ScanControlWidget(ControlWidget):
         btn_pause.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
         btn_abort.setStyleSheet('QPushButton {color: red;}')
-        
-        # Checkboxes
-        # Auto finish scan
-        checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
-        checkbox_auto_finish.setToolTip("Automatically finish scan procedure when target damage is reached.")
-        checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
-        checkbox_auto_finish.setChecked(True)
 
         scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_abort])
-        scan_interaction_container.add_widget(widget=checkbox_auto_finish)
 
         label_toggle = QtWidgets.QLabel('Toggle events')
         label_toggle.setToolTip("Event checkbox checked -> Event enabled; unchecked -> disabled")
@@ -690,7 +681,7 @@ class ScanControlWidget(ControlWidget):
         for i, irr_ev in enumerate(create_irrad_events()):
 
             # Skip a certain set of events
-            if any(a in irr_ev.name.lower() for a in ('generic', 'roscale', 'doserate', 'blm', 'scan')):
+            if any(a in irr_ev.name.lower() for a in ('generic', 'roscale', 'doserate', 'blm')):
                 continue
 
             evt_chbx = QtWidgets.QCheckBox(irr_ev.name)

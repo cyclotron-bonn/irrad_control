@@ -463,7 +463,7 @@ class DUTScan(object):
             while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
                 # Break if the scan is completed
-                if self.irrad_events.ScanComplete.value.is_valid():
+                if self.irrad_events.IrradiationComplete.value.is_valid():
                     break
 
                 # Pause scan indefinitely until manually resuming
