@@ -566,17 +566,20 @@ def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_tr
         
         # Get beam current measurements which were taken while waiting to start next row
         wait_beam_data = current_beam_data[:row_start_idx]
-        
-        # Process the currents measured while waiting
-        _process_row_wait(row_data=row_data,
-                          wait_beam_data=wait_beam_data,
-                          fluence_map=fluence_map,
-                          fluence_map_error=fluence_map_error,
-                          map_bin_edges_x=map_bin_edges_x,
-                          map_bin_centers_x=map_bin_centers_x,
-                          map_bin_centers_y=map_bin_centers_y,
-                          beam_sigma=beam_sigma,
-                          scan_y_offset=scan_y_offset)
+
+        # Only process wait data if there is any; sometimes there is none
+        if wait_beam_data.shape[0] > 0:
+
+            # Process the currents measured while waiting
+            _process_row_wait(row_data=row_data,
+                            wait_beam_data=wait_beam_data,
+                            fluence_map=fluence_map,
+                            fluence_map_error=fluence_map_error,
+                            map_bin_edges_x=map_bin_edges_x,
+                            map_bin_centers_x=map_bin_centers_x,
+                            map_bin_centers_y=map_bin_centers_y,
+                            beam_sigma=beam_sigma,
+                            scan_y_offset=scan_y_offset)
 
     # Process the scan
     _process_row_scan(row_data=row_data,
