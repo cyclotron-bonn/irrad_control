@@ -665,7 +665,7 @@ class IrradConverter(DAQProcess):
 
         # Store event data if an event changed state from active to inactive or vice-versa
         if triggered_but_inactive or untriggered_but_active:
-            self._store_event_parameters(server=server, event=event_name, parameters={'active': tc, 'description': actual_irrad_event.description})
+            self._store_event_parameters(server=server, event=event_name, parameters=self.irrad_events[server].to_dict(event=event_name))
 
     def _interpret_scan_data(self, server, data, meta):
 
