@@ -10,6 +10,7 @@ from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
 from irrad_control.processes.daq import DAQProcess
+from irrad_control.utils.events import create_irrad_events
 
 
 class IrradServer(DAQProcess):
@@ -25,6 +26,8 @@ class IrradServer(DAQProcess):
 
         self._motorstages = []
 
+        self.irrad_events = create_irrad_events()
+
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
 
@@ -34,6 +37,7 @@ class IrradServer(DAQProcess):
         # Update setup
         self.server = setup['server']
         self.setup = setup['setup']
+        self.name = setup['setup']['server'][self.server]['name']
 
         # Overwrite server setup with our server
         self.setup['server'] = self.setup['server'][self.server]
@@ -46,6 +50,10 @@ class IrradServer(DAQProcess):
         self._setup_devices()
 
         self._launch_daq_threads()
+
+        # Listen to events from converter
+        self.add_event_stream(event_stream=self._tcp_addr(ip=self.setup['host'], port=self.setup['ports']['event']))
+        self.launch_thread(target=self.recv_event)
 
     def _init_devices(self):
 
@@ -148,7 +156,8 @@ class IrradServer(DAQProcess):
         if 'ScanStage' in self.devices:
 
             # Add special __scan__ device which from now on can be accessed via the direct device calls
-            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'])
+            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'],
+                                               irrad_events=self.irrad_events)
 
             # Connect to ZMQ
             self.devices['__scan__'].setup_zmq(ctx=self.context,
@@ -301,9 +310,27 @@ class IrradServer(DAQProcess):
                 else:
                     self.on_demand_events['rad_monitor_ready'].clear()
 
+            elif cmd == 'toggle_event':
+                self.irrad_events[data['event']].value.disabled = data['disabled']
+
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
+
+    def handle_event(self, event_data):
+
+        # Only handle events of this server
+        if event_data['server'] != self.server:
+            logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")
+            return
+        
+        try:
+            event_name = event_data['event']
+            self.irrad_events[event_name].value.active = event_data['active']
+            self.irrad_events[event_name].value.disabled = event_data['disabled']
+            logging.debug(f"Event {event_data['event']} on server {self.name} is {'' if event_data['active'] else 'in'}active")
+        except KeyError:
+            logging.error(f"Event {event_name} unknown!")
 
     def clean_up(self):
         """Mandatory clean up - method"""

@@ -28,7 +28,7 @@ class DUTScan(object):
     def rows(self, val):
         raise AttributeError("rows is read-only")
 
-    def __init__(self, scan_stage, config=None):
+    def __init__(self, scan_stage, irrad_events, config=None):
 
         # Timing-related
         self._event_wait_time = 0.1  # Wait for events to be set
@@ -42,8 +42,11 @@ class DUTScan(object):
         # Minimum info the scan_config must contain in order to scan
         self.scan_reqs = ('origin', 'start', 'end', 'n_rows', 'rows', 'scan_speed', 'row_sep')
 
+        # Events to be automatically updated
+        self.irrad_events = irrad_events
+
         # Events controlling the scanning procedure
-        self._events = {e: threading.Event() for e in ('stop', 'complete', 'standby', 'wait')}
+        self.interaction_events = {e: threading.Event() for e in ('abort', 'finish', 'pause')}
 
         # Scan parameters; derived from scan config
         self._scan_params = {}
@@ -53,9 +56,9 @@ class DUTScan(object):
         if config is not None:
             self.setup_scan(scan_config=config)
 
-    def handle_event(self, event):
+    def handle_interaction(self, interaction):
         """
-        Method to handle an event. *event* is string and can be any of the following
+        Method to handle an interaction. *interaction* is string and can be any of the following
 
         abort:
             Scan stops immediately after scanning current row. Setup relocates to scan origin
@@ -65,33 +68,20 @@ class DUTScan(object):
             Scan pauses until *continue* event before next scan is done. Beam located on shielding
         continue:
             Scan continues after pausing.
-        beam_down:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-        beam_jitter:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-        beam_ok:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-
         """
 
-        if event == 'abort':
+        if interaction == 'abort':
             logging.warning("Aborting scan!")
-            self._events['stop'].set()
-        elif event == 'finish':
+            self.interaction_events['abort'].set()
+        elif interaction == 'finish':
             logging.info("Finishing scan!")
-            self._events['complete'].set()
-        elif event == 'pause':
+            self.interaction_events['finish'].set()
+        elif interaction == 'pause':
             logging.info("Pausing scan!")
-            self._events['wait'].set()
-        elif event == 'continue':
+            self.interaction_events['pause'].set()
+        elif interaction == 'continue':
             logging.info("Continuing scan!")
-            self._events['wait'].clear()
-        elif event in ('beam_down', 'beam_jitter'):
-            logging.warning("Scan on standby due to beam conditions!")
-            self._events['standby'].set()
-        elif event == 'beam_ok':
-            logging.debug("Beam conditions recovered!")
-            self._events['standby'].clear()
+            self.interaction_events['pause'].clear()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
         """
@@ -217,6 +207,43 @@ class DUTScan(object):
 
         return True
 
+    def _check_abort(self):
+        """
+        Check if scan is to be aborted.
+
+        Raises
+        ------
+        ScanError
+        """
+        if self.interaction_events['abort'].wait(self._event_wait_time):
+            raise ScanError("Scan was stopped manually")
+
+    def _wait_for_condition(self, condition_call, log_msg=None, log_level='INFO', check_call=None):
+        """
+        Wait for condition, returned by *condition_call*,  to be True.
+        Sleep between conditions, and log *log_msg* with level *log_level*, if given.
+        If given, call *check_call* function every iteration.
+
+        Parameters
+        ----------
+        condition_call : _type_
+            _description_
+        log_msg : _type_, optional
+            _description_, by default None
+        log_level : str, optional
+            _description_, by default 'INFO'
+        check_call : _type_, optional
+            _description_, by default None
+        """
+    
+        while not condition_call():    
+            if log_msg is not None:
+                logging.log(level=logging.getLevelName(log_level), msg=log_msg)
+            if check_call is not None:
+                check_call()
+            time.sleep(self._between_checks_time)
+
+
     def scan_row(self, row, speed=None, repeat=1):
         """
         Method to scan a single row of a device. Uses info about scan parameters from self._scan_params dict.
@@ -329,14 +356,11 @@ class DUTScan(object):
                 msg.format(x_current, x_start, x_end)
                 raise ScanError(msg)
 
-            # Check for beam current to be sufficient / beam to be on for scan; if not wait
-            while self._events['standby'].wait(self._event_wait_time):
-                logging.warning("Insufficient beam conditions. Waiting for beam to stabilize")
-                time.sleep(self._between_checks_time)
-
-                # If beam does not recover and we need to stop manually
-                if self._events['stop'].wait(self._event_wait_time):
-                    raise ScanError("Scan was stopped manually")
+            # Check for beam conditions to be okay before scanning a row, if not wait
+            self._wait_for_condition(condition_call=self.irrad_events.beam_ok,
+                                     log_msg="Insufficient beam conditions. Waiting for beam to stabilize...",
+                                     log_level='WARNING',
+                                     check_call=self._check_abort)  # If beam does not recover and we need to stop manually
 
             # Publish if we have a socket
             if data_pub is not None:
@@ -435,13 +459,17 @@ class DUTScan(object):
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
 
-            # Loop until self._events['stop'] or self._events['complete']
-            while not (self._events['stop'].wait(self._event_wait_time) or self._events['complete'].wait(self._event_wait_time)):
+            # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
+            while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
+
+                # Break if the scan is completed
+                if self.irrad_events.IrradiationComplete.value.is_valid():
+                    break
 
                 # Pause scan indefinitely until manually resuming
-                while self._events['wait'].wait(self._event_wait_time):
-                    logging.debug(f'Scan paused after {scan} scans. Waiting to continue')
-                    time.sleep(self._between_checks_time)
+                self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
+                                         log_msg=f"Scan paused after {scan} scans. Waiting to continue",
+                                         log_level='INFO')
 
                 # Determine whether we're scanning top to bottom or opposite
                 current_rows = top_to_bottom_rows if scan % 2 == 0 else bottom_to_top_rows
@@ -450,7 +478,7 @@ class DUTScan(object):
                 for row in current_rows:
 
                     # Check for emergency stop; if so, raise error
-                    if self._events['stop'].wait(self._event_wait_time):
+                    if self.interaction_events['abort'].wait(self._event_wait_time):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
@@ -486,5 +514,5 @@ class DUTScan(object):
                 self.scan_stage.move_abs(axis=i, value=self._scan_params['origin'][i])
 
             # Reset signal so one can scan again
-            for _, e in self._events.items():
+            for _, e in self.interaction_events.items():
                 e.clear()

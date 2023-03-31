@@ -7,6 +7,7 @@ from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets import GridContainer
 from irrad_control.gui.widgets import MotorstagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
+from irrad_control.utils.events import create_irrad_events
 
 
 class ControlWidget(GridContainer):
@@ -442,7 +443,6 @@ class ScanControlWidget(ControlWidget):
         self._after_scan_container = None
         self._remaining_individual_rows = 0
         self.n_rows = None
-        self.auto_finish_scan = True
         self.scan_in_progress = False
 
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
@@ -647,40 +647,60 @@ class ScanControlWidget(ControlWidget):
         btn_pause.setToolTip("Pause the scan. Allow remaining rows to be scanned before pausing.")
         btn_pause.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                           target='__scan__',
-                                                          cmd='handle_event',
-                                                          cmd_data={'kwargs': {'event': btn_pause.text().lower()}}))
+                                                          cmd='handle_interaction',
+                                                          cmd_data={'kwargs': {'interaction': btn_pause.text().lower()}}))
         btn_pause.clicked.connect(lambda _: btn_pause.setText('CONTINUE' if btn_pause.text() == 'PAUSE' else 'PAUSE'))
 
         btn_finish = QtWidgets.QPushButton('FINISH')
         btn_finish.setToolTip("Finish the scan. Allow remaining rows to be scanned before finishing.")
         btn_finish.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
                                                            target='__scan__',
-                                                           cmd='handle_event',
-                                                           cmd_data={'kwargs': {'event': 'finish'}}))
+                                                           cmd='handle_interaction',
+                                                           cmd_data={'kwargs': {'interaction': 'finish'}}))
 
         # Stop button
-        btn_stop = QtWidgets.QPushButton('STOP')
-        btn_stop.setToolTip("Immediately cancel scan and return to scan origin")
-        btn_stop.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                           target='__scan__',
-                                                           cmd='handle_event',
-                                                           cmd_data={'kwargs': {'event': 'abort'}}))
+        btn_abort = QtWidgets.QPushButton('ABORT')
+        btn_abort.setToolTip("Immediately cancel scan and return to scan origin")
+        btn_abort.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                          target='__scan__',
+                                                          cmd='handle_interaction',
+                                                          cmd_data={'kwargs': {'interaction': 'abort'}}))
 
         btn_start.setStyleSheet('QPushButton {color: green;}')
         btn_pause.setStyleSheet('QPushButton {color: green;}')
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
-        btn_stop.setStyleSheet('QPushButton {color: red;}')
-        
-        # Cheboxes
-        # Auto finish scan
-        checkbox_auto_finish = QtWidgets.QCheckBox('Auto finish scan')
-        checkbox_auto_finish.setToolTip("Automatically finish scan procedure when target damage is reached.")
-        checkbox_auto_finish.stateChanged.connect(lambda state: setattr(self, 'auto_finish_scan', bool(state)))
-        checkbox_auto_finish.setChecked(True)
+        btn_abort.setStyleSheet('QPushButton {color: red;}')
 
-        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_stop])
-        scan_interaction_container.add_widget(widget=checkbox_auto_finish)
+        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_abort])
 
+        label_toggle = QtWidgets.QLabel('Toggle events')
+        label_toggle.setToolTip("Event checkbox checked -> Event enabled; unchecked -> disabled")
+        scan_interaction_container.add_widget(widget=label_toggle)
+
+        # Allow to toggle irrad events during scan
+        for i, irr_ev in enumerate(create_irrad_events()):
+
+            # Skip a certain set of events
+            if any(a in irr_ev.name.lower() for a in ('generic', 'roscale', 'doserate', 'blm')):
+                continue
+
+            evt_chbx = QtWidgets.QCheckBox(irr_ev.name)
+            evt_chbx.setChecked(True)
+            evt_chbx.setToolTip(f'Dis/enable {irr_ev.name} event')
+            evt_chbx.stateChanged.connect(lambda state, ev=irr_ev.name: self.send_cmd(hostname='localhost',
+                                                                                      target='interpreter',
+                                                                                      cmd='toggle_event',
+                                                                                      cmd_data={'event': ev, 'disabled': not state, 'server': self.server}))
+            evt_chbx.stateChanged.connect(lambda state, ev=irr_ev.name: self.send_cmd(hostname=self.server,
+                                                                                      target='server',
+                                                                                      cmd='toggle_event',
+                                                                                      cmd_data={'event': ev, 'disabled': not state}))
+            
+            if i == 0 or scan_interaction_container.columns_in_row() > 5:
+                scan_interaction_container.add_widget(widget=evt_chbx)
+            else:
+                scan_interaction_container.add_widget(widget=evt_chbx, row='current')
+            
         # Add to layout
         self.add_widget(damage_container)
         self.add_widget(scan_parameters_container)
