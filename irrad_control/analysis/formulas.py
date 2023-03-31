@@ -190,7 +190,7 @@ def beta(energy=None, mass=None, gamma_val=None):
     
     return (1 - 1 / gv**2)** .5
 
-def bethe_bloch_Si(charge, mass, energy):
+def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     """
     Bethe-Bloch formula for ionizing energy loss of ions in Si.
     largely taken 'Particle Detectors - Fundamentals and Applications' by N. Wermes, H. Kolanoski
@@ -213,13 +213,13 @@ def bethe_bloch_Si(charge, mass, energy):
     beta_gamma = lorentz_beta*lorentz_gamma
 
     # Max energy transfer
-    T_max = (2*m_e*c*beta_gamma) / (1 + (2*lorentz_gamma*m_e/mass) + (m_e/mass)**2)
+    T_max = (2 * m_e* c**2 * beta_gamma**2) / (1 + (2 * lorentz_gamma * m_e / mass) + (m_e / mass)**2)
 
     # Prefactor
-    pre_fac = K * Z_Si / A_Si * rho_Si * (charge / lorentz_beta)**2
+    pre_fac = K * Z_Si / A_Si * (charge / lorentz_beta)**2 * (1 if density_normalized else rho_Si)
 
     # Log term
-    log_term = math.log(2 * m_e * (c*beta_gamma)**2 * T_max / I_Si**2)
+    log_term = math.log(2 * m_e * (c * beta_gamma)**2 * T_max / I_Si**2)
 
     # Correction for high energy
     delta_correction = 0
