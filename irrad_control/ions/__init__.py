@@ -12,6 +12,12 @@ class IrradIon(object):
 
     EKIN_RANGE_PER_NUCLEON = (7., 14.)  # valid for all ions
 
+    @property
+    def mass(self):
+        # TODO: binding energy
+        m_proton, m_neutron = 938.272, 939.565  # MeV, MeV
+        return self.n_charge * m_proton + (self.n_nucleon - self.n_charge) * m_neutron
+
     def __init__(self, name, n_charge, n_nucleon, data_path=None):
 
         self.name = name
@@ -77,11 +83,6 @@ class IrradIon(object):
             _data = self._to_dict(_data)
 
         return _data
-    
-    def mass(self):
-        # TODO: binding energy
-        m_proton, m_neutron = 938.272, 939.565  # MeV, MeV
-        return self.n_charge * m_proton + (self.n_nucleon - self.n_charge) * m_neutron
 
     def rate(self, current):
         """
