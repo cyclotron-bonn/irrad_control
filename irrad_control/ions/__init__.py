@@ -5,7 +5,7 @@ import numpy as np
 from importlib import import_module
 
 from irrad_control.analysis.constants import elementary_charge
-from irrad_control.analysis.formulas import bethe_bloch_Si
+from irrad_control.analysis.formulas import bethe_bloch_Si, semi_empirical_mass_formula
 
 
 class IrradIon(object):
@@ -14,9 +14,7 @@ class IrradIon(object):
 
     @property
     def mass(self):
-        # TODO: binding energy
-        m_proton, m_neutron = 938.272, 939.565  # MeV, MeV
-        return self.n_charge * m_proton + (self.n_nucleon - self.n_charge) * m_neutron
+        return semi_empirical_mass_formula(n_protons=self.n_charge, n_nucleons=self.n_nucleon)
 
     def __init__(self, name, n_charge, n_nucleon, data_path=None):
 

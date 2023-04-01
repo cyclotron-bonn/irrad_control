@@ -233,17 +233,37 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
 
 
 def semi_empirical_mass_formula(n_protons, n_nucleons):
+    """
+    From https://en.wikipedia.org/wiki/Semi-empirical_mass_formula
+
+    Parameters
+    ----------
+    n_protons : _type_
+        _description_
+    n_nucleons : _type_
+        _description_
+    """
 
     nucleon_mass = n_protons * irrad_consts.m_p + (n_nucleons - n_protons) * irrad_consts.m_n
 
+    # Formula yields poor results for light nucleii, better off just using the raw nucleon mass
+    if n_nucleons < 10:
+        return nucleon_mass
+
+    n_neutrons = n_nucleons - n_protons
+    pair_factor = 0
+    if n_protons % 2 == 0 and n_neutrons % 2 == 0:
+        pair_factor = 1 
+    elif n_protons % 2 != 0 and n_neutrons % 2 != 0:
+        pair_factor = -1
+
+    # Hard-coded prefactors are in MeV
     volume_term = 15.67 * n_nucleons
     surface_term = -17.23 * n_nucleons ** (2./3.)
     coulomb_term = - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
-    symmetry_term = -93.15 * ((n_nucleons - n_protons) - n_protons) ** 2 / 4 * n_nucleons
-    pair_term =0
+    symmetry_term = -93.15 * (n_neutrons - n_protons) ** 2 / (4 * n_nucleons)
+    pair_term = 11.2 * n_nucleons ** (-.5) * pair_factor
 
+    binding_energy = volume_term + surface_term + coulomb_term + symmetry_term + pair_term
 
-    binding_energy = 15.67 * n_nucleons - 17.23 * n_nucleons ** (2./3.) - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
-
-
-
+    return nucleon_mass - binding_energy
