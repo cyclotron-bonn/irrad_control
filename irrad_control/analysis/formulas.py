@@ -230,3 +230,20 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     shell_correction = 0
 
     return pre_fac * (0.5 * log_term - lorentz_beta**2 - delta_correction - shell_correction)
+
+
+def semi_empirical_mass_formula(n_protons, n_nucleons):
+
+    nucleon_mass = n_protons * irrad_consts.m_p + (n_nucleons - n_protons) * irrad_consts.m_n
+
+    volume_term = 15.67 * n_nucleons
+    surface_term = -17.23 * n_nucleons ** (2./3.)
+    coulomb_term = - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
+    symmetry_term = -93.15 * ((n_nucleons - n_protons) - n_protons) ** 2 / 4 * n_nucleons
+    pair_term =0
+
+
+    binding_energy = 15.67 * n_nucleons - 17.23 * n_nucleons ** (2./3.) - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
+
+
+
