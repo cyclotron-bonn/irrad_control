@@ -124,10 +124,10 @@ class IrradIon(object):
         tmp_energy = energy if not at_dut else self.ekin_at_dut(energy=energy)
 
         # Get data from e.g. NIST tables 
-        if self._data['stopping'] is not None:
+        if self._data['stopping'] is not None and self._data['stopping'][:,0][0] <= tmp_energy <= self._data['stopping'][:,0][-1]:
             return float(np.interp(x=tmp_energy, xp=self._data['stopping'][:,0], fp=self._data['stopping'][:,1]))
         
-        logging.info(f"No stopping power data available for {self.name}s. Calculate from Bethe-Bloch")
+        logging.info(f"No stopping power data available for {self.name}s at {tmp_energy:.2f} MeV. Calculate from Bethe-Bloch")
         return bethe_bloch_Si(charge=self.n_charge, mass=self.mass, energy=tmp_energy)
 
     def calibration(self, at_energy=None, at_index=None, as_dict=False, return_index=False):
