@@ -250,14 +250,13 @@ def semi_empirical_mass_formula(n_protons, n_nucleons):
     float:
         Mass of nucleus repsecting the mass defect
     """
-
-    nucleon_mass = n_protons * irrad_consts.m_p + (n_nucleons - n_protons) * irrad_consts.m_n
+    n_neutrons = n_nucleons - n_protons
+    nucleon_mass = n_protons * irrad_consts.m_p + n_neutrons * irrad_consts.m_n
 
     # Formula yields poor results for light nucleii, better off just using the raw nucleon mass
     if n_nucleons < 10:
         return nucleon_mass
 
-    n_neutrons = n_nucleons - n_protons
     pair_factor = 0
     if n_protons % 2 == 0 and n_neutrons % 2 == 0:
         pair_factor = 1 
