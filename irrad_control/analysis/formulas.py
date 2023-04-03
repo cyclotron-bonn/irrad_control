@@ -235,13 +235,20 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
 def semi_empirical_mass_formula(n_protons, n_nucleons):
     """
     From https://en.wikipedia.org/wiki/Semi-empirical_mass_formula
+    Calculate mass of nucleii with respect to the binding energy.
+    For light ions this approach is not precise and you're better off not considering binding energy.
 
     Parameters
     ----------
-    n_protons : _type_
-        _description_
-    n_nucleons : _type_
-        _description_
+    n_protons : int
+        Number of protons in the nucleus
+    n_nucleons : int
+        Number of overall nucleons (protons + neutrons)
+    
+    Returns
+    -------
+    float:
+        Mass of nucleus repsecting the mass defect
     """
 
     nucleon_mass = n_protons * irrad_consts.m_p + (n_nucleons - n_protons) * irrad_consts.m_n
