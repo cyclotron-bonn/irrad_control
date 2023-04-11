@@ -10,7 +10,7 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
-    port: /dev/ttyUSB2
+    port: /dev/ttyUSB0
     version: v0.2
     address: 0x20
 
@@ -54,7 +54,7 @@ ExternalCupStage:
 
 ArduinoNTCReadout:
   init:
-    port: /dev/ttyUSB0
+    port: /dev/ttyUSB1
     baudrate: 115200
     timeout: 5
     ntc_lim:
@@ -64,5 +64,5 @@ ArduinoNTCReadout:
 RadiationMonitor:
   init:
     counter_type: GasCounter
-    counter_port: '/dev/ttyACM1'
-    hv_port: '/dev/ttyUSB1'
+    counter_port: '/dev/ttyUSB2'
+    hv_port: '/dev/ttyUSB3'

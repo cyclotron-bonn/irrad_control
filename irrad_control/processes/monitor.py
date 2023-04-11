@@ -134,8 +134,8 @@ class MonitorGUI(IrradGUI):
                     self.minimal_input_window.close,
                     self.show,
                     lambda _: self._init_setup(setup=self.setup),
-                    lambda _: self.log_dock.setVisible(False),
-                    lambda _: self.daq_info_dock.setVisible(False)]:
+                    lambda _: self.info_dock.setVisible(False),
+                    lambda _: self.daq_dock.setVisible(False)]:
 
             btn_start.clicked.connect(con)
         
@@ -274,8 +274,8 @@ class MonitorGUI(IrradGUI):
         elif _type == 'ERROR':
             msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.error(msg)
-            if self.log_dock.isHidden():
-                self.log_dock.setVisible(True)
+            if self.info_dock.isHidden():
+                self.info_dock.setVisible(True)
 
         else:
             logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))

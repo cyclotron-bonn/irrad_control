@@ -154,7 +154,19 @@ def generate_ch_ifs_array(data, config, channel_idx, update_ifs_events=None):
 
             if channel_group in update_parameters:
                 # Extract IFS value in nA
-                updated_ifs_value = float(update_parameters.split()[1])
+                # Prior to v2.2
+                try:
+                    updated_ifs_value = float(update_parameters.split()[1])
+                # From v2.2 onwards
+                except IndexError:
+                    for up in update_parameters.split(','):
+                        k, v = up.split('=')
+                        if k == 'ifs':
+                            updated_ifs_value = float(v)
+                            break
+                    else:
+                        raise RuntimeError("Could not extract 'I_FS' parameter from update event")
+
                 # Search for the index at which the IFS change happened
                 idx = np.searchsorted(data['timestamp'], ifs_update['timestamp'], side='right')
                 # Update subsequent IFS values
