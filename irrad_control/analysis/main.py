@@ -171,7 +171,7 @@ def main():
 
             save_plots(plots=res, outfile=out_pdf)
 
-    # We are doing the same analysis on multiple files
+    # We are doing the same analysis on one/multiple files
     else:
 
         # Check outfiles
@@ -191,31 +191,16 @@ def main():
 
                 # Loop over different irradiation server and perform analysis
                 for _, content in config['server'].items():
-
-                    if parsed['damage']:
-                        
-                        res = irrad_analysis.damage.main(data=data, config=content)
-
-                        save_plots(plots=res, outfile=out_pdf)
-            
-                    if parsed['calibration']:
-
-                        res = irrad_analysis.calibration.main(irrad_data=data, irrad_config=content)
-
-                        save_plots(plots=res, outfile=out_pdf)
-
-                    if parsed['scan']:
-                        
-                        res = irrad_analysis.scan.main(data=data, config=content)
-                        
-                        save_plots(plots=res, outfile=out_pdf)
-
-                    if parsed['beam']:
-                        
-                        res = irrad_analysis.beam.main(data=data, config=content)
                     
-                        save_plots(plots=res, outfile=out_pdf)
-                    
+                    # Loop over flags and perform analysis if flag is set
+                    for a_flag in ANALYSIS_FLAGS:
+                        if parsed[a_flag]:
+                            
+                            # Load submodule with same name as flag and call main analyis
+                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content)
+                            save_plots(res, out_pdf)
+
+
 if __name__ == '__main__':
     main()
     

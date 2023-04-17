@@ -32,18 +32,18 @@ def _get_ref_voltage(config):
     return 5.
 
 
-def main(irrad_data, irrad_config):
+def main(data, config):
 
-    server = irrad_config['name']
+    server = config['name']
 
     # Get raw data and event data; events are needed in order to check for changing full scale factors when using the IrradDAQBoard
-    raw_data = irrad_data[server]['Raw']
+    raw_data = data[server]['Raw']
 
-    assert 'readout' in irrad_config, "Configuration field 'readout' required but not found"
-    ch_types = irrad_config['readout']['types']
+    assert 'readout' in config, "Configuration field 'readout' required but not found"
+    ch_types = config['readout']['types']
 
-    if irrad_config['readout']['device'] == RO_DEVICES.DAQBoard:
-        assert 'Event' in irrad_data[server], "Data entry 'Event' required in input data but not found"
+    if config['readout']['device'] == RO_DEVICES.DAQBoard:
+        assert 'Event' in data[server], "Data entry 'Event' required in input data but not found"
 
     # Check configuration for required channel types: calibrate all channels of type *cup* or *blm* vs *sem_sum*
     assert 'sem_sum' in ch_types, "Channel of type 'sem_sum' required for calibration but not found"
@@ -53,9 +53,9 @@ def main(irrad_data, irrad_config):
     sem_calib_channel = defaultdict(dict)
     cup_calib_channel = defaultdict(dict)
 
-    for i, ch in enumerate(irrad_config['readout']['channels']):
+    for i, ch in enumerate(config['readout']['channels']):
         
-        ch_type = irrad_config['readout']['types'][i]
+        ch_type = config['readout']['types'][i]
 
         if ch_type == 'sem_sum':
             sem_calib_channel[ch]['idx'] = i
@@ -66,10 +66,10 @@ def main(irrad_data, irrad_config):
     # Get info about the full scale current
     for quant in (sem_calib_channel, cup_calib_channel):
         for ch in quant:
-            quant[ch]['ifs'] = _get_ifs(channel_idx=quant[ch]['idx'], config=irrad_config)
+            quant[ch]['ifs'] = _get_ifs(channel_idx=quant[ch]['idx'], config=config)
 
     # Search events for 'update_group_ifs' which indicate change in readout IFS scale
-    events = irrad_data[server]['Event']
+    events = data[server]['Event']
     update_ifs_events = events[events['event'] == b'update_group_ifs']
 
     # Make list of figures to return
@@ -83,7 +83,7 @@ def main(irrad_data, irrad_config):
             # Cuts are made on the *cup_ch*
             cut_data = apply_rel_data_cuts(data=raw_data,
                                            ref_sig=raw_data[cup_ch],
-                                           ref_sig_max=_get_ref_voltage(config=irrad_config),  # Max reference signal
+                                           ref_sig_max=_get_ref_voltage(config=config),  # Max reference signal
                                            cut_slope=0.01,  # Cut variation larger than 3% of *ref_signal_max*
                                            cut_min=0.02,  # Cut data smaller than 2% of *ref_signal_max*
                                            cut_max=0.98)  # Cut data larger than 98% of *ref_signal_max*
@@ -96,7 +96,7 @@ def main(irrad_data, irrad_config):
             calib_result, fit_result, calib_arrays, stat_result = calibrate_sem_vs_cup(data=cut_data,
                                                                                        sem_ch_idx=sem_calib_channel[sem_ch]['idx'],
                                                                                        cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
-                                                                                       config=irrad_config,
+                                                                                       config=config,
                                                                                        update_ifs_events=update_ifs_events,
                                                                                        return_full=True)
 
