@@ -8,6 +8,15 @@ from matplotlib.colors import LogNorm
 
 from irrad_control.analysis.formulas import lin_odr, tid_per_scan
 
+# Set matplotlib rcParams
+plt.rcParams.update({
+    'font.size': 11,  # default 10
+    'figure.figsize': [8, 6],  # default [6.4, 4.8]
+    'grid.alpha': 0.75,  # default 1.0
+    'figure.max_open_warning': 0  # default 20; disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
+    }
+)
+
 
 def _get_damage_label_unit_target(damage, ion_name, dut=False):
     damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else f'{ion_name}s' + r' cm$^{-2}$' if damage == 'primary' else 'Mrad'
@@ -56,7 +65,7 @@ def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None):
 def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), cmap='viridis', contour=False, **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw={"projection": "3d"})
+    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
     # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
@@ -111,7 +120,7 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
 def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, cmap='viridis', **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots()
     
     bin_width_y = (map_centers_y[1] - map_centers_y[0])
     bin_width_x = (map_centers_x[1] - map_centers_x[0])
@@ -130,7 +139,7 @@ def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, cmap='viridis',
 def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, cmap='viridis', **damage_label_kwargs):
 
     # Make figure
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots()
 
      # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
@@ -199,8 +208,7 @@ def plot_beam_current_over_time(timestamps, beam_current, ch_name):
                                           'ylabel': f"Cup channel {ch_name} current / nA",
                                           'label': f'{ch_name} current',
                                           'title': f"Current of channel {ch_name}",
-                                          'fmt': 'C0.'},
-                               figsize=(8,6))
+                                          'fmt': 'C0.'})
 
     ax.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M'))
     fig.autofmt_xdate()
@@ -230,8 +238,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                          'fit_args': [[beta_const.n], calib_data],
                                          'fmt': 'C1-',
                                          'label': fit_label},
-                               hist_data={'bins': (100, 100), 'cmap': 'viridis', 'norm': LogNorm()} if hist else {},
-                               figsize=(8,6))
+                               hist_data={'bins': (100, 100), 'cmap': 'viridis', 'norm': LogNorm()} if hist else {})
 
     # Make figure and axis
     _, _ = ax.set_ylim(0, np.max(ref_data) * (1.25))
@@ -258,15 +265,13 @@ def fluence_row_hist(start, end, fluence):
                                           'label': fig_label,
                                           'title': fig_title,
                                           'fmt': 'C0'},
-                               hist_data={'bins': 'stat'},
-                               figsize=(8,6))
+                               hist_data={'bins': 'stat'})
     return fig, ax
 
 def plot_damage_resolved(primary_damage_resolved, stopping_power=None, hardness_factor=None, **damage_label_kwargs):
     fig, ax = plot_generic_axis(axis_data={'xlabel': 'Row number',
                                            'ylabel': 'Scan number',
-                                           'title': "Damage scan and row resolved"},
-                                figsize=(8,6))
+                                           'title': "Damage scan and row resolved"})
 
     if hardness_factor is not None:
         damage = primary_damage_resolved * hardness_factor
@@ -376,8 +381,8 @@ def plot_beam_current(timestamps, beam_currents, while_scan=None):
                                           'ylabel': f"Beam current / nA",
                                           'label': fig_label,
                                           'title': fig_title,
-                                          'fmt': '-C0'},
-                               figsize=(8,6))
+                                          'fmt': '-C0'})
+
     ax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     fig.autofmt_xdate()
     return fig, ax
@@ -399,12 +404,12 @@ def plot_beam_current_hist(beam_currents, start, end, while_scan=None):
                                           'label': fig_label,
                                           'title': fig_title,
                                           'fmt': 'C0'},
-                               hist_data={'bins': 'stat'},
-                               figsize=(8,6))
+                               hist_data={'bins': 'stat'})
+    
     return fig, ax
 
 def plot_beam_deviation(horizontal_deviation, vertical_deviation, while_scan=None):
-    fig = plt.figure(figsize=(0.8*9.5,0.8*9))
+    fig = plt.figure()
     gs = fig.add_gridspec(2, 3,  width_ratios=(7, 2, 0.5), height_ratios=(2, 7),
                         left=0.1, right=0.9, bottom=0.1, top=0.9,
                         wspace=0.05, hspace=0.05)

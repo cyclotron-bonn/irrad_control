@@ -2,17 +2,12 @@ import sys
 import os
 import logging
 import argparse
-import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
-import matplotlib as mpl
 
 import irrad_control.analysis as irrad_analysis
 from irrad_control.analysis.utils import load_irrad_data
 
-
-# Disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
-mpl.rcParams['figure.max_open_warning'] = 0
 
 # Logging level
 logging.getLogger().setLevel('INFO')
@@ -119,7 +114,7 @@ def save_plots(plots, outfile):
         Filehandle of PDFPages object
     """
     for plot in tqdm(plots, desc="Saving plots", unit='plots'):
-        outfile.savefig(plot, bbox_inches='tight')
+        outfile.savefig(plot)
 
 
 def main():
