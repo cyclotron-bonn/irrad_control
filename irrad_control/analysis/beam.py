@@ -1,4 +1,3 @@
-import numpy as np
 from irrad_control.analysis import plotting, constants
 
 
