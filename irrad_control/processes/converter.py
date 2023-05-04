@@ -90,6 +90,24 @@ class IrradConverter(DAQProcess):
             self._add_server_data(server=server, server_setup=server_setup)
             self._setup_daq_parameters(server=server, server_setup=server_setup)
 
+    def _create_data_entry(self, server, dname, location):
+
+        try:
+            dtype = self.dtypes[dname]
+        except KeyError:  # Raw and RawOffset data
+            names = ['timestamp'] + self.readout_setup[server]['channels']
+            dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8']+['<f4']*(len(names)-1))
+
+        # Create and store tables
+        self.data_tables[server][dname] = self.output_table.create_table(location,
+                                                                         description=dtype,
+                                                                         name=dname.capitalize())
+        # Create arrays
+        self.data_arrays[server][dname] = np.zeros(shape=1, dtype=dtype)
+
+        # Create data flags
+        self.data_flags[server][dname] = False
+
     def _add_server_data(self, server, server_setup):
         """Adds a group to the ouptut table for respective server"""
 
@@ -98,6 +116,9 @@ class IrradConverter(DAQProcess):
 
         # Dedicated flag for NTC readout of DAQ Board
         has_ntc_daq_board_ro = False
+
+        # Always create event entries; events can occure without readout present
+        self._create_data_entry(server=server, dname='event', location=f"/{server_setup['name']}")
 
         if 'readout' in server_setup:
 
@@ -121,23 +142,8 @@ class IrradConverter(DAQProcess):
             self.data_flags[server]['scanning'] = False
 
             # Create needed tables and arrays
-            for dname in ('Raw', 'RawOffset', 'Event', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
-
-                try:
-                    dtype = self.dtypes[dname.lower()]
-                except KeyError:  # Raw and RawOffset data
-                    names = ['timestamp'] + self.readout_setup[server]['channels']
-                    dtype = self.dtypes.generic_dtype(names=names, dtypes=['<f8']+['<f4']*(len(names)-1))
-
-                # Create and store tables
-                self.data_tables[server][dname.lower()] = self.output_table.create_table('/{}'.format(server_setup['name']),
-                                                                                         description=dtype,
-                                                                                         name=dname)
-                # Create arrays
-                self.data_arrays[server][dname.lower()] = np.zeros(shape=1, dtype=dtype)
-
-                # Create data flags
-                self.data_flags[server][dname.lower()] = False
+            for dname in ('Raw', 'RawOffset', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
+                self._create_data_entry(server=server, dname=dname.lower(), location=f"/{server_setup['name']}")
 
             # Create histogram group and entries
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Histogram')
