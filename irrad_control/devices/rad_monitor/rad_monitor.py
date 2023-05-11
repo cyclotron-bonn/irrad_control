@@ -1,11 +1,16 @@
 import logging
 from time import sleep
+from threading import Event
 from irrad_control.devices.arduino.freq_counter.arduino_freq_counter import ArduinoFreqCounter
 from irrad_control.devices.power_supply.iseg_nhq_x0xx import IsegNHQx0xx
 from irrad_control.devices.rad_monitor import RAD_MONITOR_CONFIG
 
 
 class RadiationMonitor(ArduinoFreqCounter):
+
+    @property
+    def is_ready(self):
+        return self._ready.is_set()
 
     def __init__(self, counter_type, counter_port,  hv_port):
         
@@ -26,6 +31,9 @@ class RadiationMonitor(ArduinoFreqCounter):
 
         # Gate interval in which pulses are counted in ms
         self.gate_interval = self.config['gate_interval']
+
+        # Event to indicate ready state
+        self._ready = Event()
 
     def _ramp(self, direction='up', blocking=True):
 
@@ -55,6 +63,12 @@ class RadiationMonitor(ArduinoFreqCounter):
             else:
                 logging.info(f"Ramping voltage completed")
 
+    def set_ready(self, state):
+        if state:
+            self._ready.set()
+        else:
+            self._ready.clear()
+
     def ramp_up(self):
         self._ramp(direction='up')
 
@@ -67,5 +81,7 @@ class RadiationMonitor(ArduinoFreqCounter):
         return (res, freq) if return_frequency else res
 
     def shutdown(self):
+        # Needed to stop blocking in daq thread
+        self._ready.set()
         # Always ramp down on shutdown
         self._ramp(direction='down', blocking=False)

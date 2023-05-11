@@ -150,9 +150,6 @@ class IrradServer(DAQProcess):
                 self.launch_thread(target=self._sync_ntc_readout)
                 self._daq_board_ntc_ro = True
 
-        if 'RadiationMonitor' in self.devices:
-            self.on_demand_events['rad_monitor_ready'].clear()
-
         if 'ScanStage' in self.devices:
 
             # Add special __scan__ device which from now on can be accessed via the direct device calls
@@ -237,7 +234,7 @@ class IrradServer(DAQProcess):
     def _daq_rad_monitor(self):
 
         # Wait until we want to read the daq_monitor; less CPU-hungry than pure Event.wait() see https://stackoverflow.com/questions/29082268/python-time-sleep-vs-event-wait/29082411#29082411
-        while not self.on_demand_events['rad_monitor_ready'].is_set():
+        while not self.devices['RadiationMonitor'].is_ready:
             sleep(1)
         
         dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
@@ -302,13 +299,6 @@ class IrradServer(DAQProcess):
             elif cmd == 'motorstages':
                 reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
-
-            elif cmd == 'rad_mon_daq':
-                # Toggle rad monitor DAQ
-                if data is True:
-                    self.on_demand_events['rad_monitor_ready'].set()
-                else:
-                    self.on_demand_events['rad_monitor_ready'].clear()
 
             elif cmd == 'toggle_event':
                 self.irrad_events[data['event']].value.disabled = data['disabled']
