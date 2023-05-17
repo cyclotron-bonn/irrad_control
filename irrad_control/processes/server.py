@@ -173,7 +173,7 @@ class IrradServer(DAQProcess):
         internal_data_pub = self.create_internal_data_pub()
 
         # Acquire data if not stop signal is set
-        while not self.stop_flags['send'].is_set():
+        while not self.stop_flags['__send__'].is_set():
 
             meta, data = daq_func()
 
@@ -214,7 +214,7 @@ class IrradServer(DAQProcess):
 
     def _sync_ntc_readout(self, sync_time=0.2):
         """Sync ADC readout with switching NTC channels on IrradDAQBoard"""
-        while not self.stop_flags['send'].wait(sync_time):
+        while not self.stop_flags['__send__'].wait(sync_time):
             self.devices['IrradDAQBoard'].ntc_sync.set()
 
     def _daq_temp(self):

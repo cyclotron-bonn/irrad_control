@@ -46,9 +46,8 @@ class DAQProcess(Process):
         self.pname = name
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
-        self.state_flags = dict([(x, Event()) for x in ('busy',)])
-        self.on_demand_events = defaultdict(Event)  # Create events in subclasses on demand
+        self.stop_flags = defaultdict(Event)  # Create events in subclasses on demand
+        self.state_flags = defaultdict(Event)  # Create events in subclasses on demand
 
         # Ports/sockets used by this process
         self.ports = {'log': None, 'cmd': None, 'data': None, 'event': None}
@@ -267,10 +266,10 @@ class DAQProcess(Process):
         """
 
         # Receive commands; wait 10 ms for stop flag
-        while not self.stop_flags['recv'].wait(1e-2):
+        while not self.stop_flags['__recv__'].wait(1e-2):
 
             # Check if were working on a command. We have to work sequentially
-            if not self.state_flags['busy'].is_set():
+            if not self.state_flags['__busy__'].is_set():
 
                 # Poll the command receiver socket for 1 ms; continue if there are no commands
                 if not self.sockets['cmd'].poll(timeout=1, flags=zmq.POLLIN):
@@ -294,12 +293,12 @@ class DAQProcess(Process):
                     logging.debug('Handling command {}'.format(cmd_dict['cmd']))
 
                     # Set cmd to busy; other commands send will be queued and received later
-                    self.state_flags['busy'].set()
+                    self.state_flags['__busy__'].set()
 
                     self.handle_cmd(**cmd_dict)
 
                 # Check if a reply has been sent while handling the command. If not send generic reply which resets flag
-                if self.state_flags['busy'].is_set():
+                if self.state_flags['__busy__'].is_set():
                     self._send_reply(reply=cmd_dict['cmd'], sender=cmd_dict['target'], _type='STANDARD')
                     # Now flag is cleared
 
@@ -335,7 +334,7 @@ class DAQProcess(Process):
     def _send_reply(self, reply, _type, sender, data=None):
         """
         Method to reply to a received command via the *self.sockets['cmd']* socket. After replying, the
-        *self.state_flags['busy']* is cleared in order to able to receive new commands
+        *self.state_flags['__busy__']* is cleared in order to able to receive new commands
 
         Parameters
         ----------
@@ -358,7 +357,7 @@ class DAQProcess(Process):
 
         # Send away and clear busy flag
         self.sockets['cmd'].send_json(reply_dict)
-        self.state_flags['busy'].clear()
+        self.state_flags['__busy__'].clear()
 
     def send_data(self):
         """
@@ -370,7 +369,7 @@ class DAQProcess(Process):
         internal_data_sub.bind(self._internal_sub_addr)
         internal_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
 
-        while not self.stop_flags['send'].is_set():  # Send data out as fast as possible
+        while not self.stop_flags['__send__'].is_set():  # Send data out as fast as possible
 
             # Poll the command receiver socket for 1 ms; continue if there are no commands
             if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
@@ -443,7 +442,7 @@ class DAQProcess(Process):
                 internal_pub = self.create_internal_data_pub()
 
             # While event not set receive data
-            while not self.stop_flags['recv'].is_set():
+            while not self.stop_flags['__recv__'].is_set():
 
                 # Poll the socket for 1 ms; continue if there is nothing
                 if not external_sub.poll(timeout=1, flags=zmq.POLLIN):
@@ -529,7 +528,7 @@ class DAQProcess(Process):
         """
 
         # Check threads until stop flag is set
-        while not self.stop_flags['watch'].wait(1.0):
+        while not self.stop_flags['__watch__'].wait(1.0):
 
             # Loop over all threads and check whether exceptions have occurred
             for thread in self.threads:
