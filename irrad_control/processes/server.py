@@ -161,6 +161,10 @@ class IrradServer(DAQProcess):
                                                skt=self.socket_type['data'],
                                                addr=self._internal_sub_addr,
                                                sender=self.server)
+        
+        if 'RadiationMonitor' in self.devices:
+            # Add custom methods for being able to pause/resume data sending
+            self.devices['RadiationMonitor']._send_data = lambda send: getattr(self.stop_flags['wait_rad_mon'], 'set' if send else 'clear')()
 
     def daq_thread(self, daq_func):
         """
@@ -300,13 +304,6 @@ class IrradServer(DAQProcess):
             elif cmd == 'motorstages':
                 reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
-
-            elif cmd == 'rad_mon_daq':
-                # Toggle rad monitor DAQ
-                if data is True:
-                    self.stop_flags['wait_rad_mon'].set()
-                else:
-                    self.stop_flags['wait_rad_mon'].clear()
 
             elif cmd == 'toggle_event':
                 self.irrad_events[data['event']].value.disabled = data['disabled']
