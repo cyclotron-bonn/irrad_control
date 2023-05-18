@@ -833,9 +833,9 @@ class DAQControlWidget(ControlWidget):
             chkbx_rad_mon_hv.stateChanged.connect(con)
         
         for con in [lambda _, btn=btn_toggle_rad_mon: self.send_cmd(hostname=self.server,
-                                                                    target='server',
-                                                                    cmd='rad_mon_daq',
-                                                                    cmd_data='Start' in btn.text()),
+                                                                    target='RadiationMonitor',
+                                                                    cmd='_send_data',
+                                                                    cmd_data={'kwargs': {'send': 'Start' in btn.text()}}),
                     lambda _, btn=btn_toggle_rad_mon: btn.setText('Start DAQ' if 'Stop' in btn.text() else 'Stop DAQ')]:
             
             btn_toggle_rad_mon.clicked.connect(con)

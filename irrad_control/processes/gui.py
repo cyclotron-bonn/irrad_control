@@ -3,8 +3,7 @@ import time
 import logging
 import platform
 import zmq
-from email import message_from_string
-from pkg_resources import get_distribution, DistributionNotFound
+
 from PyQt5 import QtCore, QtWidgets, QtGui
 from threading import Event
 
@@ -18,14 +17,7 @@ from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorT
 
 
 PROJECT_NAME = 'Irrad Control'
-GUI_AUTHORS = 'Pascal Wolf'
 MINIMUM_RESOLUTION = (1366, 768)
-
-try:
-    pkgInfo = get_distribution('irrad_control').get_metadata('PKG-INFO')
-    AUTHORS = message_from_string(pkgInfo)['Author']
-except (DistributionNotFound, KeyError):
-    AUTHORS = 'Not defined'
 
 
 class IrradGUI(QtWidgets.QMainWindow):
