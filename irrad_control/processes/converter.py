@@ -145,7 +145,7 @@ class IrradConverter(DAQProcess):
             self._raw_offsets[server] = defaultdict(list)
 
             # Create needed tables and arrays
-            for dname in ('Raw', 'RawOffset', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
+            for dname in ('Raw', 'RawOffset', 'Beam', 'See', 'Damage', 'Scan', 'Irrad', 'Result'):
                 self._create_data_entry(server=server, dname=dname.lower(), location=f"/{server_setup['name']}")
 
             # Create histogram group and entries
@@ -481,6 +481,19 @@ class IrradConverter(DAQProcess):
             
             self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = beam_current.n
             self.data_arrays[server]['beam']['beam_current_error'] = beam_data['data']['current']['beam_current_error'] = beam_current.s
+
+            # Calculate sum SE current
+            # dname: see_total
+            see_per_surface = analysis.formulas.v_sig_to_i_sig(v_sig=sig,
+                                                               full_scale_current=sum_ifs,
+                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+            
+            # Number of SEM foils is amount of surfaces e.g. 4 foils is horizontal and vertical SEM e.g. 2 times foil entry & exit == 4 surfaces
+            self.data_arrays[server]['see']['see_total'] = beam_data['data']['see']['total'] = see_per_surface * len(self._lookups[server]['sem_foils'])
+            
+            # Calculate sum SE yield
+            # dname: sey
+            self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = see_per_surface / beam_current.n * 100
         
         else:
             logging.warning("Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing")
@@ -552,14 +565,6 @@ class IrradConverter(DAQProcess):
 
             self.data_arrays[server]['beam']['reconstructed_beam_current'] = beam_data['data']['current']['reconstructed_beam_current'] = recon_beam_current
 
-            # Calculate sum SE current
-            # dname: see_total
-            see_total = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
-                                                         full_scale_current=sum_ifs,
-                                                         full_scale_voltage=self._lookups[server]['full_scale_voltage'])
-            
-            beam_data['data']['see']['total'] = see_total
-
         ### Beam positions ###
         # dname: horizontal_beam_position
         # Check if we have horizontal SEM data
@@ -575,12 +580,12 @@ class IrradConverter(DAQProcess):
                                                      full_scale_current=self._lookups[server]['full_scale_current']['sem_right'],
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-            beam_data['data']['see']['h'] = sig_L + sig_R
+            # dname: see_horizontal
+            self.data_arrays[server]['see']['see_horizontal'] = beam_data['data']['see']['h'] = sig_L + sig_R
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane='h')
 
             self.data_arrays[server]['beam']['horizontal_beam_position'] = beam_data['data']['position']['h'] = rel_pos
-
             
         else:
             logging.warning("Horizontal beam position can not be calculated!")
@@ -599,7 +604,8 @@ class IrradConverter(DAQProcess):
                                                      full_scale_current=self._lookups[server]['full_scale_current']['sem_down'],
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-            beam_data['data']['see']['v'] = sig_U + sig_D
+            # dname: see_vertical
+            self.data_arrays[server]['see']['see_vertical'] = beam_data['data']['see']['v'] = sig_U + sig_D
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane='v')
 
