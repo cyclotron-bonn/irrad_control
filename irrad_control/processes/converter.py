@@ -475,7 +475,7 @@ class IrradConverter(DAQProcess):
             sig = data[self.readout_setup[server]['channels'][sum_idx]]
 
             # Error on beam current measurement: Delta lambda / lambda = Delta I_FS / I_FS = Delta sem_sum / sem_sum = 1% => Delta I / I = sqrt(3%)
-            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=ufloat(sig, 1e-2 * sig),
+            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=ufloat(sig, 1e-2 * self._lookups[server]['full_scale_voltage']),  # Generally not better than 1 % of ADC input range
                                                                 calibration_factor=ufloat(*self._daq_params[server]['lambda']),
                                                                 full_scale_current=ufloat(sum_ifs, 1e-2 * sum_ifs))
             
