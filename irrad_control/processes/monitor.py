@@ -201,18 +201,18 @@ class MonitorGUI(IrradGUI):
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
             self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
 
-            if 'frac_h' in data['data']['sey']:
-                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
-            if 'frac_v' in data['data']['sey']:
-                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
+            if 'frac_h' in data['data']['see']:
+                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['see']['frac_h'])
+            if 'frac_v' in data['data']['see']:
+                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['see']['frac_v'])
 
         elif data['meta']['type'] == 'hist':
             if 'beam_position_idxs' in data['data']:
                 self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
-            if 'sey_horizontal_idx' in data['data']:
-                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['sey_horizontal_idx'])
-            if 'sey_vertical_idx' in data['data']:
-                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
+            if 'see_horizontal_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['see_horizontal_idx'])
+            if 'see_vertical_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['see_vertical_idx'])
 
         elif data['meta']['type'] == 'temp_arduino':
 

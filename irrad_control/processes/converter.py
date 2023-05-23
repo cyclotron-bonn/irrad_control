@@ -150,7 +150,7 @@ class IrradConverter(DAQProcess):
 
             # Create histogram group and entries
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Histogram')
-            for hist_name in ('beam_position', 'sey_horizontal', 'sey_vertical'):
+            for hist_name in ('beam_position', 'see_horizontal', 'see_vertical'):
                 hist, edges, centers = self.hists.create_hist(hist_name=hist_name)
 
                 self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[hist_name]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
@@ -334,14 +334,14 @@ class IrradConverter(DAQProcess):
             hist_data['data']['beam_position_idxs'] = (bp_h_idx, bp_v_idx)
         except IndexError:
             pass
-        # SEY fraction
+        # SEE fraction
         for plane in ('horizontal', 'vertical'):
             try:
-                sey_frac = beam_data['data']['sey'][plane[0]] / beam_data['data']['sey']['sum'] * 100
-                sey_idx = analysis.formulas.get_hist_idx(val=sey_frac,
-                                                         bin_edges=self.data_hists[server]['sey_{}'.format(plane)]['meta']['edges'])
-                self.data_hists[server]['sey_{}'.format(plane)]['hist'][sey_idx] += 1
-                hist_data['data']['sey_{}_idx'.format(plane)] = sey_idx
+                see_frac = beam_data['data']['see'][plane[0]] / beam_data['data']['see']['sum'] * 100
+                see_idx = analysis.formulas.get_hist_idx(val=see_frac,
+                                                         bin_edges=self.data_hists[server]['see_{}'.format(plane)]['meta']['edges'])
+                self.data_hists[server]['see_{}'.format(plane)]['hist'][see_idx] += 1
+                hist_data['data']['see_{}_idx'.format(plane)] = see_idx
             except (ZeroDivisionError, IndexError):
                 pass
 
@@ -461,7 +461,7 @@ class IrradConverter(DAQProcess):
     def _interpret_beam_data(self, server, data, meta):
 
         beam_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'beam'},
-                     'data': {'position': {}, 'current': {}, 'sey': {}}}
+                     'data': {'position': {}, 'current': {}, 'see': {}}}
 
         # Get timestamp from data for beam data arrays
         self.data_arrays[server]['beam']['timestamp'] = meta['timestamp']
@@ -557,7 +557,7 @@ class IrradConverter(DAQProcess):
                                                          full_scale_current=sum_ifs,
                                                          full_scale_voltage=self._lookups[server]['full_scale_voltage'])
             
-            beam_data['data']['sey']['sum'] = see_total
+            beam_data['data']['see']['sum'] = see_total
 
         ### Beam positions ###
         # dname: horizontal_beam_position
@@ -574,7 +574,7 @@ class IrradConverter(DAQProcess):
                                                      full_scale_current=self._lookups[server]['full_scale_current']['sem_right'],
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-            beam_data['data']['sey']['h'] = sig_L + sig_R
+            beam_data['data']['see']['h'] = sig_L + sig_R
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane='h')
 
@@ -596,7 +596,7 @@ class IrradConverter(DAQProcess):
                                                      full_scale_current=self._lookups[server]['full_scale_current']['sem_down'],
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-            beam_data['data']['sey']['v'] = sig_U + sig_D
+            beam_data['data']['see']['v'] = sig_U + sig_D
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane='v')
 
@@ -604,13 +604,13 @@ class IrradConverter(DAQProcess):
         else:
             logging.warning("Vertical beam position can not be calculated!")
 
-        # Calc SEY fractions
-        if 'sum' in beam_data['data']['sey']:
+        # Calc SEE fractions
+        if 'sum' in beam_data['data']['see']:
             try:
-                if 'h' in beam_data['data']['sey']:
-                    beam_data['data']['sey']['frac_h'] = beam_data['data']['sey']['h']/beam_data['data']['sey']['sum'] * 100
-                if 'v' in beam_data['data']['sey']:
-                    beam_data['data']['sey']['frac_v'] = beam_data['data']['sey']['v']/beam_data['data']['sey']['sum'] * 100
+                if 'h' in beam_data['data']['see']:
+                    beam_data['data']['see']['frac_h'] = beam_data['data']['see']['h']/beam_data['data']['see']['sum'] * 100
+                if 'v' in beam_data['data']['see']:
+                    beam_data['data']['see']['frac_v'] = beam_data['data']['see']['v']/beam_data['data']['see']['sum'] * 100
             except ZeroDivisionError:
                 pass
 

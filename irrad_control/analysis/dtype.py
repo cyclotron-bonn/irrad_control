@@ -118,8 +118,8 @@ class IrradDtypes:
 class IrradHists:
 
     beam_position = {'unit': 'percent', 'bins': (100, 100), 'range': [(-110, 110), (-110, 110)]}
-    sey_horizontal = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
-    sey_vertical = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    see_horizontal = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    see_vertical = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
 
     def create_hist(self, hist_name, return_edges=True, return_centers=True):
         hist_dict = self.__getitem__(hist_name)

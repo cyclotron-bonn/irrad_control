@@ -71,11 +71,11 @@ class IrradMonitorTab(QtWidgets.QWidget):
                 elif monitor == 'SEM':
                     plot_wrappers = []
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_right', 'sem_left')):
-                        self.plots[server]['sem_h_plot'] = plots.SEYFractionHist(rel_sig='sey_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
+                        self.plots[server]['sem_h_plot'] = plots.SEEFractionHist(rel_sig='see_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
                         plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_h_plot', server=server))
 
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_up', 'sem_down')):
-                        self.plots[server]['sem_v_plot'] = plots.SEYFractionHist(rel_sig='sey_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
+                        self.plots[server]['sem_v_plot'] = plots.SEEFractionHist(rel_sig='see_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
                         plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_v_plot', server=server))
                     if len(plot_wrappers) == 1:
                         monitor_widget = plot_wrappers[0]

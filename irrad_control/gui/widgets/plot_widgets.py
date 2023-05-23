@@ -1176,11 +1176,11 @@ class FluenceHist(IrradPlotWidget):
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
 
 
-class SEYFractionHist(IrradPlotWidget):
+class SEEFractionHist(IrradPlotWidget):
     """This implements a histogram of the fraction of one signal to another"""
 
     def __init__(self, rel_sig, norm_sig, colors=_MPL_COLORS, refresh_rate=10, parent=None):
-        super(SEYFractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+        super(SEEFractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
         # Signal names; relative signal versus the signal it's normalized to
         self.rel_sig = rel_sig
