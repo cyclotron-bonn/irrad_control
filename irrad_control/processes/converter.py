@@ -388,11 +388,12 @@ class IrradConverter(DAQProcess):
         beam_std = relevant_beam_data['beam'].std()
         beam_mean = relevant_beam_data['beam'].mean()
 
-        unstable_cond1 = beam_std >= self._beam_unstable_std_ratio * self._lookups[server]['full_scale_current']['sem_sum']
-        unstable_cond2 = beam_std / beam_mean >= self._beam_unstable_std_ratio
-
-        if unstable_cond1 or unstable_cond2:
+        if beam_std >= self._beam_unstable_std_ratio * self._lookups[server]['full_scale_current']['sem_sum']:
             return True
+        
+        if beam_std / beam_mean >= self._beam_unstable_std_ratio:
+            return True
+
         return False
 
     def _extract_scan_currents(self, server):
