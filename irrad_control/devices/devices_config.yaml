@@ -31,6 +31,7 @@ ScanStage:
       - step: 0.1953125e-6
         travel: 300.0e-3
         model: LRQ300HL-E01T3A
+  motorstage: True
 
 SetupTableStage:
   init:
@@ -40,6 +41,7 @@ SetupTableStage:
     step: 0.1953125e-6
     travel: 284.0e-3
     model: LRQ300HL-E01T3A
+  motorstage: True
 
 ExternalCupStage:
   init:
@@ -51,6 +53,7 @@ ExternalCupStage:
       - 8802
     travel: 716.5e-3
     model: ITEM-Linear-Stage
+  motorstage: True
 
 ArduinoNTCReadout:
   init:

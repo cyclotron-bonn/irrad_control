@@ -8,6 +8,7 @@ from uncertainties import ufloat, unumpy
 
 # Package imports
 import irrad_control.analysis as analysis
+from irrad_control.devices import DEVICES_CONFIG
 import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
 from irrad_control.ions import get_ions
@@ -205,18 +206,17 @@ class IrradConverter(DAQProcess):
                 self.data_flags[server][dname] = False
 
         # We have motorstage data
-        # FIXME: make flag for devices that are stages instead of hardcode
-        for motorstage in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
+        for ms, conf in DEVICES_CONFIG.items():
 
-            if motorstage in server_setup['devices']:
+            if 'motorstage' in conf and conf['motorstage'] and ms in server_setup['devices']:
 
                 # Create group at root because we have a motorstage
                 if '/{}/Motorstage'.format(server_setup['name']) not in self.output_table:
                     self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
 
                 dtype = self.dtypes['motorstage']
-                dname = f'motorstage_{motorstage.lower()}'
-                node_name = motorstage
+                dname = f'motorstage_{ms.lower()}'
+                node_name = ms
 
                 # Create and store tables
                 self.data_tables[server][dname] = self.output_table.create_table('/{}/Motorstage'.format(server_setup['name']),
@@ -961,16 +961,20 @@ class IrradConverter(DAQProcess):
 
         axis_domain = 'motorstage_{}'.format(data['axis_domain'].lower())
 
-        self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
-        self.data_arrays[server][axis_domain]['axis'] = data['axis']
-        self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
-        self.data_arrays[server][axis_domain]['position'] = data['position']
+        # If the motorstage was not registered as a motorstage but still sends axis data
+        # we do not have a table entry for it, so check. Set motorstage: True in devices_config.yaml
+        if axis_domain in self.data_arrays[server]:
 
-        for prop in ('speed', 'accel', 'travel'):
-            if prop in data:
-                self.data_arrays[server][axis_domain][prop] = data[prop]
+            self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
+            self.data_arrays[server][axis_domain]['axis'] = data['axis']
+            self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
+            self.data_arrays[server][axis_domain]['position'] = data['position']
 
-        self.data_flags[server][axis_domain] = True
+            for prop in ('speed', 'accel', 'travel'):
+                if prop in data:
+                    self.data_arrays[server][axis_domain][prop] = data[prop]
+
+            self.data_flags[server][axis_domain] = True
 
     def _store_event_parameters(self, server, event, parameters):
         """
