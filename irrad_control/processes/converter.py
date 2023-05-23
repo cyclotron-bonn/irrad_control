@@ -140,8 +140,6 @@ class IrradConverter(DAQProcess):
 
             self._raw_offsets[server] = defaultdict(list)
 
-            self.data_flags[server]['scanning'] = False
-
             # Create needed tables and arrays
             for dname in ('Raw', 'RawOffset', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
                 self._create_data_entry(server=server, dname=dname.lower(), location=f"/{server_setup['name']}")
@@ -709,7 +707,6 @@ class IrradConverter(DAQProcess):
 
         elif data['status'] == 'scan_start':
 
-            self.data_flags[server]['scanning'] = True
             self.data_arrays[server]['scan']['row_start_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['scan'] = data['scan']
             self.data_arrays[server]['scan']['row'] = data['row']
@@ -720,7 +717,6 @@ class IrradConverter(DAQProcess):
 
         elif data['status'] == 'scan_stop':
 
-            self.data_flags[server]['scanning'] = False
             self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
             self.data_arrays[server]['scan']['row_stop_y'] = data['y_stop']
