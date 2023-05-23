@@ -385,13 +385,10 @@ class IrradConverter(DAQProcess):
 
         relevant_beam_data = tmp_beam[:check_win_idx]
 
-        I_FS = self._get_full_scale_current(server=server,
-                                            ch_idx=self._lookups[server]['ro_type_idx']['sem_sum'],
-                                            ro_device=self.readout_setup[server]['device'])
         beam_std = relevant_beam_data['beam'].std()
         beam_mean = relevant_beam_data['beam'].mean()
 
-        unstable_cond1 = beam_std >= self._beam_unstable_std_ratio * I_FS
+        unstable_cond1 = beam_std >= self._beam_unstable_std_ratio * self._lookups[server]['full_scale_current']['sem_sum']
         unstable_cond2 = beam_std / beam_mean >= self._beam_unstable_std_ratio
 
         if unstable_cond1 or unstable_cond2:
@@ -435,17 +432,18 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['raw'][ch] = data[ch]
 
             ch_idx = self.readout_setup[server]['channels'].index(ch)
+            ch_type = self.readout_setup[server]['types'][ch_idx]
 
             # Subtract offset from data; initially offset is 0 for all ch
-            if self.readout_setup[server]['types'][ch_idx] in self._lookups[server]['offset_ch']:
+            if ch_type in self._lookups[server]['offset_ch']:
                 data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
 
                 raw_data['data']['current'][ch] = analysis.formulas.v_sig_to_i_sig(v_sig=data[ch],
-                                                                                   full_scale_current=self._get_full_scale_current(server, ch_idx, self.readout_setup[server]['device']),
+                                                                                   full_scale_current=self._lookups[server]['full_scale_current'][ch_type],
                                                                                    full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
                 if 'sem_sum' in self._lookups[server]['ro_type_idx'] and self._lookups[server]['ro_type_idx']['sem_sum'] == ch_idx:
-                    raw_data['data']['current'][ch] *= 4
+                    raw_data['data']['current'][ch] *= len(self._lookups[server]['sem_foils'])
 
                     # Use 'sem_sum' voltage signal to determine whether the beam is off: off if smalle 1% of full scale voltage
                     self._check_irrad_event(server=server,
