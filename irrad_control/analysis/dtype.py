@@ -26,6 +26,12 @@ _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
                ('horizontal_beam_position', '<f4'),  # Relative x position of the mean of the beam distribution [%]
                ('vertical_beam_position', '<f4')]  # Relative y position of the mean of the beam distribution [%]
 
+_see_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
+              ('see_total_current', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
+              ('see_horizontal_current', '<f4'),  # SEE current delivered by horizontal SEM [A]
+              ('see_vertical_current', '<f4'),  # SEE current delivered by vertical SEM [A]
+              ('sey', '<f4')]  # SE yield as in SEE current / beam current per surface [%]
+
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
@@ -89,6 +95,7 @@ class IrradDtypes:
     event = np.dtype(_event_dtype)
     motorstage = np.dtype(_motorstage_dtype)
     beam = np.dtype(_beam_dtype)
+    see = np.dtype(_see_dtype)
     scan = np.dtype(_scan_dtype)
     irrad = np.dtype(_irrad_dtype)
     damage = np.dtype(_damage_dtype)
