@@ -27,9 +27,9 @@ _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
                ('vertical_beam_position', '<f4')]  # Relative y position of the mean of the beam distribution [%]
 
 _see_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
-              ('see_total_current', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
-              ('see_horizontal_current', '<f4'),  # SEE current delivered by horizontal SEM [A]
-              ('see_vertical_current', '<f4'),  # SEE current delivered by vertical SEM [A]
+              ('see_total', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
+              ('see_horizontal', '<f4'),  # SEE current delivered by horizontal SEM [A]
+              ('see_vertical', '<f4'),  # SEE current delivered by vertical SEM [A]
               ('sey', '<f4')]  # SE yield as in SEE current / beam current per surface [%]
 
 # Scan data type: contains the data gathered while scanning samples through the particle beam.

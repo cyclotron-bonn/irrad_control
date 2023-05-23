@@ -337,7 +337,7 @@ class IrradConverter(DAQProcess):
         # SEE fraction
         for plane in ('horizontal', 'vertical'):
             try:
-                see_frac = beam_data['data']['see'][plane[0]] / beam_data['data']['see']['sum'] * 100
+                see_frac = beam_data['data']['see'][plane[0]] / beam_data['data']['see']['total'] * 100
                 see_idx = analysis.formulas.get_hist_idx(val=see_frac,
                                                          bin_edges=self.data_hists[server]['see_{}'.format(plane)]['meta']['edges'])
                 self.data_hists[server]['see_{}'.format(plane)]['hist'][see_idx] += 1
@@ -553,11 +553,12 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['beam']['reconstructed_beam_current'] = beam_data['data']['current']['reconstructed_beam_current'] = recon_beam_current
 
             # Calculate sum SE current
+            # dname: see_total
             see_total = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
                                                          full_scale_current=sum_ifs,
                                                          full_scale_voltage=self._lookups[server]['full_scale_voltage'])
             
-            beam_data['data']['see']['sum'] = see_total
+            beam_data['data']['see']['total'] = see_total
 
         ### Beam positions ###
         # dname: horizontal_beam_position
@@ -579,6 +580,8 @@ class IrradConverter(DAQProcess):
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane='h')
 
             self.data_arrays[server]['beam']['horizontal_beam_position'] = beam_data['data']['position']['h'] = rel_pos
+
+            
         else:
             logging.warning("Horizontal beam position can not be calculated!")
 
@@ -605,12 +608,12 @@ class IrradConverter(DAQProcess):
             logging.warning("Vertical beam position can not be calculated!")
 
         # Calc SEE fractions
-        if 'sum' in beam_data['data']['see']:
+        if 'total' in beam_data['data']['see']:
             try:
                 if 'h' in beam_data['data']['see']:
-                    beam_data['data']['see']['frac_h'] = beam_data['data']['see']['h']/beam_data['data']['see']['sum'] * 100
+                    beam_data['data']['see']['frac_h'] = beam_data['data']['see']['h']/beam_data['data']['see']['total'] * 100
                 if 'v' in beam_data['data']['see']:
-                    beam_data['data']['see']['frac_v'] = beam_data['data']['see']['v']/beam_data['data']['see']['sum'] * 100
+                    beam_data['data']['see']['frac_v'] = beam_data['data']['see']['v']/beam_data['data']['see']['total'] * 100
             except ZeroDivisionError:
                 pass
 
