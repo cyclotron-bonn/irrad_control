@@ -471,20 +471,15 @@ class IrradConverter(DAQProcess):
         if 'sem_sum' in self._lookups[server]['ro_type_idx']:
             sum_idx = self._lookups[server]['ro_type_idx']['sem_sum']
             sum_ifs = self._lookups[server]['full_scale_current']['sem_sum']
-            
-            current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sum_idx]],
-                                                                calibration_factor=self._daq_params[server]['lambda'][0],
-                                                                full_scale_current=sum_ifs)
-            
-            self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = current
+            sig = data[self.readout_setup[server]['channels'][sum_idx]]
 
+            # Error on beam current measurement: Delta lambda / lambda = Delta I_FS / I_FS = Delta sem_sum / sem_sum = 1% => Delta I / I = sqrt(3%)
+            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=ufloat(sig, 1e-2 * sig),
+                                                                calibration_factor=ufloat(*self._daq_params[server]['lambda']),
+                                                                full_scale_current=ufloat(sum_ifs, 1e-2 * sum_ifs))
             
-            # FIXME: calculate error according to uncertainty on calibration
-            # Error on current measurement is Delta I = 3.3% I + 1% R_FS
-            current *= 0.033
-            current += 0.01 * sum_ifs
-
-            self.data_arrays[server]['beam']['beam_current_error'] = beam_data['data']['current']['beam_current_error'] = current
+            self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = beam_current.n
+            self.data_arrays[server]['beam']['beam_current_error'] = beam_data['data']['current']['beam_current_error'] = beam_current.s
         
         else:
             logging.warning("Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing")
@@ -544,17 +539,17 @@ class IrradConverter(DAQProcess):
             logging.warning(f"Reconstructed beam current must be derived from 2 or 4 foils (currently {n_foils})")
 
         else:
-            current = 0
 
+            recon_beam_current = 0
             for sem_ch in self._lookups[server]['sem_foils']:
                 sem_ch_idx = self._lookups[server]['ro_type_idx'][sem_ch]
                 sem_ch_ifs = self._lookups[server]['full_scale_current'][sem_ch]
-                current += analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sem_ch_idx]],
-                                                                     calibration_factor=self._daq_params[server]['lambda'][0],
-                                                                     full_scale_current=sem_ch_ifs)
-            current /= n_foils
+                recon_beam_current += analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sem_ch_idx]],
+                                                                                calibration_factor=self._daq_params[server]['lambda'][0],
+                                                                                full_scale_current=sem_ch_ifs)
+            recon_beam_current /= n_foils
 
-            self.data_arrays[server]['beam']['reconstructed_beam_current'] = beam_data['data']['current']['reconstructed_beam_current'] = current
+            self.data_arrays[server]['beam']['reconstructed_beam_current'] = beam_data['data']['current']['reconstructed_beam_current'] = recon_beam_current
 
             # Calculate sum SE current
             see_total = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
