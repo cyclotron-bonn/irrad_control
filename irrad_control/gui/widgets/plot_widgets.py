@@ -1288,3 +1288,33 @@ class SEEFractionHist(IrradPlotWidget):
 
             if self._show_stats:
                 self._set_stats()
+
+class SEYPlot(ScrollingIrradDataPlot):
+
+    def __init__(self, channels, daq_device=None, parent=None):
+
+        super(SEYPlot, self).__init__(channels=channels, units={'right': '%', 'left': '%'},
+                                      name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+                                      parent=parent)
+
+        self.plt.setLabel('left', text='Secondary-electron-yield', units='%')
+        self.plt.hideAxis('left')
+        self.plt.showAxis('right')
+        self.plt.setLabel('right', text='Secondary-electron-yield', units='%')
+
+
+class SEECurrentPlot(ScrollingIrradDataPlot):
+    """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
+
+    def __init__(self, channels, daq_device=None, parent=None):
+
+        # Call __init__ of ScrollingIrradDataPlot
+        super(SEECurrentPlot, self).__init__(channels=channels,
+                                              units={'right': 'A', 'left': 'A'},
+                                              name=type(self).__name__ + ('' if daq_device is None else ' ' + daq_device),
+                                              parent=parent)
+        
+        self.plt.setLabel('right', text='SEE current', units='A')
+        self.plt.hideAxis('left')
+        self.plt.showAxis('right')
+        self.plt.setLabel('left', text='SEE current', units='A')
