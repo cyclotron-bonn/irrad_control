@@ -201,6 +201,9 @@ class MonitorGUI(IrradGUI):
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
             self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
 
+
+            self.monitor_tab.plots[server]['sey_plot'].set_data(meta=data['meta'], data=data['data']['see'])
+            self.monitor_tab.plots[server]['see_current_plot'].set_data(meta=data['meta'], data=data['data']['see'])
             if 'frac_h' in data['data']['see']:
                 self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['see']['frac_h'])
             if 'frac_v' in data['data']['see']:

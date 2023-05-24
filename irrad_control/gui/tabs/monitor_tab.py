@@ -70,17 +70,25 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 elif monitor == 'SEM':
                     plot_wrappers = []
+                    see_current_channels = ['see_total']
+
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_right', 'sem_left')):
+                        see_current_channels.append('see_horizontal')
                         self.plots[server]['sem_h_plot'] = plots.SEEFractionHist(rel_sig='see_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
                         plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_h_plot', server=server))
 
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_up', 'sem_down')):
+                        see_current_channels.append('see_vertical')
                         self.plots[server]['sem_v_plot'] = plots.SEEFractionHist(rel_sig='see_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
                         plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_v_plot', server=server))
-                    if len(plot_wrappers) == 1:
-                        monitor_widget = plot_wrappers[0]
-                    elif plot_wrappers:
-                        monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
+
+                    self.plots[server]['see_current_plot'] = plots.SEECurrentPlot(channels=see_current_channels)
+                    plot_wrappers.append(self._create_plot_wrapper(plot_name='see_current_plot', server=server))
+
+                    self.plots[server]['sey_plot'] = plots.SEYPlot(channels=('sey',))
+                    plot_wrappers.append(self._create_plot_wrapper(plot_name='sey_plot', server=server))
+
+                    monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
             if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 
