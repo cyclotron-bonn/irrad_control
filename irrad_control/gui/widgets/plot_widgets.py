@@ -572,7 +572,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             self._idx += 1
 
             # Set data in curves
-            for ch in data:
+            for ch in self.channels:
                 # Shift data to the right and set 0th element
                 self._data[ch][1:] = self._data[ch][:-1]
                 self._data[ch][0] = data[ch]
