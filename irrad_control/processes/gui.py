@@ -3,8 +3,7 @@ import time
 import logging
 import platform
 import zmq
-from email import message_from_string
-from pkg_resources import get_distribution, DistributionNotFound
+
 from PyQt5 import QtCore, QtWidgets, QtGui
 from threading import Event
 
@@ -12,19 +11,13 @@ from threading import Event
 from irrad_control.utils.logger import CustomHandler, LoggingStream, log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
-from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget
+from irrad_control.utils.utils import get_current_git_branch
+from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget, EventWidget
 from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
 
 
 PROJECT_NAME = 'Irrad Control'
-GUI_AUTHORS = 'Pascal Wolf'
 MINIMUM_RESOLUTION = (1366, 768)
-
-try:
-    pkgInfo = get_distribution('irrad_control').get_metadata('PKG-INFO')
-    AUTHORS = message_from_string(pkgInfo)['Author']
-except (DistributionNotFound, KeyError):
-    AUTHORS = 'Not defined'
 
 
 class IrradGUI(QtWidgets.QMainWindow):
@@ -32,8 +25,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     # PyQt signals
     data_received = QtCore.pyqtSignal(dict)  # Signal for data
-    reply_received = QtCore.pyqtSignal(dict)  # Signal for reply
     log_received = QtCore.pyqtSignal(dict)  # Signal for log
+    event_received = QtCore.pyqtSignal(dict)  # Signal for events
+    reply_received = QtCore.pyqtSignal(dict)  # Signal for reply
 
     def __init__(self, parent=None):
         super(IrradGUI, self).__init__(parent)
@@ -41,9 +35,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Setup dict of the irradiation; is set when setup tab is completed
         self.setup = None
         
-        # Needed in order to stop helper threads
-        self.stop_recv_data = Event()
-        self.stop_recv_log = Event()
+        # Needed in order to stop receiver threads
+        self.stop_recv = Event()
         
         # ZMQ context; THIS IS THREADSAFE! SOCKETS ARE NOT!
         # EACH SOCKET NEEDS TO BE CREATED WITHIN ITS RESPECTIVE THREAD/PROCESS!
@@ -66,8 +59,9 @@ class IrradGUI(QtWidgets.QMainWindow):
         
         # Connect signals
         self.data_received.connect(lambda data: self.handle_data(data))
-        self.reply_received.connect(lambda reply: self.handle_reply(reply))
         self.log_received.connect(lambda log: self.handle_log(log))
+        self.event_received.connect(lambda event: self.handle_event(event))
+        self.reply_received.connect(lambda reply: self.handle_reply(reply))
 
         # Tab widgets
         self.setup_tab = None
@@ -116,7 +110,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Init widgets and add to main windowScatterPlotItem
         self._init_menu()
         self._init_tabs()
-        self._init_log_dock()
+        self._init_info_dock()
         
         self.sub_splitter.setSizes([int(1. / 3. * self.width()), int(2. / 3. * self.width())])
         self.main_splitter.setSizes([int(0.8 * self.height()), int(0.2 * self.height())])
@@ -135,7 +129,8 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
         self.appearance_menu.setToolTipsVisible(True)
-        self.appearance_menu.addAction('&Show/hide log', self.handle_log_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
+        self.appearance_menu.addAction('&Show/hide info dock', self.handle_info_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
+        self.appearance_menu.addAction('&Show/hide DAQ dock', self.handle_daq_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_D)
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -195,22 +190,27 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.pdiag.setModal(True)
         self.pdiag.show()
 
-    def _init_log_dock(self):
+    def _init_info_dock(self):
         """Initializes corresponding log dock"""
 
         # Widget to display log in, we only want to read log
         self.log_widget = LoggingWidget()
+        self.event_widget = EventWidget()
+
+        info_tabs = QtWidgets.QTabWidget()
+        info_tabs.addTab(self.log_widget, 'Log')
+        info_tabs.addTab(self.event_widget, 'Event')
         
         # Dock in which text widget is placed to make it closable without losing log content
-        self.log_dock = QtWidgets.QDockWidget()
-        self.log_dock.setWidget(self.log_widget)
-        self.log_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.log_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
-        self.log_dock.setWindowTitle('Log')
+        self.info_dock = QtWidgets.QDockWidget()
+        self.info_dock.setWidget(info_tabs)
+        self.info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.info_dock.setWindowTitle('Info')
 
         # Add to main layout
-        self.sub_splitter.addWidget(self.log_dock)
-        self.handle_log_ui()
+        self.sub_splitter.addWidget(self.info_dock)
+        self.handle_info_ui()
 
     def _init_daq_dock(self):
         """Initializes corresponding daq info dock"""
@@ -218,14 +218,14 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.daq_info_widget = DaqInfoWidget(setup=self.setup['server'])
 
         # Dock in which text widget is placed to make it closable without losing log content
-        self.daq_info_dock = QtWidgets.QDockWidget()
-        self.daq_info_dock.setWidget(self.daq_info_widget)
-        self.daq_info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.daq_info_dock.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
-        self.daq_info_dock.setWindowTitle('Data acquisition')
+        self.daq_dock = QtWidgets.QDockWidget()
+        self.daq_dock.setWidget(self.daq_info_widget)
+        self.daq_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
+        self.daq_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.daq_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
-        self.sub_splitter.addWidget(self.daq_info_dock)
+        self.sub_splitter.addWidget(self.daq_dock)
 
     def _init_logging(self, loglevel=logging.INFO):
         """Initializes a custom logging handler and redirects stdout/stderr"""
@@ -259,11 +259,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def _init_recv_threads(self):
 
-        # Start receiving log messages from other processes
-        self.threadpool.start(QtWorker(func=self.recv_log))
-
-        # Start receiving data from other processes
-        self.threadpool.start(QtWorker(func=self.recv_data))
+        # Start receiving data, events and log messages from other processes
+        for recv_func in (self.recv_data, self.recv_event, self.recv_log):
+            self.threadpool.start(QtWorker(func=recv_func))
 
     def _init_processes(self):
 
@@ -274,7 +272,10 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.proc_mngr.connect_to_server(hostname=server, username='pi')
 
             # Prepare server in QThread on init
-            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server, hostname=server, branch='status_widget', git_pull=True)
+            server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server,
+                                                     hostname=server,
+                                                     branch=get_current_git_branch(),
+                                                     git_pull=True)
 
             # Connect workers finish signal to starting process on server
             server_config_workers[server].signals.finished.connect(lambda _server=server: self.start_server(_server))
@@ -359,8 +360,12 @@ class IrradGUI(QtWidgets.QMainWindow):
 
             self.proc_mngr.launched_procs.append(hostname)
 
-            # All servers have been launched; start collecting info
-            if all(server in self.proc_mngr.launched_procs for server in self.setup['server']):
+            # Check if all servers and converter have been launched; if so start collecting process info and send start cmd
+            servers_launched = all(server in self.proc_mngr.launched_procs for server in self.setup['server'])
+            converter_launched = 'localhost' in self.proc_mngr.launched_procs
+
+            # Servers AND converter need to be launched before collecting infos for event distribution 
+            if servers_launched and converter_launched:
                 proc_info_worker = QtWorker(func=self.collect_proc_infos)
                 proc_info_worker.signals.finished.connect(self._init_recv_threads)
                 proc_info_worker.signals.finished.connect(self.send_start_cmd)
@@ -436,6 +441,10 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Set the tab index to stay at the same tab after replacing old tabs
         self.tabs.setCurrentIndex(current_tab)
+
+    def handle_event(self, event_data):
+        event_data['server'] = self.setup['server'][event_data['server']]['name']
+        self.event_widget.register_event(event_dict=event_data)
     
     def handle_data(self, data):
 
@@ -451,21 +460,23 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.daq_info_widget.update_beam_current(data)
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
             self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
+            self.monitor_tab.plots[server]['see_current_plot'].set_data(meta=data['meta'], data=data['data']['see'])
 
-            if 'frac_h' in data['data']['sey']:
-                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['sey']['frac_h'])
-            if 'frac_v' in data['data']['sey']:
-                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['sey']['frac_v'])
-
-            self.control_tab.check_no_beam(server=server, beam_current=data['data']['current']['beam_current'])
+            self.monitor_tab.plots[server]['sey_plot'].set_data(data['data']['see']['sey'])
+            if 'frac_h' in data['data']['see']:
+                self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['see']['frac_h'])
+            if 'frac_v' in data['data']['see']:
+                self.monitor_tab.plots[server]['sem_v_plot'].set_data(data['data']['see']['frac_v'])
 
         elif data['meta']['type'] == 'hist':
             if 'beam_position_idxs' in data['data']:
                 self.monitor_tab.plots[server]['pos_plot'].update_hist(data['data']['beam_position_idxs'])
-            if 'sey_horizontal_idx' in data['data']:
-                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['sey_horizontal_idx'])
-            if 'sey_vertical_idx' in data['data']:
-                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['sey_vertical_idx'])
+            if 'see_horizontal_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['see_horizontal_idx'])
+            if 'see_vertical_idx' in data['data']:
+                self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['see_vertical_idx'])
+            if 'sey_idx' in data['data']:
+                self.monitor_tab.plots[server]['sey_plot'].update_hist(data['data']['sey_idx'])
 
         elif data['meta']['type'] == 'damage':
             self.control_tab.tab_widgets[server]['status'].update_status(status='damage', status_values=data['data'])
@@ -517,9 +528,6 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                                              ignore_status=('fluence_hist',
                                                                                             'fluence_hist_err',
                                                                                             'status'))
-
-                # Finish the scan programatically, if wanted
-                self.control_tab.check_finish(server=server, eta_n_scans=data['data']['eta_n_scans'])
 
         elif data['meta']['type'] == 'temp_arduino':
 
@@ -686,91 +694,79 @@ class IrradGUI(QtWidgets.QMainWindow):
         elif _type == 'ERROR':
             msg = "{} error occurred: '{}' with data '{}'".format(sender, reply, reply_data)
             logging.error(msg)
-            if self.log_dock.isHidden():
-                self.log_dock.setVisible(True)
+            if self.info_dock.isHidden():
+                self.info_dock.setVisible(True)
 
         else:
             logging.info("Received reply '{}' from '{}' with data '{}'".format(reply, sender, reply_data))
 
+    def _recv_from_stream(self, stream, recv_func, emit_signal, callback=None, recv_msg=''):
+
+        # Subscriber
+        sub = self.context.socket(zmq.SUB)
+
+        # Wait 1 sec for messages to be received
+        sub.setsockopt(zmq.RCVTIMEO, int(1000))
+        sub.setsockopt(zmq.LINGER, 0)
+
+        # Loop over servers and connect to their data streams
+        for server in self.setup['server']:
+            sub.connect(self._tcp_addr(self.setup['server'][server]['ports'][stream], ip=server))
+
+        # Connect to interpreter data stream
+        sub.connect(self._tcp_addr(self.setup['ports'][stream], ip='localhost'))
+
+        sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+
+        logging.info(recv_msg or f"Start receiving from {stream} stream")
+        
+        while not self.stop_recv.is_set():
+            try:
+                res = getattr(sub, recv_func)()
+                # Only emit if we got something
+                if res:
+                    emit_signal.emit(res if callback is None else callback(res))
+            except zmq.Again:
+                pass
+
+    def recv_event(self):
+        self._recv_from_stream(stream='event', recv_func='recv_json', emit_signal=self.event_received)
+
     def recv_data(self):
-        
-        # Data subscriber
-        data_sub = self.context.socket(zmq.SUB)
+        self._recv_from_stream(stream='data', recv_func='recv_json', emit_signal=self.data_received)
 
-        # Wait 1 sec for messages to be received
-        data_sub.setsockopt(zmq.RCVTIMEO, int(1000))
-        data_sub.setsockopt(zmq.LINGER, 0)
-
-        # Loop over servers and connect to their data streams
-        for server in self.setup['server']:
-            data_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['data'], ip=server))
-
-        # Connect to interpreter data stream
-        data_sub.connect(self._tcp_addr(self.setup['ports']['data'], ip='localhost'))
-
-        data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-        
-        logging.info('Data receiver ready')
-        
-        while not self.stop_recv_data.is_set():
-            try:
-                self.data_received.emit(data_sub.recv_json())
-            except zmq.Again:
-                pass
-            
     def recv_log(self):
-        
-        # Log subscriber
-        log_sub = self.context.socket(zmq.SUB)
 
-        # Wait 1 sec for messages to be received
-        log_sub.setsockopt(zmq.RCVTIMEO, int(1000))
-        log_sub.setsockopt(zmq.LINGER, 0)
+        def callback(log):
+            # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
+            # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
+            # therefore this will work in Py2 and Py3
+            log = log.decode()
+            log_dict = {}
 
-        # Connect to log messages from remote server and local interpreter process
-        # Loop over servers and connect to their data streams
-        for server in self.setup['server']:
-            log_sub.connect(self._tcp_addr(self.setup['server'][server]['ports']['log'], ip=server))
+            if log.upper() in self._loglevel_names:
+                log_dict['level'] = getattr(logging, log.upper(), None)
+            else:
+                log_dict['log'] = log.strip()
+            return log_dict
 
-        # Connect to interpreter data stream
-        log_sub.connect(self._tcp_addr(self.setup['ports']['log'], ip='localhost'))
-
-        log_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-        
-        logging.info('Log receiver ready')
-        
-        while not self.stop_recv_log.is_set():
-            try:
-                log = log_sub.recv()
-                if log:
-                    log_dict = {}
-
-                    # Py3 compatibility; in Py 3 string is unicode, receiving log via socket will result in bytestring which needs to be decoded first;
-                    # Py2 has bytes as default; interestinglyy, u'test' == 'test' is True in Py2 (whereas 'test' == b'test' is False in Py3),
-                    # therefore this will work in Py2 and Py3
-                    log = log.decode()
-
-                    if log.upper() in self._loglevel_names:
-                        log_dict['level'] = getattr(logging, log.upper(), None)
-                    else:
-                        log_dict['log'] = log.strip()
-
-                    self.log_received.emit(log_dict)
-            except zmq.Again:
-                pass
+        self._recv_from_stream(stream='log', recv_func='recv', emit_signal=self.log_received, callback=callback)
 
     def handle_messages(self, message, ms=4000):
         """Handles messages from the tabs shown in QMainWindows statusBar"""
 
         self.statusBar().showMessage(message, ms)
 
-    def handle_log_ui(self):
+    def handle_info_ui(self):
         """Handle whether log widget is visible or not"""
-
-        if self.log_dock.isVisible():
-            self.log_dock.setVisible(False)
-        else:
-            self.log_dock.setVisible(True)
+        self.info_dock.setVisible(not self.info_dock.isVisible())
+    
+    def handle_daq_ui(self):
+        """Handle whether log widget is visible or not"""
+        try:
+            self.daq_dock.setVisible(not self.daq_dock.isVisible())
+        except AttributeError:  # DAQ dock has not yet been created
+            pass
 
     def file_quit(self):
         self.close()
@@ -778,8 +774,7 @@ class IrradGUI(QtWidgets.QMainWindow):
     def _clean_up(self):
 
         # Stop receiver threads
-        self.stop_recv_data.set()
-        self.stop_recv_log.set()
+        self.stop_recv.set()
 
         # Store all plots on close; AttributeError when app was not launched fully
         try:
@@ -853,7 +848,10 @@ class IrradGUI(QtWidgets.QMainWindow):
                 return False
             else:
                 for s in scan_in_progress_servers:
-                    self.send_cmd(hostname=s, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'abort'}})
+                    self.send_cmd(hostname=s,
+                                  target='__scan__',
+                                  cmd='handle_interaction',
+                                  cmd_data={'kwargs': {'interaction': 'abort'}})
 
         return True
 
@@ -906,14 +904,15 @@ class IrradGUI(QtWidgets.QMainWindow):
         else:
             event.ignore()
 
+
 def run():
     app = QtWidgets.QApplication(sys.argv)
     font = QtGui.QFont()
     font.setPointSize(11)
     app.setFont(font)
-    icg = IrradGUI()
-    icg.show()
-    sys.exit(app.exec_())
+    gui = IrradGUI()
+    gui.show()
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':

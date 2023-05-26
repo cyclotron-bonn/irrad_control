@@ -9,13 +9,14 @@ from threading import Event
 from zmq.log import handlers
 from irrad_control import pid_file
 from irrad_control.utils.worker import ThreadWorker
+from irrad_control.utils.utils import check_zmq_addr
 from collections import defaultdict
 
 
 class DAQProcess(Process):
     """Base-class of data acquisition processes"""
 
-    def __init__(self, name, daq_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
+    def __init__(self, name, daq_streams=None, event_streams=None, hwm=None, internal_sub=None, *args, **kwargs):
         """
         Init the process
 
@@ -26,6 +27,8 @@ class DAQProcess(Process):
             Name of the process
         daq_streams: str, list, tuple
             String or iterable of strings of zmq addresses of data streams to connect to
+        event_streams: str, list, tuple
+            String or iterable of strings of zmq addresses of event streams to connect to
         hwm: int
              High-water mark of zmq sockets
         internal_sub: str, None
@@ -43,14 +46,13 @@ class DAQProcess(Process):
         self.pname = name
 
         # Events to handle sending / receiving of data and commands
-        self.stop_flags = dict([(x, Event()) for x in ('send', 'recv', 'watch')])
-        self.state_flags = dict([(x, Event()) for x in ('busy', 'converter')])
-        self.on_demand_events = defaultdict(Event)  # Create events in subclasses on demand
+        self.stop_flags = defaultdict(Event)  # Create events in subclasses on demand
+        self.state_flags = defaultdict(Event)  # Create events in subclasses on demand
 
         # Ports/sockets used by this process
-        self.ports = {'log': None, 'cmd': None, 'data': None}
-        self.sockets = {'log': None, 'cmd': None, 'data': None}
-        self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB}
+        self.ports = {'log': None, 'cmd': None, 'data': None, 'event': None}
+        self.sockets = {'log': None, 'cmd': None, 'data': None, 'event': None}
+        self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB, 'event': zmq.PUB}
 
         # Attribute holding zmq context
         self.context = None
@@ -58,7 +60,7 @@ class DAQProcess(Process):
         # Sets internal subscriber address from which data is gathered (from potentially many sources) and published (on one port);
         # usually this is some intra-process communication protocol such as inproc/ipc. If not, this process listens to a different
         # DAQ processes DAQ threads in an attempt to distribute the load on multiple CPU cores more evenly
-        self._internal_sub_addr = internal_sub if internal_sub is not None and self._check_addr(internal_sub) else 'inproc://internal'
+        self._internal_sub_addr = internal_sub if internal_sub is not None and check_zmq_addr(internal_sub) else 'inproc://internal'
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
@@ -70,82 +72,16 @@ class DAQProcess(Process):
         self.threads = []
 
         # List of input data stream addresses
-        self.daq_streams = [] if daq_streams is None else daq_streams if isinstance(daq_streams, (list, tuple)) else [daq_streams]
+        self.daq_streams = []
+        
+        if daq_streams is not None:
+            self.add_daq_stream(daq_stream=daq_streams)
 
-        # Quick check
-        self.daq_streams = [dstream for dstream in self.daq_streams if self._check_addr(addr=dstream)]
+         # List of input data stream addresses
+        self.event_streams = []
 
-        # If the process is a converter, the 'data' socket will send out data as well as receive data
-        self.is_converter = len(self.daq_streams) > 0
-
-    @property
-    def is_converter(self):
-        """Return whether this instance is also a converter"""
-        return self.state_flags['converter'].is_set()
-
-    @is_converter.setter
-    def is_converter(self, state):
-        """
-        Set whether this instance is a converter
-
-        Parameters
-        ----------
-
-        state: bool
-            Whether this instance should be a converter
-        """
-        # Set the flag
-        self.state_flags['converter'].set() if bool(state) else self.state_flags['converter'].clear()
-
-    def _check_addr(self, addr):
-        """
-        Check address format for zmq sockets
-
-        Parameters
-        ----------
-
-        addr: str
-            String of zmq address
-
-        Returns
-        -------
-        bool:
-            Whether the address is valid
-        """
-
-        if not isinstance(addr, str):
-            logging.error("Address must be string")
-            return False
-
-        addr_components = addr.split(':')
-
-        # Not TCP or UDP
-        if len(addr_components) == 2:
-            protocol, endpoint = addr_components
-            if endpoint[:2] != '//':
-                logging.error("Incorrect address format. Must be 'protocol://endpoint'")
-                return False
-            elif protocol in ('tcp', 'udp'):
-                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
-                return False
-        # TCP / UDP
-        elif len(addr_components) == 3:
-            protocol, ip, port = addr_components
-            if ip[:2] != '//':
-                logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
-                return False
-            try:
-                port = int(port)
-                if not 0 < port < 2 ** 16 - 1:
-                    raise ValueError
-            except ValueError:
-                logging.error("'port' must be an integer between 1 and {} (16 bit)".format(2 ** 16 - 1))
-                return False
-        else:
-            logging.error("Incorrect address format. Must be 'protocol://endpoint")
-            return False
-
-        return True if protocol else False
+        if event_streams is not None:
+            self.add_event_stream(event_stream=event_streams)
 
     def _enable_graceful_shutdown(self):
         """ Method that redirects systems interrupt and terminatioin signals to the instances *shutdown* method """
@@ -271,11 +207,15 @@ class DAQProcess(Process):
         # Start command receiver thread
         self.launch_thread(target=self.send_data)
 
-        # If the process is a converter
-        if self.is_converter:
-
+        # If there is data
+        if len(self.daq_streams) > 0:
             # Start data receiver thread
             self.launch_thread(target=self.recv_data)
+
+        # If there are events
+        if len(self.event_streams) > 0:
+            # Start data receiver thread
+            self.launch_thread(target=self.recv_event)
 
     def _setup_logging(self):
         """
@@ -326,10 +266,10 @@ class DAQProcess(Process):
         """
 
         # Receive commands; wait 10 ms for stop flag
-        while not self.stop_flags['recv'].wait(1e-2):
+        while not self.stop_flags['__recv__'].wait(1e-2):
 
             # Check if were working on a command. We have to work sequentially
-            if not self.state_flags['busy'].is_set():
+            if not self.state_flags['__busy__'].is_set():
 
                 # Poll the command receiver socket for 1 ms; continue if there are no commands
                 if not self.sockets['cmd'].poll(timeout=1, flags=zmq.POLLIN):
@@ -353,12 +293,12 @@ class DAQProcess(Process):
                     logging.debug('Handling command {}'.format(cmd_dict['cmd']))
 
                     # Set cmd to busy; other commands send will be queued and received later
-                    self.state_flags['busy'].set()
+                    self.state_flags['__busy__'].set()
 
                     self.handle_cmd(**cmd_dict)
 
                 # Check if a reply has been sent while handling the command. If not send generic reply which resets flag
-                if self.state_flags['busy'].is_set():
+                if self.state_flags['__busy__'].is_set():
                     self._send_reply(reply=cmd_dict['cmd'], sender=cmd_dict['target'], _type='STANDARD')
                     # Now flag is cleared
 
@@ -394,7 +334,7 @@ class DAQProcess(Process):
     def _send_reply(self, reply, _type, sender, data=None):
         """
         Method to reply to a received command via the *self.sockets['cmd']* socket. After replying, the
-        *self.state_flags['busy']* is cleared in order to able to receive new commands
+        *self.state_flags['__busy__']* is cleared in order to able to receive new commands
 
         Parameters
         ----------
@@ -417,7 +357,7 @@ class DAQProcess(Process):
 
         # Send away and clear busy flag
         self.sockets['cmd'].send_json(reply_dict)
-        self.state_flags['busy'].clear()
+        self.state_flags['__busy__'].clear()
 
     def send_data(self):
         """
@@ -429,7 +369,7 @@ class DAQProcess(Process):
         internal_data_sub.bind(self._internal_sub_addr)
         internal_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
 
-        while not self.stop_flags['send'].is_set():  # Send data out as fast as possible
+        while not self.stop_flags['__send__'].is_set():  # Send data out as fast as possible
 
             # Poll the command receiver socket for 1 ms; continue if there are no commands
             if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
@@ -443,6 +383,92 @@ class DAQProcess(Process):
 
         internal_data_sub.close()
 
+    def _add_stream(self, stream, stream_container):
+        """
+        Method to add a data/event stream address to listen to to
+
+        Parameters
+        ----------
+
+        stream: str, list, tuple
+            String or iterable of strings of zmq addresses of data streams to connect to
+        stream_container: list
+            List to which stream address is to be added to
+        """
+
+        streams_to_add = stream if isinstance(stream, (list, tuple)) else [stream]
+
+        if not all(isinstance(ds, str) for ds in streams_to_add):
+            logging.error("Data streams must be of type string")
+            return
+
+        for strm in streams_to_add:
+            if check_zmq_addr(strm) and strm not in stream_container:
+                stream_container.append(strm)
+
+    def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
+        """
+        Method which receives data from specific streams and calls a callback as well as publishes results internally.
+
+        Parameters
+        ----------
+        kind : str
+            Kind of stream to receive e.g. 'data' or 'event'
+        stream : list
+            List of streams to connect to
+        callback : function
+            Callable to be called on incoming packets
+        pub_results : bool, optional
+            Whther to create an internal publisher which send data via the 'send_data' method, by default False
+        delay : float, optional
+            Time in seconds sleep in between incoming data checks; useful save resources, by default None
+        """
+
+        if stream:
+
+            logging.info(f'Start receiving {kind}')
+
+            # Create subscriber for raw and XY-Stage data
+            external_sub = self.context.socket(zmq.SUB)
+
+            # Loop over all servers and connect to their respective data streams
+            for s in stream:
+                external_sub.connect(s)
+
+            # Subscribe to all topics
+            external_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+
+            if pub_results:
+                internal_pub = self.create_internal_data_pub()
+
+            # While event not set receive data
+            while not self.stop_flags['__recv__'].is_set():
+
+                # Poll the socket for 1 ms; continue if there is nothing
+                if not external_sub.poll(timeout=1, flags=zmq.POLLIN):
+                    # Allow the thread to release the GIL while sleeping if we don't need to check for incoming stream data full-speed
+                    if delay is not None:
+                        sleep(delay)
+                    continue
+
+                # Get data
+                data = external_sub.recv_json(flags=zmq.NOBLOCK)
+
+                # Callback for data
+                result = callback(data)
+
+                # Publish data
+                if pub_results:
+                    for res in result:
+                        internal_pub.send_json(res)
+
+            external_sub.close()
+            if pub_results:
+                internal_pub.close()
+
+        else:
+            logging.error("No streams to connect to. Add streams via '_add_stream'-method")
+
     def add_daq_stream(self, daq_stream):
         """
         Method to add a data stream address to listen to to convert data from
@@ -453,58 +479,27 @@ class DAQProcess(Process):
         daq_stream: str, list, tuple
             String or iterable of strings of zmq addresses of data streams to connect to
         """
-
-        streams_to_add = daq_stream if isinstance(daq_stream, (list, tuple)) else [daq_stream]
-
-        if not all(isinstance(ds, str) for ds in streams_to_add):
-            logging.error("Data streams must be of type string")
-            return
-
-        for ds in streams_to_add:
-            if self._check_addr(ds) and ds not in self.daq_streams:
-                self.daq_streams.append(ds)
+        self._add_stream(stream=daq_stream, stream_container=self.daq_streams)
 
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
+        self._recv_from_stream(kind='data', stream=self.daq_streams, callback=self.handle_data, pub_results=True)
 
-        if self.daq_streams:
+    def add_event_stream(self, event_stream):
+        """
+        Method to add a data stream address to listen to to convert data from
 
-            logging.info('Start receiving data')
+        Parameters
+        ----------
 
-            # Create subscriber for raw and XY-Stage data
-            external_data_sub = self.context.socket(zmq.SUB)
+        event_stream: str, list, tuple
+            String or iterable of strings of zmq addresses of event streams to connect to
+        """
+        self._add_stream(stream=event_stream, stream_container=self.event_streams)
 
-            # Loop over all servers and connect to their respective data streams
-            for stream in self.daq_streams:
-                external_data_sub.connect(stream)
-
-            # Subscribe to all topics
-            external_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
-
-            internal_data_pub = self.create_internal_data_pub()
-
-            # While event not set receive data
-            while not self.stop_flags['recv'].wait(1e-3):
-
-                # Poll the command receiver socket for 1 ms; continue if there are no commands
-                if not external_data_sub.poll(timeout=1, flags=zmq.POLLIN):
-                    continue
-
-                # Get data
-                data = external_data_sub.recv_json(flags=zmq.NOBLOCK)
-
-                # Interpret data
-                interpreted_data = self.interpret_data(raw_data=data)
-
-                # Publish data to internal pub
-                for int_dat in interpreted_data:
-                    internal_data_pub.send_json(int_dat)
-
-            external_data_sub.close()
-            internal_data_pub.close()
-
-        else:
-            logging.error("No data streams to connect to. Add streams via 'add_daq_stream'-method")
+    def recv_event(self):
+        """Main method which receives events and calls handle event"""
+        self._recv_from_stream(kind='events', stream=self.event_streams, callback=self.handle_event, delay=1e-2)
 
     def shutdown(self, signum=None, frame=None):
         """
@@ -533,7 +528,7 @@ class DAQProcess(Process):
         """
 
         # Check threads until stop flag is set
-        while not self.stop_flags['watch'].wait(1.0):
+        while not self.stop_flags['__watch__'].wait(1.0):
 
             # Loop over all threads and check whether exceptions have occurred
             for thread in self.threads:
@@ -585,9 +580,11 @@ class DAQProcess(Process):
         # Close everything
         self._close()
 
-    def interpret_data(self, raw_data):
-        if self.is_converter:
-            raise NotImplementedError("Implement a *interpret_data* method for converter processes")
+    def handle_event(self, event_data):
+        raise NotImplementedError("Implement a *handle_event* method")
+
+    def handle_data(self, raw_data):
+        raise NotImplementedError("Implement a *handle_data* method for converter processes")
 
     def handle_cmd(self, target, cmd, data=None):
         raise NotImplementedError("Implement a *handle_cmd* method")

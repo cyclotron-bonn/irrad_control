@@ -1,6 +1,6 @@
 import logging
 from bitstring import CreationError
-from time import time
+from time import time, sleep
 from serial import SerialException
 
 # Package imports
@@ -10,6 +10,7 @@ from irrad_control.devices.motorstage.base_axis import BaseAxis, BaseAxisTracker
 from irrad_control.utils.dut_scan import DUTScan
 from irrad_control.devices.readout import RO_DEVICES
 from irrad_control.processes.daq import DAQProcess
+from irrad_control.utils.events import create_irrad_events
 
 
 class IrradServer(DAQProcess):
@@ -25,6 +26,8 @@ class IrradServer(DAQProcess):
 
         self._motorstages = []
 
+        self.irrad_events = create_irrad_events()
+
         # Call init of super class
         super(IrradServer, self).__init__(name=name)
 
@@ -34,6 +37,7 @@ class IrradServer(DAQProcess):
         # Update setup
         self.server = setup['server']
         self.setup = setup['setup']
+        self.name = setup['setup']['server'][self.server]['name']
 
         # Overwrite server setup with our server
         self.setup['server'] = self.setup['server'][self.server]
@@ -46,6 +50,10 @@ class IrradServer(DAQProcess):
         self._setup_devices()
 
         self._launch_daq_threads()
+
+        # Listen to events from converter
+        self.add_event_stream(event_stream=self._tcp_addr(ip=self.setup['host'], port=self.setup['ports']['event']))
+        self.launch_thread(target=self.recv_event)
 
     def _init_devices(self):
 
@@ -142,20 +150,21 @@ class IrradServer(DAQProcess):
                 self.launch_thread(target=self._sync_ntc_readout)
                 self._daq_board_ntc_ro = True
 
-        if 'RadiationMonitor' in self.devices:
-            self.on_demand_events['stop_rad_monitor']
-            self.on_demand_events['rad_monitor_idle'].set()
-
         if 'ScanStage' in self.devices:
 
             # Add special __scan__ device which from now on can be accessed via the direct device calls
-            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'])
+            self.devices['__scan__'] = DUTScan(scan_stage=self.devices['ScanStage'],
+                                               irrad_events=self.irrad_events)
 
             # Connect to ZMQ
             self.devices['__scan__'].setup_zmq(ctx=self.context,
                                                skt=self.socket_type['data'],
                                                addr=self._internal_sub_addr,
                                                sender=self.server)
+        
+        if 'RadiationMonitor' in self.devices:
+            # Add custom methods for being able to pause/resume data sending
+            self.devices['RadiationMonitor']._send_data = lambda send: getattr(self.stop_flags['wait_rad_mon'], 'set' if send else 'clear')()
 
     def daq_thread(self, daq_func):
         """
@@ -165,7 +174,7 @@ class IrradServer(DAQProcess):
         internal_data_pub = self.create_internal_data_pub()
 
         # Acquire data if not stop signal is set
-        while not self.stop_flags['send'].is_set():
+        while not self.stop_flags['__send__'].is_set():
 
             meta, data = daq_func()
 
@@ -182,6 +191,9 @@ class IrradServer(DAQProcess):
 
             elif dev == 'ArduinoNTCReadout':
                 self.launch_thread(target=self.daq_thread, daq_func=self._daq_temp)
+
+            elif dev == 'RadiationMonitor':
+                self.launch_thread(target=self.daq_thread, daq_func=self._daq_rad_monitor)
 
     def _daq_adc(self):
         """
@@ -203,7 +215,7 @@ class IrradServer(DAQProcess):
 
     def _sync_ntc_readout(self, sync_time=0.2):
         """Sync ADC readout with switching NTC channels on IrradDAQBoard"""
-        while not self.stop_flags['send'].wait(sync_time):
+        while not self.stop_flags['__send__'].wait(sync_time):
             self.devices['IrradDAQBoard'].ntc_sync.set()
 
     def _daq_temp(self):
@@ -224,33 +236,19 @@ class IrradServer(DAQProcess):
         return _meta, _data
 
     def _daq_rad_monitor(self):
+
+        # Wait until we want to read the daq_monitor; less CPU-hungry than pure Event.wait() see https://stackoverflow.com/questions/29082268/python-time-sleep-vs-event-wait/29082411#29082411
+        # Stop waiting with RadiationMonitorDAQ
+        while not self.stop_flags['wait_rad_mon'].is_set():
+            sleep(1)
         
-        # Check if another thread is running this method, if so, make the other thread stop and wait for it
-        if not self.on_demand_events['rad_monitor_idle'].is_set():
-            self.on_demand_events['stop_rad_monitor'].set()
-            self.on_demand_events['rad_monitor_idle'].wait()
+        dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
 
+        # Add meta data and data
+        meta = {'timestamp': time(), 'name': self.server, 'type': 'rad_monitor'}
+        data = {'dose_rate': dose_rate, 'frequency': frequency}
 
-        self.on_demand_events['stop_rad_monitor'].clear()
-        self.on_demand_events['rad_monitor_idle'].clear()
-        self.devices['RadiationMonitor'].ramp_up()
-        
-        internal_data_pub = self.create_internal_data_pub()
-
-        # Acquire data if not stop signal is set
-        while not self.on_demand_events['stop_rad_monitor'].is_set():
-
-            dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
-
-            # Add meta data and data
-            meta = {'timestamp': time(), 'name': self.server, 'type': 'rad_monitor'}
-            data = {'dose_rate': dose_rate, 'frequency': frequency}
-
-            # Put data into outgoing queue
-            internal_data_pub.send_json({'meta': meta, 'data': data})
-
-        self.devices['RadiationMonitor'].ramp_down()
-        self.on_demand_events['rad_monitor_idle'].set()
+        return meta, data
 
     def _call_device_method(self, device, method, call_data):
 
@@ -307,9 +305,27 @@ class IrradServer(DAQProcess):
                 reply_data = {ms :{'positions': self.devices[ms].get_positions(), 'props': self.devices[ms].get_physical_props()} for ms in self._motorstages}
                 self._send_reply(reply=cmd, _type='STANDARD', sender=target, data=reply_data)
 
+            elif cmd == 'toggle_event':
+                self.irrad_events[data['event']].value.disabled = data['disabled']
+
         else:
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
+
+    def handle_event(self, event_data):
+
+        # Only handle events of this server
+        if event_data['server'] != self.server:
+            logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")
+            return
+        
+        try:
+            event_name = event_data['event']
+            self.irrad_events[event_name].value.active = event_data['active']
+            self.irrad_events[event_name].value.disabled = event_data['disabled']
+            logging.debug(f"Event {event_data['event']} on server {self.name} is {'' if event_data['active'] else 'in'}active")
+        except KeyError:
+            logging.error(f"Event {event_name} unknown!")
 
     def clean_up(self):
         """Mandatory clean up - method"""

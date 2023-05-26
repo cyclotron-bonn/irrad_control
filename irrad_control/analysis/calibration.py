@@ -93,17 +93,17 @@ def main(data, config):
                 continue
 
             # Perform calibration between the two channels
-            calib_result, fit_result, calib_arrays, stat_result = calibrate_sem_vs_cup(data=cut_data,
-                                                                                       sem_ch_idx=sem_calib_channel[sem_ch]['idx'],
-                                                                                       cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
-                                                                                       config=config,
-                                                                                       update_ifs_events=update_ifs_events,
-                                                                                       return_full=True)
+            calib_result, stat_result, fit_values, misc_arrays = calibrate_sem_vs_cup(data=cut_data,
+                                                                                      sem_ch_idx=sem_calib_channel[sem_ch]['idx'],
+                                                                                      cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
+                                                                                      config=irrad_config,
+                                                                                      update_ifs_events=update_ifs_events,
+                                                                                      return_full=True)
 
             # Extract results
-            _, _, red_chi = fit_result
-            current_sem_ch, current_cup_ch, lambda_stat_array = calib_arrays
-            lambda_stat, stat_mask = stat_result
+            _, _, red_chi = fit_values
+            current_sem_ch, current_cup_ch, lambda_stat_array, stat_mask = misc_arrays
+            lambda_stat, _ = stat_result
 
             # Start the plotting
             #Beam current over time
@@ -154,7 +154,19 @@ def generate_ch_ifs_array(data, config, channel_idx, update_ifs_events=None):
 
             if channel_group in update_parameters:
                 # Extract IFS value in nA
-                updated_ifs_value = float(update_parameters.split()[1])
+                # Prior to v2.2
+                try:
+                    updated_ifs_value = float(update_parameters.split()[1])
+                # From v2.2 onwards
+                except IndexError:
+                    for up in update_parameters.split(','):
+                        k, v = up.split('=')
+                        if k == 'ifs':
+                            updated_ifs_value = float(v)
+                            break
+                    else:
+                        raise RuntimeError("Could not extract 'I_FS' parameter from update event")
+
                 # Search for the index at which the IFS change happened
                 idx = np.searchsorted(data['timestamp'], ifs_update['timestamp'], side='right')
                 # Update subsequent IFS values
@@ -221,7 +233,7 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
                                                                                             '{}=({:.3f}{}{:.3f})'.format(u'\u03bb' + '_stat', lambda_stat.n, u'\u00b1', lambda_stat.s)))
 
     if return_full:
-        return (beta_fit, lambda_fit), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array), (lambda_stat, beta_stat_mask)
+        return (beta_fit, lambda_fit), (beta_stat, lambda_stat), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array, beta_stat_mask)
     else:
         return (beta_fit, lambda_fit), (beta_stat, lambda_stat)
 

@@ -1,4 +1,5 @@
 """Collection of analysis functions"""
+import math
 import numpy as np
 import irrad_control.analysis.constants as irrad_consts
 
@@ -152,7 +153,7 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
     ntc_resistance = ref_resistor / ((ref_voltage / ntc_voltage) - 1)
 
     # Calc temperature
-    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * np.log(ntc_resistance / ntc_nominal))
+    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * math.log(ntc_resistance / ntc_nominal))
 
     # Adjust to Celsius
     temp -= irrad_consts.kelvin
@@ -178,3 +179,97 @@ def lin(x, *args):
 
 def red_chisquare(observed, expected, observed_error, popt):
     return np.sum(((observed - expected) / observed_error)**2 / (len(observed_error) - len(popt) - 1))
+
+def gamma(energy, mass):
+    return energy / mass + 1
+    
+def beta(energy=None, mass=None, gamma_val=None):
+    assert energy is not None and mass is not None or gamma_val is not None, "Either gamma or energy and mass has to be given"
+    
+    gv = gamma_val if gamma_val is not None else gamma(energy, mass)
+    
+    return (1 - 1 / gv**2)** .5
+
+def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
+    """
+    Bethe-Bloch formula for ionizing energy loss of ions in Si.
+    largely taken 'Particle Detectors - Fundamentals and Applications' by N. Wermes, H. Kolanoski
+    """
+    # Constant K = 4 * pi * N_A * r_e^2 * m_e * c^2
+    K = 0.307  # MeV cm² / mol
+
+    # Charge, atomic number, mean exitation energy and density of silicon
+    Z_Si, A_Si, I_Si, rho_Si= 14, 28.0855, 173e-6, 2.329  # e, u, MeV, g/cm³
+
+    # Electron mass
+    m_e = 0.511  # MeV
+    
+    # speed of light in nat units
+    c = 1
+    
+    # Lorentz gamma
+    lorentz_gamma = gamma(energy=energy, mass=mass)
+    lorentz_beta = beta(gamma_val=lorentz_gamma)
+    beta_gamma = lorentz_beta*lorentz_gamma
+
+    # Max energy transfer
+    T_max = (2 * m_e* c**2 * beta_gamma**2) / (1 + (2 * lorentz_gamma * m_e / mass) + (m_e / mass)**2)
+
+    # Prefactor
+    pre_fac = K * Z_Si / A_Si * (charge / lorentz_beta)**2 * (1 if density_normalized else rho_Si)
+
+    # Log term
+    log_term = math.log(2 * m_e * (c * beta_gamma)**2 * T_max / I_Si**2)
+
+    # Correction for high energy
+    delta_correction = 0
+
+    # Shell correction for low energy; very relevant here but no straight forward way to calculate?
+    # see https://journals.aps.org/pra/pdf/10.1103/PhysRevA.65.052709
+    # ~2% e.g. 0.02 for 10 MeV protons in Al, should consider to add this
+    shell_correction = 0
+
+    return pre_fac * (0.5 * log_term - lorentz_beta**2 - delta_correction - shell_correction)
+
+
+def semi_empirical_mass_formula(n_protons, n_nucleons):
+    """
+    From https://en.wikipedia.org/wiki/Semi-empirical_mass_formula
+    Calculate mass of nucleii with respect to the binding energy.
+    For light ions this approach is not precise and you're better off not considering binding energy.
+
+    Parameters
+    ----------
+    n_protons : int
+        Number of protons in the nucleus
+    n_nucleons : int
+        Number of overall nucleons (protons + neutrons)
+    
+    Returns
+    -------
+    float:
+        Mass of nucleus repsecting the mass defect
+    """
+    n_neutrons = n_nucleons - n_protons
+    nucleon_mass = n_protons * irrad_consts.m_p + n_neutrons * irrad_consts.m_n
+
+    # Formula yields poor results for light nucleii, better off just using the raw nucleon mass
+    if n_nucleons < 10:
+        return nucleon_mass
+
+    pair_factor = 0
+    if n_protons % 2 == 0 and n_neutrons % 2 == 0:
+        pair_factor = 1 
+    elif n_protons % 2 != 0 and n_neutrons % 2 != 0:
+        pair_factor = -1
+
+    # Hard-coded prefactors are in MeV
+    volume_term = 15.67 * n_nucleons
+    surface_term = -17.23 * n_nucleons ** (2./3.)
+    coulomb_term = - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
+    symmetry_term = -93.15 * (n_neutrons - n_protons) ** 2 / (4 * n_nucleons)
+    pair_term = 11.2 * n_nucleons ** (-.5) * pair_factor
+
+    binding_energy = volume_term + surface_term + coulomb_term + symmetry_term + pair_term
+
+    return nucleon_mass - binding_energy

@@ -17,3 +17,8 @@ nano = 1e-9
 # -> Mev / g = 1e5 * 1.602e-19 Mrad
 # -> Mev / g = 1e5 * elementary_charge * Mrad
 MEV_PER_GRAM_TO_MRAD = 1e5 * elementary_charge
+
+# Masses
+m_e = 0.511  # MeV/c^2
+m_p = 938.272  # MeV/c^2
+m_n = 939.565  # MeV/c^2

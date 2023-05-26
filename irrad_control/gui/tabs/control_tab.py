@@ -2,8 +2,6 @@ import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
-from setuptools import setup
-
 # Pacakage imports
 import irrad_control.gui.widgets.control_widgets as ic_cntrl_wdgts
 from irrad_control.gui.widgets import NoBackgroundScrollArea
@@ -47,7 +45,7 @@ class IrradControlTab(QtWidgets.QWidget):
         # Get widgets
         motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server, enable=any(x in self.setup[server]['devices'] for x in ('ScanStage', 'SetupTableStage', 'ExternalCupStage')))
         scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'], enable='ScanStage' in self.setup[server]['devices'] and ro_device is not None)
-        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None)
+        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None, enable_rad_mon='RadiationMonitor' in self.setup[server]['devices'])
         status_widget = ic_cntrl_wdgts.StatusInfoWidget()
 
         # Connect command signals
@@ -102,31 +100,6 @@ class IrradControlTab(QtWidgets.QWidget):
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         """Function emitting signal with command dict which is send to *server* in main"""
         self.sendCmd.emit({'hostname': hostname, 'target': target, 'cmd': cmd, 'cmd_data': cmd_data})
-
-    def check_no_beam(self, server, beam_current):
-
-        # If this server has no minimum scan current set
-        if self.tab_widgets[server]['scan'].scan_params['min_current'] > 0:
-
-            if beam_current < self.tab_widgets[server]['scan'].scan_params['min_current']:
-
-                self._beam_down_timer[server] = time.time()
-
-                if server not in self._beam_down or not self._beam_down[server]:
-                    self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'beam_down'}})
-                    self._beam_down[server] = True
-
-            else:
-                if server in self._beam_down and self._beam_down[server]:
-                    if time.time() - self._beam_down_timer[server] > 1.0:
-                        self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'beam_ok'}})
-                        self._beam_down[server] = False
-    
-    def check_finish(self, server, eta_n_scans):
-        
-        if eta_n_scans == 0 and self.tab_widgets[server]['scan'].auto_finish_scan:
-            self.send_cmd(hostname=server, target='__scan__', cmd='handle_event', cmd_data={'kwargs': {'event': 'finish'}})
-
 
     def scan_status(self, server, status='started'):
         read_only = status == 'started'

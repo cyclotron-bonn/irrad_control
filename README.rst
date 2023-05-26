@@ -29,7 +29,7 @@ For a list of publications using ``irrad_control`` see `here <https://www.zyklot
 Installation
 ============
 
-Python >= 3.8 is required (Py3.8 & 3.9 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
+Python >= 3.9 is required (Py3.9 & 3.10 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
 After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.9 environment, named ``irrad``, type
 
 .. code-block:: bash
@@ -143,6 +143,9 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 ========
 
+- v2.2.0: Event distribution system and Bethe-Bloch stopping power calculation for arbitrary ions, bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.2.0>`_
+- v2.1.0: Separate monitor GUI, ``.desktop``-file allowing to launch from activieties, bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.1.0>`_
+- v2.0.1: Bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.1>`_
 - v2.0.0: Full support for the updated irradiation setup, major restructure, flexible irradiation procedures, new features, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.0>`_
 - v1.3.0: Included module for offline analysis of e.g. irradiation data, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.3.0>`_
 - v1.2.0: First version with partial support for updated irradiation setup running on Python 3, see `release <https://github.com/SiLab-Bonn/irrad_control/releases/tag/v1.2.0>`_
@@ -175,6 +178,7 @@ irradiations or test beams at the proton irradiation site at Bonn university, pl
 * 2022
 
     #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for Si-Detectors at the Bonn Isochronous Cyclotron”, in Proc. IPAC'22, Bangkok, Thailand, Jun. 2022, pp. 130-132. doi:10.18429/JACoW-IPAC2022-MOPOST030 <https://ipac2022.vrws.de/papers/mopost030.pdf>`_
+    #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for High-Uniformity Radiation Hardness Tests of Silicon Detectors at the Bonn Isochronous Cyclotron”, in Proc. Cyclotrons'22, Beijing, China, Dec. 2022, PREPRINT <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/sources/proceedings/MOBO03.pdf>`_) 
 
 
 .. |test-status| image:: https://github.com/Cyclotron-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=main
