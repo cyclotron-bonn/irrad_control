@@ -96,7 +96,7 @@ def main(data, config):
             calib_result, stat_result, fit_values, misc_arrays = calibrate_sem_vs_cup(data=cut_data,
                                                                                       sem_ch_idx=sem_calib_channel[sem_ch]['idx'],
                                                                                       cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
-                                                                                      config=irrad_config,
+                                                                                      config=config,
                                                                                       update_ifs_events=update_ifs_events,
                                                                                       return_full=True)
 
@@ -107,7 +107,7 @@ def main(data, config):
 
             # Start the plotting
             #Beam current over time
-            fig, _ = plotting.plot_beam_current_over_time(timestamps=cut_data['timestamp'][stat_mask], beam_current=current_cup_ch[stat_mask], ch_name=cup_ch)
+            fig, _ = plotting.plot_beam_current(timestamps=cut_data['timestamp'][stat_mask], beam_current=current_cup_ch[stat_mask], ch_name=cup_ch)
 
             figs.append(fig)
 

@@ -204,7 +204,7 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
 
             _, _, _ = ax.hist(plot_data['xdata'], bins=bins, label=plot_data['label'])
         elif len(hist_data['bins']) == 2:
-            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=hist_data['cmap'], cmin=1)
+            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmin=1)
             plt.colorbar(im)
         else:
             raise ValueError('bins must be 2D iterable of intsd or int')

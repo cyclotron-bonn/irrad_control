@@ -65,8 +65,8 @@ def main(data, config=None):
         beam_currents_during_scan = beam_during_scan['beam_current'] / constants.nano
     
         fig, _ = plotting.plot_beam_current(timestamps=beam_during_scan['timestamp'],
-                                            beam_currents=beam_currents_during_scan,
-                                            while_scan=True)
+                                            beam_current=beam_currents_during_scan,
+                                            scan_data=data[server]['Scan'])
         figs.append(fig)
     
         #Histogram of Beam currents while scanning
