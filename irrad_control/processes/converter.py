@@ -91,6 +91,12 @@ class IrradConverter(DAQProcess):
             self._add_server_data(server=server, server_setup=server_setup)
             self._setup_daq_parameters(server=server, server_setup=server_setup)
 
+    def _generate_hist_table_name(self, hist_name):
+        if '_' in hist_name:
+            return '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+        else:
+            return hist_name.capitalize()
+
     def _create_data_entry(self, server, dname, location):
 
         try:
@@ -150,19 +156,23 @@ class IrradConverter(DAQProcess):
 
             # Create histogram group and entries
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Histogram')
-            for hist_name in ('beam_position', 'see_horizontal', 'see_vertical'):
-                hist, edges, centers = self.hists.create_hist(hist_name=hist_name)
+            for hist_name in ('beam_position', 'see_horizontal', 'see_vertical', 'sey'):
+                
+                actual_hist_type = 'see' if 'see' in hist_name else hist_name
 
-                self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[hist_name]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
+                hist, edges, centers = self.hists.create_hist(hist_name=actual_hist_type)
 
-                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[actual_hist_type]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
+
+                table_name = self._generate_hist_table_name(hist_name=hist_name)
+
                 # Create group for histogram
                 self.output_table.create_group('/{}/Histogram'.format(server_setup['name']), table_name)
 
                 # Add meta data arrays for hist
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'edges', edges)
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'centers', centers)
-                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[actual_hist_type]['unit']]))
 
         # We have temperature data
         if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in server_setup['devices']:
@@ -339,11 +349,20 @@ class IrradConverter(DAQProcess):
             try:
                 see_frac = beam_data['data']['see'][plane[0]] / beam_data['data']['see']['total'] * 100
                 see_idx = analysis.formulas.get_hist_idx(val=see_frac,
-                                                         bin_edges=self.data_hists[server]['see_{}'.format(plane)]['meta']['edges'])
+                                                         bin_edges=self.data_hists[server][f'see_{plane}']['meta']['edges'])
                 self.data_hists[server]['see_{}'.format(plane)]['hist'][see_idx] += 1
                 hist_data['data']['see_{}_idx'.format(plane)] = see_idx
             except (ZeroDivisionError, IndexError):
                 pass
+
+        # SEY
+        sey = beam_data['data']['see']['sey']
+        sey_idx = analysis.formulas.get_hist_idx(val=sey, bin_edges=self.data_hists[server]['sey']['meta']['edges'])
+        try:
+            self.data_hists[server]['sey']['hist'][sey_idx] += 1
+            hist_data['data']['sey_idx'] = sey_idx
+        except IndexError:
+            pass
 
         return hist_data
 
@@ -1151,7 +1170,7 @@ class IrradConverter(DAQProcess):
 
             # Store histograms
             for hist_name in self.data_hists[server]:
-                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                table_name = self._generate_hist_table_name(hist_name=hist_name)
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'hist', self.data_hists[server][hist_name]['hist'])
 
         self.output_table.flush()

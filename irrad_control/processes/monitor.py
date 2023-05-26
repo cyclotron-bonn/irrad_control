@@ -200,10 +200,9 @@ class MonitorGUI(IrradGUI):
             self.daq_info_widget.update_beam_current(data)
             self.monitor_tab.plots[server]['pos_plot'].set_data(data)
             self.monitor_tab.plots[server]['current_plot'].set_data(meta=data['meta'], data=data['data']['current'])
-
-
-            self.monitor_tab.plots[server]['sey_plot'].set_data(meta=data['meta'], data=data['data']['see'])
             self.monitor_tab.plots[server]['see_current_plot'].set_data(meta=data['meta'], data=data['data']['see'])
+
+            self.monitor_tab.plots[server]['sey_plot'].set_data(data['data']['see']['sey'])
             if 'frac_h' in data['data']['see']:
                 self.monitor_tab.plots[server]['sem_h_plot'].set_data(data['data']['see']['frac_h'])
             if 'frac_v' in data['data']['see']:
@@ -216,6 +215,8 @@ class MonitorGUI(IrradGUI):
                 self.monitor_tab.plots[server]['sem_h_plot'].update_hist(data['data']['see_horizontal_idx'])
             if 'see_vertical_idx' in data['data']:
                 self.monitor_tab.plots[server]['sem_v_plot'].update_hist(data['data']['see_vertical_idx'])
+            if 'sey_idx' in data['data']:
+                self.monitor_tab.plots[server]['sey_plot'].update_hist(data['data']['sey_idx'])
 
         elif data['meta']['type'] == 'temp_arduino':
 
