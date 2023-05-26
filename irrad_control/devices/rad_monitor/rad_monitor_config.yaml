@@ -10,4 +10,4 @@ GasCounter:
   hv_channel: 1
   ramp_speed: 90  # V/s
   gate_interval: 500
-  dose_rate_calibration: 0.911  # uSv/h / Hz
+  dose_rate_calibration: 4.66  # uSv/h / Hz

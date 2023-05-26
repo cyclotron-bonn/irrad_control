@@ -26,6 +26,12 @@ _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
                ('horizontal_beam_position', '<f4'),  # Relative x position of the mean of the beam distribution [%]
                ('vertical_beam_position', '<f4')]  # Relative y position of the mean of the beam distribution [%]
 
+_see_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
+              ('see_total', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
+              ('see_horizontal', '<f4'),  # SEE current delivered by horizontal SEM [A]
+              ('see_vertical', '<f4'),  # SEE current delivered by vertical SEM [A]
+              ('sey', '<f4')]  # SE yield as in SEE current / beam current per surface [%]
+
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
                ('row', '<i2'),  # Number of current row
@@ -89,6 +95,7 @@ class IrradDtypes:
     event = np.dtype(_event_dtype)
     motorstage = np.dtype(_motorstage_dtype)
     beam = np.dtype(_beam_dtype)
+    see = np.dtype(_see_dtype)
     scan = np.dtype(_scan_dtype)
     irrad = np.dtype(_irrad_dtype)
     damage = np.dtype(_damage_dtype)
@@ -111,8 +118,8 @@ class IrradDtypes:
 class IrradHists:
 
     beam_position = {'unit': 'percent', 'bins': (100, 100), 'range': [(-110, 110), (-110, 110)]}
-    sey_horizontal = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
-    sey_vertical = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    see = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    sey = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
 
     def create_hist(self, hist_name, return_edges=True, return_centers=True):
         hist_dict = self.__getitem__(hist_name)

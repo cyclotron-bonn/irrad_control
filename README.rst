@@ -29,7 +29,7 @@ For a list of publications using ``irrad_control`` see `here <https://www.zyklot
 Installation
 ============
 
-Python >= 3.8 is required (Py3.8 & 3.9 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
+Python >= 3.9 is required (Py3.9 & 3.10 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
 After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.9 environment, named ``irrad``, type
 
 .. code-block:: bash
