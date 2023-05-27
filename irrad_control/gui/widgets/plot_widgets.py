@@ -1318,7 +1318,7 @@ class SEECurrentPlot(ScrollingIrradDataPlot):
                                               name=name or type(self).__name__,
                                               parent=parent)
         
-        self.plt.setLabel('right', text='SEE current', units='A')
+        self.plt.setLabel('left', text='SEE current', units='A')
         self.plt.hideAxis('left')
         self.plt.showAxis('right')
-        self.plt.setLabel('left', text='SEE current', units='A')
+        self.plt.setLabel('right', text='SEE current', units='A')
