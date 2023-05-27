@@ -655,7 +655,7 @@ class IrradDataHist(IrradPlotWidget):
     def __init__(self, hist_config, xlabel=None, unit=None, name=None, refresh_rate=10, parent=None):
         super(IrradDataHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
 
-        self._data['hist'], self._data['edges'], self._data['centers'] = hist_config['hist'], hist_config['edges'], hist_config['centers']
+        self._data['hist'], self._data['edges'], self._data['centers'] = hist_config
         self.unit = unit or 'a.u.'
         self.name = name or type(self).__name__
         self.xlabel = xlabel or 'Signal'
