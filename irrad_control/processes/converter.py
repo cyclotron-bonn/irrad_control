@@ -347,11 +347,11 @@ class IrradConverter(DAQProcess):
         # SEE fraction
         for plane in ('horizontal', 'vertical'):
             try:
-                see_frac = beam_data['data']['see'][plane[0]] / beam_data['data']['see']['total'] * 100
+                see_frac = beam_data['data']['see'][f'see_{plane}'] / beam_data['data']['see']['see_total'] * 100
                 see_idx = analysis.formulas.get_hist_idx(val=see_frac,
                                                          bin_edges=self.data_hists[server][f'see_{plane}']['meta']['edges'])
-                self.data_hists[server]['see_{}'.format(plane)]['hist'][see_idx] += 1
-                hist_data['data']['see_{}_idx'.format(plane)] = see_idx
+                self.data_hists[server][f'see_{plane}']['hist'][see_idx] += 1
+                hist_data['data'][f'see_{plane}_idx'] = see_idx
             except (ZeroDivisionError, IndexError):
                 pass
 
@@ -483,7 +483,7 @@ class IrradConverter(DAQProcess):
                      'data': {'position': {}, 'current': {}, 'see': {}}}
 
         # Get timestamp from data for beam data arrays
-        self.data_arrays[server]['beam']['timestamp'] = meta['timestamp']
+        self.data_arrays[server]['beam']['timestamp'] = self.data_arrays[server]['see']['timestamp'] = meta['timestamp']
 
         ### Beam current ###
 
@@ -508,7 +508,7 @@ class IrradConverter(DAQProcess):
                                                                full_scale_voltage=self._lookups[server]['full_scale_voltage'])
             
             # Number of SEM foils is amount of surfaces e.g. 4 foils is horizontal and vertical SEM e.g. 2 times foil entry & exit == 4 surfaces
-            self.data_arrays[server]['see']['see_total'] = beam_data['data']['see']['total'] = see_per_surface * len(self._lookups[server]['sem_foils'])
+            self.data_arrays[server]['see']['see_total'] = beam_data['data']['see']['see_total'] = see_per_surface * len(self._lookups[server]['sem_foils'])
             
             # Calculate sum SE yield
             # dname: sey
@@ -600,7 +600,13 @@ class IrradConverter(DAQProcess):
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
             # dname: see_horizontal
-            self.data_arrays[server]['see']['see_horizontal'] = beam_data['data']['see']['h'] = sig_L + sig_R
+            self.data_arrays[server]['see']['see_horizontal'] = beam_data['data']['see']['see_horizontal'] = sig_L + sig_R
+
+            # Horizontal fraction of SEE
+            try:
+                beam_data['data']['see']['frac_h'] = beam_data['data']['see']['see_horizontal'] / beam_data['data']['see']['see_total'] * 100
+            except ZeroDivisionError:
+                pass
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane='h')
 
@@ -624,23 +630,19 @@ class IrradConverter(DAQProcess):
                                                      full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
             # dname: see_vertical
-            self.data_arrays[server]['see']['see_vertical'] = beam_data['data']['see']['v'] = sig_U + sig_D
+            self.data_arrays[server]['see']['see_vertical'] = beam_data['data']['see']['see_vertical'] = sig_U + sig_D
+
+            # Vertical fraction of SEE
+            try:
+                beam_data['data']['see']['frac_v'] = beam_data['data']['see']['see_vertical'] / beam_data['data']['see']['see_total'] * 100
+            except ZeroDivisionError:
+                pass
 
             rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane='v')
 
             self.data_arrays[server]['beam']['vertical_beam_position'] = beam_data['data']['position']['v'] = rel_pos
         else:
             logging.warning("Vertical beam position can not be calculated!")
-
-        # Calc SEE fractions
-        if 'total' in beam_data['data']['see']:
-            try:
-                if 'h' in beam_data['data']['see']:
-                    beam_data['data']['see']['frac_h'] = beam_data['data']['see']['h']/beam_data['data']['see']['total'] * 100
-                if 'v' in beam_data['data']['see']:
-                    beam_data['data']['see']['frac_v'] = beam_data['data']['see']['v']/beam_data['data']['see']['total'] * 100
-            except ZeroDivisionError:
-                pass
 
         self._shift_beam_currents(server=server)
 
@@ -660,7 +662,7 @@ class IrradConverter(DAQProcess):
                                 trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
         
         # Append data to table within this interpretation cycle
-        self.data_flags[server]['beam'] = True
+        self.data_flags[server]['beam'] = self.data_flags[server]['see'] = True
 
         return beam_data
     
