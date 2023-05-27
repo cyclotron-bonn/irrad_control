@@ -103,7 +103,7 @@ def main(data, config):
             # Extract results
             _, _, red_chi = fit_values
             current_sem_ch, current_cup_ch, lambda_stat_array, stat_mask = misc_arrays
-            lambda_stat, _ = stat_result
+            _, lambda_stat = stat_result
 
             # Start the plotting
             #Beam current over time
