@@ -29,6 +29,22 @@ def no_title(b):
         plt.rcParams['axes.titlecolor'] = plt.rcParams['axes.facecolor']
 
 
+def align_axis(ax1, v1, ax2, v2, axis='y'):
+    """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
+    x1, y1 = ax1.transData.transform((0, v1))
+    x2, y2 = ax2.transData.transform((0, v2))
+    inv = ax2.transData.inverted()
+    
+    if axis == 'y':
+        _, dy = inv.transform((0, 0)) - inv.transform((0, y1-y2))
+        miny, maxy = ax2.get_ylim()
+        ax2.set_ylim(miny+dy, maxy+dy)
+    else:
+        dx, _ = inv.transform((0, 0)) - inv.transform((0, x1-x2))
+        minx, maxx = ax2.get_xlim()
+        ax2.set_xlim(minx+dx, maxx+dx)
+
+
 def _get_damage_label_unit_target(damage, ion_name, dut=False):
     damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else f'{ion_name}s' + r' cm$^{-2}$' if damage == 'primary' else 'Mrad'
     damage_label = 'Fluence' if damage in ('neq', 'primary') else 'Total Ionizing Dose'
@@ -353,11 +369,11 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
     return fig, ax
 
 
-def plot_fluence_distribution(fluence_data, ion):
+def plot_fluence_distribution(fluence_data, ion, hardness_factor=1, stoping_power=1):
 
     plot_data = {
         'xdata': fluence_data,
-        'xlabel': f"Fluence per scanned row / {ion}s / cm^2",
+        'xlabel': f"Fluence per scanned row / {ion}s/cm^2",
         'ylabel': '#',
         'label': "({:.2E}{}{:.2E}) {}s / cm^2".format(fluence_data.mean(), u'\u00b1', fluence_data.std(), ion),
         'title': "Row fluence distribution",
@@ -365,7 +381,11 @@ def plot_fluence_distribution(fluence_data, ion):
     }
 
     fig, ax = plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
-
+    ax_neq = ax.twiny()
+    ax_neq.set_xlim([x * hardness_factor for x in ax.get_xlim()])
+    ax_neq.set_xlabel('NIEL fluence / neq/cm^2')
+    align_axis(ax, 0, ax_neq, 0, axis='x')
+    ax_neq.grid(False)
     return fig, ax
 
 
