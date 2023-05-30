@@ -204,12 +204,15 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
 
             _, _, _ = ax.hist(plot_data['xdata'], bins=bins, label=plot_data['label'])
         elif len(hist_data['bins']) == 2:
-            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmin=1)
+            cmap = plt.get_cmap(plt.rcParams['image.cmap'])
+            cmap.set_bad('w')
+            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=cmap, rasterized=True)
+            #im.set_edgecolor("face")
             plt.colorbar(im)
         else:
             raise ValueError('bins must be 2D iterable of intsd or int')
     else:
-        ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'])
+        ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'], alpha=0.33)
     ax.grid()
     ax.legend(loc='upper left')
     
@@ -319,17 +322,18 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 
     beta_const, lambda_const = beta_lambda
 
-    fit_label=r'Linear fit: $\mathrm{I_{cup}(I_{sem_{sum}})=\beta \cdot I_{sem_{sum}}}$;'
-    fit_label += '\n\t' + r'$\mathrm{\beta=\lambda \cdot 5\ V=(%.3f \pm %.3f)}$' % (beta_const.n, beta_const.s)
-    fit_label += '\n\t' + r'$\lambda=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
+    fit_label=r'Linear fit: $\mathrm{I_{Beam} = \beta \cdot I_{SEE}}$;'
+    fit_label += '\n\t' + r'$\beta=(%.2E \pm %.2E)$' % (beta_const.n, beta_const.s)
+    fit_label += '\n\t' + r'$\lambda=\beta / 5\ V=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
+    fit_label += '\n\t' + r'$\mathrm{SEY}=\beta^{-1}=(%.3f \pm %.3f)$' % ((100./beta_const).n, (100./beta_const).s) + ' %'
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
 
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
                                           'ydata': ref_data,
-                                          'xlabel': f"Calibration sem_sum-type channel '{calib_sig}' current / nA",
-                                          'ylabel': f"Reference cup-type channel '{ref_sig}' current / nA",
-                                          'label': 'Correlation',
+                                          'xlabel': r"Secondary electron current $\mathrm{I_{SEE}}$ / nA",
+                                          'ylabel': r"Beam current $\mathrm{I_{Beam}}$ / nA",
+                                          'label': f"SEE channel '{calib_sig}' vs. Cup channel '{ref_sig}'",
                                           'title':"Beam current calibration",
                                           'fmt':'C0.'},
                                fit_data={'xdata': calib_data,
@@ -340,7 +344,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                hist_data={'bins': (100, 100), 'norm': LogNorm()} if hist else {})
 
     # Make figure and axis
-    _, _ = ax.set_ylim(0, np.max(ref_data) * (1.25))
+    ax.grid()
     
     return fig, ax
 
