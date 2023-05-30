@@ -151,6 +151,9 @@ def main():
 
     process_parsed_args(parsed_args=parsed, analysis_suffix=analysis_suffix)
 
+    # Check whether we want to have titles on the plots
+    irrad_analysis.plotting.no_title(parsed['notitle'])
+
     # We are doing damage analysis on a single irradiation which is split in multiple files
     if parsed['multipart']:
         
@@ -167,7 +170,7 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']), notitle=parsed['notitle'])
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']))
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -197,7 +200,7 @@ def main():
                         if parsed[a_flag]:
                             
                             # Load submodule with same name as flag and call main analyis
-                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content, notitle=parsed['notitle'])
+                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content)
                             save_plots(res, out_pdf)
 
 
