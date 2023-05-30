@@ -32,7 +32,10 @@ def _get_ref_voltage(config):
     return 5.
 
 
-def main(data, config):
+def main(data, config, notitle=False):
+
+    if notitle:
+        plotting.plt.rcParams['axes.titlecolor'] = plotting.plt.rcParams['axes.facecolor']
 
     server = config['name']
 

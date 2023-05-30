@@ -18,7 +18,7 @@ ANALYSIS_FLAGS = ('damage', 'scan', 'beam', 'calibration')
 
 
 # Option flags available
-OPTION_FLAGS = ('multipart', )
+OPTION_FLAGS = ('multipart', 'notitle')
 
 
 # Group multiple analysis together
@@ -167,7 +167,7 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']))
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']), notitle=parsed['notitle'])
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -197,7 +197,7 @@ def main():
                         if parsed[a_flag]:
                             
                             # Load submodule with same name as flag and call main analyis
-                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content)
+                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content, notitle=parsed['notitle'])
                             save_plots(res, out_pdf)
 
 

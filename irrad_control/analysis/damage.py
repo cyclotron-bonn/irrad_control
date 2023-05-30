@@ -2,7 +2,10 @@ import logging
 from irrad_control.analysis import plotting, fluence, formulas
 
 
-def main(data, config=None):
+def main(data, config=None, notitle=False):
+
+    if notitle:
+        plotting.plt.rcParams['axes.titlecolor'] = plotting.plt.rcParams['axes.facecolor']
 
     figs = []
     bins = (100, 100)

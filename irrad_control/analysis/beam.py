@@ -1,7 +1,10 @@
 from irrad_control.analysis import plotting, constants
 
 
-def main(data, config=None):
+def main(data, config=None, notitle=False):
+
+    if notitle:
+        plotting.plt.rcParams['axes.titlecolor'] = plotting.plt.rcParams['axes.facecolor']
 
     figs = []
     server = config['name']
