@@ -23,6 +23,12 @@ plt.rcParams.update({
 )
 
 
+def no_title(b):
+    """Don't generate plot titles by setting background color to title color"""
+    if b:
+        plt.rcParams['axes.titlecolor'] = plt.rcParams['axes.facecolor']
+
+
 def _get_damage_label_unit_target(damage, ion_name, dut=False):
     damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else f'{ion_name}s' + r' cm$^{-2}$' if damage == 'primary' else 'Mrad'
     damage_label = 'Fluence' if damage in ('neq', 'primary') else 'Total Ionizing Dose'
