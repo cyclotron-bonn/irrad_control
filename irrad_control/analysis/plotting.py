@@ -208,12 +208,12 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
             cmap.set_bad('w')
             _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=cmap, rasterized=True)
             #im.set_edgecolor("face")
-            plt.colorbar(im)
+            plt.colorbar(im, label=plot_data.get('label', ''))
         else:
             raise ValueError('bins must be 2D iterable of intsd or int')
     else:
-        ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'], alpha=0.33)
-    ax.grid()
+        ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'], alpha=plot_data.get('alpha', 1))
+    ax.grid(True)
     ax.legend(loc='upper left')
     
     return fig, ax
@@ -227,7 +227,7 @@ def plot_beam_current(timestamps, beam_current, ch_name=None, scan_data=None):
                  'ydata': beam_current,
                  'xlabel': f"{dtfts.strftime('%d %b %Y')}",
                  'ylabel': f"Cup channel {ch_name} current / nA",
-                 'label': f"{ch_name or 'Beam'} current over {_calc_duration(start=timestamps[0], end=timestamps[-1], as_str=True)}",
+                 'label': f"{ch_name or 'Beam'} current over {_calc_duration(start=timestamps[0], end=timestamps[-1], as_str=True)}{' irradiation' if scan_data else ''}",
                  'title': f"Current of channel {ch_name}",
                  'fmt': 'C0-'}
 
@@ -238,7 +238,7 @@ def plot_beam_current(timestamps, beam_current, ch_name=None, scan_data=None):
     if scan_data is not None:
         plot_data['title'] = 'Beam current during irradiation'
 
-    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(beam_current.mean(), u'\u00b1', beam_current.std())
+    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(np.nanmean(beam_current), u'\u00b1', np.nanstd(beam_current))
 
     fig, ax = plot_generic_fig(plot_data=plot_data)
 
@@ -301,7 +301,7 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
                         ha='center', va='bottom')
 
     # Make labels and legends
-    ax_hist_h.set_title('Beam-mean position relative to center')
+    ax_hist_h.set_title(f"Beam-mean position relative to center {'during irradiation' if scan_data else ''}")
     ax_hist_2d.set_xlabel('Rel. horizontal deviation / %')
     ax_hist_v.set_ylabel('Rel. vertical deviation / %')
 
@@ -335,41 +335,33 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                           'ylabel': r"Beam current $\mathrm{I_{Beam}}$ / nA",
                                           'label': f"SEE channel '{calib_sig}' vs. Cup channel '{ref_sig}'",
                                           'title':"Beam current calibration",
-                                          'fmt':'C0.'},
+                                          'fmt':'C0.',
+                                          'alpha': 0.33},
                                fit_data={'xdata': calib_data,
                                          'func': lin_odr,
                                          'fit_args': [[beta_const.n], calib_data],
                                          'fmt': 'C1-',
                                          'label': fit_label},
                                hist_data={'bins': (100, 100), 'norm': LogNorm()} if hist else {})
-
-    # Make figure and axis
-    ax.grid()
     
     return fig, ax
 
-#******** Scanplotting *******#
-def fluence_row_hist(start, end, fluence):
-    tss = datetime.fromtimestamp(start)
-    tse = datetime.fromtimestamp(end)
-    tdiff = tse-tss
-    tdiff = tdiff.total_seconds()
-    tdiffh = (tdiff-tdiff%3600)/3600
-    tdiff = tdiff%3600
-    tdiffm = (tdiff-tdiff%60)/60
-    
-    unit = r'$\mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_label = "Mean fluence over {} hours, {} mins.:\n({:.1e}±{:.1e}) {}".format(int(tdiffh), int(tdiffm), np.mean(fluence), np.std(fluence), unit)
-    xlabel = r'$\mathrm{Fluence}\ /\ \mathrm{p}\ \mathrm{cm}^{-2}$'
-    fig_title = "Histogram of fluence per row"
-    fig, ax = plot_generic_fig(plot_data={'xdata': fluence,
-                                          'xlabel': xlabel,
-                                          'ylabel': f"#",
-                                          'label': fig_label,
-                                          'title': fig_title,
-                                          'fmt': 'C0'},
-                               hist_data={'bins': 'stat'})
+
+def plot_fluence_distribution(fluence_data, ion):
+
+    plot_data = {
+        'xdata': fluence_data,
+        'xlabel': f"Fluence per scanned row / {ion}s / cm^2",
+        'ylabel': '#',
+        'label': "({:.2E}{}{:.2E}) {}s / cm^2".format(fluence_data.mean(), u'\u00b1', fluence_data.std(), ion),
+        'title': "Row fluence distribution",
+        'fmt': 'C0'
+    }
+
+    fig, ax = plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
+
     return fig, ax
+
 
 def plot_damage_resolved(primary_damage_resolved, stopping_power=None, hardness_factor=None, **damage_label_kwargs):
     fig, ax = plot_generic_axis(axis_data={'xlabel': 'Row number',
