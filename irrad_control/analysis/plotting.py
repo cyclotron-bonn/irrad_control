@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
+import matplotlib.ticker as ticker
 import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
@@ -51,7 +52,7 @@ def _get_damage_label_unit_target(damage, ion_name, dut=False):
     return damage_label, damage_unit, damage_target
 
 
-def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=False, damage_map=None, uncertainty_map=False):
+def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=False, damage_map=None, uncertainty_map=False):
 
     damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=dut)
 
@@ -73,12 +74,16 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=Fals
         cbar.set_label(cbar_label)
 
 
-def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None):
+def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_axis=True,):
 
     damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=False)
 
     # Make axis for cbar
-    cbar_axis = plt.axes([0.85, 0.1, 0.033, 0.8])
+    if add_cbar_axis:
+        cbar_axis = plt.axes([0.85, 0.1, 0.033, 0.8])
+    else:
+        cbar_axis = None
+
     cbar = fig.colorbar(damage_map, cax=cbar_axis, label=f"{damage_label} / {damage_unit}")
 
     if rel_error_lims is not None:
@@ -199,17 +204,21 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
     return fig, ax
 
 
-def plot_damage_resolved(damage_map, **damage_label_kwargs):
+def plot_damage_resolved(damage_map, damage, ion_name):
 
     # Make figure
     fig, ax = plt.subplots()
 
-    im = ax.imshow(damage_map, origin='lower', cmap=plt.rcParams['image.cmap'], aspect='auto')
+    im = ax.imshow(damage_map, origin='upper', cmap=plt.rcParams['image.cmap'], aspect='auto')
 
-    cbar = fig.colorbar(im)
+    # Show ticks for every row but only display value for every 5th row
+    ax.yaxis.set_ticks(range(damage_map.shape[0]))
+    ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
+
+    _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False)
 
     # Apply labels
-    _apply_labels_damage_plots(ax=ax, cbar=cbar, damage_map=damage_map, **damage_label_kwargs)
+    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, damage=damage, ion_name=ion_name)
 
     return fig, ax
 

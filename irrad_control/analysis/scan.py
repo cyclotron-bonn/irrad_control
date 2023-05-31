@@ -50,8 +50,8 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     n_individual_scans = len(individual_scan_data)
     n_total_scans = n_complete_scans + n_individual_scans
 
-    # Make empty map of shape n_rows x n_total_scans
-    resolved_map = np.zeros(shape=(n_total_scans, n_rows))
+    # Make empty map of shape n_total_scans x n_rows
+    resolved_map = np.zeros(shape=(n_rows, n_total_scans))
 
     # Loop over scan data and add to map
     indv_scan_number = n_complete_scans
@@ -63,9 +63,9 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
         # We are looking at completed scans
         if scan != -1:
             # Add fluence of this row to all subsequent scans since in all following scans this fluence will already be applied in the row
-            resolved_map[scan:, row] += scan_data[i][damage]
+            resolved_map[row, scan:] += scan_data[i][damage]
         else:
-            resolved_map[indv_scan_number:, row] += scan_data[i][damage]
+            resolved_map[row, indv_scan_number:] += scan_data[i][damage]
             indv_scan_number += 1
     
     return resolved_map
@@ -138,7 +138,7 @@ def main(data, config=None):
         resolved_map = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
                                                          irrad_data=data[server]['Irrad'])
         
-        fig, ax = plotting.plot_damage_resolved(resolved_map, damage='tid', ion_name='proton', server=server, dut=False)
+        fig, _ = plotting.plot_damage_resolved(resolved_map, damage=data[server]['Irrad']['aim_damage'][0].decode(), ion_name=config['daq']['ion'])
 
         figs.append(fig)
 
