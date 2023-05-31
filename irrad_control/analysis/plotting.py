@@ -199,15 +199,19 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
     return fig, ax
 
 
-def plot_generic_axis(axis_data, fig_ax=None, set_grid=True, **sp_kwargs):
-    fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
-    
-    ax.set_title(axis_data['title'])
-    ax.set_xlabel(axis_data['xlabel'])
-    ax.set_ylabel(axis_data['ylabel'])
-    if set_grid: ax.grid()
+def plot_damage_resolved(damage_map, **damage_label_kwargs):
+
+    # Make figure
+    fig, ax = plt.subplots()
+
+    im = ax.imshow(damage_map, origin='lower', cmap=plt.rcParams['image.cmap'], aspect='auto')
+
+    cbar = fig.colorbar(im)
+
+    # Apply labels
+    _apply_labels_damage_plots(ax=ax, cbar=cbar, damage_map=damage_map, **damage_label_kwargs)
+
     return fig, ax
-    
 
 
 def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
@@ -393,40 +397,6 @@ def plot_fluence_distribution(fluence_data, ion, hardness_factor=1, stoping_powe
     ax_neq.grid(False)
     return fig, ax
 
-
-def plot_damage_resolved(primary_damage_resolved, stopping_power=None, hardness_factor=None, **damage_label_kwargs):
-    fig, ax = plot_generic_axis(axis_data={'xlabel': 'Row number',
-                                           'ylabel': 'Scan number',
-                                           'title': "Damage scan and row resolved"})
-
-    if hardness_factor is not None:
-        damage = primary_damage_resolved * hardness_factor
-    else:
-        damage = primary_damage_resolved
-
-    if stopping_power is not None:
-        tid = tid_per_scan(primary_damage_resolved, stopping_power=stopping_power)
-        secondary_cbar_axis = {'ylim': (tid.min(), tid.max()), 'ylabel': 'Total-ionizing dose / Mrad'}
-    else:
-        secondary_cbar_axis = {}
-    
-    extent = [0, primary_damage_resolved.shape[1], 0, primary_damage_resolved.shape[0]]
-
-    im = ax.imshow(damage, origin='lower', extent=extent)
-    #ax.grid(False)
-
-    _make_cbar(fig=fig,
-               damage_map=im,
-               damage='neq',
-               ion_name=damage_label_kwargs['ion_name'])
-
-    # neqax = ax.twinx()
-    # neqlabel = str(r'Fluence / n$_\mathrm{eq}$ cm$^{-2}$')
-    # neqax.set_ylabel(neqlabel)
-    # neqax.grid(axis='y')
-    # neq_ylims = [lim*kwargs['hardness_factor']/(1e5 * irrad_consts.elementary_charge * kwargs['stopping_power']) for lim in ax.get_ylim()]
-    # neqax.set_ylim(ymin=neq_ylims[0], ymax=neq_ylims[1])
-    return fig, ax
 
 def plot_everything(data, **kwargs):
     fig, beamax = plt.subplots(figsize=(8,6))

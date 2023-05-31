@@ -32,6 +32,44 @@ def create_beam_scan_mask(beam_data, scan_data):
         speed_up_idx = idx_row_stop
     
     return beam_during_scan_mask
+
+
+def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary_fluence'):
+    # Create damage mape resolved in rows and scan number
+    # Get number of rows
+    n_rows = irrad_data['n_rows'][0]
+    
+    # Get indivudiually scanned rows
+    individual_scan_mask = scan_data['scan'] == -1
+
+    complete_scan_data = scan_data[~individual_scan_mask]
+    individual_scan_data = scan_data[individual_scan_mask]
+
+    # Get number of completed, individual and total scans
+    n_complete_scans = complete_scan_data['scan'][-1] + 1
+    n_individual_scans = len(individual_scan_data)
+    n_total_scans = n_complete_scans + n_individual_scans
+
+    # Make empty map of shape n_rows x n_total_scans
+    resolved_map = np.zeros(shape=(n_total_scans, n_rows))
+
+    # Loop over scan data and add to map
+    indv_scan_number = n_complete_scans
+    for i in range(len(scan_data)):
+
+        row = scan_data[i]['row']
+        scan = scan_data[i]['scan']
+
+        # We are looking at completed scans
+        if scan != -1:
+            # Add fluence of this row to all subsequent scans since in all following scans this fluence will already be applied in the row
+            resolved_map[scan:, row] += scan_data[i][damage]
+        else:
+            resolved_map[indv_scan_number:, row] += scan_data[i][damage]
+            indv_scan_number += 1
+    
+    return resolved_map
+
         
 def main(data, config=None):
     
@@ -93,6 +131,14 @@ def main(data, config=None):
                                                     ion=config['daq']['ion'],
                                                     hardness_factor=config['daq']['kappa']['nominal'],
                                                     stoping_power=config['daq']['stopping_power'])
+
+        figs.append(fig)
+
+        
+        resolved_map = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
+                                                         irrad_data=data[server]['Irrad'])
+        
+        fig, ax = plotting.plot_damage_resolved(resolved_map, damage='tid', ion_name='proton', server=server, dut=False)
 
         figs.append(fig)
 
