@@ -50,6 +50,7 @@ def _get_damage_label_unit_target(damage, ion_name, dut=False):
     damage_target = "DUT" if dut else "Scan"
     return damage_label, damage_unit, damage_target
 
+
 def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=False, damage_map=None, uncertainty_map=False):
 
     damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=dut)
@@ -71,6 +72,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server, cbar=None, dut=Fals
         cbar_label = f"{damage_label} / {damage_unit}"
         cbar.set_label(cbar_label)
 
+
 def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None):
 
     damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=False)
@@ -87,6 +89,7 @@ def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None):
         cbar_rel_axis.ticklabel_format(axis='y', useOffset=False, style='plain')
         cbar_rel_axis.set_ylim(rel_error_lims)
 
+
 def _calc_duration(start, end, as_str=False):
 
     duration = end - start
@@ -99,6 +102,7 @@ def _calc_duration(start, end, as_str=False):
     res = tuple(int(x) for x in [days, hours, minutes, seconds])
     
     return res if not as_str else ", ".join(f"{a[0]}{a[1]}" for a in zip(res, 'dhms') if a[0])
+
 
 def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs):
 
@@ -124,7 +128,6 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, uncertainty_map=True, **damage_label_kwargs)
 
     return fig, ax
-
 
 
 def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs):
@@ -174,6 +177,7 @@ def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, **damage_label_
 
     return fig, ax
 
+
 def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_label_kwargs):
 
     # Make figure
@@ -194,6 +198,7 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
 
     return fig, ax
 
+
 def plot_generic_axis(axis_data, fig_ax=None, set_grid=True, **sp_kwargs):
     fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
     
@@ -203,6 +208,7 @@ def plot_generic_axis(axis_data, fig_ax=None, set_grid=True, **sp_kwargs):
     if set_grid: ax.grid()
     return fig, ax
     
+
 
 def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
     fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
