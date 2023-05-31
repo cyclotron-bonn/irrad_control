@@ -17,7 +17,6 @@ plt.rcParams.update({
     'grid.alpha': 0.75,  # default 1.0
     'figure.max_open_warning': 0,  # default 20; disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
     'path.simplify': True,  # default False: removes vertices that have no impact on plot visualization for the sake of better rendering performance
-    'axes.grid' : True,
     'image.cmap': 'plasma'
     }
 )
@@ -110,7 +109,7 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # plot surface
-    surface_3d = ax.plot_surface(mesh_x, mesh_y, error_map, antialiased=True)
+    surface_3d = ax.plot_surface(mesh_x, mesh_y, error_map, antialiased=True, cmap=plt.rcParams['image.cmap'])
     
     # Adjust angle
     ax.view_init(*view_angle)
@@ -137,11 +136,11 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # plot surface
-    surface_3d = ax.plot_surface(mesh_x, mesh_y, damage_map, antialiased=True)
+    surface_3d = ax.plot_surface(mesh_x, mesh_y, damage_map, antialiased=True, cmap=plt.rcParams['image.cmap'])
 
     # Plot contour
     if contour:
-        contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, zdir='z', offset=-0.05*damage_map.max())
+        contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, zdir='z', offset=-0.05*damage_map.max(), cmap=plt.rcParams['image.cmap'])
         ax.set_zlim(-0.05*damage_map.max(), damage_map.max())
         
     # Adjust angle
@@ -166,7 +165,7 @@ def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, **damage_label_
     
     extent = [map_centers_x[0] - bin_width_x/2., map_centers_x[-1] + bin_width_x/2., map_centers_y[-1] + bin_width_y/2., map_centers_y[0]- bin_width_y/2.]
 
-    im = ax.imshow(damage_map, extent=extent)
+    im = ax.imshow(damage_map, extent=extent, cmap=plt.rcParams['image.cmap'])
 
     cbar = fig.colorbar(im)
 
@@ -184,7 +183,7 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # Plot contour
-    contour_2d = ax.contourf(mesh_x, mesh_y, damage_map)
+    contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, cmap=plt.rcParams['image.cmap'])
     _ = plt.clabel(contour_2d, inline=True, fmt='%1.2E', colors='k')
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
