@@ -138,7 +138,10 @@ def main(data, config=None):
         resolved_map = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
                                                          irrad_data=data[server]['Irrad'])
         
-        fig, _ = plotting.plot_damage_resolved(resolved_map, damage=data[server]['Irrad']['aim_damage'][0].decode(), ion_name=config['daq']['ion'])
+        fig, _ = plotting.plot_damage_resolved(resolved_map,
+                                               damage=data[server]['Irrad']['aim_damage'][0].decode(),
+                                               ion_name=config['daq']['ion'],
+                                               row_separation=data[server]['Irrad']['row_separation'][0])
 
         figs.append(fig)
 

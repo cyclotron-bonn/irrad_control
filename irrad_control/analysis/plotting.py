@@ -58,7 +58,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=F
 
     ax.set_xlabel(f'{damage_target} area horizontal / mm')
     ax.set_ylabel(f'{damage_target} area vertical / mm')
-    plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target} Area (Server: {server})")
+    plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target} Area {'' if not server else server}")
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):
@@ -74,7 +74,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=F
         cbar.set_label(cbar_label)
 
 
-def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_axis=True,):
+def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_axis=True, **cbar_wkargs):
 
     damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=False)
 
@@ -84,7 +84,7 @@ def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_
     else:
         cbar_axis = None
 
-    cbar = fig.colorbar(damage_map, cax=cbar_axis, label=f"{damage_label} / {damage_unit}")
+    cbar = fig.colorbar(damage_map, cax=cbar_axis, label=f"{damage_label} / {damage_unit}", **cbar_wkargs)
 
     if rel_error_lims is not None:
         cbar_rel_axis = cbar_axis.twinx()
@@ -204,21 +204,34 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
     return fig, ax
 
 
-def plot_damage_resolved(damage_map, damage, ion_name):
+def plot_damage_resolved(damage_map, damage, ion_name, row_separation):
 
     # Make figure
     fig, ax = plt.subplots()
 
     im = ax.imshow(damage_map, origin='upper', cmap=plt.rcParams['image.cmap'], aspect='auto')
 
-    # Show ticks for every row but only display value for every 5th row
+    # Show ticks for every row
     ax.yaxis.set_ticks(range(damage_map.shape[0]))
-    ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
+    
+    # Only lable every 5th row when there are too many
+    if damage_map.shape[0] >= 20:
+        ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
 
-    _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False)
+    _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.1)
 
     # Apply labels
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, damage=damage, ion_name=ion_name)
+
+    ax_mm = ax.twinx()
+    ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
+
+    # Axes labels
+    ax.set_xlabel('Scan number')
+    ax.set_ylabel('Row number')
+    ax_mm.set_ylabel('Relative row position / mm')
+
+    align_axis(ax1=ax, ax2=ax_mm, v1=0, v2=0, axis='y')
 
     return fig, ax
 
