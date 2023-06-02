@@ -335,6 +335,43 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
     return fig, ax
 
 
+def plot_scan_overview(overview):  # scan_data, damage_data, beam_data, temp_data=None):
+
+    # Make figure
+    fig, ax = plt.subplots()
+
+    # Use fancy submodule, making grid of plots a 10000 times easier
+    # See https://matplotlib.org/stable/gallery/axes_grid1/scatter_hist_locatable_axes.html#sphx-glr-gallery-axes-grid1-scatter-hist-locatable-axes-py
+    anchor = make_axes_locatable(ax)
+
+    ax_beam = anchor.append_axes('bottom', 0.75, pad=0.15, sharex=ax)
+
+    ax.xaxis.set_tick_params(labelbottom=False)
+
+    #row_time_widths = scan_data['row_stop_timestamp'] - scan_data['row_start_timestamp']
+    #row_center_timestamps = np.cumsum(row_time_widths) / 2. + scan_data['row_start_timestamp'][0]
+
+    # Plot damage over scans
+    #ax.fill_between(np.arange(overview.shape[0]), overview, step='mid', color='C1', ec='k')
+    ax.bar(np.arange(overview.shape[0]),overview, color='C0')
+    #ax_beam.plot(beam_data['timestamp'], beam_data['beam_current'] * 1e9, '.')
+
+    # Generate ticks
+    xticks = [i for i in range(int(ax.get_xlim()[1]) + 1) if i%22 == 0 or 22./i == 2]
+    xlabels = []
+    ii = 0
+    for i, k in enumerate(xticks):
+        if i%2 != 0:
+            xlabels.append(str(ii))
+            ii += 1
+        else:
+             xlabels.append('')
+    print(xticks, xlabels)
+    ax.set_xticks(xticks, xlabels)
+
+    return fig, ax
+
+
 def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
     fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
     

@@ -72,21 +72,94 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     
     return resolved_map, n_complete_scans
 
+
+def generate_scan_overview_map(scan_data, damage_data, irrad_data):
+
+    # Get number of rows
+    n_rows = irrad_data['n_rows'][0]
+    # Get indivudiually scanned rows
+    individual_scan_mask = scan_data['scan'] == -1
+
+    complete_scan_data = scan_data[~individual_scan_mask]
+
+    # Get number of completed, individual and total scans
+    n_complete_scans = complete_scan_data['scan'][-1] + 1
+    
+    if np.count_nonzero(individual_scan_mask) == 0:
+        hist_shape = n_rows * n_complete_scans
+    else:
+        hist_shape = n_rows * (n_complete_scans + 1)
+
+    # Empty 1D hist to be filled with fluence data
+    overview_hist = np.zeros(shape=hist_shape)
+    
+    for scan in range(n_complete_scans):
+
+        current_scan_mask = complete_scan_data['scan'] == scan
+
+        current_offset = scan * n_rows
+
+        for _, entry in enumerate(complete_scan_data[current_scan_mask]):
+
+            # Add the current row fluence to the respective row in the histogram
+            row = entry['row']
+            overview_hist[current_offset + row] += entry['row_primary_fluence']
+
+        # Add this scans resulting fluence as offset to the subsequent scan
+        scan_damage_idx = np.searchsorted(damage_data['scan'], scan)
+        overview_hist[current_offset + n_rows:] += damage_data['scan_primary_fluence'][scan_damage_idx]
+
+    # Now we add the individual row scans
+    if np.count_nonzero(individual_scan_mask) > 0:
+        corr_offset = overview_hist.shape[0] - n_rows
+
+        for _, entry in enumerate(scan_data[individual_scan_mask]):
+            row = entry['row']
+            overview_hist[corr_offset + row] += entry['row_primary_fluence']
+
+    return overview_hist
+
         
 def main(data, config):
     
     # Container for figures
     figs = []
-
     server = config['name']
-    beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
-                                                    scan_data=data[server]['Scan'])
+
+    # Plot row-resolved scan damage
+    for dmg in ('row_primary_fluence', 'row_tid'):
+
+        resolved_map, n_comp = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
+                                                                 irrad_data=data[server]['Irrad'],
+                                                                 damage=dmg)
+        
+        fig, _ = plotting.plot_scan_damage_resolved(resolved_map,
+                                                    damage=dmg.split('_')[1], #data[server]['Irrad']['aim_damage'][0].decode(),
+                                                    ion_name=config['daq']['ion'],
+                                                    row_separation=data[server]['Irrad']['row_separation'][0],
+                                                    n_complete_scans=n_comp)
+        figs.append(fig)
+
+    overview_map = generate_scan_overview_map(scan_data=data[server]['Scan'],
+                                              damage_data=data[server]['Damage'],
+                                              irrad_data=data[server]['Irrad'])
+    fig, _ = plotting.plot_scan_overview(overview_map)
+    figs.append(fig)
+
     # Beam current histogram
+    beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
+                                                  scan_data=data[server]['Scan'])
     beam_during_scan = data[server]['Beam'][beam_during_scan_mask]
     
     scan_duration_str = plotting._calc_duration(start=beam_during_scan['timestamp'][0],
-                                                    end=beam_during_scan['timestamp'][-1],
-                                                    as_str=True)
+                                                end=beam_during_scan['timestamp'][-1],
+                                                as_str=True)
+    """
+    fig, _ = plotting.plot_scan_overview(scan_data=data[server]['Scan'],
+                                         damage_data=data[server]['Damage'],
+                                         beam_data=beam_during_scan)
+    figs.append(fig)
+    """
 
     # Beam current in nA during scanning
     beam_currents_during_scan = data[server]['Beam']['beam_current']
@@ -127,16 +200,6 @@ def main(data, config):
                                                 hardness_factor=config['daq']['kappa']['nominal'],
                                                 stoping_power=config['daq']['stopping_power'])
 
-    figs.append(fig)
-
-    resolved_map, n_comp = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
-                                                                irrad_data=data[server]['Irrad'])
-    
-    fig, _ = plotting.plot_scan_damage_resolved(resolved_map,
-                                                damage=data[server]['Irrad']['aim_damage'][0].decode(),
-                                                ion_name=config['daq']['ion'],
-                                                row_separation=data[server]['Irrad']['row_separation'][0],
-                                                n_complete_scans=n_comp)
     figs.append(fig)
 
     return figs
