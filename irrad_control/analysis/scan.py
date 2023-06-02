@@ -53,22 +53,24 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     # Make empty map of shape n_total_scans x n_rows
     resolved_map = np.zeros(shape=(n_rows, n_total_scans))
 
-    # Loop over scan data and add to map
-    indv_scan_number = n_complete_scans
-    for i in range(len(scan_data)):
+    # Loop over complete scan data and add to map
+    for i in range(len(complete_scan_data)):
 
-        row = scan_data[i]['row']
-        scan = scan_data[i]['scan']
+        row = complete_scan_data[i]['row']
+        scan = complete_scan_data[i]['scan']
 
         # We are looking at completed scans
-        if scan != -1:
-            # Add fluence of this row to all subsequent scans since in all following scans this fluence will already be applied in the row
-            resolved_map[row, scan:] += scan_data[i][damage]
-        else:
-            resolved_map[row, indv_scan_number:] += scan_data[i][damage]
-            indv_scan_number += 1
+        # Add fluence of this row to all subsequent scans since in all following scans this fluence will already be applied in the row
+        resolved_map[row, scan:] += complete_scan_data[i][damage]
+
+    # Loop over individual row scans
+    for j in range(len(individual_scan_data)):
+        
+        row = individual_scan_data[j]['row']
+            
+        resolved_map[row, j + n_complete_scans:] += individual_scan_data[j][damage]
     
-    return resolved_map
+    return resolved_map, n_complete_scans
 
         
 def main(data, config=None):
@@ -134,15 +136,14 @@ def main(data, config=None):
 
         figs.append(fig)
 
+        resolved_map, n_comp = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
+                                                                 irrad_data=data[server]['Irrad'])
         
-        resolved_map = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
-                                                         irrad_data=data[server]['Irrad'])
-        
-        fig, _ = plotting.plot_damage_resolved(resolved_map,
-                                               damage=data[server]['Irrad']['aim_damage'][0].decode(),
-                                               ion_name=config['daq']['ion'],
-                                               row_separation=data[server]['Irrad']['row_separation'][0])
-
+        fig, _ = plotting.plot_scan_damage_resolved(resolved_map,
+                                                    damage=data[server]['Irrad']['aim_damage'][0].decode(),
+                                                    ion_name=config['daq']['ion'],
+                                                    row_separation=data[server]['Irrad']['row_separation'][0],
+                                                    n_complete_scans=n_comp)
         figs.append(fig)
 
         return figs
