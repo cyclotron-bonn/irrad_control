@@ -204,34 +204,133 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
     return fig, ax
 
 
-def plot_damage_resolved(damage_map, damage, ion_name, row_separation):
+def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_complete_scans):
 
-    # Make figure
-    fig, ax = plt.subplots()
+    def make_axis_int_only(ax, axis='x'):
+        actual_axis =getattr(ax, 'xaxis' if axis == 'x' else 'yaxis')
+        scan_numbers = [int(lbl.get_position()[0]) for lbl in actual_axis.get_ticklabels() if lbl.get_position()[0] % 1 == 0]
+        actual_axis.set_ticks(scan_numbers, labels=[str(i) for i in scan_numbers])
 
-    im = ax.imshow(damage_map, origin='upper', cmap=plt.rcParams['image.cmap'], aspect='auto')
+    # Our irradiation consisted of complete scans and subsequent correction scans of individual rows
+    if n_complete_scans != damage_map.shape[1]:
+        
+        # Complete scan and correction scan map
+        comp_map = damage_map[:, :n_complete_scans]
+        corr_map = damage_map[: , n_complete_scans:]
 
-    # Show ticks for every row
-    ax.yaxis.set_ticks(range(damage_map.shape[0]))
-    
-    # Only lable every 5th row when there are too many
-    if damage_map.shape[0] >= 20:
-        ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
+        # Minimum width the plots get
+        min_width = 0.75
 
-    _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.1)
+        width_ratios = [min_width + comp_map.shape[1] / damage_map.shape[1], min_width + corr_map.shape[1] / damage_map.shape[1]]
 
-    # Apply labels
-    _apply_labels_damage_plots(ax=ax, damage_map=damage_map, damage=damage, ion_name=ion_name)
+        # From https://stackoverflow.com/questions/32185411/break-in-x-axis-of-matplotlib
+        fig, ax = plt.subplots(1, 2, facecolor='w', width_ratios=width_ratios)
+        plt.subplots_adjust(wspace=0.075)
 
-    ax_mm = ax.twinx()
-    ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
+        comp_idx = n_complete_scans - 1
+        corr_idx = corr_map.shape[1] - 1
+        
+        # Scale axis to that scan numbers are centerd under bin
+        comp_extend=[comp_idx - 0.5, comp_idx + 0.5, comp_map.shape[0], 0]
+        corr_extend=[n_complete_scans - 0.5, corr_idx + n_complete_scans + 0.5, comp_map.shape[0], 0]
 
-    # Axes labels
-    ax.set_xlabel('Scan number')
-    ax.set_ylabel('Row number')
-    ax_mm.set_ylabel('Relative row position / mm')
+        # PLot the actual images
+        _ = ax[0].imshow(comp_map, origin='upper', extent=comp_extend, cmap=plt.rcParams['image.cmap'], aspect='auto', vmin=damage_map.min(), vmax=damage_map.max())
+        im_corr = ax[1].imshow(corr_map, origin='upper', extent=corr_extend, cmap=plt.rcParams['image.cmap'], aspect='auto', vmin=damage_map.min(), vmax=damage_map.max())
 
-    align_axis(ax1=ax, ax2=ax_mm, v1=0, v2=0, axis='y')
+        # Make colorbar for the im_corr map which contains the final map
+        _make_cbar(fig=fig, damage_map=im_corr, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.175)
+
+        # Hide spines between axes
+        ax[0].spines['right'].set_visible(False)
+        ax[1].spines['left'].set_visible(False)
+
+        # Tick stuff
+        ax[0].yaxis.tick_left()
+        ax[0].tick_params(labelright=False)
+        ax[1].set_yticks([])
+        ax[0].yaxis.set_ticks(range(damage_map.shape[0]))  # Show ticks for every row
+
+        # Only lable every 5th row when there are too many
+        if damage_map.shape[0] >= 20:
+            ax[0].yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax[0].yaxis.get_ticklabels()))])
+        
+        # X axis labels
+        for curr_x in ax:
+            make_axis_int_only(curr_x)
+
+        # Make second y axis for showing row locations in mm
+        ax_mm = ax[1].twinx()
+        ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
+
+        ax[0].set_xlabel(r'Complete scan $\mathrm{\#_{scan}}$')
+        ax[1].set_xlabel(r'Correction scan $\mathrm{\#_{corr}}$')
+        ax[0].set_ylabel(r'Row $\mathrm{\#_{row}}$')
+        ax_mm.set_ylabel('Relative row position / mm')
+
+        align_axis(ax1=ax[0], ax2=ax_mm, v1=0, v2=0, axis='y')
+
+        dmg_lbl, dmg_unt, dmg_trgt = _get_damage_label_unit_target(damage=damage, ion_name=ion_name)
+
+        # Fake a little legend
+        ax[0].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(comp_map.mean(), u'\u00b1', comp_map.std(), dmg_unt),
+                    x=abs(ax[0].get_xlim()[0] - ax[0].get_xlim()[1]) * 0.05 + ax[0].get_xlim()[0],
+                    y=ax[0].get_ylim()[0]*0.75, rotation=90, fontsize=10,
+                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+        ax[1].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(corr_map.mean(), u'\u00b1', corr_map.std(), dmg_unt),
+                    x=abs(ax[1].get_xlim()[0] - ax[1].get_xlim()[1]) * 0.05 + ax[1].get_xlim()[0],
+                    y=ax[1].get_ylim()[0]*0.75, rotation=90, fontsize=10,
+                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+        
+        fig.suptitle(f"{dmg_lbl} on {dmg_trgt.lower()} area, row-resolved")
+
+        # Make the break lines
+        d = .015  # how big to make the diagonal lines in axes coordinates
+        # arguments to pass plot, just so we don't keep repeating them
+        kwargs = dict(transform=ax[0].transAxes, color='k', clip_on=False)
+        ax[0].plot((1-d, 1+d), (-d, +d), **kwargs)
+        ax[0].plot((1-d, 1+d), (1-d, 1+d), **kwargs)
+
+        kwargs.update(transform=ax[1].transAxes)  # switch to the bottom axes
+        ax[1].plot((-d, +d), (1-d, 1+d), **kwargs)
+        ax[1].plot((-d, +d), (-d, +d), **kwargs)
+
+    else:
+
+        # Make figure
+        fig, ax = plt.subplots()
+
+        im = ax.imshow(damage_map, origin='upper', cmap=plt.rcParams['image.cmap'], aspect='auto')
+
+        make_axis_int_only(ax)
+
+        # Show ticks for every row
+        ax.yaxis.set_ticks(range(damage_map.shape[0]))
+        
+        # Only lable every 5th row when there are too many
+        if damage_map.shape[0] >= 20:
+            ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
+
+        _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.125)
+
+        dmg_lbl, dmg_unt, dmg_trgt = _get_damage_label_unit_target(damage=damage, ion_name=ion_name)
+
+        ax_mm = ax.twinx()
+        ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
+
+        # Fake a little legend
+        ax.text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(damage_map.mean(), u'\u00b1', damage_map.std(), dmg_unt),
+                x=abs(ax.get_xlim()[0] - ax.get_xlim()[1]) * 0.225 + ax.get_xlim()[0],
+                y=ax.get_ylim()[0]*0.05, rotation=0, fontsize=10,
+                bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+
+        # Axes labels
+        ax.set_xlabel(r'Complete scan $\mathrm{\#_{scan}}$')
+        ax.set_ylabel(r'Row $\mathrm{\#_{row}}$')
+        ax_mm.set_ylabel('Relative row position / mm')
+        ax.set_title(f"{dmg_lbl} on {dmg_trgt.lower()} area, row-resolved")
+
+        align_axis(ax1=ax, ax2=ax_mm, v1=0, v2=0, axis='y')
 
     return fig, ax
 
