@@ -73,77 +73,70 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     return resolved_map, n_complete_scans
 
         
-def main(data, config=None):
+def main(data, config):
     
     # Container for figures
     figs = []
 
-    # Multipart analysis
-    if config is None:
-        pass
+    server = config['name']
+    beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
+                                                    scan_data=data[server]['Scan'])
+    # Beam current histogram
+    beam_during_scan = data[server]['Beam'][beam_during_scan_mask]
     
-    # One file
-    else:
+    scan_duration_str = plotting._calc_duration(start=beam_during_scan['timestamp'][0],
+                                                    end=beam_during_scan['timestamp'][-1],
+                                                    as_str=True)
 
-        server = config['name']
-        beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
-                                                      scan_data=data[server]['Scan'])
-        # Beam current histogram
-        beam_during_scan = data[server]['Beam'][beam_during_scan_mask]
-        
-        scan_duration_str = plotting._calc_duration(start=beam_during_scan['timestamp'][0],
-                                                        end=beam_during_scan['timestamp'][-1],
-                                                        as_str=True)
+    # Beam current in nA during scanning
+    beam_currents_during_scan = data[server]['Beam']['beam_current']
+    beam_currents_during_scan[~beam_during_scan_mask] = np.nan  # Mask non-scanning values with np.nan so matplotlib wont connect data
+    beam_currents_during_scan[beam_during_scan_mask] /= constants.nano
 
-        # Beam current in nA during scanning
-        beam_currents_during_scan = data[server]['Beam']['beam_current']
-        beam_currents_during_scan[~beam_during_scan_mask] = np.nan  # Mask non-scanning values with np.nan so matplotlib wont connect data
-        beam_currents_during_scan[beam_during_scan_mask] /= constants.nano
+    # Get indices of start and end of scan
+    scan_idxs = np.nonzero(beam_during_scan_mask)[0]
+    scan_idx_start, scan_idx_end = scan_idxs[0], scan_idxs[-1]
 
-        # Get indices of start and end of scan
-        scan_idxs = np.nonzero(beam_during_scan_mask)[0]
-        scan_idx_start, scan_idx_end = scan_idxs[0], scan_idxs[-1]
+    fig, _ = plotting.plot_beam_current(timestamps=data[server]['Beam']['timestamp'][scan_idx_start:scan_idx_end],
+                                        beam_current=beam_currents_during_scan[scan_idx_start:scan_idx_end],
+                                        scan_data=True)
+    figs.append(fig)
+
+    plot_data = {
+        'xdata': beam_currents_during_scan[beam_during_scan_mask],
+        'xlabel': 'Beam current / nA',
+        'ylabel': '#',
+        'label': "Beam current during {} scan".format(scan_duration_str),
+        'title': "Beam current distribution during scan",
+        'fmt': 'C0'
+    }
+    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(beam_currents_during_scan[beam_during_scan_mask].mean(), u'\u00b1', beam_currents_during_scan[beam_during_scan_mask].std())
+
+    fig, _ = plotting.plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
+    figs.append(fig)
+
+    # Relative position of beam-mean wrt the beam pipe center
+    fig, _ = plotting.plot_relative_beam_position(horizontal_pos=beam_during_scan['horizontal_beam_position'],
+                                                    vertical_pos=beam_during_scan['vertical_beam_position'],
+                                                    scan_data=True)
+    figs.append(fig)
+
+    # Histogram of row proton fluence
+    fig, _ = plotting.plot_fluence_distribution(fluence_data=data[server]['Scan']['row_primary_fluence'],
+                                                ion=config['daq']['ion'],
+                                                hardness_factor=config['daq']['kappa']['nominal'],
+                                                stoping_power=config['daq']['stopping_power'])
+
+    figs.append(fig)
+
+    resolved_map, n_comp = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
+                                                                irrad_data=data[server]['Irrad'])
     
-        fig, _ = plotting.plot_beam_current(timestamps=data[server]['Beam']['timestamp'][scan_idx_start:scan_idx_end],
-                                            beam_current=beam_currents_during_scan[scan_idx_start:scan_idx_end],
-                                            scan_data=True)
-        figs.append(fig)
+    fig, _ = plotting.plot_scan_damage_resolved(resolved_map,
+                                                damage=data[server]['Irrad']['aim_damage'][0].decode(),
+                                                ion_name=config['daq']['ion'],
+                                                row_separation=data[server]['Irrad']['row_separation'][0],
+                                                n_complete_scans=n_comp)
+    figs.append(fig)
 
-        plot_data = {
-            'xdata': beam_currents_during_scan[beam_during_scan_mask],
-            'xlabel': 'Beam current / nA',
-            'ylabel': '#',
-            'label': "Beam current during {} scan".format(scan_duration_str),
-            'title': "Beam current distribution during scan",
-            'fmt': 'C0'
-        }
-        plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(beam_currents_during_scan[beam_during_scan_mask].mean(), u'\u00b1', beam_currents_during_scan[beam_during_scan_mask].std())
-
-        fig, _ = plotting.plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
-        figs.append(fig)
-
-        # Relative position of beam-mean wrt the beam pipe center
-        fig, _ = plotting.plot_relative_beam_position(horizontal_pos=beam_during_scan['horizontal_beam_position'],
-                                                      vertical_pos=beam_during_scan['vertical_beam_position'],
-                                                      scan_data=True)
-        figs.append(fig)
-    
-        # Histogram of row proton fluence
-        fig, _ = plotting.plot_fluence_distribution(fluence_data=data[server]['Scan']['row_primary_fluence'],
-                                                    ion=config['daq']['ion'],
-                                                    hardness_factor=config['daq']['kappa']['nominal'],
-                                                    stoping_power=config['daq']['stopping_power'])
-
-        figs.append(fig)
-
-        resolved_map, n_comp = generate_scan_resolved_damage_map(scan_data=data[server]['Scan'],
-                                                                 irrad_data=data[server]['Irrad'])
-        
-        fig, _ = plotting.plot_scan_damage_resolved(resolved_map,
-                                                    damage=data[server]['Irrad']['aim_damage'][0].decode(),
-                                                    ion_name=config['daq']['ion'],
-                                                    row_separation=data[server]['Irrad']['row_separation'][0],
-                                                    n_complete_scans=n_comp)
-        figs.append(fig)
-
-        return figs
+    return figs
