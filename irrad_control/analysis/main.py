@@ -57,18 +57,6 @@ def get_analysis_suffix(parsed_args):
     return analysis_suffix
 
 
-def get_outfile(infiles):
-    """
-    Reads the *infiles* and determines the outfile name.
-    If len(*infiles*) > 1, the first element determines the outfile name
-
-    Parameters
-    ----------
-    infile_path : list
-        Input file list
-    """
-
-
 def input_files(infiles):
     """
     Generator that loads all input files
