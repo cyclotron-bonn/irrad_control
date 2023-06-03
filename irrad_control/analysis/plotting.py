@@ -507,7 +507,7 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     return fig, (ax_hist_2d, ax_hist_h, ax_hist_v)
 
 
-def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lambda, hist=False):
+def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lambda, ion_name, ion_energy, hist=False):
 
     beta_const, lambda_const = beta_lambda
 
@@ -517,12 +517,14 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
     fit_label += '\n\t' + r'$\mathrm{SEY}=\beta^{-1}=(%.3f \pm %.3f)$' % ((100./beta_const).n, (100./beta_const).s) + ' %'
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
 
+    label_ion = f"{ion_energy:.3f} MeV {ion_name.capitalize()} data:" + '\n' + f"SEE channel '{calib_sig}' vs. Cup channel '{ref_sig}'"
+
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
                                           'ydata': ref_data,
                                           'xlabel': r"Secondary electron current $\mathrm{I_{SEE}}$ / nA",
                                           'ylabel': r"Beam current $\mathrm{I_{Beam}}$ / nA",
-                                          'label': f"SEE channel '{calib_sig}' vs. Cup channel '{ref_sig}'",
+                                          'label': label_ion,
                                           'title':"Beam current calibration",
                                           'fmt':'C0.',
                                           'alpha': 0.33},
