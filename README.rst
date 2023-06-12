@@ -143,6 +143,7 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 ========
 
+- v2.2.1: Bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.2.1>`_
 - v2.2.0: Event distribution system and Bethe-Bloch stopping power calculation for arbitrary ions, bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.2.0>`_
 - v2.1.0: Separate monitor GUI, ``.desktop``-file allowing to launch from activieties, bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.1.0>`_
 - v2.0.1: Bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.0.1>`_
