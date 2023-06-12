@@ -140,11 +140,11 @@ def main(data, config):
                                                     n_complete_scans=n_comp)
         figs.append(fig)
 
-    overview_map = generate_scan_overview_map(scan_data=data[server]['Scan'],
-                                              damage_data=data[server]['Damage'],
-                                              irrad_data=data[server]['Irrad'])
-    fig, _ = plotting.plot_scan_overview(overview_map)
-    figs.append(fig)
+    # overview_map = generate_scan_overview_map(scan_data=data[server]['Scan'],
+    #                                           damage_data=data[server]['Damage'],
+    #                                           irrad_data=data[server]['Irrad'])
+    # fig, _ = plotting.plot_scan_overview(overview_map)
+    # figs.append(fig)
 
     # Beam current histogram
     beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
@@ -154,12 +154,6 @@ def main(data, config):
     scan_duration_str = plotting._calc_duration(start=beam_during_scan['timestamp'][0],
                                                 end=beam_during_scan['timestamp'][-1],
                                                 as_str=True)
-    """
-    fig, _ = plotting.plot_scan_overview(scan_data=data[server]['Scan'],
-                                         damage_data=data[server]['Damage'],
-                                         beam_data=beam_during_scan)
-    figs.append(fig)
-    """
 
     # Beam current in nA during scanning
     beam_currents_during_scan = data[server]['Beam']['beam_current']

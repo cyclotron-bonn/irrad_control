@@ -1,14 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
-import matplotlib.ticker as ticker
 import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from irrad_control.analysis.formulas import lin_odr, tid_per_scan
+from irrad_control.analysis.formulas import lin_odr
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
