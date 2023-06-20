@@ -402,7 +402,7 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
     else:
         ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'], alpha=plot_data.get('alpha', 1))
     ax.grid(True)
-    ax.legend(loc='upper left')
+    ax.legend(loc='best')
     
     return fig, ax
 
@@ -512,11 +512,11 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
 
     fit_label=r'Linear fit: $\mathrm{I_{Beam} = \beta \cdot I_{SEE}}$;'
     fit_label += '\n\t' + r'$\beta=(%.2E \pm %.2E)$' % (beta_const.n, beta_const.s)
-    fit_label += '\n\t' + r'$\lambda=\beta / 5\ V=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
+    fit_label += '\n\t' + r'$\lambda=\beta\ /\ 5V=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
     fit_label += '\n\t' + r'$\mathrm{SEY}=\beta^{-1}=(%.3f \pm %.3f)$' % ((100./beta_const).n, (100./beta_const).s) + ' %'
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
 
-    label_ion = f"{ion_energy:.3f} MeV {ion_name.capitalize()} data:" + '\n' + f"SEE channel '{calib_sig}' vs. Cup channel '{ref_sig}'"
+    label_ion = f"{ion_energy:.3f} MeV {ion_name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
 
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
