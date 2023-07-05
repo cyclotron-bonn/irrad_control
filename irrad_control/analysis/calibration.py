@@ -35,6 +35,8 @@ def _get_ref_voltage(config):
 def main(data, config):
 
     server = config['name']
+    ion_name = config['daq']['ion']
+    ion_energy = config['daq']['ekin_initial']
 
     # Get raw data and event data; events are needed in order to check for changing full scale factors when using the IrradDAQBoard
     raw_data = data[server]['Raw']
@@ -112,12 +114,25 @@ def main(data, config):
             figs.append(fig)
 
             #Beam current over time
-            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask], ref_data=current_cup_ch[stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result)
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask],
+                                               ref_data=current_cup_ch[stat_mask],
+                                               calib_sig=sem_ch, ref_sig=cup_ch,
+                                               red_chi=red_chi,
+                                               beta_lambda=calib_result,
+                                               ion_name=ion_name,
+                                               ion_energy=ion_energy)
 
             figs.append(fig)
 
             #Beam current over time
-            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask], ref_data=current_cup_ch[stat_mask], calib_sig=sem_ch, ref_sig=cup_ch, red_chi=red_chi, beta_lambda=calib_result, hist=True)
+            fig, _ = plotting.plot_calibration(calib_data=current_sem_ch[stat_mask],
+                                               ref_data=current_cup_ch[stat_mask],
+                                               calib_sig=sem_ch, ref_sig=cup_ch,
+                                               red_chi=red_chi,
+                                               beta_lambda=calib_result,
+                                               ion_name=ion_name,
+                                               ion_energy=ion_energy,
+                                               hist=True)
 
             figs.append(fig)
 
