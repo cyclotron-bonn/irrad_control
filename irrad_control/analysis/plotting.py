@@ -238,7 +238,7 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         im_corr = ax[1].imshow(corr_map, origin='upper', extent=corr_extend, cmap=plt.rcParams['image.cmap'], aspect='auto', vmin=damage_map.min(), vmax=damage_map.max())
 
         # Make colorbar for the im_corr map which contains the final map
-        _make_cbar(fig=fig, damage_map=im_corr, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.175)
+        _make_cbar(fig=fig, damage_map=im_corr, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.275)
 
         # Hide spines between axes
         ax[0].spines['right'].set_visible(False)
