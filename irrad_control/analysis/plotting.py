@@ -341,32 +341,35 @@ def plot_scan_overview(overview):  # scan_data, damage_data, beam_data, temp_dat
 
     # Use fancy submodule, making grid of plots a 10000 times easier
     # See https://matplotlib.org/stable/gallery/axes_grid1/scatter_hist_locatable_axes.html#sphx-glr-gallery-axes-grid1-scatter-hist-locatable-axes-py
-    anchor = make_axes_locatable(ax)
+    #anchor = make_axes_locatable(ax)
+    start_ts = overview['row_hist']['center_timestamp'][0]
+    ax.bar(overview['row_hist']['center_timestamp'], overview['row_hist']['primary_damage'])
+    ax.errorbar(overview['scan_hist']['center_timestamp'], overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'])
 
-    ax_beam = anchor.append_axes('bottom', 0.75, pad=0.15, sharex=ax)
+    #ax_beam = anchor.append_axes('bottom', 0.75, pad=0.15, sharex=ax)
 
-    ax.xaxis.set_tick_params(labelbottom=False)
+    #ax.xaxis.set_tick_params(labelbottom=False)
 
     #row_time_widths = scan_data['row_stop_timestamp'] - scan_data['row_start_timestamp']
     #row_center_timestamps = np.cumsum(row_time_widths) / 2. + scan_data['row_start_timestamp'][0]
 
     # Plot damage over scans
     #ax.fill_between(np.arange(overview.shape[0]), overview, step='mid', color='C1', ec='k')
-    ax.bar(np.arange(overview.shape[0]),overview, color='C0')
+    #ax.bar(np.arange(overview.shape[0]),overview, color='C0')
     #ax_beam.plot(beam_data['timestamp'], beam_data['beam_current'] * 1e9, '.')
 
     # Generate ticks
-    xticks = [i for i in range(int(ax.get_xlim()[1]) + 1) if i%22 == 0 or 22./i == 2]
-    xlabels = []
-    ii = 0
-    for i, k in enumerate(xticks):
-        if i%2 != 0:
-            xlabels.append(str(ii))
-            ii += 1
-        else:
-             xlabels.append('')
-    print(xticks, xlabels)
-    ax.set_xticks(xticks, xlabels)
+    #xticks = [i for i in range(int(ax.get_xlim()[1]) + 1) if i%22 == 0 or 22./i == 2]
+    #xlabels = []
+    #ii = 0
+    #for i, k in enumerate(xticks):
+    #    if i%2 != 0:
+    #        xlabels.append(str(ii))
+    #        ii += 1
+    #    else:
+    #         xlabels.append('')
+    #print(xticks, xlabels)
+    #ax.set_xticks(xticks, xlabels)
 
     return fig, ax
 

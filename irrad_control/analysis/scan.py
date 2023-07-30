@@ -75,7 +75,9 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     return resolved_map, n_complete_scans
 
 
-def generate_scan_overview_map(scan_data, damage_data, irrad_data):
+def generate_scan_overview(scan_data, damage_data, irrad_data):
+
+    overview = {}
 
     # Get number of rows
     n_rows = irrad_data['n_rows'][0]
@@ -86,40 +88,92 @@ def generate_scan_overview_map(scan_data, damage_data, irrad_data):
 
     # Get number of completed, individual and total scans
     n_complete_scans = complete_scan_data['scan'][-1] + 1
+    n_indv_scans = np.count_nonzero(individual_scan_mask)
     
-    if np.count_nonzero(individual_scan_mask) == 0:
+    if n_indv_scans == 0:
         hist_shape = n_rows * n_complete_scans
     else:
-        hist_shape = n_rows * (n_complete_scans + 1)
+        hist_shape = n_rows * n_complete_scans + n_indv_scans
 
-    # Empty 1D hist to be filled with fluence data
-    overview_hist = np.zeros(shape=hist_shape)
+    # Make nice hists for rows and scans
+    overview['row_hist'] = np.zeros(shape=hist_shape, dtype=[('center_timestamp', '<f8'),
+                                                             ('primary_damage', '<f4'),
+                                                             ('primary_damage_error', '<f4'),
+                                                             ('number', '<i2'),
+                                                             ('correction_scan', '?')])  # NumPy somehow uses '?' as boolean ('b' is signed byte, 'B' unsigned byte)
     
+    overview['scan_hist'] = np.zeros(shape=n_complete_scans+1, dtype=overview['row_hist'].dtype)
+
+    # Make a bunch of indices for searching
+    scan_start_idx = scan_stop_idx = 0
+
     for scan in range(n_complete_scans):
 
-        current_scan_mask = complete_scan_data['scan'] == scan
+        relevant_data = complete_scan_data[scan_start_idx:]
+        scan_stop_idx = np.searchsorted(relevant_data['scan'], scan + 1)
+        scan_start_idx += scan_stop_idx
+        current_scan_data = relevant_data[:scan_stop_idx]
 
+        # Where we are in the output hist
         current_offset = scan * n_rows
+        for i, entry in enumerate(current_scan_data):
 
-        for _, entry in enumerate(complete_scan_data[current_scan_mask]):
+            cridx = current_offset + i
 
             # Add the current row fluence to the respective row in the histogram
-            row = entry['row']
-            overview_hist[current_offset + row] += entry['row_primary_fluence']
+            row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
+            
+            overview['row_hist']['center_timestamp'][cridx] = row_center_ts
+            overview['row_hist']['primary_damage'][cridx] += entry['row_primary_fluence']
+            overview['row_hist']['primary_damage_error'][cridx] = entry['row_primary_fluence_error']
+            overview['row_hist']['number'][cridx] = entry['row']
 
-        # Add this scans resulting fluence as offset to the subsequent scan
-        scan_damage_idx = np.searchsorted(damage_data['scan'], scan)
-        overview_hist[current_offset + n_rows:] += damage_data['scan_primary_fluence'][scan_damage_idx]
+        # Add this scans resulting fluence as offset to all subsequent scans
+        overview['row_hist']['primary_damage'][(scan+1)*n_rows:] += current_scan_data['row_primary_fluence'].mean()
+        
+        # Center timestamp of this scan
+        scan_start_ts = current_scan_data[0]['row_start_timestamp']
+        scan_stop_ts = current_scan_data[-1]['row_stop_timestamp']
+        scan_center_ts = (scan_stop_ts - scan_start_ts) / 2 + scan_start_ts
+        
+        # Get scan info from damage data
+        current_damage_data = damage_data[np.searchsorted(damage_data['scan'], scan)]
 
+        overview['scan_hist']['center_timestamp'][scan] = scan_center_ts
+        overview['scan_hist']['primary_damage'][scan] = current_damage_data['scan_primary_fluence']
+        overview['scan_hist']['primary_damage_error'][scan] = current_damage_data['scan_primary_fluence_error']
+        overview['scan_hist']['number'][scan] = scan
+    
     # Now we add the individual row scans
-    if np.count_nonzero(individual_scan_mask) > 0:
-        corr_offset = overview_hist.shape[0] - n_rows
+    if n_indv_scans > 0:
+        
+        corr_offset = n_rows * n_complete_scans
+        for i, entry in enumerate(scan_data[individual_scan_mask]):
+            cridx = corr_offset + i
 
-        for _, entry in enumerate(scan_data[individual_scan_mask]):
-            row = entry['row']
-            overview_hist[corr_offset + row] += entry['row_primary_fluence']
+            # Add the current row fluence to the respective row in the histogram
+            row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
+            print(row_center_ts)
+            
+            overview['row_hist']['center_timestamp'][cridx] = row_center_ts
+            overview['row_hist']['primary_damage'][cridx] += entry['row_primary_fluence']
+            overview['row_hist']['primary_damage_error'][cridx] = entry['row_primary_fluence_error']
+            overview['row_hist']['number'][cridx] = entry['row']
+            overview['row_hist']['correction_scan'] = True
+        
+        # Center timestamp of this scan
+        indv_scan_start_ts = scan_data[individual_scan_mask][0]['row_start_timestamp']
+        indv_scan_stop_ts = scan_data[individual_scan_mask][-1]['row_stop_timestamp']
+        indv_center_ts = (indv_scan_stop_ts - indv_scan_start_ts) / 2 + indv_scan_start_ts
+        
+        # Calculate final damage value and error
+        overview['scan_hist']['center_timestamp'][n_complete_scans] = indv_center_ts
+        overview['scan_hist']['primary_damage'][n_complete_scans] = overview['row_hist']['primary_damage'][-n_indv_scans:].mean()
+        overview['scan_hist']['primary_damage_error'][n_complete_scans] = overview['row_hist']['primary_damage'][-n_indv_scans:].std()
+        overview['scan_hist']['number'][n_complete_scans] = -1
+        overview['scan_hist']['correction_scan'][n_complete_scans] = True
 
-    return overview_hist
+    return overview
 
         
 def main(data, config):
@@ -142,11 +196,12 @@ def main(data, config):
                                                     n_complete_scans=n_comp)
         figs.append(fig)
 
-    # overview_map = generate_scan_overview_map(scan_data=data[server]['Scan'],
-    #                                           damage_data=data[server]['Damage'],
-    #                                           irrad_data=data[server]['Irrad'])
-    # fig, _ = plotting.plot_scan_overview(overview_map)
-    # figs.append(fig)
+    overview_map = generate_scan_overview(scan_data=data[server]['Scan'],
+                                          damage_data=data[server]['Damage'],
+                                          irrad_data=data[server]['Irrad'])
+    
+    fig, _ = plotting.plot_scan_overview(overview_map)
+    figs.append(fig)
 
     logging.info("Analyse beam properties during scan...")
     # Beam current histogram
