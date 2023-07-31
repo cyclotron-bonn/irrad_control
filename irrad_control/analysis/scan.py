@@ -169,7 +169,7 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
         # Calculate final damage value and error
         overview['scan_hist']['center_timestamp'][n_complete_scans] = indv_center_ts
         overview['scan_hist']['primary_damage'][n_complete_scans] = overview['row_hist']['primary_damage'][-n_indv_scans:].mean()
-        overview['scan_hist']['primary_damage_error'][n_complete_scans] = overview['row_hist']['primary_damage'][-n_indv_scans:].std()
+        overview['scan_hist']['primary_damage_error'][n_complete_scans] = (overview['row_hist']['primary_damage'][-n_indv_scans:].std() ** 1 + overview['scan_hist']['primary_damage_error'][n_complete_scans-1] ** 2)**.5
         overview['scan_hist']['number'][n_complete_scans] = -1
         overview['scan_hist']['correction_scan'][n_complete_scans] = True
 
@@ -196,11 +196,20 @@ def main(data, config):
                                                     n_complete_scans=n_comp)
         figs.append(fig)
 
-    overview_map = generate_scan_overview(scan_data=data[server]['Scan'],
-                                          damage_data=data[server]['Damage'],
-                                          irrad_data=data[server]['Irrad'])
+    scan_overview = generate_scan_overview(scan_data=data[server]['Scan'],
+                                           damage_data=data[server]['Damage'],
+                                           irrad_data=data[server]['Irrad'])
     
-    fig, _ = plotting.plot_scan_overview(overview_map)
+    # Only allow arduino temp sensor for now
+    if 'Temperature' in data[server] and 'ArduinoNTCReadout' in data[server]['Temperature']:
+        temp_data = data[server]['Temperature']['ArduinoNTCReadout']
+    else:
+        temp_data = None
+    
+    fig, _ = plotting.plot_scan_overview(overview=scan_overview,
+                                         beam_data=data[server]['Beam'],
+                                         temp_data=temp_data,
+                                         daq_config=config['daq'])
     figs.append(fig)
 
     logging.info("Analyse beam properties during scan...")

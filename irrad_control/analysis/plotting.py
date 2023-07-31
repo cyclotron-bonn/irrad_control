@@ -7,7 +7,7 @@ from datetime import datetime
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from irrad_control.analysis.formulas import lin_odr
+from irrad_control.analysis.formulas import lin_odr, tid_per_scan
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -228,7 +228,7 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
         comp_idx = n_complete_scans - 1
         corr_idx = corr_map.shape[1] - 1
-        
+
         # Scale axis to that scan numbers are centerd under bin
         comp_extend=[-0.5, comp_idx + 0.5, comp_map.shape[0], 0]
         corr_extend=[n_complete_scans - 0.5, corr_idx + n_complete_scans + 0.5, comp_map.shape[0], 0]
@@ -334,42 +334,47 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
     return fig, ax
 
 
-def plot_scan_overview(overview):  # scan_data, damage_data, beam_data, temp_data=None):
+def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
     # Make figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(2, 1, height_ratios=(2.5, 1), sharex=True)
 
-    # Use fancy submodule, making grid of plots a 10000 times easier
-    # See https://matplotlib.org/stable/gallery/axes_grid1/scatter_hist_locatable_axes.html#sphx-glr-gallery-axes-grid1-scatter-hist-locatable-axes-py
-    #anchor = make_axes_locatable(ax)
-    start_ts = overview['row_hist']['center_timestamp'][0]
-    ax.bar(overview['row_hist']['center_timestamp'], overview['row_hist']['primary_damage'])
-    ax.errorbar(overview['scan_hist']['center_timestamp'], overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'])
+    ts_to_datetime = lambda ts: ts  # [datetime.fromtimestamp(ttt) for ttt in ts]
 
-    #ax_beam = anchor.append_axes('bottom', 0.75, pad=0.15, sharex=ax)
+    # Plot scan overview
+    ax[0].bar(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence')
+    ax[0].errorbar(ts_to_datetime(overview['scan_hist']['center_timestamp']), overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'], fmt='C1.', label='Scan fluence')
+    ax[0].set_ylabel(rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$")
+    ax[0].legend(loc='upper left')
 
-    #ax.xaxis.set_tick_params(labelbottom=False)
+    ax_tid = ax[0].twinx()
+    ax_tid.set_ylabel('TID / Mrad')
+    ax_tid.set_ylim(*[tid_per_scan(primary_fluence=x, stopping_power=daq_config['stopping_power']) for x in ax[0].get_ylim()])
+    align_axis(ax1=ax[0], ax2=ax_tid, v1=0, v2=0, axis='y')
+    ax[0].grid()
+    
+    # No labels on xaxis of main plot
+    ax[0].xaxis.set_tick_params(labelbottom=False)
+    
+    # Plot beam current
+    beam_nanos = beam_data['beam_current'] / irrad_consts.nano
+    ax[1].plot(ts_to_datetime(beam_data['timestamp']), beam_nanos, label='Beam current')
+    ax[1].set_ylim(0, beam_nanos.max() * 1.25)
+    ax[1].set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
+    ax[1].set_xlabel('Scan number')
+    ax[1].grid()
+    ax[1].legend(loc='upper left')
 
-    #row_time_widths = scan_data['row_stop_timestamp'] - scan_data['row_start_timestamp']
-    #row_center_timestamps = np.cumsum(row_time_widths) / 2. + scan_data['row_start_timestamp'][0]
+    if temp_data is not None:
+        ax_temp = ax[1].twinx()
+        ax_temp.set_ylabel(r'Temperature / $\mathrm{^\circ C}$')
+        for i, temp in enumerate(t for t in temp_data.dtype.names if t != 'timestamp'):
+            ax_temp.plot(ts_to_datetime(temp_data['timestamp']), temp_data[temp], c=f'C{i+1}', label=f'{temp} temp.')
+        #ax_temp.grid(True)
+        ax_temp.legend(loc='upper right')
 
-    # Plot damage over scans
-    #ax.fill_between(np.arange(overview.shape[0]), overview, step='mid', color='C1', ec='k')
-    #ax.bar(np.arange(overview.shape[0]),overview, color='C0')
-    #ax_beam.plot(beam_data['timestamp'], beam_data['beam_current'] * 1e9, '.')
-
-    # Generate ticks
-    #xticks = [i for i in range(int(ax.get_xlim()[1]) + 1) if i%22 == 0 or 22./i == 2]
-    #xlabels = []
-    #ii = 0
-    #for i, k in enumerate(xticks):
-    #    if i%2 != 0:
-    #        xlabels.append(str(ii))
-    #        ii += 1
-    #    else:
-    #         xlabels.append('')
-    #print(xticks, xlabels)
-    #ax.set_xticks(xticks, xlabels)
+    #ax[0].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+    #fig.autofmt_xdate()
 
     return fig, ax
 
