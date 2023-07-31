@@ -230,7 +230,7 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         corr_idx = corr_map.shape[1] - 1
         
         # Scale axis to that scan numbers are centerd under bin
-        comp_extend=[comp_idx - 0.5, comp_idx + 0.5, comp_map.shape[0], 0]
+        comp_extend=[-0.5, comp_idx + 0.5, comp_map.shape[0], 0]
         corr_extend=[n_complete_scans - 0.5, corr_idx + n_complete_scans + 0.5, comp_map.shape[0], 0]
 
         # PLot the actual images
