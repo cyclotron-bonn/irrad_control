@@ -89,20 +89,22 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
     # Get number of completed, individual and total scans
     n_complete_scans = complete_scan_data['scan'][-1] + 1
     n_indv_scans = np.count_nonzero(individual_scan_mask)
-    
-    if n_indv_scans == 0:
-        hist_shape = n_rows * n_complete_scans
-    else:
-        hist_shape = n_rows * n_complete_scans + n_indv_scans
+    hist_shape = n_rows * n_complete_scans
 
     # Make nice hists for rows and scans
     overview['row_hist'] = np.zeros(shape=hist_shape, dtype=[('center_timestamp', '<f8'),
                                                              ('primary_damage', '<f4'),
                                                              ('primary_damage_error', '<f4'),
-                                                             ('number', '<i2'),
-                                                             ('correction_scan', '?')])  # NumPy somehow uses '?' as boolean ('b' is signed byte, 'B' unsigned byte)
+                                                             ('number', '<i2')])
     
-    overview['scan_hist'] = np.zeros(shape=n_complete_scans+1, dtype=overview['row_hist'].dtype)
+    overview['scan_hist'] = np.zeros(shape=n_complete_scans, dtype=overview['row_hist'].dtype)
+
+    if n_indv_scans > 0:
+
+        # Make nice hists for rows and scans
+        overview['correction_hist'] = np.zeros(shape=n_rows, dtype=overview['row_hist'].dtype)
+        
+        overview['correction_scans'] = np.zeros(shape=n_indv_scans, dtype=overview['row_hist'].dtype)
 
     # Make a bunch of indices for searching
     scan_start_idx = scan_stop_idx = 0
@@ -147,31 +149,17 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
     # Now we add the individual row scans
     if n_indv_scans > 0:
         
-        corr_offset = n_rows * n_complete_scans
         for i, entry in enumerate(scan_data[individual_scan_mask]):
-            cridx = corr_offset + i
-
             # Add the current row fluence to the respective row in the histogram
             row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
-            print(row_center_ts)
             
-            overview['row_hist']['center_timestamp'][cridx] = row_center_ts
-            overview['row_hist']['primary_damage'][cridx] += entry['row_primary_fluence']
-            overview['row_hist']['primary_damage_error'][cridx] = entry['row_primary_fluence_error']
-            overview['row_hist']['number'][cridx] = entry['row']
-            overview['row_hist']['correction_scan'] = True
-        
-        # Center timestamp of this scan
-        indv_scan_start_ts = scan_data[individual_scan_mask][0]['row_start_timestamp']
-        indv_scan_stop_ts = scan_data[individual_scan_mask][-1]['row_stop_timestamp']
-        indv_center_ts = (indv_scan_stop_ts - indv_scan_start_ts) / 2 + indv_scan_start_ts
-        
-        # Calculate final damage value and error
-        overview['scan_hist']['center_timestamp'][n_complete_scans] = indv_center_ts
-        overview['scan_hist']['primary_damage'][n_complete_scans] = overview['row_hist']['primary_damage'][-n_indv_scans:].mean()
-        overview['scan_hist']['primary_damage_error'][n_complete_scans] = (overview['row_hist']['primary_damage'][-n_indv_scans:].std() ** 1 + overview['scan_hist']['primary_damage_error'][n_complete_scans-1] ** 2)**.5
-        overview['scan_hist']['number'][n_complete_scans] = -1
-        overview['scan_hist']['correction_scan'][n_complete_scans] = True
+            overview['correction_scans']['center_timestamp'][i] = row_center_ts
+            overview['correction_scans']['primary_damage'][i] = entry['row_primary_fluence']
+            overview['correction_scans']['primary_damage_error'][i] = entry['row_primary_fluence_error']
+            overview['correction_scans']['number'][i] = entry['row']
+
+        # Have the resulting hist sorted in rows
+        overview['correction_hist'] = overview['row_hist'][-n_rows:][np.argsort(overview['row_hist'][-n_rows:])] 
 
     return overview
 

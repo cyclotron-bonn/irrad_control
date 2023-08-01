@@ -1,10 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
+import matplotlib.colors as mc
+import matplotlib.cm as cm
 import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
-from matplotlib.colors import LogNorm
+from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from irrad_control.analysis.formulas import lin_odr, tid_per_scan
@@ -336,42 +338,102 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
 def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
-    # Make figure
-    fig, ax = plt.subplots(2, 1, height_ratios=(2.5, 1), sharex=True)
+    if 'correction_hist' in overview:
+        # Make figure
+        fig = plt.figure()
+        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.25, hspace=0.25)
+        # Make axes
+        ax_complete = fig.add_subplot(gs[0])
+        ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
+        ax_correction = fig.add_subplot(gs[1], sharey=ax_complete)
+        ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=False, left=True)
+        ax_correction.yaxis.grid()
+        ax_correction.set_xlabel('Row')
+        ax_complete.yaxis.set_tick_params(right=True, labelleft=True, left=True)
+        ax_complete.text(x=0.5, y=1.05, s='Irradiation progression', transform=ax_complete.transAxes, horizontalalignment='center', verticalalignment='center')
+        ax_correction.text(x=0.5, y=1.05, s='Correction scans', transform=ax_correction.transAxes, horizontalalignment='center', verticalalignment='center')
+        ax = (ax_complete, ax_beam, ax_correction)
+        ax_tid = ax_correction.twinx()
+        ax_complete.set_title("Irradiation overview", y=1.1, loc='right')
+    else:
+        fig, (ax_complete, ax_beam) = plt.subplots(2, 1, height_ratios=(2.5, 1), sharex=True)
+        ax = (ax_complete, ax_beam)
 
-    ts_to_datetime = lambda ts: ts  # [datetime.fromtimestamp(ttt) for ttt in ts]
+        ax_tid = ax_complete.twinx()
+        ax_complete.set_title("Irradiation overview")
+
+    # No labels on xaxis of main plot
+    ax_complete.xaxis.set_tick_params(labelbottom=False)
+    ax_beam.xaxis.set_tick_params(top=True)
+
+    ts_to_datetime = lambda ts: ts - beam_data['timestamp'][0] #[datetime.fromtimestamp(ttt) for ttt in ts]
 
     # Plot scan overview
-    ax[0].bar(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence')
-    ax[0].errorbar(ts_to_datetime(overview['scan_hist']['center_timestamp']), overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'], fmt='C1.', label='Scan fluence')
-    ax[0].set_ylabel(rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$")
-    ax[0].legend(loc='upper left')
+    #ax_complete.step(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence', where='mid')
+    ax_complete.bar(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence')
+    ax_complete.errorbar(ts_to_datetime(overview['scan_hist']['center_timestamp']), overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'], fmt='C1.', label='Scan fluence')
+    ax_complete.set_ylabel(rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$")
+    ax_complete.legend(loc='upper left')    
 
-    ax_tid = ax[0].twinx()
     ax_tid.set_ylabel('TID / Mrad')
     ax_tid.set_ylim(*[tid_per_scan(primary_fluence=x, stopping_power=daq_config['stopping_power']) for x in ax[0].get_ylim()])
-    align_axis(ax1=ax[0], ax2=ax_tid, v1=0, v2=0, axis='y')
-    ax[0].grid()
-    
-    # No labels on xaxis of main plot
-    ax[0].xaxis.set_tick_params(labelbottom=False)
+    align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
+    ax_complete.grid()
+
+    ax_neq = ax_complete.twinx()
     
     # Plot beam current
     beam_nanos = beam_data['beam_current'] / irrad_consts.nano
-    ax[1].plot(ts_to_datetime(beam_data['timestamp']), beam_nanos, label='Beam current')
-    ax[1].set_ylim(0, beam_nanos.max() * 1.25)
-    ax[1].set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
-    ax[1].set_xlabel('Scan number')
-    ax[1].grid()
-    ax[1].legend(loc='upper left')
+    ax_beam.plot(ts_to_datetime(beam_data['timestamp']), beam_nanos, label='Beam current')
+    ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
+    ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
+    ax_beam.set_xlabel('Time / s')
+    ax_beam.grid()
+    ax_beam.legend(loc='best')
+
+    # We have correction scans
+    if len(ax) == 3:
+        # Count the amount of individual scans and fluence inside
+        indv_row_scans = {r:1 for r in overview['correction_hist']['number']}
+        indv_row_offsets = {r: overview['correction_hist']['primary_damage'][r] for r in indv_row_scans}
+        corrections_scans_labels = []
+        
+        # Plot last scan distribution
+        ax_correction.bar(overview['correction_hist']['number'], overview['correction_hist']['primary_damage'])
+        
+        # Loop over individual scans
+        for entry in overview['correction_scans']:
+
+            row = entry['number']
+            offset = indv_row_offsets[row]
+            indv_damage = entry['primary_damage']
+
+            ax_correction.bar(row, indv_damage, bottom=offset, color=f"C{indv_row_scans[row]}")
+            indv_row_offsets[row] += indv_damage
+            corrections_scans_labels.append(indv_row_scans[row])
+            indv_row_scans[row] += 1
+
+        # Make custom colorbar to show number of correction scans, it's cheecky breeky-style
+        max_indv_scans = max(indv_row_scans.values())
+        cmap = mc.ListedColormap([f'C{i}' for i in range(1, max_indv_scans)])
+        norm = mc.BoundaryNorm(np.arange(0.5, max_indv_scans), cmap.N)
+        mappable = cm.ScalarMappable(cmap=cmap, norm=norm)
+        ax_cbar = fig.add_subplot(gs[3])  # Add colorbar to lower right axes but make new axes there for it
+        cb = plt.colorbar(mappable, ax=ax_cbar, ticks=range(1, max_indv_scans),label='n-th correction scan', location='top', orientation='horizontal')
+        cb._long_axis().set(label_position='bottom', ticks_position='bottom')  # Put cbar at top of ax_cbar but put labels and ticks downward
+        ax_cbar.remove()  # Cheeky-breeky remove the orginal axes where the cbar axes was attached at the top, hehe
+
 
     if temp_data is not None:
-        ax_temp = ax[1].twinx()
+        ax_temp = ax_beam.twinx()
         ax_temp.set_ylabel(r'Temperature / $\mathrm{^\circ C}$')
         for i, temp in enumerate(t for t in temp_data.dtype.names if t != 'timestamp'):
             ax_temp.plot(ts_to_datetime(temp_data['timestamp']), temp_data[temp], c=f'C{i+1}', label=f'{temp} temp.')
-        #ax_temp.grid(True)
-        ax_temp.legend(loc='upper right')
+        # We only want int temps
+        vals = ax_temp.get_yticks()
+        yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
+        ax_temp.set_yticks(yint)
+        ax_temp.legend(loc='best')
 
     #ax[0].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     #fig.autofmt_xdate()
@@ -465,7 +527,7 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     ax_hist_v.invert_xaxis()
 
     # Make the plots and trash what we don't need
-    _, _, _, im = ax_hist_2d.hist2d(horizontal_pos, vertical_pos, bins=(n_bins, n_bins), norm=LogNorm(), cmin=1)
+    _, _, _, im = ax_hist_2d.hist2d(horizontal_pos, vertical_pos, bins=(n_bins, n_bins), norm=mc.LogNorm(), cmin=1)
     _, _, _ = ax_hist_h.hist(horizontal_pos, bins=n_bins)
     _, _, _ = ax_hist_v.hist(vertical_pos, bins=n_bins, orientation='horizontal')
 
@@ -540,7 +602,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                          'fit_args': [[beta_const.n], calib_data],
                                          'fmt': 'C1-',
                                          'label': fit_label},
-                               hist_data={'bins': (100, 100), 'norm': LogNorm()} if hist else {})
+                               hist_data={'bins': (100, 100), 'norm': mc.LogNorm()} if hist else {})
     
     return fig, ax
 
