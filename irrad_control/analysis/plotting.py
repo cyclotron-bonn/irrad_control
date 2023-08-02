@@ -9,7 +9,7 @@ from datetime import datetime
 from matplotlib.gridspec import GridSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from irrad_control.analysis.formulas import lin_odr, tid_per_scan
+from irrad_control.analysis.formulas import lin_odr
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -338,75 +338,108 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
 def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
+    def _win_from_timestamps(ts_data, other_data, ts_start, ts_stop, to_secs=False):
+        idx_start, idx_stop = np.searchsorted(ts_data, [ts_start, ts_stop])
+        d_ts, d_ot = ts_data[idx_start:idx_stop], other_data[idx_start:idx_stop]
+        if to_secs:
+            d_ts = d_ts - d_ts[0]
+        return d_ts, d_ot
+    
+    # Plot scan overview
+    if 'kappa' in daq_config and not np.isnan(daq_config['kappa']['nominal']):
+        print('hehe')
+        kappa = daq_config['kappa']['nominal']
+        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config['stopping_power']
+        TIDToFluence = lambda t: t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
+        damage = lambda x: x * kappa
+        dmg_label = r"1 MeV neutron fluence / $\mathrm{neq \ cm^{-2}}$"
+    else:
+        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f * daq_config['stopping_power']
+        TIDToFluence = lambda t: t  / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
+        damage = lambda x: x
+        dmg_label = rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$"
+
     if 'correction_hist' in overview:
-        # Make figure
+        # Make figure and gridspec on which to place subplots
         fig = plt.figure()
         gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.25, hspace=0.25)
+        
         # Make axes
         ax_complete = fig.add_subplot(gs[0])
         ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
         ax_correction = fig.add_subplot(gs[1], sharey=ax_complete)
+        
+        # Set axes parameters
         ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=False, left=True)
         ax_correction.yaxis.grid()
         ax_correction.set_xlabel('Row')
         ax_complete.yaxis.set_tick_params(right=True, labelleft=True, left=True)
+
+        # Subtitles
         ax_complete.text(x=0.5, y=1.05, s='Irradiation progression', transform=ax_complete.transAxes, horizontalalignment='center', verticalalignment='center')
         ax_correction.text(x=0.5, y=1.05, s='Correction scans', transform=ax_correction.transAxes, horizontalalignment='center', verticalalignment='center')
-        ax = (ax_complete, ax_beam, ax_correction)
-        ax_tid = ax_correction.twinx()
+        
+        # Make TID axis and plot title
+        ax_tid = ax_correction.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
         ax_complete.set_title("Irradiation overview", y=1.1, loc='right')
+        
+        # Axes container
+        ax = (ax_complete, ax_beam, ax_correction)
     else:
         fig, (ax_complete, ax_beam) = plt.subplots(2, 1, height_ratios=(2.5, 1), sharex=True)
+
+        # Make TID axis and plot title
+        ax_tid = ax_complete.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
+        ax_complete.set_title("Irradiation overview")
+        
+        # Axes container
         ax = (ax_complete, ax_beam)
 
-        ax_tid = ax_complete.twinx()
-        ax_complete.set_title("Irradiation overview")
-
-    # No labels on xaxis of main plot
+    # No labels on xaxis of main plots; add grid
     ax_complete.xaxis.set_tick_params(labelbottom=False)
     ax_beam.xaxis.set_tick_params(top=True)
+    ax_complete.grid()
+    ax_beam.grid()
 
-    ts_to_datetime = lambda ts: ts - beam_data['timestamp'][0] #[datetime.fromtimestamp(ttt) for ttt in ts]
+    # Start/stop overview plot at beginning/end of irradiation
+    start_ts, stop_ts = overview['row_hist']['center_timestamp'][0], overview['row_hist']['center_timestamp'][-1]
 
-    # Plot scan overview
-    #ax_complete.step(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence', where='mid')
-    ax_complete.bar(ts_to_datetime(overview['row_hist']['center_timestamp']), overview['row_hist']['primary_damage'], label='Row fluence')
-    ax_complete.errorbar(ts_to_datetime(overview['scan_hist']['center_timestamp']), overview['scan_hist']['primary_damage'], yerr=overview['scan_hist']['primary_damage_error'], fmt='C1.', label='Scan fluence')
-    ax_complete.set_ylabel(rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$")
+    ax_complete.bar(overview['row_hist']['center_timestamp']-start_ts, damage(overview['row_hist']['primary_damage']), label='Row fluence')
+    ax_complete.errorbar(overview['scan_hist']['center_timestamp']-start_ts, damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
+    ax_complete.set_ylabel(dmg_label)
     ax_complete.legend(loc='upper left')    
 
     ax_tid.set_ylabel('TID / Mrad')
-    ax_tid.set_ylim(*[tid_per_scan(primary_fluence=x, stopping_power=daq_config['stopping_power']) for x in ax[0].get_ylim()])
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
-    ax_complete.grid()
-
-    ax_neq = ax_complete.twinx()
     
     # Plot beam current
-    beam_nanos = beam_data['beam_current'] / irrad_consts.nano
-    ax_beam.plot(ts_to_datetime(beam_data['timestamp']), beam_nanos, label='Beam current')
+    beam_ts, beam_nanos = _win_from_timestamps(beam_data['timestamp'],
+                                               beam_data['beam_current'] / irrad_consts.nano,
+                                               start_ts,
+                                               stop_ts,
+                                               to_secs=True)
+    ax_beam.plot(beam_ts, beam_nanos, label='Beam current')
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel('Time / s')
-    ax_beam.grid()
     ax_beam.legend(loc='best')
 
     # We have correction scans
     if len(ax) == 3:
         # Count the amount of individual scans and fluence inside
         indv_row_scans = {r:1 for r in overview['correction_hist']['number']}
-        indv_row_offsets = {r: overview['correction_hist']['primary_damage'][r] for r in indv_row_scans}
+        indv_row_offsets = {r: damage(overview['correction_hist']['primary_damage'][r]) for r in indv_row_scans}
         corrections_scans_labels = []
         
         # Plot last scan distribution
-        ax_correction.bar(overview['correction_hist']['number'], overview['correction_hist']['primary_damage'])
+        ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']))
         
         # Loop over individual scans
         for entry in overview['correction_scans']:
 
             row = entry['number']
             offset = indv_row_offsets[row]
-            indv_damage = entry['primary_damage']
+            indv_damage = damage(entry['primary_damage'])
 
             ax_correction.bar(row, indv_damage, bottom=offset, color=f"C{indv_row_scans[row]}")
             indv_row_offsets[row] += indv_damage
@@ -428,7 +461,12 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         ax_temp = ax_beam.twinx()
         ax_temp.set_ylabel(r'Temperature / $\mathrm{^\circ C}$')
         for i, temp in enumerate(t for t in temp_data.dtype.names if t != 'timestamp'):
-            ax_temp.plot(ts_to_datetime(temp_data['timestamp']), temp_data[temp], c=f'C{i+1}', label=f'{temp} temp.')
+            temp_ts, temp_dt = _win_from_timestamps(temp_data['timestamp'],
+                                                    temp_data[temp],
+                                                    start_ts,
+                                                    stop_ts,
+                                                    to_secs=True)
+            ax_temp.plot(temp_ts, temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
         # We only want int temps
         vals = ax_temp.get_yticks()
         yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
