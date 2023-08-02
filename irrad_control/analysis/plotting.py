@@ -7,6 +7,8 @@ import irrad_control.analysis.constants as irrad_consts
 
 from datetime import datetime
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import Rectangle
+from matplotlib.legend_handler import HandlerBase
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from irrad_control.analysis.formulas import lin_odr
@@ -22,6 +24,24 @@ plt.rcParams.update({
     'image.cmap': 'plasma'
     }
 )
+
+
+class HandlerColormap(HandlerBase):
+    def __init__(self, cmap, num_stripes=8, **kw):
+        HandlerBase.__init__(self, **kw)
+        self.cmap = cmap
+        self.num_stripes = num_stripes
+    def create_artists(self, legend, orig_handle, 
+                       xdescent, ydescent, width, height, fontsize, trans):
+        stripes = []
+        for i in range(self.num_stripes):
+            s = Rectangle([xdescent + i * width / self.num_stripes, ydescent], 
+                          width / self.num_stripes, 
+                          height, 
+                          fc=self.cmap((2 * i + 1) / (2 * self.num_stripes)), 
+                          transform=trans)
+            stripes.append(s)
+        return stripes
 
 
 def no_title(b):
@@ -347,7 +367,6 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     
     # Plot scan overview
     if 'kappa' in daq_config and not np.isnan(daq_config['kappa']['nominal']):
-        print('hehe')
         kappa = daq_config['kappa']['nominal']
         FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config['stopping_power']
         TIDToFluence = lambda t: t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
@@ -367,18 +386,13 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         # Make axes
         ax_complete = fig.add_subplot(gs[0])
         ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
-        ax_correction = fig.add_subplot(gs[1], sharey=ax_complete)
+        ax_correction = fig.add_subplot(gs[1])
         
         # Set axes parameters
-        ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=False, left=True)
+        ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=True, left=True)
         ax_correction.yaxis.grid()
         ax_correction.set_xlabel('Row')
-        ax_complete.yaxis.set_tick_params(right=True, labelleft=True, left=True)
 
-        # Subtitles
-        ax_complete.text(x=0.5, y=1.05, s='Irradiation progression', transform=ax_complete.transAxes, horizontalalignment='center', verticalalignment='center')
-        ax_correction.text(x=0.5, y=1.05, s='Correction scans', transform=ax_correction.transAxes, horizontalalignment='center', verticalalignment='center')
-        
         # Make TID axis and plot title
         ax_tid = ax_correction.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
         ax_complete.set_title("Irradiation overview", y=1.1, loc='right')
@@ -407,7 +421,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_complete.bar(overview['row_hist']['center_timestamp']-start_ts, damage(overview['row_hist']['primary_damage']), label='Row fluence')
     ax_complete.errorbar(overview['scan_hist']['center_timestamp']-start_ts, damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
     ax_complete.set_ylabel(dmg_label)
-    ax_complete.legend(loc='upper left')    
+    ax_complete.legend(loc='upper left', fontsize=10)    
 
     ax_tid.set_ylabel('TID / Mrad')
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
@@ -422,7 +436,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel('Time / s')
-    ax_beam.legend(loc='best')
+    ax_beam.legend(loc='best', fontsize=10)
 
     # We have correction scans
     if len(ax) == 3:
@@ -432,8 +446,11 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         corrections_scans_labels = []
         
         # Plot last scan distribution
-        ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']))
-        
+        ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']), label='Scan')
+        leg1 = ax_correction.legend(loc='upper center', fontsize=10)
+        print(leg1.legendHandles)
+        print(leg1.get_patches())
+        print(leg1.get_texts())
         # Loop over individual scans
         for entry in overview['correction_scans']:
 
@@ -456,6 +473,13 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         cb._long_axis().set(label_position='bottom', ticks_position='bottom')  # Put cbar at top of ax_cbar but put labels and ticks downward
         ax_cbar.remove()  # Cheeky-breeky remove the orginal axes where the cbar axes was attached at the top, hehe
 
+        # Zoom in correction plot to see resulting distribution
+        ax_correction.set_ylim(min(damage(overview['correction_hist']['primary_damage']))*0.85, max(list(indv_row_offsets.values()))*1.15)
+
+        # Beautiful custom patch showing colorbar
+        cmh = [Rectangle((0, 0), 1, 1)]
+        handler_map = dict(zip(cmh, [HandlerColormap(cmap, num_stripes=max_indv_scans-1)]))
+        ax_correction.legend(handles=leg1.legendHandles+cmh, labels=['Scan result', 'Corrections'], handler_map=handler_map, loc='upper center', fontsize=10)
 
     if temp_data is not None:
         ax_temp = ax_beam.twinx()
@@ -471,7 +495,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         vals = ax_temp.get_yticks()
         yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
         ax_temp.set_yticks(yint)
-        ax_temp.legend(loc='best')
+        ax_temp.legend(loc='best', fontsize=10)
 
     #ax[0].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     #fig.autofmt_xdate()
