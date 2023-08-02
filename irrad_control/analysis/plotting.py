@@ -381,7 +381,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     if 'correction_hist' in overview:
         # Make figure and gridspec on which to place subplots
         fig = plt.figure()
-        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.25, hspace=0.25)
+        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.25)
         
         # Make axes
         ax_complete = fig.add_subplot(gs[0])
@@ -392,6 +392,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=True, left=True)
         ax_correction.yaxis.grid()
         ax_correction.set_xlabel('Row')
+        ax_correction.set_ylabel(dmg_label)
 
         # Make TID axis and plot title
         ax_tid = ax_correction.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
@@ -448,9 +449,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         # Plot last scan distribution
         ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']), label='Scan')
         leg1 = ax_correction.legend(loc='upper center', fontsize=10)
-        print(leg1.legendHandles)
-        print(leg1.get_patches())
-        print(leg1.get_texts())
+
         # Loop over individual scans
         for entry in overview['correction_scans']:
 
