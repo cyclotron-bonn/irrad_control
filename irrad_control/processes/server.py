@@ -1,5 +1,4 @@
 import logging
-from bitstring import CreationError
 from time import time, sleep
 from serial import SerialException
 
@@ -103,7 +102,7 @@ class IrradServer(DAQProcess):
                     # Store device names of motorstages
                     self._motorstages.append(dev)
 
-            except (IOError, SerialException, CreationError) as e:
+            except (IOError, SerialException) as e:
 
                 if type(e) is SerialException:
                     msg = "Could not connect to serial port {}. Maybe it is used by another process?"
@@ -116,8 +115,7 @@ class IrradServer(DAQProcess):
                         port = 'unknown'
 
                     logging.error(msg.format(port))
-                elif type(e) is CreationError:
-                    logging.error("Could not find DAQBoard on I2C bus")
+
                 else:
                     if dev == 'ADCBoard':
                         logging.error("Could not access SPI device file. Enable SPI interface!")

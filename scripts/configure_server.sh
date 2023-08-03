@@ -31,7 +31,7 @@ function conda_env_installer {
       
       # Upgrade pip and install needed packages from pip
       pip install --upgrade pip
-      pip install wiringpi zaber.serial bitstring
+      pip install wiringpi zaber.serial
       
       break
     fi
@@ -56,7 +56,7 @@ IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
 IRRAD_INSTALL=false
-REQ_PKGS=(pyzmq pyyaml pyserial pip wiringpi zaber.serial bitstring)
+REQ_PKGS=(pyzmq pyyaml pyserial pip wiringpi zaber.serial)
 
 # Parse command line arguments
 for CMD in "$@"; do
