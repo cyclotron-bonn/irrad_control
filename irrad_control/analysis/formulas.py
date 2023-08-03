@@ -184,7 +184,7 @@ def gamma(energy, mass):
     return energy / mass + 1
     
 def beta(energy=None, mass=None, gamma_val=None):
-    assert energy is not None and mass is not None or gamma_val is not None, "Either gamm or energy and mass has to be given"
+    assert energy is not None and mass is not None or gamma_val is not None, "Either gamma or energy and mass has to be given"
     
     gv = gamma_val if gamma_val is not None else gamma(energy, mass)
     
