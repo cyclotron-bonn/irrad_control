@@ -12,7 +12,6 @@ from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.utils import check_unique_input, fill_combobox_items, remove_widget, get_host_ip
 from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
-from irrad_control.devices.ic.ADS1256 import ads1256
 from irrad_control import config, config_file, tmp_path
 from irrad_control.utils.tools import save_yaml
 from irrad_control.ions import get_ions
@@ -812,8 +811,8 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         # Sampling rate related widgets
         label_sps = QtWidgets.QLabel('Sampling rate [sps]:')
         combo_srate = QtWidgets.QComboBox()
-        combo_srate.addItems([str(drate) for drate in ads1256['drate'].values()])
-        combo_srate.setCurrentIndex(list(ads1256['drate'].values()).index(100))
+        combo_srate.addItems([str(drate) for drate in DEVICES_CONFIG['ADCBoard']['drates'].values()])
+        combo_srate.setCurrentIndex(list(DEVICES_CONFIG['ADCBoard']['drates'].values()).index(100))
         self.widgets['srate_combo'] = combo_srate
 
         # Add to layout

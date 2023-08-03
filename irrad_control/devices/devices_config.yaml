@@ -1,5 +1,24 @@
 ADCBoard:
   init: None
+  # Sampling rates in samples per seconds (SPS) with respective integer register value
+  # See https://github.com/ul-gh/PiPyADC/blob/pigpio/examples/waveshare_board/waveshare_config.py#L249
+  drates:
+    2.5: 3
+    5: 19
+    10: 35
+    15: 51
+    25: 67
+    30: 83
+    50: 99
+    60: 114
+    100: 130
+    500: 146
+    1000: 161
+    2000: 176
+    3750: 192
+    7500: 208
+    15000: 224
+    30000: 240
 
 IrradDAQBoard:
   init:
