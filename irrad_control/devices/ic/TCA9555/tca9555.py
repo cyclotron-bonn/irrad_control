@@ -318,8 +318,8 @@ class TCA9555(object):
         ----------
         reg: str
             Name of register whose state will be set
-        state: str, Iterable, 
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable, 
+            Value from which a string-representation of *state* can be created
         """
         # Create empty target register state
         target_reg_state = self._create_state(state, self._n_io_bits)
@@ -346,8 +346,8 @@ class TCA9555(object):
             Name of register whose state will be set
         port: int
             Index of the port; either 0 or 1
-        state: BitString, Iterable, str, int
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         # Check if register exists
         self._check_register(reg)
@@ -460,8 +460,8 @@ class TCA9555(object):
         ----------
         reg: str
             Name of register whose state will be set
-        state: BitString, Iterable, str
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         self._set_state(reg=reg, state=state)
 
@@ -476,8 +476,8 @@ class TCA9555(object):
             Name of register whose state will be set
         port: int
             Index of the port; either 0 or 1
-        state: BitString, Iterable, str, int
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         self._set_port_state(reg=reg, port=port, state=state)
 
