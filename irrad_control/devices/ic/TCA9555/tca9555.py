@@ -1,5 +1,4 @@
-import bitstring as bs
-from collections import Iterable
+from collections.abc import Iterable
 from functools import wraps
 from threading import Event
 
@@ -197,22 +196,24 @@ class TCA9555(object):
         bit_length: int
             length of the state
         """
-        if isinstance(state, bs.BitArray):
+        
+        if isinstance(state, str):
             pass
-
+        
         elif isinstance(state, int):
-            state = bs.BitArray("uint:{}={}".format(bit_length, state))
+            state = format(state, f'0{bit_length}b')
 
         elif isinstance(state, Iterable):
-            state = bs.BitArray(state)
-
+            state = ''
+            for i in state:
+                state += f'{i:1b}'
         else:
             raise ValueError(
-                "State must be integer, string or BitArray representing {} bits".format(bit_length)
+                "State must be integer, iterable or string representing {} bits".format(bit_length)
             )
 
         if len(state) != bit_length:
-            raise ValueError("State must be {}} bits".format(bit_length))
+            raise ValueError("State must be {} bits, is {}".format(bit_length, len(state)))
 
         return state
 
@@ -289,11 +290,15 @@ class TCA9555(object):
             state = self._get_state(reg=reg)
 
             # Loop over state and set bits
-            for bit in bits:
-                state[bit] = val
+            new_state = ''
+            for i in range(len(state)):
+                if i in bits:
+                    new_state += f'{val:1b}'
+                else:
+                    new_state += state[i]
 
             # Set state
-            self._set_state(reg, state)
+            self._set_state(reg, new_state)
 
         else:
             # Set all pins to *val*
@@ -347,9 +352,9 @@ class TCA9555(object):
         target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
 
         # Match bit order with physical pin order, increasing left to right
-        target_state.reverse()
+        reg_data = int(target_state[::-1], base=2)
 
-        self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
+        self._write_reg(reg=self.regs[reg][port], data=reg_data)
 
     def _get_state(self, reg):
         """
@@ -360,7 +365,7 @@ class TCA9555(object):
         reg: str
             Name of register whose state will be read
         """
-        return sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
+        return ''.join(self._get_port_state(reg=reg, port=port) for port in range(self._n_ports))
 
     def _get_port_state(self, reg, port):
         """
@@ -386,9 +391,7 @@ class TCA9555(object):
         )
 
         # Match bit order with physical pin order, increasing left to right
-        port_state.reverse()
-
-        return port_state
+        return port_state[::-1]
 
     @_event_lock
     def int_to_bits(self, bits, val):
@@ -409,14 +412,19 @@ class TCA9555(object):
         val_bits = self._create_state(state=val, bit_length=len(bits))
 
         # Match bit order with physical pin order, increasing left to right
-        val_bits.reverse()
+        val_bits = val_bits[::-1]
 
         # Update current io state
-        for i, bit in enumerate(bits):
-            state[bit] = val_bits[i]
+        new_state = ''
+        j = 0
+        for i in range(len(state)):
+            if i in bits:
+                new_state += val_bits[bits.index(i)]
+            else:
+                new_state += state[i]
 
         # Set the updated state
-        self._set_state("output", state)
+        self._set_state("output", new_state)
 
     def int_from_bits(self, bits):
         """
@@ -431,12 +439,14 @@ class TCA9555(object):
         state = self.io_state
 
         # Read the respective bit values
-        val_bits = bs.BitArray([state[bit] for bit in bits])
+        bit_state = ''
+        for bit in bits:
+            bit_state += state[bit]
 
         # Match bit order with physical pin order, increasing left to right
-        val_bits.reverse()
+        val = int(bit_state[::-1], base=2)
 
-        return val_bits.uint
+        return val
 
     @_event_lock
     def set_state(self, reg, state):
@@ -549,7 +559,7 @@ class TCA9555(object):
         """
         self._set_bits(reg="output", val=int(bool(level)), bits=bits)
 
-    def format_config(self, format_="bin"):
+    def format_config(self, format_="#16b"):
         """
         Method returning a more readable version of self.config
 
@@ -558,7 +568,8 @@ class TCA9555(object):
         format_: str
             Any attribute of BitArray-class
         """
-        return {reg: getattr(state, format_) for reg, state in self.config.items()}
+        fmt = lambda s: format(int(s, base=2), format_) if format_ is not None else s 
+        return {reg: fmt(state) for reg, state in self.config.items()}
 
     def set_bits(self, bits=None):
         """
