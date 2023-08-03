@@ -295,13 +295,13 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
         # Fake a little legend
         ax[0].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(comp_map.mean(), u'\u00b1', comp_map.std(), dmg_unt),
-                    x=abs(ax[0].get_xlim()[0] - ax[0].get_xlim()[1]) * 0.05 + ax[0].get_xlim()[0],
-                    y=ax[0].get_ylim()[0]*0.75, rotation=90, fontsize=10,
-                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+                    x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
+                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
+                    transform=ax[0].transAxes)
         ax[1].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(corr_map.mean(), u'\u00b1', corr_map.std(), dmg_unt),
-                    x=abs(ax[1].get_xlim()[0] - ax[1].get_xlim()[1]) * 0.05 + ax[1].get_xlim()[0],
-                    y=ax[1].get_ylim()[0]*0.75, rotation=90, fontsize=10,
-                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+                    x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
+                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
+                    transform=ax[1].transAxes)
         
         fig.suptitle(f"{dmg_lbl} on {dmg_trgt.lower()} area, row-resolved")
 
