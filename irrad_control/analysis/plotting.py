@@ -381,7 +381,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     if 'correction_hist' in overview:
         # Make figure and gridspec on which to place subplots
         fig = plt.figure()
-        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.25)
+        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.15)
         
         # Make axes
         ax_complete = fig.add_subplot(gs[0])
@@ -396,7 +396,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
         # Make TID axis and plot title
         ax_tid = ax_correction.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
-        ax_complete.set_title("Irradiation overview", y=1.1, loc='right')
+        ax_complete.set_title("Irradiation overview", y=1.15, loc='right')
         
         # Axes container
         ax = (ax_complete, ax_beam, ax_correction)
@@ -422,7 +422,15 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_complete.bar(overview['row_hist']['center_timestamp']-start_ts, damage(overview['row_hist']['primary_damage']), label='Row fluence')
     ax_complete.errorbar(overview['scan_hist']['center_timestamp']-start_ts, damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
     ax_complete.set_ylabel(dmg_label)
+    ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
     ax_complete.legend(loc='upper left', fontsize=10)    
+
+    # Add scan number ticks
+    ax_scan = ax_complete.secondary_xaxis('top')
+    ax_scan.set_xlabel('Scan number')
+    every_10nth_scan = len(overview['scan_hist']['number'])//10 + 1
+    ax_scan.set_xticks(overview['scan_hist']['center_timestamp'][::every_10nth_scan]-start_ts,
+                       overview['scan_hist']['number'][::every_10nth_scan])
 
     ax_tid.set_ylabel('TID / Mrad')
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
@@ -448,6 +456,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         
         # Plot last scan distribution
         ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']), label='Scan')
+        ax_correction.yaxis.offsetText.set(va='bottom', ha='center')
         leg1 = ax_correction.legend(loc='upper center', fontsize=10)
 
         # Loop over individual scans
