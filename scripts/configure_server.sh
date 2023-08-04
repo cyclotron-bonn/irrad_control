@@ -1,8 +1,17 @@
 #!/bin/bash
 # Setup of RaspberryPi server for the irradiation site
 
-# Function to install and update conda packages
-function conda_env_installer {
+function read_requirements {
+  
+  while IFS= read -r line; do
+    # Read package and remove comments and whitespaces
+    PKG=$(echo "$line" | cut -f1 -d"#" | xargs)
+    REQ_PKGS+=("$PKG")
+
+}
+
+# Function to install and update packages
+function env_installer {
 
   # Checking for required packages
   echo "Checking for required packages..."
@@ -16,33 +25,32 @@ function conda_env_installer {
   fi
 
   # Loop over required packages and check if current env contains them
+  MISS_PKGS=()
   for REQ in "${REQ_PKGS[@]}"; do
 
     # As soon as one of the packages is missing, just install all and break
     if [[ ! "{$ENV_PKGS[@]}" =~ "${REQ}" ]]; then
-      
-      # Install everything we need
-      
-      echo 'Installing packages...'
-
-      # Install python packages
-      conda config --set always_yes yes
-      conda install pyzmq pip pyyaml pyserial
-      
-      # Upgrade pip and install needed packages from pip
-      pip install --upgrade pip
-      pip install wiringpi zaber.serial bitstring
-      
-      break
+      MISS_PKGS+=("$REQ")
     fi
+  
   done
+
+  # Install everything we need
+  if [[ ! "${MISS_PKGS[@]}" -eq 0]]; then
+      
+      echo "Installing packages " "${MISS_PKGS[@]/#/}" "$1"
+
+      # Upgrade pip and install needed packages from pip
+      pip install "${MISS_PKGS[@]/#/}" "$1"
+    fi
 
   if $CONDA_UPDATE; then
 
     echo 'Updating conda and packages...'
 
-    # Update conda and packages
-    conda update conda && conda update --all
+    # Update mamba and packages
+    conda update -y conda
+    conda update -y --all
   fi
 
 }
@@ -56,7 +64,7 @@ IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
 IRRAD_INSTALL=false
-REQ_PKGS=(pyzmq pyyaml pyserial pip wiringpi zaber.serial bitstring)
+REQ_PKGS=()
 
 # Parse command line arguments
 for CMD in "$@"; do
