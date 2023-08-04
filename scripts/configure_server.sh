@@ -1,23 +1,57 @@
 #!/bin/bash
 # Setup of RaspberryPi server for the irradiation site
 
+function create_start_script {
+  echo "Create irrad_sever start script"
+  START_SCRIPT=${IRRAD_PATH}/scripts/start_server.sh
+  # Create empty file; if it already exists, clear contents
+  echo -n >$START_SCRIPT
+  echo "source ${MAMBAFORGE_PATH}/etc/profile.d/conda.sh" >> $START_SCRIPT
+  echo "conda activate $CONDA_ENV_NAME" >> $START_SCRIPT
+  echo "irrad_control --server" >> $START_SCRIPT 
+}
+
+function source_conda {
+  # Activate conda
+  source "${MAMBAFORGE_PATH}/etc/profile.d/conda.sh"
+}
+
 function read_requirements {
+
+  if [[ "$IRRAD_SERVER" != false ]]; then
+    REQ_FILE=$IRRAD_PATH/requirements_server.txt
+  else
+    REQ_FILE=$IRRAD_PATH/requirements.txt
+  fi
   
   while IFS= read -r line; do
     # Read package and remove comments and whitespaces
     PKG=$(echo "$line" | cut -f1 -d"#" | xargs)
     REQ_PKGS+=("$PKG")
-
+  done < $REQ_FILE
 }
 
 # Function to install and update packages
 function env_installer {
 
+  echo "Checking for environment $CONDA_ENV_NAME"
+
+  ENVS=$(conda env list | awk '{print $1}' | while read -r ENV; do if [ "$ENV" != "#" ]; then echo "$ENV"; fi; done)
+
+  if [[ ! "{$ENVS[@]}" =~ $CONDA_ENV_NAME ]]; then
+    echo "Not found. Creating environment $CONDA_ENV_NAME..."
+    conda create -n $CONDA_ENV_NAME Python=3.9 -y
+  else
+    echo "Found environment $CONDA_ENV_NAME."
+  fi
+
+  conda activate $CONDA_ENV_NAME
+  
   # Checking for required packages
   echo "Checking for required packages..."
 
   # Get list of packages in env
-  ENV_PKGS=$(conda list | awk '{print $1}' | while read -r PKG; do if [ "PKG" != "#" ]; then echo "$PKG"; fi; done)
+  ENV_PKGS=$(conda list | awk '{print $1}' | while read -r PKG; do if [ "$PKG" != "#" ]; then echo "$PKG"; fi; done)
 
   # Check if irrad_control is already installed in this env
   if [[ ! "{$ENV_PKGS[@]}" =~ "irrad-control" ]]; then
@@ -32,34 +66,42 @@ function env_installer {
     if [[ ! "{$ENV_PKGS[@]}" =~ "${REQ}" ]]; then
       MISS_PKGS+=("$REQ")
     fi
-  
   done
 
   # Install everything we need
-  if [[ ! "${MISS_PKGS[@]}" -eq 0]]; then
-      
-      echo "Installing packages " "${MISS_PKGS[@]/#/}" "$1"
+  if [[ ! "${#MISS_PKGS[@]}" -eq 0 ]]; then
 
+      # List all packages separated by whitespace and remove leading /trainling whitespace
+      TO_BE_INSTALLED=$(echo "${MISS_PKGS[@]/#/}" "$1"| xargs)
+      
+      echo "Installing missing required packages" $TO_BE_INSTALLED
+      
       # Upgrade pip and install needed packages from pip
-      pip install "${MISS_PKGS[@]/#/}" "$1"
-    fi
+      pip install --upgrade pip
+      pip install $TO_BE_INSTALLED
+  else
+    echo "All required packages are installed."
+  fi
 
   if $CONDA_UPDATE; then
 
-    echo 'Updating conda and packages...'
+    echo 'Updating conda'
 
     # Update mamba and packages
-    conda update -y conda
-    conda update -y --all
+    conda update -n base -c conda-forge conda -y
   fi
+
+  echo "Environment is set up."
 
 }
 
 # Needed variables
-MINICONDA_BASE=$HOME/miniconda
+MAMBAFORGE_PATH=$HOME/mambaforge
+MAMBAFORGE="https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
 IRRAD_PATH=$HOME/irrad_control
-PY_VERSION=false
+IRRAD_SERVER=false
 CONDA_UPDATE=false
+CONDA_ENV_NAME="irrad-control"
 IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
@@ -69,9 +111,9 @@ REQ_PKGS=()
 # Parse command line arguments
 for CMD in "$@"; do
   case $CMD in
-    # Get Python version to use
-    -v=*|--version=*)
-    PY_VERSION="${CMD#*=}"
+    # Install everything on a server
+    -s|--server)
+    IRRAD_SERVER=true
     shift
     ;;
     # Update conda
@@ -80,13 +122,23 @@ for CMD in "$@"; do
     shift
     ;;
     # Checkout branch of irrad_control
+    -p=*|--path=*)
+    IRRAD_PATH="${CMD#*=}"
+    shift
+    ;;
+    # Checkout branch of irrad_control
     -b=*|--branch=*)
     IRRAD_BRANCH="${CMD#*=}"
     shift
     ;;
     # Pull new changes from origin
-    -p|--pull)
+    -gp|--git_pull)
     IRRAD_PULL=true
+    shift
+    ;;
+    # Branch in which installation goes
+    -ce=*|--conda_env=*)
+    CONDA_ENV_NAME="${CMD#*=}"
     shift
     ;;
     # Unknown option
@@ -108,11 +160,12 @@ fi
 # Get irrad_control software
 if [ ! -d "$IRRAD_PATH" ]; then
 
-  echo "Collecting irrad_control"
+  echo "irrad_control not found. Collecting irrad_control from $IRRAD_URL"
 
   # Clone into IRRAD_PATH
   git clone $IRRAD_URL $IRRAD_PATH
-
+else
+  echo "Found irrad_control at $IRRAD_PATH"
 fi
 
 if [ "$IRRAD_BRANCH" != false ]; then
@@ -123,44 +176,22 @@ if [ "$IRRAD_PULL" != false ]; then
   cd $IRRAD_PATH && git pull
 fi
 
-# Loop over Python versions to check if respective miniconda installation exists
-MINICONDA_PATH=false
-for PY_V in {2,3}; do
-  if [ -d "$MINICONDA_BASE$PY_V" ]; then
-    MINICONDA_PATH=$MINICONDA_BASE$PY_V
-    break
-  fi
-done
-
-# Get Python version from command line arg
-if [ "$PY_VERSION" == false ]; then
-  PY_VERSION=3
-  echo "No Python version specified; using Python ${PY_VERSION}"
-fi
+read_requirements
 
 # Miniconda is not installed; download and install
-if [ "$MINICONDA_PATH" == false ]; then
+if [ ! -d "$MAMBAFORGE_PATH" ]; then
   
-  echo "Server missing Miniconda. Setting up Python ${PY_VERSION} environment..."
+  echo "Server missing Python environment! Setting up environment..."
   
-  # Update Miniconda path variable
-  MINICONDA_PATH=$MINICONDA_BASE$PY_VERSION
-
-  # Miniconda dist for RaspberryPi2/3 url using Python VERSION
-  MINICONDA="https://github.com/jjhelmus/berryconda/releases/download/v2.0.0/Berryconda${PY_VERSION}-2.0.0-Linux-armv7l.sh"
-  
-  # Get Berryconda as miniconda
-  echo "Getting Berryconda from ${MINICONDA}"
-  wget --tries 0 --waitretry 5 $MINICONDA -O miniconda.sh
-  chmod +x miniconda.sh
+  # Get mambaforge
+  echo "Getting mambaforge from ${MAMBAFORGE}"
+  wget -O Mambaforge.sh $MAMBAFORGE
   
   # Install miniconda
-  bash miniconda.sh -b -p $MINICONDA_PATH
-  rm miniconda.sh
+  bash Mambaforge.sh -b -p $MAMBAFORGE_PATH
+  rm Mambaforge.sh
   
-  # Activate Python environ
-  echo 'export PATH="$HOME/miniconda'${PY_VERSION}'/bin:$PATH"' >> $HOME/.bashrc
-  source $MINICONDA_PATH/bin/activate
+  source_conda
   
   # Update conda and packages
   CONDA_UPDATE=true
@@ -168,108 +199,20 @@ if [ "$MINICONDA_PATH" == false ]; then
   # Let's install all the stuff
   env_installer
 
-  echo "Miniconda Python $PY_VERSION environment set up!"
-
-  # Create server start script for server
-  echo "source ${MINICONDA_PATH}/bin/activate; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
-
 else
-  
-  # Source that bad boy
-  source $MINICONDA_PATH/bin/activate
-  
-  # Check if we got the correct Python version
-  CURR_PY_VERSION=$(python -c 'import sys; print(sys.version_info[0])')
-  
-  # Check
-  echo "Checking existing Python $CURR_PY_VERSION environment at $MINICONDA_PATH..."
-  
-  # Check whether we want that verion of Python; if not; check envs and create new if neccessary
-  if [ "$CURR_PY_VERSION" == "$PY_VERSION" ]; then
-    
-    env_installer
-    
-    echo "Environment is set up."
-
-    # Create server start script for server
-    echo "source ${MINICONDA_PATH}/bin/activate; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
-    
-  else
-    # We don't have the correct version of Python; check for envs
-    if [ ! -d "$MINICONDA_PATH/envs" ]; then
-      
-      echo "Creating new Python $PY_VERSION environment py${PY_VERSION}..."
-
-      # Create new environment with respective Python version and activate
-      conda create -n py$PY_VERSION python=$PY_VERSION && conda activate py$PY_VERSION
-
-      # Update conda and packages
-      CONDA_UPDATE=true
-
-      # Install packages
-      env_installer
-
-      # Create server start script for server
-      echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
-
-    else
-
-      echo "Looking for existing Python environment matching Python version ${PY_VERSION}..."
-
-      # Store matching environment
-      MATCH_ENV=false
-      
-      # Loop over envs and check if they have the correct Python version; fancy shit: pipes in subshell to keep local variable values
-      while read -r ENV; do
-        if [ "$ENV" == "#" ]; then
-          continue
-        else
-          # Activate env and check py version
-          conda activate $ENV
-
-          # Get envs Python version
-          ENV_PY_VERSION=$(python -c 'import sys; print(sys.version_info[0])')
-          
-          if [ "$ENV_PY_VERSION" == "$PY_VERSION" ]; then
-            MATCH_ENV=$ENV
-            break
-          fi
-        fi
-      done < <(conda-env list | awk '{print $1}')
-      
-      # Check if we got a matching environment; if not, create
-      if [ "$MATCH_ENV" == false ]; then
-        
-        echo "No environment matches Python version ${PY_VERSION}. Creating new environment py${PY_VERSION}..."
-        # Create new environment with respective Python version and activate
-        conda create -n py$PY_VERSION python=$PY_VERSION && conda activate py$PY_VERSION
-
-        # Update conda and packages
-        CONDA_UPDATE=true
-        
-        # Install packages
-        env_installer
-
-        # Create server start script for server
-        echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
-
-      else
-
-        echo "$MATCH_ENV matches required Python version ${PY_VERSION}."
-        # Activate matching environment and install required packages
-        conda activate $MATCH_ENV && env_installer
-
-        echo "Environment is set up."
-
-        # Create server start script for server
-        echo "source ${MINICONDA_PATH}/bin/activate; conda activate ${MATCH_ENV}; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
-      fi
-    fi
-  fi
+  source_conda
+  # Let's install all the stuff
+  env_installer
 fi
 
 # Install irrad_control if necessarry
 if [ "$IRRAD_INSTALL" != false ]; then
-  echo "Installing irrad_control for Python $PY_VERSION environment..."
-  cd $IRRAD_PATH && python setup.py develop server
+  if [ "$IRRAD_SERVER" != false ]; then
+    echo "Installing irrad_server into $CONDA_ENV_NAME environment..."
+    cd $IRRAD_PATH && python setup.py develop server
+    create_start_script
+  else
+    echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
+    pip install -e $IRRAD_PATH
+  fi
 fi
