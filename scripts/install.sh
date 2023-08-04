@@ -1,7 +1,17 @@
 #!/bin/bash
-# Setup of RaspberryPi server for the irradiation site
 
-function create_start_script {
+function usage {
+    echo "usage: $0 [-s|--server -u|--update] [-p|--path=PATH] [-b|--branch=BRANCH_NAME] [-ce|--conda_env=ENV_NAME]"
+    echo "  -s|--server               Perform an irrad_server install"
+    echo "  -u|--update               Update conda and packages"
+    echo "  -gp|--git_pull            Update code on current branch to origin"
+    echo "  -p|--path=PATH            Specifiy the path of existing irrad_control package (default: $HOME/irrad_control)"
+    echo "  -b|--branch=BRANCH_NAME   Specify the respective branch of irrad_control"
+    echo "  -ce|--conda_env=ENV_NAME  Specify a conda environment name in which to install (default: irrad-control)"
+    exit 1
+}
+
+function create_server_start_script {
   echo "Create irrad_sever start script"
   START_SCRIPT=${IRRAD_PATH}/scripts/start_server.sh
   # Create empty file; if it already exists, clear contents
@@ -33,6 +43,8 @@ function read_requirements {
 
 # Function to install and update packages
 function env_installer {
+
+  conda config --set always_yes yes
 
   echo "Checking for environment $CONDA_ENV_NAME"
 
@@ -88,7 +100,8 @@ function env_installer {
     echo 'Updating conda'
 
     # Update mamba and packages
-    conda update -n base -c conda-forge conda -y
+    conda update -n base -c conda-forge conda
+    conda update --all
   fi
 
   echo "Environment is set up."
@@ -111,6 +124,10 @@ REQ_PKGS=()
 # Parse command line arguments
 for CMD in "$@"; do
   case $CMD in
+    # Branch in which installation goes
+    -h|--help)
+    usage
+    ;;
     # Install everything on a server
     -s|--server)
     IRRAD_SERVER=true
@@ -210,7 +227,7 @@ if [ "$IRRAD_INSTALL" != false ]; then
   if [ "$IRRAD_SERVER" != false ]; then
     echo "Installing irrad_server into $CONDA_ENV_NAME environment..."
     cd $IRRAD_PATH && python setup.py develop server
-    create_start_script
+    create_server_start_script
   else
     echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
     pip install -e $IRRAD_PATH
