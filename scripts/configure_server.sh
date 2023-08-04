@@ -166,7 +166,7 @@ if [ "$MINICONDA_PATH" == false ]; then
   CONDA_UPDATE=true
   
   # Let's install all the stuff
-  conda_env_installer
+  env_installer
 
   echo "Miniconda Python $PY_VERSION environment set up!"
 
@@ -187,7 +187,7 @@ else
   # Check whether we want that verion of Python; if not; check envs and create new if neccessary
   if [ "$CURR_PY_VERSION" == "$PY_VERSION" ]; then
     
-    conda_env_installer
+    env_installer
     
     echo "Environment is set up."
 
@@ -207,7 +207,7 @@ else
       CONDA_UPDATE=true
 
       # Install packages
-      conda_env_installer
+      env_installer
 
       # Create server start script for server
       echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
@@ -248,7 +248,7 @@ else
         CONDA_UPDATE=true
         
         # Install packages
-        conda_env_installer
+        env_installer
 
         # Create server start script for server
         echo "source ${MINICONDA_PATH}/bin/activate; conda activate py${PY_VERSION}; irrad_control --server" > ${IRRAD_PATH}/scripts/start_server.sh
@@ -257,7 +257,7 @@ else
 
         echo "$MATCH_ENV matches required Python version ${PY_VERSION}."
         # Activate matching environment and install required packages
-        conda activate $MATCH_ENV && conda_env_installer
+        conda activate $MATCH_ENV && env_installer
 
         echo "Environment is set up."
 
