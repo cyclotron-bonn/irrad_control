@@ -1,13 +1,19 @@
 #!/bin/bash
 
 function usage {
-    echo "usage: $0 [-s|--server -u|--update] [-p|--path=PATH] [-b|--branch=BRANCH_NAME] [-ce|--conda_env=ENV_NAME]"
-    echo "  -s|--server               Perform an irrad_server install"
-    echo "  -u|--update               Update conda and packages"
-    echo "  -gp|--git_pull            Update code on current branch to origin"
-    echo "  -p|--path=PATH            Specifiy the path of existing irrad_control package (default: $HOME/irrad_control)"
-    echo "  -b|--branch=BRANCH_NAME   Specify the respective branch of irrad_control"
-    echo "  -ce|--conda_env=ENV_NAME  Specify a conda environment name in which to install (default: irrad-control)"
+    echo "usage: $0 [-s|--server -u|--update -icu|--ic_update]
+                    [-ce|--conda_env=ENV_NAME]
+                    [-py|--python=PY_VERSION]
+                    [-icp|--ic_path=PATH]
+                    [-icb|--ic_branch=BRANCH_NAME]"
+
+    echo "  -s|--server                   Perform an irrad_server install"
+    echo "  -u|--update                   Update conda and packages"
+    echo "  -py|--python=PY_VERSION       Specify Python version (default 3.9)"
+    echo "  -ce|--conda_env=ENV_NAME      Specify a conda environment name in which to install (default: irrad-control)"
+    echo "  -icu|--ic_update              Update code on current branch to origin"
+    echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $HOME/irrad_control)"
+    echo "  -icb|--ic_branch=BRANCH_NAME  Specify the respective branch of irrad_control"
     exit 1
 }
 
@@ -52,7 +58,7 @@ function env_installer {
 
   if [[ ! "{$ENVS[@]}" =~ $CONDA_ENV_NAME ]]; then
     echo "Not found. Creating environment $CONDA_ENV_NAME..."
-    conda create -n $CONDA_ENV_NAME Python=3.9 -y
+    conda create -n $CONDA_ENV_NAME Python=$PY_VERSION -y
   else
     echo "Found environment $CONDA_ENV_NAME."
   fi
@@ -114,6 +120,7 @@ MAMBAFORGE="https://github.com/conda-forge/miniforge/releases/latest/download/Ma
 IRRAD_PATH=$HOME/irrad_control
 IRRAD_SERVER=false
 CONDA_UPDATE=false
+PY_VERSION="3.9"
 CONDA_ENV_NAME="irrad-control"
 IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
 IRRAD_BRANCH=false
@@ -138,24 +145,29 @@ for CMD in "$@"; do
     CONDA_UPDATE=true
     shift
     ;;
-    # Checkout branch of irrad_control
-    -p=*|--path=*)
+    # Set path to existing irrad_control / prefix to where it is installed
+    -icp=*|--ic_path=*)
     IRRAD_PATH="${CMD#*=}"
     shift
     ;;
     # Checkout branch of irrad_control
-    -b=*|--branch=*)
+    -icb=*|--ic_branch=*)
     IRRAD_BRANCH="${CMD#*=}"
     shift
     ;;
     # Pull new changes from origin
-    -gp|--git_pull)
+    -icp|--ic_pull)
     IRRAD_PULL=true
     shift
     ;;
-    # Branch in which installation goes
+    # Conda env in which installation goes
     -ce=*|--conda_env=*)
     CONDA_ENV_NAME="${CMD#*=}"
+    shift
+    ;;
+    # Python version to use, ONLY APPLIES IF NEW CONDA ENV IS CREATED
+    -py=*|--python=*)
+    PY_VERSION="${CMD#*=}"
     shift
     ;;
     # Unknown option
