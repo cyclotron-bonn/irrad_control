@@ -47,7 +47,9 @@ jobs:
         run: pip install -e .
 
       - name: Qt5 default installation  # Needed for running headless
-        run: sudo apt-get install qttools5-dev-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install qttools5-dev-tools --fix-missing
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
