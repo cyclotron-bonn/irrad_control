@@ -11,6 +11,7 @@ function usage {
     echo "  -u|--update                   Update conda and packages"
     echo "  -py|--python=PY_VERSION       Specify Python version (default 3.9)"
     echo "  -ce|--conda_env=ENV_NAME      Specify a conda environment name in which to install (default: irrad-control)"
+    echo "  -cp|--conda_prefix=PATH       Specify the conda prefix (default: $HOME/mambaforge)"
     echo "  -icu|--ic_update              Update code on current branch to origin"
     echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $HOME/irrad_control)"
     echo "  -icb|--ic_branch=BRANCH_NAME  Specify the respective branch of irrad_control"
@@ -156,13 +157,18 @@ for CMD in "$@"; do
     shift
     ;;
     # Pull new changes from origin
-    -icp|--ic_pull)
+    -icu|--ic_update)
     IRRAD_PULL=true
     shift
     ;;
     # Conda env in which installation goes
     -ce=*|--conda_env=*)
     CONDA_ENV_NAME="${CMD#*=}"
+    shift
+    ;;
+    # Conda prefix in which installation is
+    -cp=*|--conda_prefix=*)
+    MAMBAFORGE_PATH="${CMD#*=}"
     shift
     ;;
     # Python version to use, ONLY APPLIES IF NEW CONDA ENV IS CREATED
