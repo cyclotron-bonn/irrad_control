@@ -52,7 +52,9 @@ jobs:
           ./scripts/install.sh -py=${{matrix.python-version}}
 
       - name: Qt5 default installation  # Needed for running headless
-        run: sudo apt-get install qttools5-dev-tools
+        run: |
+          sudo apt-get uddate
+          sudo apt-get install  --fix-missing qttools5-dev-tools
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
