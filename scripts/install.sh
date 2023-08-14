@@ -34,12 +34,6 @@ function source_conda {
 }
 
 function read_requirements {
-
-  if [[ "$IRRAD_SERVER" != false ]]; then
-    REQ_FILE=$IRRAD_PATH/requirements_server.txt
-  else
-    REQ_FILE=$IRRAD_PATH/requirements.txt
-  fi
   
   while IFS= read -r line; do
     # Read package and remove comments and whitespaces
@@ -192,6 +186,13 @@ else
   sudo apt-get install git
 fi
 
+# Set requirements file
+if [[ "$IRRAD_SERVER" != false ]]; then
+  REQ_FILE=$IRRAD_PATH/requirements_server.txt
+else
+  REQ_FILE=$IRRAD_PATH/requirements.txt
+fi
+
 # Get irrad_control software
 if [ ! -d "$IRRAD_PATH" ]; then
 
@@ -200,7 +201,12 @@ if [ ! -d "$IRRAD_PATH" ]; then
   # Clone into IRRAD_PATH
   git clone $IRRAD_URL $IRRAD_PATH
 else
-  echo "Found irrad_control at $IRRAD_PATH"
+  if [ ! -f $REQ_FILE ]; then
+    echo "$PWD not valid irrad_control path; \"$(basename $REQ_FILE)\" at $REQ_FILE missing!"
+    exit 1
+  else
+    echo "Found irrad_control at $IRRAD_PATH"
+  fi
 fi
 
 if [ "$IRRAD_BRANCH" != false ]; then
