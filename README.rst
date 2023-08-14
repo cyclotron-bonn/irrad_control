@@ -36,12 +36,25 @@ Download the `install.sh <./scripts/install.sh>`_ script and run
 
 .. code-block:: bash
 
-   bash install.sh
+   ./install.sh
 
-This will download ``irrad_control`` to the default path (``$HOME/irrad_control``), create an isolated Python envirnoment using ``conda`` and install ``irrad_control`` in it.
-If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can tell the script to use this instead of downloading a new copy by passing the ``--ic_path=my/path/to/irrad_control`` flag.
-If you already have a conda installation, you can point to it by passing the ``--conda_prefix=path/to/conda`` flag. Since the script uses mambaforge as default, the default prefix is ``$HOME/mambaforge``.
-To specify an environment name or Python version, you can pass ``--conda_env=ENV_NAME`` and ``--python=PY_VERSION`` respectively. Defaults are "irrad-control" and "3.9".
+This will download ``irrad_control`` to the current directory, create an isolated Python envirnoment using ``conda`` and install ``irrad_control`` in it.
+If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can tell the script to use this instead of downloading a new copy by passing the ``--ic_path`` flag
+
+.. code-block:: bash
+
+   ./install.sh --ic_path=/path/to/irrad_control
+
+If you already have a conda installation, you can point to it by passing the ``--conda_prefix`` flag
+
+.. code-block:: bash
+
+   ./install.sh --conda_prefix=path/to/conda
+
+Since the script uses mambaforge as default, the default prefix is ``$HOME/mambaforge``. To specify an environment name or Python version,
+you can pass ``--conda_env=ENV_NAME`` and ``--python=PY_VERSION`` respectively. Defaults are "irrad-control" and "3.9".
+To see an overview of options call ``./install --help``.
+
 
 Manual installation
 -------------------

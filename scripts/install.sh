@@ -13,7 +13,7 @@ function usage {
     echo "  -ce|--conda_env=ENV_NAME      Specify a conda environment name in which to install (default: irrad-control)"
     echo "  -cp|--conda_prefix=PATH       Specify the conda prefix (default: $HOME/mambaforge)"
     echo "  -icu|--ic_update              Update code on current branch to origin"
-    echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $HOME/irrad_control)"
+    echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $PWD)"
     echo "  -icb|--ic_branch=BRANCH_NAME  Specify the respective branch of irrad_control"
     exit 1
 }
@@ -118,7 +118,7 @@ function env_installer {
 # Needed variables
 MAMBAFORGE_PATH=$HOME/mambaforge
 MAMBAFORGE="https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
-IRRAD_PATH=$HOME/irrad_control
+IRRAD_PATH=$PWD
 IRRAD_SERVER=false
 CONDA_UPDATE=false
 PY_VERSION="3.9"
