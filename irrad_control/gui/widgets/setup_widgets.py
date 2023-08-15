@@ -811,8 +811,8 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         # Sampling rate related widgets
         label_sps = QtWidgets.QLabel('Sampling rate [sps]:')
         combo_srate = QtWidgets.QComboBox()
-        combo_srate.addItems([str(drate) for drate in DEVICES_CONFIG['ADCBoard']['drates'].values()])
-        combo_srate.setCurrentIndex(list(DEVICES_CONFIG['ADCBoard']['drates'].values()).index(100))
+        combo_srate.addItems([str(drate) for drate in DEVICES_CONFIG['ADCBoard']['drates']])
+        combo_srate.setCurrentIndex(list(DEVICES_CONFIG['ADCBoard']['drates'].keys()).index(100))
         self.widgets['srate_combo'] = combo_srate
 
         # Add to layout
