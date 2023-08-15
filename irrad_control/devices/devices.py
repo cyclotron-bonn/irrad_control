@@ -16,7 +16,6 @@ from .arduino.ntc_readout.arduino_ntc import ArduinoNTCReadout
 from .rad_monitor.rad_monitor import RadiationMonitor
 
 # Integrated circuits
-from .ic.ADS1256.pipyadc import ADS1256
 from .ic.TCA9555.tca9555 import TCA9555
 
 __all__ = [DEV for DEV in DEVICES_CONFIG]
