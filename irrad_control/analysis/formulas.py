@@ -184,7 +184,7 @@ def gamma(energy, mass):
     return energy / mass + 1
     
 def beta(energy=None, mass=None, gamma_val=None):
-    assert energy is not None and mass is not None or gamma_val is not None, "Either gamm or energy and mass has to be given"
+    assert energy is not None and mass is not None or gamma_val is not None, "Either gamma or energy and mass has to be given"
     
     gv = gamma_val if gamma_val is not None else gamma(energy, mass)
     
@@ -194,7 +194,39 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     """
     Bethe-Bloch formula for ionizing energy loss of ions in Si.
     largely taken 'Particle Detectors - Fundamentals and Applications' by N. Wermes, H. Kolanoski
+
+    Parameters
+    ----------
+    charge : int
+        Number of elemental charges
+    mass : float
+        Mass of partcile in MeV / c²
+    energy : float
+        Kinetic energy in MeV
+    density_normalized : bool, optional
+        Whether to normalite the result by Si density [MeV cm²/ g] or not [MeV / cm]
     """
+
+    def delta(beta_gamma):
+        """
+        High-energy correction according 'Particle Detectors - Fundamentals and Applications' by N. Wermes, H. Kolanoski
+        """
+        x = math.log10(beta_gamma)
+
+        # Constants from table 3.1 
+        x0, x1 = 0.202, 2.872
+        cd = -4.436  # Given as "-C_d" in table
+        delta0 = 0.14
+        a, k = 0.149, 3.25
+
+        # Energy correction according to energy range, Eq. 3.29
+        if x < x0:
+            return delta0 * 100.0 ** (x - x0)
+        elif x < x1:
+            return  2 * x * math.log(10) + cd + a * (x1 - x) ** k
+        else:
+            return 2 * x * math.log(10) + cd
+
     # Constant K = 4 * pi * N_A * r_e^2 * m_e * c^2
     K = 0.307  # MeV cm² / mol
 
@@ -222,14 +254,14 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     log_term = math.log(2 * m_e * (c * beta_gamma)**2 * T_max / I_Si**2)
 
     # Correction for high energy
-    delta_correction = 0
+    delta_correction = delta(beta_gamma=beta_gamma)
 
     # Shell correction for low energy; very relevant here but no straight forward way to calculate?
     # see https://journals.aps.org/pra/pdf/10.1103/PhysRevA.65.052709
     # ~2% e.g. 0.02 for 10 MeV protons in Al, should consider to add this
     shell_correction = 0
 
-    return pre_fac * (0.5 * log_term - lorentz_beta**2 - delta_correction - shell_correction)
+    return pre_fac * (0.5 * log_term - lorentz_beta**2 - 0.5 * delta_correction - shell_correction / Z_Si)
 
 
 def semi_empirical_mass_formula(n_protons, n_nucleons):

@@ -2,17 +2,12 @@ import sys
 import os
 import logging
 import argparse
-import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
-import matplotlib as mpl
 
 import irrad_control.analysis as irrad_analysis
 from irrad_control.analysis.utils import load_irrad_data
 
-
-# Disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
-mpl.rcParams['figure.max_open_warning'] = 0
 
 # Logging level
 logging.getLogger().setLevel('INFO')
@@ -23,7 +18,7 @@ ANALYSIS_FLAGS = ('damage', 'scan', 'beam', 'calibration')
 
 
 # Option flags available
-OPTION_FLAGS = ('multipart', )
+OPTION_FLAGS = ('multipart', 'notitle')
 
 
 # Group multiple analysis together
@@ -60,18 +55,6 @@ def get_analysis_suffix(parsed_args):
         analysis_suffix = DEFAULT_ANALYSIS
 
     return analysis_suffix
-
-
-def get_outfile(infiles):
-    """
-    Reads the *infiles* and determines the outfile name.
-    If len(*infiles*) > 1, the first element determines the outfile name
-
-    Parameters
-    ----------
-    infile_path : list
-        Input file list
-    """
 
 
 def input_files(infiles):
@@ -119,7 +102,7 @@ def save_plots(plots, outfile):
         Filehandle of PDFPages object
     """
     for plot in tqdm(plots, desc="Saving plots", unit='plots'):
-        outfile.savefig(plot, bbox_inches='tight')
+        outfile.savefig(plot)
 
 
 def main():
@@ -156,6 +139,9 @@ def main():
 
     process_parsed_args(parsed_args=parsed, analysis_suffix=analysis_suffix)
 
+    # Check whether we want to have titles on the plots
+    irrad_analysis.plotting.no_title(parsed['notitle'])
+
     # We are doing damage analysis on a single irradiation which is split in multiple files
     if parsed['multipart']:
         
@@ -172,11 +158,11 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.analyse_radiation_damage(data=input_files(infiles=parsed['infile']), config=None)
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']))
 
             save_plots(plots=res, outfile=out_pdf)
 
-    # We are doing the same analysis on multiple files
+    # We are doing the same analysis on one/multiple files
     else:
 
         # Check outfiles
@@ -196,18 +182,14 @@ def main():
 
                 # Loop over different irradiation server and perform analysis
                 for _, content in config['server'].items():
-
-                    if parsed['damage']:
-                        
-                        res = irrad_analysis.damage.analyse_radiation_damage(data=data, config=content)
-
-                        save_plots(plots=res, outfile=out_pdf)
-            
-                    if parsed['calibration']:
-
-                        res = irrad_analysis.calibration.beam_monitor_calibration(irrad_data=data, irrad_config=content)
-
-                        save_plots(plots=res, outfile=out_pdf)
+                    
+                    # Loop over flags and perform analysis if flag is set
+                    for a_flag in ANALYSIS_FLAGS:
+                        if parsed[a_flag]:
+                            
+                            # Load submodule with same name as flag and call main analyis
+                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content)
+                            save_plots(res, out_pdf)
 
 
 if __name__ == '__main__':

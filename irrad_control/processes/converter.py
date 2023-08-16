@@ -8,6 +8,7 @@ from uncertainties import ufloat, unumpy
 
 # Package imports
 import irrad_control.analysis as analysis
+from irrad_control.devices import DEVICES_CONFIG
 import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
 from irrad_control.ions import get_ions
@@ -90,6 +91,12 @@ class IrradConverter(DAQProcess):
             self._add_server_data(server=server, server_setup=server_setup)
             self._setup_daq_parameters(server=server, server_setup=server_setup)
 
+    def _generate_hist_table_name(self, hist_name):
+        if '_' in hist_name:
+            return '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+        else:
+            return hist_name.capitalize()
+
     def _create_data_entry(self, server, dname, location):
 
         try:
@@ -137,29 +144,35 @@ class IrradConverter(DAQProcess):
             self._lookups[server]['offset_ch'] = set([ch for ch in self._lookups[server]['ro_type_idx'] if 'ntc' not in ch])
             self._lookups[server]['full_scale_voltage'] = 5.0 if self.readout_setup[server]['device'] != ro.RO_DEVICES.DAQBoard else 2 * ro.DAQ_BOARD_CONFIG['common']['voltages']['2V5p']
 
+            # Full scale currents
+            self._lookups[server]['full_scale_current'] = {}
+            self._update_ifs_values(server=server)
+
             self._raw_offsets[server] = defaultdict(list)
 
-            self.data_flags[server]['scanning'] = False
-
             # Create needed tables and arrays
-            for dname in ('Raw', 'RawOffset', 'Beam', 'Damage', 'Scan', 'Irrad', 'Result'):
+            for dname in ('Raw', 'RawOffset', 'Beam', 'See', 'Damage', 'Scan', 'Irrad', 'Result'):
                 self._create_data_entry(server=server, dname=dname.lower(), location=f"/{server_setup['name']}")
 
             # Create histogram group and entries
             self.output_table.create_group('/{}'.format(server_setup['name']), 'Histogram')
-            for hist_name in ('beam_position', 'sey_horizontal', 'sey_vertical'):
-                hist, edges, centers = self.hists.create_hist(hist_name=hist_name)
+            for hist_name in ('beam_position', 'see_horizontal', 'see_vertical', 'sey'):
+                
+                actual_hist_type = 'see' if 'see' in hist_name else hist_name
 
-                self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[hist_name]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
+                hist, edges, centers = self.hists.create_hist(hist_name=actual_hist_type)
 
-                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                self.data_hists[server][hist_name] = {'meta': {'unit': self.hists[actual_hist_type]['unit'], 'edges': edges, 'centers': centers}, 'hist': hist}
+
+                table_name = self._generate_hist_table_name(hist_name=hist_name)
+
                 # Create group for histogram
                 self.output_table.create_group('/{}/Histogram'.format(server_setup['name']), table_name)
 
                 # Add meta data arrays for hist
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'edges', edges)
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'centers', centers)
-                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[hist_name]['unit']]))
+                self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'unit', np.array([self.hists[actual_hist_type]['unit']]))
 
         # We have temperature data
         if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in server_setup['devices']:
@@ -205,18 +218,17 @@ class IrradConverter(DAQProcess):
                 self.data_flags[server][dname] = False
 
         # We have motorstage data
-        # FIXME: make flag for devices that are stages instead of hardcode
-        for motorstage in ('ScanStage', 'SetupTableStage', 'ExternalCupStage'):
+        for ms, conf in DEVICES_CONFIG.items():
 
-            if motorstage in server_setup['devices']:
+            if 'motorstage' in conf and conf['motorstage'] and ms in server_setup['devices']:
 
                 # Create group at root because we have a motorstage
                 if '/{}/Motorstage'.format(server_setup['name']) not in self.output_table:
                     self.output_table.create_group('/{}'.format(server_setup['name']), 'Motorstage')
 
                 dtype = self.dtypes['motorstage']
-                dname = f'motorstage_{motorstage.lower()}'
-                node_name = motorstage
+                dname = f'motorstage_{ms.lower()}'
+                node_name = ms
 
                 # Create and store tables
                 self.data_tables[server][dname] = self.output_table.create_table('/{}/Motorstage'.format(server_setup['name']),
@@ -253,6 +265,12 @@ class IrradConverter(DAQProcess):
         self._daq_params[server]['stopping_power'] = daq_setup['stopping_power'] or np.nan
         self._daq_params[server]['kappa'] = (np.nan, np.nan) if daq_setup['kappa'] is None else (daq_setup['kappa']['nominal'], daq_setup['kappa']['sigma'])
         self._daq_params[server]['lambda'] = (np.nan, np.nan) if daq_setup['lambda'] is None else (daq_setup['lambda']['nominal'], daq_setup['lambda']['sigma'])
+
+    def _update_ifs_values(self, server):
+        for ro_ch, ro_idx in self._lookups[server]['ro_type_idx'].items():
+            self._lookups[server]['full_scale_current'][ro_ch] = self._get_full_scale_current(server=server,
+                                                                                              ch_idx=ro_idx,
+                                                                                              ro_device=self.readout_setup[server]['device'])
             
     def _calc_drate(self, server, meta):
 
@@ -326,16 +344,25 @@ class IrradConverter(DAQProcess):
             hist_data['data']['beam_position_idxs'] = (bp_h_idx, bp_v_idx)
         except IndexError:
             pass
-        # SEY fraction
+        # SEE fraction
         for plane in ('horizontal', 'vertical'):
             try:
-                sey_frac = beam_data['data']['sey'][plane[0]] / beam_data['data']['sey']['sum'] * 100
-                sey_idx = analysis.formulas.get_hist_idx(val=sey_frac,
-                                                         bin_edges=self.data_hists[server]['sey_{}'.format(plane)]['meta']['edges'])
-                self.data_hists[server]['sey_{}'.format(plane)]['hist'][sey_idx] += 1
-                hist_data['data']['sey_{}_idx'.format(plane)] = sey_idx
+                see_frac = beam_data['data']['see'][f'see_{plane}'] / beam_data['data']['see']['see_total'] * 100
+                see_idx = analysis.formulas.get_hist_idx(val=see_frac,
+                                                         bin_edges=self.data_hists[server][f'see_{plane}']['meta']['edges'])
+                self.data_hists[server][f'see_{plane}']['hist'][see_idx] += 1
+                hist_data['data'][f'see_{plane}_idx'] = see_idx
             except (ZeroDivisionError, IndexError):
                 pass
+
+        # SEY
+        sey = beam_data['data']['see']['sey']
+        sey_idx = analysis.formulas.get_hist_idx(val=sey, bin_edges=self.data_hists[server]['sey']['meta']['edges'])
+        try:
+            self.data_hists[server]['sey']['hist'][sey_idx] += 1
+            hist_data['data']['sey_idx'] = sey_idx
+        except IndexError:
+            pass
 
         return hist_data
 
@@ -377,17 +404,15 @@ class IrradConverter(DAQProcess):
 
         relevant_beam_data = tmp_beam[:check_win_idx]
 
-        I_FS = self._get_full_scale_current(server=server,
-                                            ch_idx=self._lookups[server]['ro_type_idx']['sem_sum'],
-                                            ro_device=self.readout_setup[server]['device'])
         beam_std = relevant_beam_data['beam'].std()
         beam_mean = relevant_beam_data['beam'].mean()
 
-        unstable_cond1 = beam_std >= self._beam_unstable_std_ratio * I_FS
-        unstable_cond2 = beam_std / beam_mean >= self._beam_unstable_std_ratio
-
-        if unstable_cond1 or unstable_cond2:
+        if beam_std >= self._beam_unstable_std_ratio * self._lookups[server]['full_scale_current']['sem_sum']:
             return True
+        
+        if beam_std / beam_mean >= self._beam_unstable_std_ratio:
+            return True
+
         return False
 
     def _extract_scan_currents(self, server):
@@ -427,17 +452,18 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['raw'][ch] = data[ch]
 
             ch_idx = self.readout_setup[server]['channels'].index(ch)
+            ch_type = self.readout_setup[server]['types'][ch_idx]
 
             # Subtract offset from data; initially offset is 0 for all ch
-            if self.readout_setup[server]['types'][ch_idx] in self._lookups[server]['offset_ch']:
+            if ch_type in self._lookups[server]['offset_ch']:
                 data[ch] -= self.data_arrays[server]['rawoffset'][ch][0]
 
                 raw_data['data']['current'][ch] = analysis.formulas.v_sig_to_i_sig(v_sig=data[ch],
-                                                                                   full_scale_current=self._get_full_scale_current(server, ch_idx, self.readout_setup[server]['device']),
+                                                                                   full_scale_current=self._lookups[server]['full_scale_current'][ch_type],
                                                                                    full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
                 if 'sem_sum' in self._lookups[server]['ro_type_idx'] and self._lookups[server]['ro_type_idx']['sem_sum'] == ch_idx:
-                    raw_data['data']['current'][ch] *= 4
+                    raw_data['data']['current'][ch] *= len(self._lookups[server]['sem_foils'])
 
                     # Use 'sem_sum' voltage signal to determine whether the beam is off: off if smalle 1% of full scale voltage
                     self._check_irrad_event(server=server,
@@ -454,160 +480,169 @@ class IrradConverter(DAQProcess):
     def _interpret_beam_data(self, server, data, meta):
 
         beam_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'beam'},
-                     'data': {'position': {}, 'current': {}, 'sey': {}}}
+                     'data': {'position': {}, 'current': {}, 'see': {}}}
 
         # Get timestamp from data for beam data arrays
-        self.data_arrays[server]['beam']['timestamp'] = meta['timestamp']
+        self.data_arrays[server]['beam']['timestamp'] = self.data_arrays[server]['see']['timestamp'] = meta['timestamp']
 
-        for dname in self.data_arrays[server]['beam'].dtype.names:
+        ### Beam current ###
 
-            # Beam position
-            if 'position' in dname:
+        # dname: beam_current
+        if 'sem_sum' in self._lookups[server]['ro_type_idx']:
+            sum_idx = self._lookups[server]['ro_type_idx']['sem_sum']
+            sum_ifs = self._lookups[server]['full_scale_current']['sem_sum']
+            sig = data[self.readout_setup[server]['channels'][sum_idx]]
 
-                plane = 'h' if dname.split('_')[0] == 'horizontal' else 'v'
+            # Error on beam current measurement: Delta lambda / lambda = Delta I_FS / I_FS = Delta sem_sum / sem_sum = 1% => Delta I / I = sqrt(3%)
+            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=ufloat(sig, 1e-2 * self._lookups[server]['full_scale_voltage']),  # Generally not better than 1 % of ADC input range
+                                                                calibration_factor=ufloat(*self._daq_params[server]['lambda']),
+                                                                full_scale_current=ufloat(sum_ifs, 1e-2 * sum_ifs))
+            
+            self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = beam_current.n
+            self.data_arrays[server]['beam']['beam_current_error'] = beam_data['data']['current']['beam_current_error'] = beam_current.s
 
-                if plane == 'h' and self._lookups[server]['sem_h']:
-                    idx_L, idx_R = self._lookups[server]['ro_type_idx']['sem_left'], self._lookups[server]['ro_type_idx']['sem_right']
-                    sig_L, sig_R = data[self.readout_setup[server]['channels'][idx_L]], data[self.readout_setup[server]['channels'][idx_R]]
+            # Calculate sum SE current
+            # dname: see_total
+            see_per_surface = analysis.formulas.v_sig_to_i_sig(v_sig=sig,
+                                                               full_scale_current=sum_ifs,
+                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+            
+            # Number of SEM foils is amount of surfaces e.g. 4 foils is horizontal and vertical SEM e.g. 2 times foil entry & exit == 4 surfaces
+            self.data_arrays[server]['see']['see_total'] = beam_data['data']['see']['see_total'] = see_per_surface * len(self._lookups[server]['sem_foils'])
+            
+            # Calculate sum SE yield
+            # dname: sey
+            self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = see_per_surface / beam_current.n * 100
+        
+        else:
+            logging.warning("Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing")
 
-                    # Scale voltage signal to current; signals can have different R/O scales
-                    sig_L = analysis.formulas.v_sig_to_i_sig(v_sig=sig_L,
-                                                             full_scale_current=self._get_full_scale_current(server, idx_L, self.readout_setup[server]['device']),
-                                                             full_scale_voltage=self._lookups[server]['full_scale_voltage'])
-                    sig_R = analysis.formulas.v_sig_to_i_sig(v_sig=sig_R,
-                                                             full_scale_current=self._get_full_scale_current(server, idx_R, self.readout_setup[server]['device']),
-                                                             full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+        # dname: beam_loss
+        if 'blm' in self._lookups[server]['ro_type_idx']:
+            blm_idx = self._lookups[server]['ro_type_idx']['blm']
+            blm_ifs = self._lookups[server]['full_scale_current']['blm']
+            blm_current = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][blm_idx]],
+                                                            full_scale_current=blm_ifs,
+                                                            full_scale_voltage=self._lookups[server]['full_scale_voltage'])
 
-                    beam_data['data']['sey']['h'] = sig_L + sig_R
+            # Only add beam loss to data if we have BLM data
+            self.data_arrays[server]['beam']['beam_loss'] = beam_data['data']['current']['beam_loss'] = blm_current
 
-                    rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane=plane)
+            # This should always be the case, at leasanything else is unphysical  
+            if blm_current <= self.data_arrays[server]['beam']['beam_current'][0]:
+                
+                try:
+                    # Get beam loss percentage
+                    rel_beam_loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
 
-                elif plane == 'v' and self._lookups[server]['sem_v']:
-                    idx_U, idx_D = self._lookups[server]['ro_type_idx']['sem_up'], self._lookups[server]['ro_type_idx']['sem_down']
-                    sig_U, sig_D = data[self.readout_setup[server]['channels'][idx_U]], data[self.readout_setup[server]['channels'][idx_D]]
+                    self._check_irrad_event(server=server,
+                                            event_name='BeamLoss',
+                                            trigger_condition=lambda: rel_beam_loss > self._beam_correction_threshold)
 
-                    # Scale voltage signal to current; signals can have different R/O scales
-                    sig_U = analysis.formulas.v_sig_to_i_sig(v_sig=sig_U,
-                                                             full_scale_current=self._get_full_scale_current(server, idx_U, self.readout_setup[server]['device']),
-                                                             full_scale_voltage=self._lookups[server]['full_scale_voltage'])
-                    sig_D = analysis.formulas.v_sig_to_i_sig(v_sig=sig_D,
-                                                             full_scale_current=self._get_full_scale_current(server, idx_D, self.readout_setup[server]['device']),
-                                                             full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+                    # Warn when cut-off is detected
+                    if rel_beam_loss >= self._beam_cut_off_threshold:
+                        logging.warning(f"Beam cut-off detected! Losing {rel_beam_loss*100:.2f} % of beam at extraction!")
 
-                    beam_data['data']['sey']['v'] = sig_U + sig_D
-
-                    rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane=plane)
-
-                else:
-                    logging.warning("Beam position can not be calculated!")
-                    rel_pos = np.nan
-
-                self.data_arrays[server]['beam'][dname] = beam_data['data']['position'][plane] = rel_pos
-
-            # Beam current
-            elif 'beam_current' in dname:
-
-                current = 0
-                n_foils = len(self._lookups[server]['sem_foils'])
-
-                if 'reconstructed' in dname:
-
-                    if n_foils not in (2, 4):
-                        msg = "Reconstructed beam current must be derived from 2 or 4 foils (currently {})".format(n_foils)
-                        logging.warning(msg)
-
-                    foil_idxs = [self._lookups[server]['ro_type_idx'][ch] for ch in self._lookups[server]['sem_foils']]
-
-                    for idx in foil_idxs:
-                        bc = analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][idx]],
-                                                                       calibration_factor=self._daq_params[server]['lambda'][0],
-                                                                       full_scale_current=self._get_full_scale_current(server=server, ch_idx=idx,
-                                                                                                                       ro_device=self.readout_setup[server]['device']))
-                        current += bc / n_foils
-
-                else:
-                    if 'sem_sum' in self._lookups[server]['ro_type_idx']:
-                        sum_idx = self._lookups[server]['ro_type_idx']['sem_sum']
-                        current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sum_idx]],
-                                                                            calibration_factor=self._daq_params[server]['lambda'][0],
-                                                                            full_scale_current=self._get_full_scale_current(server=server, ch_idx=sum_idx,
-                                                                                                                            ro_device=self.readout_setup[server]['device']))
-                        if 'error' in dname:
-                            # FIXME: calculate error according to uncertainty on calibration
-                            # Error on current measurement is Delta I = 3.3% I + 1% R_FS
-                            current *= 0.033
-                            current += 0.01 * self._get_full_scale_current(server=server,
-                                                                           ch_idx=self._lookups[server]['ro_type_idx']['sem_sum'],
-                                                                           ro_device=self.readout_setup[server]['device'])
-                        else:
-                            # Calculate sum SE current
-                            beam_data['data']['sey']['sum'] = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][sum_idx]] * n_foils,
-                                                                                               full_scale_current=self._get_full_scale_current(server, sum_idx, self.readout_setup[server]['device']),
-                                                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
-                    else:
-                        msg = "Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing"
-                        logging.warning(msg)
-
-                self.data_arrays[server]['beam'][dname] = beam_data['data']['current'][dname] = current
-
-            elif 'loss' in dname:
-                if 'blm' in self._lookups[server]['ro_type_idx']:
-                    blm_idx = self._lookups[server]['ro_type_idx']['blm']
-                    blm_current = analysis.formulas.v_sig_to_i_sig(v_sig=data[self.readout_setup[server]['channels'][blm_idx]],
-                                                                   full_scale_current=self._get_full_scale_current(server=server,
-                                                                                                                   ch_idx=blm_idx,
-                                                                                                                   ro_device=self.readout_setup[server]['device']),
-                                                                   full_scale_voltage=self._lookups[server]['full_scale_voltage'])
-
-                    # Only add beam loss to data if we have BLM data
-                    beam_data['data']['current']['beam_loss'] = blm_current
-
-                    # This should always be the case, at leasanything else is unphysical  
-                    if blm_current <= self.data_arrays[server]['beam']['beam_current'][0]:
+                    # Warn when extracted beam current is corrected
+                    if rel_beam_loss >= self._beam_correction_threshold:
                         
-                        try:
-                            # Get beam loss
-                            beam_loss = blm_current / self.data_arrays[server]['beam']['beam_current'][0]
+                        extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
 
-                            self._check_irrad_event(server=server,
-                                                    event_name='BeamLoss',
-                                                    trigger_condition=lambda: beam_loss > self._beam_correction_threshold)
 
-                            # Warn when cut-off is detected
-                            if beam_loss >= self._beam_cut_off_threshold:
-                                logging.warning("Beam cut-off detected! Losing {:.2f} % of beam at extraction!".format(beam_loss * 100))
+                        logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
+                                                                                                             extracted_current))
 
-                            # Warn when extracted beam current is corrected
-                            if beam_loss >= self._beam_correction_threshold:
-                                extracted_current = self.data_arrays[server]['beam']['beam_current'][0] - blm_current
-                                logging.warning("Correcting extracted beam current from {:.2E} A to {:.2E} A".format(self.data_arrays[server]['beam']['beam_current'][0],
-                                                                                                                extracted_current))
+                        self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = extracted_current
 
-                                self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = extracted_current
+                except ZeroDivisionError:
+                    pass
+            
+            # This case should not exist because blm_current can be at most beam current
+            # Due to different sampling timestamps for the ADC channels, this can occure in unstable beam conditions
+            # See https://github.com/SiLab-Bonn/irrad_control/issues/69
+            else:
+                self.data_arrays[server]['beam']['beam_current'] = 0
 
-                        except ZeroDivisionError:
-                            pass
-                    
-                    # This case should not exist because blm_current can be at most beam current
-                    # Due to different sampling timestamps for the ADC channels, this can occure in unstable beam conditions
-                    # See https://github.com/SiLab-Bonn/irrad_control/issues/69
-                    else:
-                        self.data_arrays[server]['beam']['beam_current'] = 0
+        else:
+            self.data_arrays[server]['beam']['beam_loss'] = np.nan
 
-                else:
-                    blm_current = np.nan
+        # dname: reconstructed_beam_current
+        n_foils = len(self._lookups[server]['sem_foils'])
+        if n_foils not in (2, 4):
+            logging.warning(f"Reconstructed beam current must be derived from 2 or 4 foils (currently {n_foils})")
 
-                self.data_arrays[server]['beam'][dname] = blm_current
+        else:
 
-        # Calc SEY fractions
-        if 'sum' in beam_data['data']['sey']:
+            recon_beam_current = 0
+            for sem_ch in self._lookups[server]['sem_foils']:
+                sem_ch_idx = self._lookups[server]['ro_type_idx'][sem_ch]
+                sem_ch_ifs = self._lookups[server]['full_scale_current'][sem_ch]
+                recon_beam_current += analysis.formulas.calibrated_beam_current(beam_monitor_sig=data[self.readout_setup[server]['channels'][sem_ch_idx]],
+                                                                                calibration_factor=self._daq_params[server]['lambda'][0],
+                                                                                full_scale_current=sem_ch_ifs)
+            recon_beam_current /= n_foils
+
+            self.data_arrays[server]['beam']['reconstructed_beam_current'] = beam_data['data']['current']['reconstructed_beam_current'] = recon_beam_current
+
+        ### Beam positions ###
+        # dname: horizontal_beam_position
+        # Check if we have horizontal SEM data
+        if self._lookups[server]['sem_h']:
+            idx_L, idx_R = self._lookups[server]['ro_type_idx']['sem_left'], self._lookups[server]['ro_type_idx']['sem_right']
+            sig_L, sig_R = data[self.readout_setup[server]['channels'][idx_L]], data[self.readout_setup[server]['channels'][idx_R]]
+
+            # Scale voltage signal to current; signals can have different R/O scales
+            sig_L = analysis.formulas.v_sig_to_i_sig(v_sig=sig_L,
+                                                     full_scale_current=self._lookups[server]['full_scale_current']['sem_left'],
+                                                     full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+            sig_R = analysis.formulas.v_sig_to_i_sig(v_sig=sig_R,
+                                                     full_scale_current=self._lookups[server]['full_scale_current']['sem_right'],
+                                                     full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+
+            # dname: see_horizontal
+            self.data_arrays[server]['see']['see_horizontal'] = beam_data['data']['see']['see_horizontal'] = sig_L + sig_R
+
+            # Horizontal fraction of SEE
             try:
-                if 'h' in beam_data['data']['sey']:
-                    beam_data['data']['sey']['frac_h'] = beam_data['data']['sey']['h']/beam_data['data']['sey']['sum'] * 100
-                if 'v' in beam_data['data']['sey']:
-                    beam_data['data']['sey']['frac_v'] = beam_data['data']['sey']['v']/beam_data['data']['sey']['sum'] * 100
+                beam_data['data']['see']['frac_h'] = beam_data['data']['see']['see_horizontal'] / beam_data['data']['see']['see_total'] * 100
             except ZeroDivisionError:
                 pass
+
+            rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_L, sig_b=sig_R, plane='h')
+
+            self.data_arrays[server]['beam']['horizontal_beam_position'] = beam_data['data']['position']['h'] = rel_pos
+            
+        else:
+            logging.warning("Horizontal beam position can not be calculated!")
+
+        # dname: vertical_beam_position
+        # Check if we have vertical SEM data
+        if self._lookups[server]['sem_v']:
+            idx_U, idx_D = self._lookups[server]['ro_type_idx']['sem_up'], self._lookups[server]['ro_type_idx']['sem_down']
+            sig_U, sig_D = data[self.readout_setup[server]['channels'][idx_U]], data[self.readout_setup[server]['channels'][idx_D]]
+
+            # Scale voltage signal to current; signals can have different R/O scales
+            sig_U = analysis.formulas.v_sig_to_i_sig(v_sig=sig_U,
+                                                     full_scale_current=self._lookups[server]['full_scale_current']['sem_up'],
+                                                     full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+            sig_D = analysis.formulas.v_sig_to_i_sig(v_sig=sig_D,
+                                                     full_scale_current=self._lookups[server]['full_scale_current']['sem_down'],
+                                                     full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+
+            # dname: see_vertical
+            self.data_arrays[server]['see']['see_vertical'] = beam_data['data']['see']['see_vertical'] = sig_U + sig_D
+
+            # Vertical fraction of SEE
+            try:
+                beam_data['data']['see']['frac_v'] = beam_data['data']['see']['see_vertical'] / beam_data['data']['see']['see_total'] * 100
+            except ZeroDivisionError:
+                pass
+
+            rel_pos = analysis.formulas.rel_beam_position(sig_a=sig_U, sig_b=sig_D, plane='v')
+
+            self.data_arrays[server]['beam']['vertical_beam_position'] = beam_data['data']['position']['v'] = rel_pos
+        else:
+            logging.warning("Vertical beam position can not be calculated!")
 
         self._shift_beam_currents(server=server)
 
@@ -627,7 +662,7 @@ class IrradConverter(DAQProcess):
                                 trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
         
         # Append data to table within this interpretation cycle
-        self.data_flags[server]['beam'] = True
+        self.data_flags[server]['beam'] = self.data_flags[server]['see'] = True
 
         return beam_data
     
@@ -709,7 +744,6 @@ class IrradConverter(DAQProcess):
 
         elif data['status'] == 'scan_start':
 
-            self.data_flags[server]['scanning'] = True
             self.data_arrays[server]['scan']['row_start_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['scan'] = data['scan']
             self.data_arrays[server]['scan']['row'] = data['row']
@@ -720,7 +754,6 @@ class IrradConverter(DAQProcess):
 
         elif data['status'] == 'scan_stop':
 
-            self.data_flags[server]['scanning'] = False
             self.data_arrays[server]['scan']['row_stop_timestamp'] = meta['timestamp']
             self.data_arrays[server]['scan']['row_stop_x'] = data['x_stop']
             self.data_arrays[server]['scan']['row_stop_y'] = data['y_stop']
@@ -961,16 +994,20 @@ class IrradConverter(DAQProcess):
 
         axis_domain = 'motorstage_{}'.format(data['axis_domain'].lower())
 
-        self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
-        self.data_arrays[server][axis_domain]['axis'] = data['axis']
-        self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
-        self.data_arrays[server][axis_domain]['position'] = data['position']
+        # If the motorstage was not registered as a motorstage but still sends axis data
+        # we do not have a table entry for it, so check. Set motorstage: True in devices_config.yaml
+        if axis_domain in self.data_arrays[server]:
 
-        for prop in ('speed', 'accel', 'travel'):
-            if prop in data:
-                self.data_arrays[server][axis_domain][prop] = data[prop]
+            self.data_arrays[server][axis_domain]['timestamp'] = meta['timestamp']
+            self.data_arrays[server][axis_domain]['axis'] = data['axis']
+            self.data_arrays[server][axis_domain]['movement_status'] = data['status'].encode('ascii')
+            self.data_arrays[server][axis_domain]['position'] = data['position']
 
-        self.data_flags[server][axis_domain] = True
+            for prop in ('speed', 'accel', 'travel'):
+                if prop in data:
+                    self.data_arrays[server][axis_domain][prop] = data[prop]
+
+            self.data_flags[server][axis_domain] = True
 
     def _store_event_parameters(self, server, event, parameters):
         """
@@ -1117,6 +1154,7 @@ class IrradConverter(DAQProcess):
             elif cmd == 'update_group_ifs':
                 server, ifs, group = data['server'], data['ifs'], data['group']
                 self.readout_setup[server]['ro_group_scales'][group] = ifs
+                self._update_ifs_values(server=server)
                 self._store_event_parameters(server=server, event=cmd, parameters={'group': group, 'ifs': ifs, 'unit': 'nA'})
             
             elif cmd == 'toggle_event':
@@ -1134,7 +1172,7 @@ class IrradConverter(DAQProcess):
 
             # Store histograms
             for hist_name in self.data_hists[server]:
-                table_name = '{}{}'.format(*[n.capitalize() for n in hist_name.split('_')])
+                table_name = self._generate_hist_table_name(hist_name=hist_name)
                 self.output_table.create_array('/{}/Histogram/{}'.format(server_setup['name'], table_name), 'hist', self.data_hists[server][hist_name]['hist'])
 
         self.output_table.flush()

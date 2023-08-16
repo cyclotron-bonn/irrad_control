@@ -1,10 +1,8 @@
 import logging
-from irrad_control.analysis import plotting
-from irrad_control.analysis import fluence
-from irrad_control.analysis import formulas
+from irrad_control.analysis import plotting, fluence, formulas
 
 
-def analyse_radiation_damage(data, config=None):
+def main(data, config=None):
 
     figs = []
     bins = (100, 100)
@@ -29,7 +27,7 @@ def analyse_radiation_damage(data, config=None):
                 raise ValueError(f"Multipart damage analysis only supports input files containing data from 1 server; found {len(len(config_part['server']))}")
             
             server_config, = config_part['server'].values()
-
+            
             # Only allow one fixed server for multipart
             if server is None:
                 server = server_config['name']

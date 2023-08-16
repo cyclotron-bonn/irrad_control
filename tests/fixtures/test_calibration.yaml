@@ -2,9 +2,21 @@ host: 131.220.221.83
 server:
   131.220.221.101:
     daq:
-      kappa: 4.1
-      lambda: 0.937
-      sem: SEM-15-deg
+      ekin: 12.710813522338867
+      ekin_initial: 14.0
+      ion: proton
+      kappa:
+        date: Wed Jul 15 11:00:00 2020
+        energy: 12.26
+        nominal: 4.1
+        sigma: 0.8
+      lambda:
+        date: Wed May 18 09:00:00 2022
+        energy: 13.602
+        nominal: 0.886
+        sigma: 0.009
+      stopping_power: 28.748968200683592
+      stopping_power_initial: 26.67
     devices:
       ADCBoard:
         init: None
