@@ -75,24 +75,24 @@ class ProcessManager(object):
 
             logging.info('Already connected to server {}@{}!'.format(username, hostname))
 
-    def configure_server(self, hostname, py_version=None, py_update=False, git_pull=False, branch=False):
+    def configure_server(self, hostname, py_update=False, git_pull=False, branch=False):
 
         # Check whether remote server already has the script in the default installation path
-        remote_script = '/home/{}/irrad_control/scripts/configure_server.sh'.format(self.server[hostname])
+        remote_script = '/home/{}/irrad_control/scripts/install.sh'.format(self.server[hostname])
         remote_script_exists = self._check_file_exits(hostname=hostname, file_path=remote_script)
 
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
-            remote_script = '/home/{}/config_server.sh'.format(self.server[hostname])
-            local_script = os.path.join(script_path, 'configure_server.sh')
+            remote_script = '/home/{}/install.sh'.format(self.server[hostname])
+            local_script = os.path.join(script_path, 'install.sh')
             self.copy_to_server(hostname, local_script, remote_script)
 
         # Add args to call remote script
         _rs = remote_script
-        _rs += ' -v={}'.format(sys.version_info[0] if py_version is None else py_version)
-        _rs += ' -u' if py_update else ''
-        _rs += ' -p' if git_pull else ''
-        _rs += '' if not branch else ' -b={}'.format(branch)
+        _rs += ' --server'  # installs server dependencies
+        _rs += ' --update' if py_update else ''
+        _rs += ' --ic_pull' if git_pull else ''
+        _rs += '' if not branch else ' -icb={}'.format(branch)
 
         # Run script to determine whether server RPi has miniconda and all packages installed
         self._exec_cmd(hostname, 'bash {}'.format(_rs), log_stdout=True)
