@@ -252,8 +252,17 @@ if [ "$IRRAD_INSTALL" != false ]; then
     echo "Installing irrad_server into $CONDA_ENV_NAME environment..."
     cd $IRRAD_PATH && python setup.py develop server
     create_server_start_script
+    # Enable the pigpio deamon on boot
+    sudo systemctl enable pigpiod.service
   else
     echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
     pip install -e $IRRAD_PATH
   fi
+fi
+
+# Check if we have the pigpio deamon running if we are on a server
+# 'pigs t' returns u32 of amount of ticks (in µs) which have passed since boot (overflows within ~ 1h12m)
+# If second statement evaluates to 'true' it is any number
+if [ "$IRRAD_SERVER" == true ] && [[ ! $(sudo pigs t) =~ ^[0-9]+$ ]]; then
+  sudo pigpiod
 fi
