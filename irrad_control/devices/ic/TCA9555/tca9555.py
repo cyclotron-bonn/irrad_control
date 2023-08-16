@@ -518,7 +518,7 @@ class TCA9555(object):
         """
         self._check_bits(bits=bit)
 
-        return self.io_state[bit]
+        return bool(int(self.io_state[bit]))
 
     @_event_lock
     def set_direction(self, direction, bits=None):
