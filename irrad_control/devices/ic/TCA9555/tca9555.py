@@ -1,5 +1,4 @@
-import bitstring as bs
-from collections import Iterable
+from collections.abc import Iterable
 from functools import wraps
 from threading import Event
 
@@ -186,33 +185,41 @@ class TCA9555(object):
         """
         return self._intf.read_register(reg=reg)
 
-    def _create_state(self, state, bit_length):
+    def _create_state(self, state_repr, bit_length):
         """
-        Method to create a BitArray which represents the desired *state* of *bit_length* bits
+        Method to create a string-representation of the desired *state_repr* of *bit_length* bits e.g.
+
+        self._create_state(3, bit_length=8)  # '00000011'
 
         Parameters
         ----------
-        state: BitArray, int, str, Iterable
-            state from which to create a BitArray
+        state_repr: int, str, Iterable
+            state from which to create a string-representation of
         bit_length: int
             length of the state
+        Returns
+        -------
+        state: str
+            The representation of the state as a binary string
         """
-        if isinstance(state, bs.BitArray):
-            pass
+        
+        if isinstance(state_repr, int):
+            state = format(state_repr, f'0{bit_length}b')
 
-        elif isinstance(state, int):
-            state = bs.BitArray("uint:{}={}".format(bit_length, state))
+        elif isinstance(state_repr, Iterable):
+            state = ''
+            for i in state_repr:
+                state += f'{int(i):1b}'
 
-        elif isinstance(state, Iterable):
-            state = bs.BitArray(state)
-
+            if len(state) < bit_length:
+                state = '0' * (bit_length - len(state)) + state
         else:
             raise ValueError(
-                "State must be integer, string or BitArray representing {} bits".format(bit_length)
+                "State must be integer, iterable or string representing {} bits".format(bit_length)
             )
 
         if len(state) != bit_length:
-            raise ValueError("State must be {}} bits".format(bit_length))
+            raise ValueError("State must be {} bits, is {}".format(bit_length, len(state)))
 
         return state
 
@@ -289,11 +296,15 @@ class TCA9555(object):
             state = self._get_state(reg=reg)
 
             # Loop over state and set bits
-            for bit in bits:
-                state[bit] = val
+            new_state = ''
+            for i in range(len(state)):
+                if i in bits:
+                    new_state += f'{val:1b}'
+                else:
+                    new_state += state[i]
 
             # Set state
-            self._set_state(reg, state)
+            self._set_state(reg, new_state)
 
         else:
             # Set all pins to *val*
@@ -307,8 +318,8 @@ class TCA9555(object):
         ----------
         reg: str
             Name of register whose state will be set
-        state: BitString, Iterable, str
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable, 
+            Value from which a string-representation of *state* can be created
         """
         # Create empty target register state
         target_reg_state = self._create_state(state, self._n_io_bits)
@@ -335,8 +346,8 @@ class TCA9555(object):
             Name of register whose state will be set
         port: int
             Index of the port; either 0 or 1
-        state: BitString, Iterable, str, int
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         # Check if register exists
         self._check_register(reg)
@@ -344,12 +355,12 @@ class TCA9555(object):
         if port not in (0, 1):
             raise IndexError("*port* must be index of physical port; either 0 or 1")
 
-        target_state = self._create_state(state=state, bit_length=self._n_bits_per_port)
+        target_state = self._create_state(state, bit_length=self._n_bits_per_port)
 
         # Match bit order with physical pin order, increasing left to right
-        target_state.reverse()
+        reg_data = int(target_state[::-1], base=2)
 
-        self._write_reg(reg=self.regs[reg][port], data=target_state.uint)
+        self._write_reg(reg=self.regs[reg][port], data=reg_data)
 
     def _get_state(self, reg):
         """
@@ -360,7 +371,7 @@ class TCA9555(object):
         reg: str
             Name of register whose state will be read
         """
-        return sum([self._get_port_state(reg=reg, port=port) for port in range(self._n_ports)])
+        return ''.join(self._get_port_state(reg=reg, port=port) for port in range(self._n_ports))
 
     def _get_port_state(self, reg, port):
         """
@@ -380,15 +391,11 @@ class TCA9555(object):
             raise IndexError("*port* must be index of physical port; either 0 or 1")
 
         # Read port state
-        port_state = self._create_state(
-            state=self._read_reg(reg=self.regs[reg][port]),
-            bit_length=self._n_bits_per_port,
-        )
+        port_state = self._create_state(self._read_reg(reg=self.regs[reg][port]),
+                                        bit_length=self._n_bits_per_port)
 
         # Match bit order with physical pin order, increasing left to right
-        port_state.reverse()
-
-        return port_state
+        return port_state[::-1]
 
     @_event_lock
     def int_to_bits(self, bits, val):
@@ -406,17 +413,21 @@ class TCA9555(object):
         state = self._get_state("input")
 
         # Create state for set of bits
-        val_bits = self._create_state(state=val, bit_length=len(bits))
+        val_bits = self._create_state(val, bit_length=len(bits))
 
         # Match bit order with physical pin order, increasing left to right
-        val_bits.reverse()
+        val_bits = val_bits[::-1]
 
         # Update current io state
-        for i, bit in enumerate(bits):
-            state[bit] = val_bits[i]
+        new_state = ''
+        for i in range(len(state)):
+            if i in bits:
+                new_state += val_bits[bits.index(i)]
+            else:
+                new_state += state[i]
 
         # Set the updated state
-        self._set_state("output", state)
+        self._set_state("output", new_state)
 
     def int_from_bits(self, bits):
         """
@@ -431,12 +442,14 @@ class TCA9555(object):
         state = self.io_state
 
         # Read the respective bit values
-        val_bits = bs.BitArray([state[bit] for bit in bits])
+        bit_state = ''
+        for bit in bits:
+            bit_state += state[bit]
 
         # Match bit order with physical pin order, increasing left to right
-        val_bits.reverse()
+        val = int(bit_state[::-1], base=2)
 
-        return val_bits.uint
+        return val
 
     @_event_lock
     def set_state(self, reg, state):
@@ -447,8 +460,8 @@ class TCA9555(object):
         ----------
         reg: str
             Name of register whose state will be set
-        state: BitString, Iterable, str
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         self._set_state(reg=reg, state=state)
 
@@ -463,8 +476,8 @@ class TCA9555(object):
             Name of register whose state will be set
         port: int
             Index of the port; either 0 or 1
-        state: BitString, Iterable, str, int
-            Value from which a BitString-representation of *state* can be created
+        state: str, int, Iterable
+            Value from which a string-representation of *state* can be created
         """
         self._set_port_state(reg=reg, port=port, state=state)
 
@@ -505,7 +518,7 @@ class TCA9555(object):
         """
         self._check_bits(bits=bit)
 
-        return self.io_state[bit]
+        return bool(int(self.io_state[bit]))
 
     @_event_lock
     def set_direction(self, direction, bits=None):
@@ -549,7 +562,7 @@ class TCA9555(object):
         """
         self._set_bits(reg="output", val=int(bool(level)), bits=bits)
 
-    def format_config(self, format_="bin"):
+    def format_config(self, format_="#16b"):
         """
         Method returning a more readable version of self.config
 
@@ -558,7 +571,8 @@ class TCA9555(object):
         format_: str
             Any attribute of BitArray-class
         """
-        return {reg: getattr(state, format_) for reg, state in self.config.items()}
+        fmt = lambda s: format(int(s, base=2), format_) if format_ is not None else s 
+        return {reg: fmt(state) for reg, state in self.config.items()}
 
     def set_bits(self, bits=None):
         """

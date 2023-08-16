@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
-from irrad_control.devices.ic.ADS1256 import ads1256
+from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 
 
@@ -92,18 +92,15 @@ class DaqInfoWidget(QtWidgets.QWidget):
             # Check info in daq_setup
             _cnfg = self.setup[server]['readout']
             _srate_lbl = '' if 'sampling_rate' not in _cnfg else _cnfg['sampling_rate']
-            _avgs_lbl = '' if 'sampling_rate' not in _cnfg else ads1256['avgs'][_cnfg['sampling_rate']]
 
             # Set labels
             self.data_rate_labels[server] = QtWidgets.QLabel('Data rate :' + '\t' + 'Hz ')
             self.sampling_rate_labels[server] = QtWidgets.QLabel('Sampling rate: %s sps' % _srate_lbl)
-            self.num_avg_labels[server] = QtWidgets.QLabel('Averages: %s' % _avgs_lbl)
             self.beam_current_labels[server] = QtWidgets.QLabel('Beam current:' + '\t' + 'nA')
 
             # Tooltips of labels
             self.data_rate_labels[server].setToolTip('Rate of incoming data of respective ADC')
             self.sampling_rate_labels[server].setToolTip('Samples per second of the ADS1256')
-            self.num_avg_labels[server].setToolTip('Number of averages done by the ADS1256 for respective sampling rate')
 
             # Helper widgets to change display of raw data
             # Spinbox to select refresh rate of data
@@ -137,7 +134,7 @@ class DaqInfoWidget(QtWidgets.QWidget):
 
             # Add to layout
             info_widget.add_widget(widget=[self.data_rate_labels[server], self.beam_current_labels[server], interval_spinbox, digit_spinbox])
-            info_widget.add_widget(widget=[self.sampling_rate_labels[server], self.num_avg_labels[server], unit_label, unit_widget])
+            info_widget.add_widget(widget=[self.sampling_rate_labels[server], unit_label, unit_widget])
 
             # Layout for table area
             table_widget = QtWidgets.QWidget()
@@ -330,7 +327,3 @@ class DaqInfoWidget(QtWidgets.QWidget):
     def update_srate(self, server, srate):
         """Update the sampling rate label"""
         self.sampling_rate_labels[server].setText('Sampling rate: {} sps'.format(srate))
-
-    def update_num_avg(self, server, num_avg):
-        """Update the average number label"""
-        self.num_avg_labels[server].setText('Averages: {}'.format(num_avg))
