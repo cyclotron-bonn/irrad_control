@@ -91,7 +91,7 @@ class ProcessManager(object):
         _rs = remote_script
         _rs += ' --server'  # installs server dependencies
         _rs += ' --update' if py_update else ''
-        _rs += ' --ic_pull' if git_pull else ''
+        _rs += ' --ic_update' if git_pull else ''
         _rs += '' if not branch else ' -icb={}'.format(branch)
 
         # Run script to determine whether server RPi has miniconda and all packages installed

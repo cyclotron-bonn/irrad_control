@@ -112,7 +112,7 @@ function env_installer {
 # Needed variables
 MAMBAFORGE_PATH=$HOME/mambaforge
 MAMBAFORGE="https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
-IRRAD_PATH=$PWD
+IRRAD_PATH=$PWD/irrad_control
 IRRAD_SERVER=false
 CONDA_UPDATE=false
 PY_VERSION="3.9"
