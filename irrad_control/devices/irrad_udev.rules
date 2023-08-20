@@ -1,0 +1,5 @@
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2939", ATTRS{idProduct}=="49c3", ATTRS{serial}=="80677", SYMLINK+="Zaber-Controller-X-MCC3"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="FTF9202Q", SYMLINK+="ISEG-HV"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AB0LRTZY", SYMLINK+="Arduino-Radiation-Monitor"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="AB0LRX20", SYMLINK+="Arduino-Readout-Board"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="Arduino-NTC-Readout"
