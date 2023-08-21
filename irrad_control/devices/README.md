@@ -1,6 +1,6 @@
 # udev rules
 
-To guarantee persistent device paths for your irradiation servers [configuration](./device_config.yaml)
+To guarantee persistent device paths for your irradiation servers [configuration](./devices_config.yaml)
 after reboot, a set of [udev](https://en.wikipedia.org/wiki/Udev) rules should be created in a ``.rules` text file and placed in
 
 ```bash
