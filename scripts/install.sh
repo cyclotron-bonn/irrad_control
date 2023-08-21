@@ -222,7 +222,7 @@ read_requirements
 # Miniconda is not installed; download and install
 if [ ! -d "$MAMBAFORGE_PATH" ]; then
   
-  echo "Server missing Python environment! Setting up environment..."
+  echo "Missing Python environment! Setting up..."
   
   # Get mambaforge
   echo "Getting mambaforge from ${MAMBAFORGE}"
@@ -264,5 +264,6 @@ fi
 # 'pigs t' returns u32 of amount of ticks (in µs) which have passed since boot (overflows within ~ 1h12m)
 # If second statement evaluates to 'true' it is any number
 if [ "$IRRAD_SERVER" == true ] && [[ ! $(sudo pigs t) =~ ^[0-9]+$ ]]; then
+  echo "Starting pigpio daemon"
   sudo pigpiod
 fi
