@@ -8,7 +8,7 @@ from irrad_control.gui.tabs import IrradMonitorTab
 from irrad_control.gui.widgets.setup_widgets import SessionSetup
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.gui.widgets.util_widgets import GridContainer
-from irrad_control.utils.tools import load_yaml
+from irrad_control.utils.tools import load_yaml, save_yaml
 from irrad_control.ions import get_ions
 from irrad_control import config_path, tmp_path
 
@@ -133,6 +133,8 @@ class MonitorGUI(IrradGUI):
         for con in [lambda _, mw=main_widget: mw.setEnabled(False),
                     self.minimal_input_window.close,
                     self.show,
+                    lambda _: self.setup['session'].update(session_widget.setup()),
+                    lambda _: save_yaml(path=f"{self.setup['session']['outfile']}.yaml", data=self.setup),
                     lambda _: self._init_setup(setup=self.setup),
                     lambda _: self.info_dock.setVisible(False),
                     lambda _: self.daq_dock.setVisible(False)]:
