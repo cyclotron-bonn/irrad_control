@@ -509,10 +509,18 @@ class IrradConverter(DAQProcess):
             
             # Number of SEM foils is amount of surfaces e.g. 4 foils is horizontal and vertical SEM e.g. 2 times foil entry & exit == 4 surfaces
             self.data_arrays[server]['see']['see_total'] = beam_data['data']['see']['see_total'] = see_per_surface * len(self._lookups[server]['sem_foils'])
-            
-            # Calculate sum SE yield
-            # dname: sey
-            self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = see_per_surface / beam_current.n * 100
+
+            # Actual SEY can only be calculated from a FC measurement, parallel to the beam monitor SEE current
+            # Check if beam is not off and check for FC measurement
+            if not self.irrad_events[server]['BeamOff'].is_valid() and 'cup' in self._lookups[server]['ro_type_idx']:
+                # Calculate sum SE yield
+                # dname: sey
+                fc_channel = self.readout_setup[server]['channels'][self._lookups[server]['ro_type_idx']['cup']]
+                fc_current = analysis.formulas.v_sig_to_i_sig(v_sig=self.data_arrays[server]['raw'][fc_channel],
+                                                              full_scale_current=self._lookups[server]['full_scale_current']['cup'],
+                                                              full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+                
+                self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = see_per_surface / fc_current * 100
         
         else:
             logging.warning("Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing")
