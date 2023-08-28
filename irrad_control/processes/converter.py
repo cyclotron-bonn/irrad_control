@@ -355,14 +355,15 @@ class IrradConverter(DAQProcess):
             except (ZeroDivisionError, IndexError):
                 pass
 
-        # SEY
-        sey = beam_data['data']['see']['sey']
-        sey_idx = analysis.formulas.get_hist_idx(val=sey, bin_edges=self.data_hists[server]['sey']['meta']['edges'])
-        try:
-            self.data_hists[server]['sey']['hist'][sey_idx] += 1
-            hist_data['data']['sey_idx'] = sey_idx
-        except IndexError:
-            pass
+        # SEY; we only have this if a FC cup is present and the BeamOff is not active
+        if 'sey' in beam_data['data']['see']:
+            sey = beam_data['data']['see']['sey']
+            sey_idx = analysis.formulas.get_hist_idx(val=sey, bin_edges=self.data_hists[server]['sey']['meta']['edges'])
+            try:
+                self.data_hists[server]['sey']['hist'][sey_idx] += 1
+                hist_data['data']['sey_idx'] = sey_idx
+            except IndexError:
+                pass
 
         return hist_data
 
@@ -512,7 +513,7 @@ class IrradConverter(DAQProcess):
 
             # Actual SEY can only be calculated from a FC measurement, parallel to the beam monitor SEE current
             # Check if beam is not off and check for FC measurement
-            if not self.irrad_events[server]['BeamOff'].is_valid() and 'cup' in self._lookups[server]['ro_type_idx']:
+            if not self.irrad_events[server].BeamOff.value.is_valid() and 'cup' in self._lookups[server]['ro_type_idx']:
                 # Calculate sum SE yield
                 # dname: sey
                 fc_channel = self.readout_setup[server]['channels'][self._lookups[server]['ro_type_idx']['cup']]
