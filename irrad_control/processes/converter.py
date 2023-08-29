@@ -517,7 +517,7 @@ class IrradConverter(DAQProcess):
                 # Calculate sum SE yield
                 # dname: sey
                 fc_channel = self.readout_setup[server]['channels'][self._lookups[server]['ro_type_idx']['cup']]
-                fc_current = analysis.formulas.v_sig_to_i_sig(v_sig=self.data_arrays[server]['raw'][fc_channel],
+                fc_current = analysis.formulas.v_sig_to_i_sig(v_sig=self.data_arrays[server]['raw'][fc_channel][0],
                                                               full_scale_current=self._lookups[server]['full_scale_current']['cup'],
                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
                 
