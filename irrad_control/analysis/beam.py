@@ -1,5 +1,5 @@
 from irrad_control.analysis import plotting, constants
-
+from irrad_control.utils.utils import duration_str_from_secs
 
 def main(data, config=None):
 
@@ -18,9 +18,7 @@ def main(data, config=None):
         'xdata': beam_current,
         'xlabel': 'Beam current / nA',
         'ylabel': '#',
-        'label': "Beam current over {}".format(plotting._calc_duration(start=data[server]['Beam']['timestamp'][0],
-                                                                       end=data[server]['Beam']['timestamp'][-1],
-                                                                       as_str=True)),
+        'label': "Beam current over {}".format(duration_str_from_secs(seconds=data[server]['Beam']['timestamp'][-1]-data[server]['Beam']['timestamp'][0])),
         'title': "Beam current distribution",
         'fmt': 'C0'
     }
