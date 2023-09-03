@@ -13,6 +13,7 @@ import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
 from irrad_control.ions import get_ions
 from irrad_control.utils.events import create_irrad_events
+from irrad_control.utils.utils import duration_str_from_secs
 
 
 class IrradConverter(DAQProcess):
@@ -438,6 +439,44 @@ class IrradConverter(DAQProcess):
         stop_idx = np.searchsorted(-tmp_beam['timestamp'], -start_ts)[0]
 
         return tmp_beam[start_idx:stop_idx]
+    
+    def _check_remaining_n_scans(self, server):
+
+        # Estimate remaining n_scans
+        _mean_primary_fluence = np.mean(self._row_fluence_hist[server]).n
+
+        try:
+            # Check damage type
+            if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('neq', encoding='ascii'):
+                # Get remaining primary fluence
+                aim_primary = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0]
+                remainder_primary = aim_primary - _mean_primary_fluence
+                eta_n_scans = remainder_primary / self.data_arrays[server]['scan']['row_primary_fluence'][0]
+
+            elif self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('tid', encoding='ascii'):
+                remainder_tid = self.data_arrays[server]['irrad']['aim_value'][0]
+                remainder_tid -= analysis.formulas.tid_per_scan(primary_fluence=_mean_primary_fluence,
+                                                                stopping_power=self._daq_params[server]['stopping_power'])
+                eta_n_scans = remainder_tid / analysis.formulas.tid_per_scan(primary_fluence=self.data_arrays[server]['scan']['row_primary_fluence'][0],
+                                                                             stopping_power=self._daq_params[server]['stopping_power'])
+            # Remainder is primary fluence
+            else:
+                remainder_primary = self.data_arrays[server]['irrad']['aim_value'][0] - _mean_primary_fluence
+                eta_n_scans = remainder_primary / self.data_arrays[server]['scan']['row_primary_fluence'][0]
+
+            eta_n_scans = int(eta_n_scans)
+
+            # Check for event complete event
+            self._check_irrad_event(server=server,
+                                    event_name='IrradiationComplete',
+                                    trigger_condition=lambda n_s=eta_n_scans: n_s < 1)
+        
+        # Whatever exception happens here does not matter, we are unable to extrapolate the remaining scans is the message
+        except Exception as e:
+            logging.warning(f"Unable to estimate number of remaining scans due to '{type(e).__name__}:{repr(e)}'")
+            eta_n_scans = -1
+
+        return eta_n_scans
 
     def _interpret_raw_data(self, server, data, meta):
 
@@ -795,38 +834,15 @@ class IrradConverter(DAQProcess):
             # Append data to table within this interpretation cycle
             self.data_flags[server]['scan'] = True
 
-            # ETA time and n_scans
-            _mean_primary_fluence = np.mean(self._row_fluence_hist[server]).n
-            row_scan_time = self.data_arrays[server]['scan']['row_stop_timestamp'][0] - self.data_arrays[server]['scan']['row_start_timestamp'][0]
+            # Get estimate for remaining scans
+            eta_n_scans = self._check_remaining_n_scans(server=server)
 
-            try:
-                # Check damage type
-                if self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('neq', encoding='ascii'):
-                    # Get remaining primary fluence
-                    aim_primary = self.data_arrays[server]['irrad']['aim_value'][0] / self._daq_params[server]['kappa'][0]
-                    remainder_primary = aim_primary - _mean_primary_fluence
-                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
-
-                elif self.data_arrays[server]['irrad']['aim_damage'][0] == bytes('tid', encoding='ascii'):
-                    remainder_tid = self.data_arrays[server]['irrad']['aim_value'][0]
-                    remainder_tid -= analysis.formulas.tid_per_scan(primary_fluence=_mean_primary_fluence,
-                                                                    stopping_power=self._daq_params[server]['stopping_power'])
-                    eta_n_scans = int(remainder_tid / analysis.formulas.tid_per_scan(primary_fluence=row_primary_fluence.n,
-                                                                                     stopping_power=self._daq_params[server]['stopping_power']))
-                # Remainder is primary fluence
-                else:
-                    remainder_primary = self.data_arrays[server]['irrad']['aim_value'][0] - _mean_primary_fluence
-                    eta_n_scans = int(remainder_primary / row_primary_fluence.n)
-
+            if eta_n_scans < 0:
+                eta_time = 'unknown'
+            else:
+                row_scan_time = self.data_arrays[server]['scan']['row_stop_timestamp'][0] - self.data_arrays[server]['scan']['row_start_timestamp'][0]
                 eta_seconds = eta_n_scans * row_scan_time * self.data_arrays[server]['irrad']['n_rows'][0]
-
-                # Check for event complete event
-                self._check_irrad_event(server=server,
-                                        event_name='IrradiationComplete',
-                                        trigger_condition=lambda n_s=eta_n_scans: n_s < 1)
-
-            except (ZeroDivisionError, ValueError):  # ValueError if any of the values is np.nan
-                eta_time = eta_n_scans = -1
+                eta_time = duration_str_from_secs(seconds=eta_seconds)
 
             scan_data = {'meta': {'timestamp': meta['timestamp'], 'name': server, 'type': 'scan'},
                          'data': {'fluence_hist': unumpy.nominal_values(self._row_fluence_hist[server]).tolist(),
@@ -834,7 +850,7 @@ class IrradConverter(DAQProcess):
                                   'row_primary_fluence': (row_primary_fluence.n, row_primary_fluence.s),
                                   'row_tid': (row_tid.n, row_tid.s),
                                   'row': int(self.data_arrays[server]['scan']['row'][0]),
-                                  'eta_seconds': eta_seconds, 'eta_n_scans': eta_n_scans,
+                                  'eta_time': eta_time, 'eta_n_scans': eta_n_scans,
                                   'status': 'interpreted'}}
 
         elif data['status'] == 'scan_complete':
@@ -878,6 +894,9 @@ class IrradConverter(DAQProcess):
                                                                                             self._daq_params[server]['ion'].name,
                                                                                             abs_tid.n,
                                                                                             abs_tid.s))
+            
+            if self.irrad_events[server].IrradiationComplete.value.is_valid():
+                logging.info(f"Irradiation completed!")
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['damage'] = True
