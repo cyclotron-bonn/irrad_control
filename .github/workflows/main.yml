@@ -76,11 +76,10 @@ jobs:
 
       - name: Run install.sh
         run: |
-          ./scripts/install.sh --python=${{matrix.python-version}} --conda_prefix=$HOME/mambaforge --ic_path=$PWD --conda_env=test
+          ./scripts/install.sh --ic_path=$PWD 
 
       - name: Check installation
         run: |
-          source $HOME/mambaforge/etc/profile.d/conda.sh
-          conda activate test
+          source .venv/bin/activate
           irrad_control --help
           irrad_analyse --help
