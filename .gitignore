@@ -11,5 +11,7 @@
 irrad_control.egg-info/
 # server start script
 scripts/start_server.sh
+# virtual env dir
+.venv/
 # macOS stuff
 .DS_Store
