@@ -37,7 +37,7 @@ class DUTScan(object):
         # Scan area safety margin to account for e.g. misalignment when placing the DUT.
         # Scan area beam margin to account for beam size
         # Asymmetric due to misalignment being more relevant in x than in y
-        self._scan_safety_margin = (7, 5)  # (x, y) mm
+        self._scan_safety_margin = (10, 5)  # (x, y) mm
         self._scan_beam_margin = (4, 3)  # (x, y) beam sigmas
 
         self.scan_stage = scan_stage
