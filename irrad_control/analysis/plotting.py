@@ -431,7 +431,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel('Time / s')
-    ax_beam.legend(loc='best', fontsize=10)
+    ax_beam.legend(loc='upper left', fontsize=10)
 
     # We have correction scans
     if len(ax) == 3:
@@ -486,10 +486,10 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
                                                     to_secs=True)
             ax_temp.plot(temp_ts, temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
         # We only want int temps
-        vals = ax_temp.get_yticks()
-        yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
-        ax_temp.set_yticks(yint)
-        ax_temp.legend(loc='best', fontsize=10)
+        # vals = ax_temp.get_yticks()
+        # yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
+        # ax_temp.set_yticks(yint)
+        ax_temp.legend(loc='lower right', fontsize=10)
 
     #ax[0].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     #fig.autofmt_xdate()
