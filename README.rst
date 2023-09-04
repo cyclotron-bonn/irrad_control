@@ -29,6 +29,12 @@ For a list of publications using ``irrad_control`` see `here <https://www.zyklot
 Installation
 ============
 
+Prerequisites
+-------------
+
+``irrad_control`` is a Python-based application. When installing using the ``install.sh`` script, the current active Python is used to create a virtual environment.
+However, it is recommended to use a Python interpreter, isolated from your system Python.
+
 Install script
 --------------
 
@@ -38,21 +44,13 @@ Download the `install.sh <./scripts/install.sh>`_ script and run
 
    ./install.sh
 
-This will download ``irrad_control`` to the current directory, create an isolated Python envirnoment using ``conda`` and install ``irrad_control`` in it.
-If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can tell the script to use this instead of downloading a new copy by passing the ``--ic_path`` flag
+This will download ``irrad_control`` to the current directory, create a virtual Python envirnoment at ``.venv`` and install ``irrad_control`` in it.
+If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can point to it instead of downloading a new copy by passing the ``--ic_path`` flag
 
 .. code-block:: bash
 
    ./install.sh --ic_path=/path/to/irrad_control
 
-If you already have a conda installation, you can point to it by passing the ``--conda_prefix`` flag
-
-.. code-block:: bash
-
-   ./install.sh --conda_prefix=path/to/conda
-
-Since the script uses mambaforge as default, the default prefix is ``$HOME/mambaforge``. To specify an environment name or Python version,
-you can pass ``--conda_env=ENV_NAME`` and ``--python=PY_VERSION`` respectively. Defaults are "irrad-control" and "3.9".
 To see an overview of options call ``./install --help``.
 
 
