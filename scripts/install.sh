@@ -1,17 +1,15 @@
 #!/bin/bash
 
 function usage {
-    echo "usage: $0 [-s|--server -u|--update -icu|--ic_update]
-                    [-ce|--conda_env=ENV_NAME]
-                    [-py|--python=PY_VERSION]
+    echo "usage: $0 [-s|--server -u|--update -icu|--ic_update -nv|--no_venv]
+                    [-vp|--venv_path=VENV_PATH]
                     [-icp|--ic_path=PATH]
                     [-icb|--ic_branch=BRANCH_NAME]"
 
     echo "  -s|--server                   Perform an irrad_server install"
-    echo "  -u|--update                   Update conda and packages"
-    echo "  -py|--python=PY_VERSION       Specify Python version (default 3.9)"
-    echo "  -ce|--conda_env=ENV_NAME      Specify a conda environment name in which to install (default: irrad-control)"
-    echo "  -cp|--conda_prefix=PATH       Specify the conda prefix (default: $HOME/mambaforge)"
+    echo "  -u|--update                   Update pip and packages"
+    echo "  -nv|--no_venv                 Do not create a virtual Python environment under $VENV_PATH"
+    echo "  -vp|--venv_path=VENV_PATH     Specify path for virtual environment; if given, venv is used to create if it does not exist (default: $IRRAD_PATH/.venv)"
     echo "  -icu|--ic_update              Update code on current branch to origin"
     echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $PWD)"
     echo "  -icb|--ic_branch=BRANCH_NAME  Specify the respective branch of irrad_control"
@@ -23,14 +21,10 @@ function create_server_start_script {
   START_SCRIPT=${IRRAD_PATH}/scripts/start_server.sh
   # Create empty file; if it already exists, clear contents
   echo -n >$START_SCRIPT
-  echo "source ${MAMBAFORGE_PATH}/etc/profile.d/conda.sh" >> $START_SCRIPT
-  echo "conda activate $CONDA_ENV_NAME" >> $START_SCRIPT
+  if [ "$USE_VENV" == true ]; then
+    echo "source ${VENV_PATH}/bin/activate" >> $START_SCRIPT
+  fi
   echo "irrad_control --server" >> $START_SCRIPT 
-}
-
-function source_conda {
-  # Activate conda
-  source "${MAMBAFORGE_PATH}/etc/profile.d/conda.sh"
 }
 
 function read_requirements {
@@ -43,28 +37,23 @@ function read_requirements {
 }
 
 # Function to install and update packages
-function env_installer {
+function pip_installer {
 
-  conda config --set always_yes yes
+  # Get array of packages in env
+  ENV_PKGS=$(python -m pip list | awk '/-/{p++;if(p==1){next}}p{print $1}')
 
-  echo "Checking for environment $CONDA_ENV_NAME"
+  if $PIP_UPDATE; then
 
-  ENVS=$(conda env list | awk '{print $1}' | while read -r ENV; do if [ "$ENV" != "#" ]; then echo "$ENV"; fi; done)
+    echo 'Updating pip'
 
-  if [[ ! "{$ENVS[@]}" =~ $CONDA_ENV_NAME ]]; then
-    echo "Not found. Creating environment $CONDA_ENV_NAME..."
-    conda create -n $CONDA_ENV_NAME Python=$PY_VERSION -y
-  else
-    echo "Found environment $CONDA_ENV_NAME."
+    # Update pip and packages
+    python -m pip install --upgrade pip
+    python -m pip install --upgrade $ENV_PKGS
+    
   fi
-
-  conda activate $CONDA_ENV_NAME
   
   # Checking for required packages
   echo "Checking for required packages..."
-
-  # Get list of packages in env
-  ENV_PKGS=$(conda list | awk '{print $1}' | while read -r PKG; do if [ "$PKG" != "#" ]; then echo "$PKG"; fi; done)
 
   # Check if irrad_control is already installed in this env
   if [[ ! "{$ENV_PKGS[@]}" =~ "irrad-control" ]]; then
@@ -90,19 +79,9 @@ function env_installer {
       echo "Installing missing required packages" $TO_BE_INSTALLED
       
       # Upgrade pip and install needed packages from pip
-      pip install --upgrade pip
-      pip install $TO_BE_INSTALLED
+      python -m pip install $TO_BE_INSTALLED
   else
     echo "All required packages are installed."
-  fi
-
-  if $CONDA_UPDATE; then
-
-    echo 'Updating conda'
-
-    # Update mamba and packages
-    conda update -n base -c conda-forge conda
-    conda update --all
   fi
 
   echo "Environment is set up."
@@ -110,13 +89,11 @@ function env_installer {
 }
 
 # Needed variables
-MAMBAFORGE_PATH=$HOME/mambaforge
-MAMBAFORGE="https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
-IRRAD_PATH=$PWD/irrad_control
+IRRAD_PATH=$PWD
+VENV_PATH=$IRRAD_PATH/.venv
+USE_VENV=true
 IRRAD_SERVER=false
-CONDA_UPDATE=false
-PY_VERSION="3.9"
-CONDA_ENV_NAME="irrad-control"
+PIP_UPDATE=false
 IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
@@ -137,7 +114,12 @@ for CMD in "$@"; do
     ;;
     # Update conda
     -u|--update)
-    CONDA_UPDATE=true
+    PIP_UPDATE=true
+    shift
+    ;;
+    # Update conda
+    -nv|--no_venv)
+    USE_VENV=false
     shift
     ;;
     # Set path to existing irrad_control / prefix to where it is installed
@@ -156,18 +138,8 @@ for CMD in "$@"; do
     shift
     ;;
     # Conda env in which installation goes
-    -ce=*|--conda_env=*)
-    CONDA_ENV_NAME="${CMD#*=}"
-    shift
-    ;;
-    # Conda prefix in which installation is
-    -cp=*|--conda_prefix=*)
-    MAMBAFORGE_PATH="${CMD#*=}"
-    shift
-    ;;
-    # Python version to use, ONLY APPLIES IF NEW CONDA ENV IS CREATED
-    -py=*|--python=*)
-    PY_VERSION="${CMD#*=}"
+    -vp=*|--venv_path=*)
+    VENV_PATH="${CMD#*=}"
     shift
     ;;
     # Unknown option
@@ -220,31 +192,23 @@ fi
 read_requirements
 
 # Miniconda is not installed; download and install
-if [ ! -d "$MAMBAFORGE_PATH" ]; then
-  
-  echo "Missing Python environment! Setting up..."
-  
-  # Get mambaforge
-  echo "Getting mambaforge from ${MAMBAFORGE}"
-  wget -O Mambaforge.sh $MAMBAFORGE
-  
-  # Install miniconda
-  bash Mambaforge.sh -b -p $MAMBAFORGE_PATH
-  rm Mambaforge.sh
-  
-  source_conda
-  
-  # Update conda and packages
-  CONDA_UPDATE=true
-  
-  # Let's install all the stuff
-  env_installer
+if [ "$USE_VENV" == true ]; then
 
-else
-  source_conda
-  # Let's install all the stuff
-  env_installer
+  if [ ! -d "$VENV_PATH" ]; then
+  
+    echo "Missing virtual Python environment at $VENV_PATH! Setting up..."
+
+    # Create venv using specified Python executable
+    python -m venv $VENV_PATH
+
+    # Update conda and packages
+    PIP_UPDATE=true
+  fi
+  source $VENV_PATH/bin/activate
 fi
+
+# Install everything using pip
+pip_installer
 
 # Install irrad_control if necessarry
 if [ "$IRRAD_INSTALL" != false ]; then
@@ -256,7 +220,7 @@ if [ "$IRRAD_INSTALL" != false ]; then
     sudo systemctl enable pigpiod.service
   else
     echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
-    pip install -e $IRRAD_PATH
+    python -m pip install -e $IRRAD_PATH
   fi
 fi
 
