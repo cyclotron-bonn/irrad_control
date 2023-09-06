@@ -361,8 +361,7 @@ class DUTScan(object):
             # If we're not at the start or end of a row, something went wrong
             if x_current not in (x_start, x_end):
                 msg = "Current x-axis position ({}) does not correspond to either start ({}) or end ({}) x-position of the scan. Abort!"
-                msg.format(x_current, x_start, x_end)
-                raise ScanError(msg)
+                raise ScanError(msg.format(x_current, x_start, x_end))
 
             # Check for beam conditions to be okay before scanning a row, if not wait
             self._wait_for_condition(condition_call=self.irrad_events.beam_ok,
