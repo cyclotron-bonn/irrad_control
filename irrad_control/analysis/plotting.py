@@ -12,6 +12,7 @@ from matplotlib.legend_handler import HandlerBase
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from irrad_control.analysis.formulas import lin_odr
+from irrad_control.utils.utils import duration_str_from_secs
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -114,21 +115,6 @@ def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_
         cbar_rel_axis.set_ylabel("Relative uncertainty / %")
         cbar_rel_axis.ticklabel_format(axis='y', useOffset=False, style='plain')
         cbar_rel_axis.set_ylim(rel_error_lims)
-
-
-def _calc_duration(start, end, as_str=False):
-
-    duration = end - start
-    days = duration / (24 * 3600)
-    hours = (days % 1) * 24
-    minutes = (hours % 1) * 60
-    seconds = (minutes % 1) * 60
-    
-    # Return tuple in full days, hours, minutes and seconds
-    res = tuple(int(x) for x in [days, hours, minutes, seconds])
-    
-    return res if not as_str else ", ".join(f"{a[0]}{a[1]}" for a in zip(res, 'dhms') if a[0])
-
 
 def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs):
 
@@ -445,7 +431,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel('Time / s')
-    ax_beam.legend(loc='best', fontsize=10)
+    ax_beam.legend(loc='upper left', fontsize=10)
 
     # We have correction scans
     if len(ax) == 3:
@@ -500,10 +486,10 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
                                                     to_secs=True)
             ax_temp.plot(temp_ts, temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
         # We only want int temps
-        vals = ax_temp.get_yticks()
-        yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
-        ax_temp.set_yticks(yint)
-        ax_temp.legend(loc='best', fontsize=10)
+        # vals = ax_temp.get_yticks()
+        # yint = range(int(np.floor(vals.min())), int(np.ceil(vals.max()) + 1))
+        # ax_temp.set_yticks(yint)
+        ax_temp.legend(loc='lower right', fontsize=10)
 
     #ax[0].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     #fig.autofmt_xdate()
@@ -555,7 +541,7 @@ def plot_beam_current(timestamps, beam_current, ch_name=None, scan_data=None):
                  'ydata': beam_current,
                  'xlabel': f"{dtfts.strftime('%d %b %Y')}",
                  'ylabel': f"Cup channel {ch_name} current / nA",
-                 'label': f"{ch_name or 'Beam'} current over {_calc_duration(start=timestamps[0], end=timestamps[-1], as_str=True)}{' irradiation' if scan_data else ''}",
+                 'label': f"{ch_name or 'Beam'} current over {duration_str_from_secs(seconds=timestamps[-1]-timestamps[0])}{' irradiation' if scan_data else ''}",
                  'title': f"Current of channel {ch_name}",
                  'fmt': 'C0-'}
 

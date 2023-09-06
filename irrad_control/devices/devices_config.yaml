@@ -22,14 +22,14 @@ ADCBoard:
 
 IrradDAQBoard:
   init:
-    port: /dev/ttyUSB0
+    port: /dev/Arduino-Readout-Board
     version: v0.2
     address: 0x20
 
 ScanStage:
   init:
     config: scan_stage.yaml
-    port: /dev/ttyACM0
+    port: /dev/Zaber-Controller-X-MCC3
     n_axis: 2
     axis_addrs:
       - 1
@@ -48,7 +48,7 @@ ScanStage:
 SetupTableStage:
   init:
     config: setup_table_stage.yaml
-    port: /dev/ttyACM0
+    port: /dev/Zaber-Controller-X-MCC3
     axis_addr: 3
     step: 0.1953125e-6
     travel: 284.0e-3
@@ -69,7 +69,7 @@ ExternalCupStage:
 
 ArduinoNTCReadout:
   init:
-    port: /dev/ttyUSB1
+    port: /dev/Arduino-NTC-Readout
     baudrate: 115200
     timeout: 5
     ntc_lim:
@@ -79,5 +79,5 @@ ArduinoNTCReadout:
 RadiationMonitor:
   init:
     counter_type: GasCounter
-    counter_port: '/dev/ttyUSB2'
-    hv_port: '/dev/ttyUSB3'
+    counter_port: /dev/Arduino-Radiation-Monitor
+    hv_port: /dev/ISEG-HV

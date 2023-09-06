@@ -527,7 +527,7 @@ class ScanControlWidget(ControlWidget):
         spx_min_current.setSingleStep(50)
         spx_min_current.setSuffix(' nA')
         spx_min_current.setValue(0)
-        spx_min_current.valueChanged.connect(lambda v: self.update_scan_params(min_current=v))
+        spx_min_current.valueChanged.connect(lambda v: self.update_scan_params(min_current=v*1e-9))
 
         scan_parameters_container.add_widget(widget=[spx_row_sep, spx_scan_speed, spx_min_current])
 

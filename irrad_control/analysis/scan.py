@@ -1,6 +1,8 @@
 import logging
 import numpy as np
+
 from irrad_control.analysis import plotting, constants
+from irrad_control.utils.utils import duration_str_from_secs
 
 
 def create_beam_scan_mask(beam_data, scan_data):
@@ -205,10 +207,6 @@ def main(data, config):
     beam_during_scan_mask = create_beam_scan_mask(beam_data=data[server]['Beam'],
                                                   scan_data=data[server]['Scan'])
     beam_during_scan = data[server]['Beam'][beam_during_scan_mask]
-    
-    scan_duration_str = plotting._calc_duration(start=beam_during_scan['timestamp'][0],
-                                                end=beam_during_scan['timestamp'][-1],
-                                                as_str=True)
 
     # Beam current in nA during scanning
     beam_currents_during_scan = data[server]['Beam']['beam_current']
@@ -228,7 +226,7 @@ def main(data, config):
         'xdata': beam_currents_during_scan[beam_during_scan_mask],
         'xlabel': 'Beam current / nA',
         'ylabel': '#',
-        'label': "Beam current during {} scan".format(scan_duration_str),
+        'label': "Beam current during {} scan".format(duration_str_from_secs(seconds=beam_during_scan['timestamp'][-1]-beam_during_scan['timestamp'][0])),
         'title': "Beam current distribution during scan",
         'fmt': 'C0'
     }
