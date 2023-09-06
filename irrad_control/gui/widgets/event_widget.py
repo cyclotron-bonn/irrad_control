@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from time import strftime, gmtime
+from time import strftime, localtime
 
 
 class EventWidget(QtWidgets.QWidget):
@@ -34,7 +34,7 @@ class EventWidget(QtWidgets.QWidget):
         html_event = f"""
         <html>
           <body>
-            {strftime("%d/%m/%Y %H:%M:%S", gmtime())} | {event_dict['server']} | {event_text} | {event_dict['description']}
+            {strftime("%d/%m/%Y %H:%M:%S", localtime())} | {event_dict['server']} | {event_text} | {event_dict['description']}
           </body>
         </html>
         """

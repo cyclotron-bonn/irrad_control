@@ -34,6 +34,12 @@ class DUTScan(object):
         self._event_wait_time = 0.1  # Wait for events to be set
         self._between_checks_time = 1.0  # Wait for
 
+        # Scan area safety margin to account for e.g. misalignment when placing the DUT.
+        # Scan area beam margin to account for beam size
+        # Asymmetric due to misalignment being more relevant in x than in y
+        self._scan_safety_margin = (10, 5)  # (x, y) mm
+        self._scan_beam_margin = (4, 3)  # (x, y) beam sigmas
+
         self.scan_stage = scan_stage
 
         # ZMQ configuration
@@ -159,9 +165,11 @@ class DUTScan(object):
             scan_accel = self.scan_stage.axis[0].get_accel(unit='mm/s^2')
             # Distance travelled until scan speed is reached
             accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
-            # Resulting offsets in x and y
-            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + 2 * accel_distance)
-            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
+            # Resulting offsets in x and y, including safety margins
+            scan_offset_x = self._scan_safety_margin[0] + self._scan_beam_margin[0] * beam_sigma_x + accel_distance
+            scan_offset_y = self._scan_safety_margin[1] + self._scan_beam_margin[1] * beam_sigma_y
+            scan_offset_x = axis_mm_to_native(0, scan_offset_x)
+            scan_offset_y = axis_mm_to_native(1, scan_offset_y)
 
             # Apply offset
             start[0] -= scan_offset_x
