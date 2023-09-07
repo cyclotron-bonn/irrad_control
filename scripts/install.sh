@@ -11,7 +11,7 @@ function usage {
     echo "  -nv|--no_venv                 Do not create a virtual Python environment under $VENV_PATH"
     echo "  -vp|--venv_path=VENV_PATH     Specify path for virtual environment; if given, venv is used to create if it does not exist (default: $IRRAD_PATH/.venv)"
     echo "  -icu|--ic_update              Update code on current branch to origin"
-    echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $PWD)"
+    echo "  -icp|--ic_path=PATH           Specifiy the path of existing irrad_control package (default: $PWD/irrad_control)"
     echo "  -icb|--ic_branch=BRANCH_NAME  Specify the respective branch of irrad_control"
     exit 1
 }
@@ -89,7 +89,7 @@ function pip_installer {
 }
 
 # Needed variables
-IRRAD_PATH=$PWD
+IRRAD_PATH=$PWD/irrad_control
 VENV_PATH=$IRRAD_PATH/.venv
 USE_VENV=true
 IRRAD_SERVER=false
