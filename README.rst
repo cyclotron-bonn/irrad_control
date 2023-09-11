@@ -39,7 +39,7 @@ allows to easily create new, isolated environments and activate them using the `
 Install script
 --------------
 
-Download the `install.sh <./scripts/install.sh>`_ script and run
+Download the `install.sh <./scripts/install.sh>`_ script, make it executable by typing ``chmod +x install.sh`` and run
 
 .. code-block:: bash
 
