@@ -76,6 +76,7 @@ jobs:
 
       - name: Run install.sh
         run: |
+          echo "Installing to $PWD..."
           ./scripts/install.sh --ic_path=$PWD 
 
       - name: Check installation
