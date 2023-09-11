@@ -91,6 +91,7 @@ function pip_installer {
 # Needed variables
 IRRAD_PATH=$PWD/irrad_control
 VENV_PATH=$IRRAD_PATH/.venv
+VENV_MANUAL=false
 USE_VENV=true
 IRRAD_SERVER=false
 PIP_UPDATE=false
@@ -137,9 +138,10 @@ for CMD in "$@"; do
     IRRAD_PULL=true
     shift
     ;;
-    # Conda env in which installation goes
+    # Virtual env in which installation goes
     -vp=*|--venv_path=*)
     VENV_PATH="${CMD#*=}"
+    VENV_MANUAL=true
     shift
     ;;
     # Unknown option
@@ -190,6 +192,11 @@ if [ "$IRRAD_PULL" != false ]; then
 fi
 
 read_requirements
+
+# Set venv path correctly
+if [ "$VENV_MANUAL" != true ]; then
+  VENV_PATH=$IRRAD_PATH/.venv
+fi
 
 # Miniconda is not installed; download and install
 if [ "$USE_VENV" == true ]; then
