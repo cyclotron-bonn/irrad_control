@@ -749,7 +749,7 @@ class IrradDataHist(IrradPlotWidget):
 
                 if curve == 'hist':
                     self.curves[curve].setData(x=self._data['edges'], y=self._data['hist'], stepMode=True)
-                if curve == 'value':
+                if curve == 'value' and 'hist_idx' in self._data:
                     self.curves[curve].set_position(x=self._data['value'], y=self._data['hist'][self._data['hist_idx']])
 
             if self._show_stats:

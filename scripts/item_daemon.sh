@@ -53,7 +53,7 @@ function start_daemon {
 # Needed variables
 ITEM_DAEMON_PNAME="itemControllerD"
 USER_HOME=$(getent passwd $USER | cut -d: -f6) 
-ITEM_DAEMON_START_SCRIPT=$USER_HOME/item/controllerdaemon/start.sh
+ITEM_DAEMON_START_SCRIPT=$USER_HOME/item/start.sh
 START=true
 
 # Parse command line arguments

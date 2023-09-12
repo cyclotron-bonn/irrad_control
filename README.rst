@@ -29,27 +29,56 @@ For a list of publications using ``irrad_control`` see `here <https://www.zyklot
 Installation
 ============
 
-Python >= 3.9 is required (Py3.9 & 3.10 are tested). It's recommended to use a Python environment separate from your system Python. To do so, please install `Miniconda <https://conda.io/miniconda.html>`_.
-After installation you can use the package manager ``conda`` to setup an isolated envirnoment. To create a new Python 3.9 environment, named ``irrad``, type
+Prerequisites
+-------------
+
+``irrad_control`` requires Python >= 3.9 (3.9, 3.10 are tested). When installing using the ``install.sh`` script (see below), the current active Python environment is used to create a virtual environment.
+However, it is recommended to use a Python interpreter isolated from your system Python such as `Miniconda <https://conda.io/miniconda.html>`_. After installation, the included ``conda`` package manager
+allows to easily create new, isolated environments and activate them using the ``conda activate YourEnvName`` command.
+
+Install script
+--------------
+
+Download the `install.sh <./scripts/install.sh>`_ script, make it executable by typing ``chmod +x install.sh`` and run
 
 .. code-block:: bash
 
-   conda create -y -n irrad Python=3.9
+   ./install.sh
 
-followed by ``conda activate irrad`` to activate the created Python environment. To install ``irrad_control`` run
+This will download ``irrad_control`` to the current directory, create a virtual Python envirnoment at ``.venv`` and install ``irrad_control`` in it.
+If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can point to it instead of downloading a new copy by passing the ``--ic_path`` flag
 
 .. code-block:: bash
 
-   pip install -e .
+   ./install.sh --ic_path=/path/to/irrad_control
 
-which installs in editable mode, allowing to make changes to the code if needed. Finally, to launch the software run
+If you want to install ``irrad_control`` without wanting the script to create a virtual environment for you (e.g. because you use your own isolated ``conda`` environment),
+pass the ``--no_venv`` flag to directly install into the active Python environment
+
+.. code-block:: bash
+
+   ./install.sh --no_venv
+
+To see an overview of options call ``./install --help``. The software is now available via
 
 .. code-block:: bash
 
    irrad_control
 
-When you start the application you can add (RPi) servers in the **setup** tab. Each server needs to be set up before usage.
-The procedure is explained in the following section.
+Manual installation
+-------------------
+
+To install ``irrad_control``, first clone the repository, then move into its root directory and run
+
+.. code-block:: bash
+
+   pip install -e .
+
+which installs into the activate Python envoronment in editable mode, allowing to make changes to the code if needed. The software is now available via
+
+.. code-block:: bash
+
+   irrad_control
 
 Quick Setup
 ============

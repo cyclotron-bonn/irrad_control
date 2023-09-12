@@ -90,15 +90,14 @@ class IrradDAQBoard(object):
 
         return self.ntc
 
-    def set_ntc_channel(self, channel):
+    def set_ntc_channel(self, channel, check_cycle=True):
 
         # In case of cycling channels
-        if self.is_cycling_ntc_channels():
+        if check_cycle and self.is_cycling_ntc_channels():
             self.stop_cycle_ntc_channels()
 
         self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'], val=channel)
-
-
+        
         self.ntc = channel
 
     def set_ifs(self, group, ifs):
@@ -167,13 +166,13 @@ class IrradDAQBoard(object):
     def _cycle_ntc_channels(self, timeout=None):
 
         while not self._stop_ntc_cycle_flag.wait(timeout=timeout):
-            self.next_ntc()
+            self.next_ntc(check_cycle=False)
 
-    def next_ntc(self):
+    def next_ntc(self, check_cycle=True):
 
         # If there are not ntc channels or there is only one, do nothing
         if self.ntc_channels is None or len(self.ntc_channels) == 1:
             return
 
-        self.set_ntc_channel(channel=self.ntc_channels[self._ntc_idx])
+        self.set_ntc_channel(channel=self.ntc_channels[self._ntc_idx], check_cycle=check_cycle)
         self._ntc_idx = self._ntc_idx + 1 if self._ntc_idx != len(self.ntc_channels) - 1 else 0
