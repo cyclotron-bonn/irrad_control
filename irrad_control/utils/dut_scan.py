@@ -251,6 +251,44 @@ class DUTScan(object):
                 check_call()
             time.sleep(self._between_checks_time)
 
+    def _return_to_origin(self, current_x=None, return_speed=10):
+        """
+        Mehod that returns the scan to the origin.
+        It resets the movement speeds, checks the current position and returns the box
+        to the origin without moving the beam though the scan area
+        """
+
+        current_x = current_x or self.scan_stage.axis[0].get_position()
+
+        # Reset speeds
+        for i in (1, 0):
+            self.scan_stage.set_speed(axis=i, value=return_speed, unit='mm/s')
+        
+        # Make 3 sigma margins for x and why to drive around the scan area
+        x_return = 3 / 2.3548 * self._scan_params['beam_fwhm'][0]  # 3 * x beam sigma in mm
+        x_return = self.scan_stage.axis[1].convert_from_unit(x_return, unit='mm')  # Convert to axis units
+
+        y_return = 3 / 2.3548 * self._scan_params['beam_fwhm'][1]  # 3 * y beam sigma in mm
+        y_return = self.scan_stage.axis[1].convert_from_unit(y_return, unit='mm')  # Convert to axis units
+
+        # We are on the close side of the scan area
+        if current_x <= self._scan_params['start'][0]:
+            # Move 3 sigma outside of the scan area, then to origin y and x
+            self.scan_stage.move_abs(axis=0, value=current_x - x_return)
+        
+        # We have to move "around" scan area; We have "unlimited" space to the top so we should return around the bottom
+        elif current_x >= self._scan_params['end'][0]:
+            # Go to x value which is 3 sigma outside the scan area to the right
+            # Go to y value which is 3 sigma outside the scan area to the bottom
+            self.scan_stage.move_abs(axis=0, value=x_return + current_x)
+            self.scan_stage.move_abs(axis=1, value=y_return + max(self._scan_params['rows'].values()))  # Add lowest row a.k.a maximum y value
+            self.scan_stage.move_abs(axis=0, value=self._scan_params['start'][0] - x_return)
+
+        else:
+            raise ScanError('Trying to return from scan failed. Turn off beam and return manually!')
+        
+        self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
+        self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
 
     def scan_row(self, row, speed=None, repeat=1):
         """
@@ -404,9 +442,7 @@ class DUTScan(object):
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
         if from_origin:
-            # Move back to origin; move y first in order to not scan over device
-            self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
-            self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
+            self._return_to_origin()
 
         if data_pub is not None:
             # Publish stop data
@@ -515,10 +551,7 @@ class DUTScan(object):
 
                 data_pub.close()
 
-            # Reset speeds and move back to origin; move y first in order to not scan over device
-            for i in (1, 0):
-                self.scan_stage.set_speed(value=10, axis=i, unit='mm/s')
-                self.scan_stage.move_abs(axis=i, value=self._scan_params['origin'][i])
+            self._return_to_origin()
 
             # Reset signal so one can scan again
             for _, e in self.interaction_events.items():
