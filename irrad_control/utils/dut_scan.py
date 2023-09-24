@@ -348,7 +348,7 @@ class DUTScan(object):
             msg += f"Axis error: {self.scan_stage.axis[axis].error or 'None'}"
             raise ScanError(msg)
 
-    def scan_row(self, row, speed=None, repeat=1):
+    def scan_row(self, row, speed=None, repeat=1, from_origin=True):
         """
         Method to scan a single row of a device. Uses info about scan parameters from self._scan_params dict.
         Does sanity checks. The actual scan is done in a separate thread which calls self._scan_row.
@@ -361,6 +361,8 @@ class DUTScan(object):
             Scan speed in mm/s or None. If None, current speed of x-axis is used for scanning
         repeat : int
             Number of times *row* should be scanned with *speed*
+        from_origin : bool, optional
+            Whether to scan the row from the scan origin, by default True
         """
 
         # Check scan configuration dict
@@ -368,7 +370,7 @@ class DUTScan(object):
             return
 
         # Start scan in separate thread
-        scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat})
+        scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat, 'from_origin': from_origin})
         scan_thread.start()
 
     def scan_device(self):
@@ -382,7 +384,7 @@ class DUTScan(object):
         scan_thread = threading.Thread(target=self._scan_device)
         scan_thread.start()
 
-    def _scan_row(self, row, speed=None, scan=-1, data_pub=None, repeat=1):
+    def _scan_row(self, row, speed=None, scan=-1, data_pub=None, repeat=1, from_origin=True):
         """
         Method which is called by self._scan_device or self.scan_row. See docstrings there.
 
@@ -398,6 +400,8 @@ class DUTScan(object):
             Socket on which data is published. If None, check if a socket can be created, if not, no data is published
         repeat : int
             Number of times *row* should be scanned with *speed*
+        from_origin : bool, optional
+            Whether to scan the row from the scan origin, by default True
         """
 
         # Check row is in self._scan_params['rows']
@@ -411,10 +415,6 @@ class DUTScan(object):
         # If we're closing the socket, we have to open one before
         if spawn_pub:
             data_pub = create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
-
-        # Check whether this method is called from within self.scan_device or single row is scanned.
-        # If single row is scanned, we're coming from
-        from_origin = tuple(self.scan_stage.get_position()) == self._scan_params['origin']
 
         # Set custom speed to scan this row
         if speed is not None:
@@ -563,7 +563,7 @@ class DUTScan(object):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
-                    self._scan_row(row=row, scan=scan, data_pub=data_pub)
+                    self._scan_row(row=row, scan=scan, data_pub=data_pub, from_origin=False)
 
                 _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
                 _data = {'status': 'scan_complete', 'scan': scan}
