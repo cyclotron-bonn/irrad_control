@@ -290,6 +290,65 @@ class DUTScan(object):
         self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
         self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
 
+    def _move_and_check(self, axis, position, unit=None, error_check_only=False):
+        """
+        Method that moves to an absolute position, checks the respective axis for error and checks whether the target position is read back after the move.
+        If the target is not read back from the axis after the move has been completed, we repeat the move a couple of times and try again.
+        If we end up not reaching the target or the stage has errors, raise ScanError
+
+        Parameters
+        ----------
+        axis : int
+            Index of the axis to be moved
+        position : int, float
+            Target position in units known to axis. If unit is None, use native units
+        unit : str, None, optional
+            String of the unit in which the target position is given. If None, use axis native unit, by default None
+        error_check_only : bool, optional
+            Whether to only check for axis erros and not read back result position, by default False
+        
+        Raises
+        ------
+        ScanError
+            The target position could not be read back properly so we don't know whether we moved axis to positon
+        """
+        
+        assert axis < len(self.scan_stage.axis), f"Axis can only be 0 to {len(self.scan_stage.axis)-1}"
+
+        if unit is not None:
+            assert unit in self.scan_stage.axes[axis].units['distance'], f"Unit {unit} not in axis distance units"
+            target_in_native = self.scan_stage.axis[axis].convert_from_unit(position, unit=unit)  # Convert to axis units
+        else:
+            target_in_native = position
+
+
+        success = False
+        # Try to move maximum of 5 times before raising ScanError
+        for _ in range(5):
+
+            self.scan_stage.move_abs(axis=axis, value=target_in_native)
+
+            success = not bool(self.scan_stage.axis[axis].error)
+            
+            if not error_check_only:
+                # Read back position after move in native
+                success &= self.scan_stage.axis[axis].get_position() == target_in_native
+
+            # If the axis is not at the target or has an error value other than False, try again
+            if not success:
+                time.sleep(0.1)
+
+            # Everything looks good so we can break out of the loop
+            else:
+                break
+        
+        # If we enter this else block, we never reached our target / always errored
+        else:
+            msg = f"Moving axis {axis} to position {position} {self.scan_stage.axis[axis].native_unit if unit is None else unit} repeatadly failed."
+            msg += f"Current position: {self.scan_stage.axis[axis].get_position(unit=unit)} {unit or 'native units'}"
+            msg += f"Axis error: {self.scan_stage.axis[axis].error or 'None'}"
+            raise ScanError(msg)
+
     def scan_row(self, row, speed=None, repeat=1):
         """
         Method to scan a single row of a device. Uses info about scan parameters from self._scan_params dict.
