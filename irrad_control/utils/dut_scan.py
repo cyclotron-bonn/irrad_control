@@ -274,21 +274,20 @@ class DUTScan(object):
         # We are on the close side of the scan area
         if current_x <= self._scan_params['start'][0]:
             # Move 3 sigma outside of the scan area, then to origin y and x
-            self.scan_stage.move_abs(axis=0, value=current_x - x_return)
+            self._move_and_check(axis=0, position=current_x - x_return, error_check_only=True)
         
         # We have to move "around" scan area; We have "unlimited" space to the top so we should return around the bottom
         elif current_x >= self._scan_params['end'][0]:
             # Go to x value which is 3 sigma outside the scan area to the right
             # Go to y value which is 3 sigma outside the scan area to the bottom
-            self.scan_stage.move_abs(axis=0, value=x_return + current_x)
-            self.scan_stage.move_abs(axis=1, value=y_return + max(self._scan_params['rows'].values()))  # Add lowest row a.k.a maximum y value
-            self.scan_stage.move_abs(axis=0, value=self._scan_params['start'][0] - x_return)
-
+            self._move_and_check(axis=0, position=x_return + current_x, error_check_only=True)
+            self._move_and_check(axis=1, position=y_return + max(self._scan_params['rows'].values()), error_check_only=True)  # Add lowest row a.k.a maximum y value
+            self._move_and_check(axis=0, position=self._scan_params['start'][0] - x_return, error_check_only=True)
         else:
             raise ScanError('Trying to return from scan failed. Turn off beam and return manually!')
         
-        self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
-        self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
+        self._move_and_check(axis=1, position=self._scan_params['origin'][1], error_check_only=True)
+        self._move_and_check(axis=0, position=self._scan_params['origin'][0], error_check_only=True)
 
     def _move_and_check(self, axis, position, unit=None, error_check_only=False):
         """
@@ -434,31 +433,16 @@ class DUTScan(object):
 
         # Check whether we are scanning from origin
         if from_origin:
-            self.scan_stage.move_abs(axis=0, value=x_start)
-
-            # Check reply; if something went wrong raise error
-            if self.scan_stage.axis[0].error:
-                msg = "X-axis did not move to start point. Abort"
-                raise ScanError(msg)
+            self._move_and_check(axis=0, position=x_start)
 
         # Move to the current row
-        self.scan_stage.move_abs(axis=1, value=self._scan_params['rows'][row])
-
-        # Check reply; if something went wrong raise error
-        if self.scan_stage.axis[1].error:
-            msg = "Y-axis did not move to row {}. Abort.".format(row)
-            raise ScanError(msg)
+        self._move_and_check(axis=1, position=self._scan_params['rows'][row])
 
         # Scan row *repeat* times
         for _ in range(int(repeat)):
 
             # Current x position
             x_current = self.scan_stage.axis[0].get_position()
-
-            # If we're not at the start or end of a row, something went wrong
-            if x_current not in (x_start, x_end):
-                msg = "Current x-axis position ({}) does not correspond to either start ({}) or end ({}) x-position of the scan. Abort!"
-                raise ScanError(msg.format(x_current, x_start, x_end))
 
             # Check for beam conditions to be okay before scanning a row, if not wait
             self._wait_for_condition(condition_call=self.irrad_events.beam_ok,
@@ -481,12 +465,7 @@ class DUTScan(object):
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
             # Scan the current row
-            self.scan_stage.move_abs(axis=0, value=x_end if x_current == x_start else x_start)
-
-            # Check reply; if something went wrong raise error
-            if self.scan_stage.axis[0].error:
-                msg = "X-axis did not scan row {}. Abort.".format(row)
-                raise ScanError(msg)
+            self._move_and_check(axis=0, position=x_end if x_current == x_start else x_start)
 
             # Publish if we have a socket
             if data_pub is not None:
@@ -528,8 +507,8 @@ class DUTScan(object):
         data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
 
         # Move to start point
-        self.scan_stage.move_abs(axis=0, value=self._scan_params['start'][0])
-        self.scan_stage.move_abs(axis=1, value=self._scan_params['start'][1])
+        self._move_and_check(axis=0, position=self._scan_params['start'][0])
+        self._move_and_check(axis=1, position=self._scan_params['start'][1])
 
         # Set the scan speed
         self.scan_stage.set_speed(value=self._scan_params['scan_speed'], axis=0, unit='mm/s')
