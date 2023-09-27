@@ -289,7 +289,7 @@ class DUTScan(object):
         self._move_and_check(axis=1, position=self._scan_params['origin'][1], error_check_only=True)
         self._move_and_check(axis=0, position=self._scan_params['origin'][0], error_check_only=True)
 
-    def _move_and_check(self, axis, position, unit=None, error_check_only=False):
+    def _move_and_check(self, axis, position, unit=None, error_check_only=False, max_tries=5):
         """
         Method that moves to an absolute position, checks the respective axis for error and checks whether the target position is read back after the move.
         If the target is not read back from the axis after the move has been completed, we repeat the move a couple of times and try again.
@@ -305,6 +305,8 @@ class DUTScan(object):
             String of the unit in which the target position is given. If None, use axis native unit, by default None
         error_check_only : bool, optional
             Whether to only check for axis erros and not read back result position, by default False
+        max_tries : int, optional
+            Number of tries to move to position, by default 5
         
         Raises
         ------
@@ -323,7 +325,7 @@ class DUTScan(object):
 
         success = False
         # Try to move maximum of 5 times before raising ScanError
-        for _ in range(5):
+        for n in range(1, max_tries + 1):
 
             self.scan_stage.move_abs(axis=axis, value=target_in_native)
 
@@ -335,6 +337,8 @@ class DUTScan(object):
 
             # If the axis is not at the target or has an error value other than False, try again
             if not success:
+                msg = f"Moving axis {axis} to position {position} {self.scan_stage.axis[axis].native_unit if unit is None else unit} failed. Try {n} of {max_tries}."
+                logging.error(msg)
                 time.sleep(0.1)
 
             # Everything looks good so we can break out of the loop
