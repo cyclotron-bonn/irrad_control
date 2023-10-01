@@ -436,8 +436,8 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     # We have correction scans
     if len(ax) == 3:
         # Count the amount of individual scans and fluence inside
-        indv_row_scans = {r:1 for r in overview['correction_hist']['number']}
-        indv_row_offsets = {r: damage(overview['correction_hist']['primary_damage'][r]) for r in indv_row_scans}
+        indv_row_scans = dict(zip(overview['correction_hist']['number'], [1] * len(overview['correction_hist']['number'])))
+        indv_row_offsets = dict(zip(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage'])))
         corrections_scans_labels = []
         
         # Plot last scan distribution
@@ -449,10 +449,9 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         for entry in overview['correction_scans']:
 
             row = entry['number']
-            offset = indv_row_offsets[row]
             indv_damage = damage(entry['primary_damage'])
 
-            ax_correction.bar(row, indv_damage, bottom=offset, color=f"C{indv_row_scans[row]}")
+            ax_correction.bar(row, indv_damage, bottom=indv_row_offsets[row], color=f"C{indv_row_scans[row]}")
             indv_row_offsets[row] += indv_damage
             corrections_scans_labels.append(indv_row_scans[row])
             indv_row_scans[row] += 1
