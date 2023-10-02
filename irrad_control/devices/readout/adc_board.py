@@ -1,6 +1,8 @@
 import logging
 from pipyadc import ADS1256
 from pipyadc import ADS1256_definitions as ADS1256_defs
+from pipyadc import ADS1256_default_config as ADS1256_conf
+
 
 # Package imports
 from irrad_control.devices import DEVICES_CONFIG
@@ -25,8 +27,13 @@ class ADCBoard(object):
 
     def __init__(self):
 
+        # Enable AUTOCAL and disable buffer
+        # IMPORTANT: BUFFER_ENABLE bit needs to be DISABLED! Otherwise, voltage range only 0-3V instead of 0-5V
+        ADS1256_conf.gain_flags = ADS1256_defs.GAIN_1  # 0-5V
+        ADS1256_conf.status = ADS1256_defs.AUTOCAL_ENABLE  # 0x04
+
         # Initialize ADS1256
-        self.adc = ADS1256()
+        self.adc = ADS1256(conf=ADS1256_conf)
 
         # Self calibrate
         self.adc.cal_self()

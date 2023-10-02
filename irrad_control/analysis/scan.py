@@ -132,8 +132,15 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             overview['row_hist']['primary_damage_error'][cridx] = entry['row_primary_fluence_error']
             overview['row_hist']['number'][cridx] = entry['row']
 
+        # Add this to all remaining entries
+        offset_future_scans = overview['row_hist']['primary_damage'][current_offset:cridx+1]
+        
+        # Check if we we're in order (0 to n_rows); if not; reverse 
+        if overview['row_hist']['number'][cridx] == 0:
+            offset_future_scans = offset_future_scans[::-1]
+
         # Add this scans resulting fluence as offset to all subsequent scans
-        overview['row_hist']['primary_damage'][(scan+1)*n_rows:] += current_scan_data['row_primary_fluence'].mean()
+        overview['row_hist']['primary_damage'][(scan+1)*n_rows:] = np.tile(offset_future_scans, n_complete_scans-(scan+1))
         
         # Center timestamp of this scan
         scan_start_ts = current_scan_data[0]['row_start_timestamp']

@@ -79,7 +79,9 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
                                        map_bin_centers_y=map_bin_centers_y,
                                        beam_sigma=beam_sigma,
                                        scan_y_offset=scan_area_start[-1],
-                                       current_row_idx=current_row_idx)
+                                       current_row_idx=current_row_idx,
+                                       scan_area_start_x=irrad_data['scan_area_start_x'][0],
+                                       scan_area_stop_x=irrad_data['scan_area_stop_x'][0])
 
     logging.info(f"Finished generating fluence distribution.")
     
@@ -379,9 +381,10 @@ def _calc_bin_transit_times(bin_transit_times, bin_edges, scan_speed, scan_accel
 
 
 @njit
-def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
+def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, scan_area_start_x, scan_area_stop_x):
     """
-    Processes the times where the beam is waiting on the periphery of the scan area or switches rows
+    Processes the times where the beam is waiting on the periphery of the scan area or switches rows.
+    Always checks the wait time from previous row until current row.
 
     Parameters
     ----------
@@ -405,11 +408,23 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
         Iterable of beam sigmas with len(beam_sigma) == 2
     scan_y_offset : float
         Offset in mm which determines the relative 0 position in row direction: same as the y coordinate of row 0
+    scan_area_start_x : float
+        X-value of the beginning of the scan area (left side)
+    scan_area_stop_x : float
+        X-value of the end of the scan area (right side)
     """
-    
-    # Determine the mean of the beam
-    wait_mu_x = map_bin_edges_x[-1 if row_data['row'] % 2 else 0]
+
     wait_mu_y = row_data['row_start_y'] - scan_y_offset
+    
+    # Check If scan went from left to right or vice versa to correctly fill bins with respective currents
+    # This row is scanned from left to right; we waited on the left side from the previous scan
+    if row_data['row_start_x'] == scan_area_start_x:
+        wait_mu_x = map_bin_edges_x[0]
+    # We scanned right to left; we waited on the right side from the previous scan
+    elif row_data['row_start_x'] == scan_area_stop_x:
+        wait_mu_x = map_bin_edges_x[-1]
+    else:
+        raise ValueError('Row started at neither edge of scan area')
 
     # Add variation to the uncertainty
     wait_ions_std = np.std(wait_beam_data['beam_current'])
@@ -444,7 +459,7 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
 
 
 @njit
-def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset):
+def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, scan_area_start_x, scan_area_stop_x):
     """
     Processes the scanning of a single row.
 
@@ -470,6 +485,10 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
         Iterable of beam sigmas with len(beam_sigma) == 2
     scan_y_offset : float
         Offset in mm which determines the relative 0 position in row direction: same as the y coordinate of row 0
+    scan_area_start_x : float
+        X-value of the beginning of the scan area (left side)
+    scan_area_stop_x : float
+        X-value of the end of the scan area (right side)
     """
 
     # Update row bin times
@@ -493,12 +512,20 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     row_bin_center_ion_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
     row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.std(row_bin_center_ions)**2)**.5
 
-    # Loop over row times
+    mu_y = row_data['row_start_y'] - scan_y_offset
+
+    # Check if scan goes from left to right or vice versa to correctly fill bins with respective currents
+    # This row is scanned from left to right; bin centers are correct
+    if row_data['row_start_x'] == scan_area_start_x:
+        x_bin_centers = map_bin_centers_x
+    # This row is scanned from right to left; bin centers need to be reversed to correctly reflect where the beam current is deposited
+    elif row_data['row_start_x'] == scan_area_stop_x:
+        x_bin_centers = map_bin_centers_x[::-1]
+    else:
+        raise ValueError('Row started at neither edge of scan area')
+
+    # Loop over ions in bins; due to symmetric bin transit times, we can reverse the bin center position for right to left scans to fill correctly
     for i in range(row_bin_center_ions.shape[0]):
-        
-        # Update mean location of the distribution
-        mu_x = map_bin_centers_x[(-(i+1) if row_data['row'] % 2 else i)]
-        mu_y = row_data['row_start_y'] - scan_y_offset
         
         # Apply Gaussian kernel for ions
         apply_gauss_2d_kernel(map_2d=fluence_map,
@@ -507,7 +534,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
                               amplitude_error=row_bin_center_ion_errors[i],
                               bin_centers_x=map_bin_centers_x,
                               bin_centers_y=map_bin_centers_y,
-                              mu_x=mu_x,
+                              mu_x=x_bin_centers[i],
                               mu_y=mu_y,
                               sigma_x=beam_sigma[0],
                               sigma_y=beam_sigma[1],
@@ -515,7 +542,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
 
 
 @njit
-def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, current_row_idx):
+def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, current_row_idx, scan_area_start_x, scan_area_stop_x):
     """
     Process the scanning and waiting / switching of a single row
 
@@ -544,6 +571,10 @@ def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_tr
     current_row_idx : int
         Integer corresponding to the index of beam data which has already been processed.
         Allows slicing beam data for (minimal) speed-up instead of always searching entire beam data (np.searchsorted is very, very fast)
+    scan_area_start_x : float
+        X-value of the beginning of the scan area (left side)
+    scan_area_stop_x : float
+        X-value of the end of the scan area (right side)
 
     Returns
     -------
@@ -579,7 +610,9 @@ def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_tr
                             map_bin_centers_x=map_bin_centers_x,
                             map_bin_centers_y=map_bin_centers_y,
                             beam_sigma=beam_sigma,
-                            scan_y_offset=scan_y_offset)
+                            scan_y_offset=scan_y_offset,
+                            scan_area_start_x=scan_area_start_x,
+                            scan_area_stop_x=scan_area_stop_x)
 
     # Process the scan
     _process_row_scan(row_data=row_data,
@@ -591,7 +624,9 @@ def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_tr
                       map_bin_centers_x=map_bin_centers_x,
                       map_bin_centers_y=map_bin_centers_y,
                       beam_sigma=beam_sigma,
-                      scan_y_offset=scan_y_offset)
+                      scan_y_offset=scan_y_offset,
+                      scan_area_start_x=scan_area_start_x,
+                      scan_area_stop_x=scan_area_stop_x)
     
     # Calculate index to return
     return current_row_idx + row_stop_idx
