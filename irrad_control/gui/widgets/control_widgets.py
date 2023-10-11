@@ -671,7 +671,9 @@ class ScanControlWidget(ControlWidget):
         btn_finish.setStyleSheet('QPushButton {color: orange;}')
         btn_abort.setStyleSheet('QPushButton {color: red;}')
 
-        scan_interaction_container.add_widget(widget=[btn_start, btn_pause, btn_finish, btn_abort])
+        scan_interaction_container.widgets['buttons'] = [btn_start, btn_pause, btn_finish, btn_abort]
+
+        scan_interaction_container.add_widget(widget=scan_interaction_container.widgets['buttons'])
 
         label_toggle = QtWidgets.QLabel('Toggle events')
         label_toggle.setToolTip("Event checkbox checked -> Event enabled; unchecked -> disabled")
@@ -755,6 +757,16 @@ class ScanControlWidget(ControlWidget):
         if self._after_scan_container is not None:
             self._after_scan_container.set_read_only(read_only=not enable)
 
+    def set_scan_interaction_ui_state(self, status):
+
+        scan_started = status == 'started'
+
+        #
+        self.widgets['scan_interaction_container'].setEnabled(True)
+        self.widgets['scan_interaction_container'].set_read_only(False)
+        self.widgets['scan_interaction_container'].widgets['buttons'][0].setEnabled(False)  # "Start" button always disabled after pressing it once
+
+        # TODO
 
 class DAQControlWidget(ControlWidget):
 
