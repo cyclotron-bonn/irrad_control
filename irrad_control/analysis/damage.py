@@ -41,37 +41,30 @@ def main(data, config=None):
             if nfile == 0:
 
                 results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                                                                       scan_data=data_part[server]['Scan'],
-                                                                                                                       irrad_data=data_part[server]['Irrad'],
-                                                                                                                       bins=bins)
-                # Generate eqivalent fluence map as well as TID map
-                if server_config['daq']['kappa'] is None:
-                    del results['neq']
-                else:
-                    results['neq'] = results['primary'] * server_config['daq']['kappa']['nominal']
-                
-                if server_config['daq']['stopping_power'] is None:
-                    del results['tid']
-                else:
-                    results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
+                                                                                                                         scan_data=data_part[server]['Scan'],
+                                                                                                                         irrad_data=data_part[server]['Irrad'],
+                                                                                                                         bins=bins)
+            else:
 
-                continue
+                fluence_map_part, fluence_map_part_error, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
+                                                                                              scan_data=data_part[server]['Scan'],
+                                                                                              irrad_data=data_part[server]['Irrad'],
+                                                                                              bins=bins)
+                # Add to overall map
+                results['primary'] += fluence_map_part
+                errors['primary'] = (errors['primary']**2 + fluence_map_part_error**2)**.5
 
-            fluence_map_part, fluence_map_part_error, _, _ = fluence.generate_fluence_map(beam_data=data_part[server]['Beam'],
-                                                                                          scan_data=data_part[server]['Scan'],
-                                                                                          irrad_data=data_part[server]['Irrad'],
-                                                                                          bins=bins)
-            # Add to overall map
-            results['primary'] += fluence_map_part
-            errors['primary'] = (errors['primary']**2 + fluence_map_part_error**2)**.5
-            
-            # Add to eqivalent fluence map
-            if 'neq' in results:
-                results['neq'] += results['primary'] * server_config['daq']['kappa']['nominal']
+            # Generate eqivalent fluence map as well as TID map
+            if server_config['daq']['kappa'] is None:
+                del results['neq']
+            else:
+                results['neq'] = results['primary'] * server_config['daq']['kappa']['nominal']
                 errors['neq'] = ((server_config['daq']['kappa']['nominal'] * errors['primary'])**2 + (results['primary'] * server_config['daq']['kappa']['sigma'])**2)**0.5
             
-            if 'tid' in results:
-                results['tid'] += formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
+            if server_config['daq']['stopping_power'] is None:
+                del results['tid']
+            else:
+                results['tid'] = formulas.tid_per_scan(primary_fluence=results['primary'], stopping_power=server_config['daq']['stopping_power'])
                 errors['tid'] = formulas.tid_per_scan(primary_fluence=errors['primary'], stopping_power=server_config['daq']['stopping_power'])
 
     else:
