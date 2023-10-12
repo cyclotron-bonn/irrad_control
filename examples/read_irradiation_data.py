@@ -2,14 +2,17 @@
 # Please check https://github.com/cyclotron-bonn/irrad_control/blob/main/irrad_control/analysis/dtype.py
 # for info on the available data types for each entry.
 
+import os
+
 # Utility function for loading data
 from irrad_control.analysis.utils import load_irrad_data
+from irrad_control import package_path
 
 # Path to data file
-data_file = '../tests/fixtures/test_irrad_w_corr.h5'
+data_file = os.path.join(package_path, '../tests/fixtures/test_irrad_w_corr.h5')
 
 # Path to config file
-config_file = '../tests/fixtures/test_irrad_w_corr.yaml'
+config_file = os.path.join(package_path, '../tests/fixtures/test_irrad_w_corr.yaml')
 
 # Name of the irradiation server used e.g. 'HSR' for 'Hochstromraum'
 irrad_server = 'HSR'
