@@ -63,7 +63,7 @@ if __name__ == '__main__':
     
     # Convert to NEQ fluence and error via Gaussian error prop.
     neq_map_DUT = fluence_map_DUT * server_config['daq']['kappa']['nominal']
-    neq_error_map_DUT = ((server_config['daq']['kappa']['nominal'] * error_map_DUT)**2 + (neq_map_DUT * server_config['daq']['kappa']['sigma'])**2)**.5
+    neq_error_map_DUT = ((server_config['daq']['kappa']['nominal'] * error_map_DUT)**2 + (fluence_map_DUT * server_config['daq']['kappa']['sigma'])**2)**.5
 
 
     # Convert to TID and error via Gaussian error prop.
