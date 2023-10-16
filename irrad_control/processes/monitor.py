@@ -186,7 +186,13 @@ class MonitorGUI(IrradGUI):
                 logging.info("All servers and the converter have started successfully!")
                 self.pdiag.setLabelText('Application launched successfully!')
                 self.tabs.setCurrentIndex(self.tabs.indexOf(self.monitor_tab))
-                QtCore.QTimer.singleShot(1500, self.pdiag.close)
+                self.pdiag.setLabelText('Application launched successfully!\nCompensating raw data offsets of {} server(s)...'.format(len(self.setup['server'])))
+                
+                # Send offset compensation command to all servers; in monitor there is no contorl tab
+                for s in self.setup['server']:
+                    self.send_cmd(hostname='localhost', target='interpreter', cmd='zero_offset', cmd_data=s)
+
+                QtCore.QTimer.singleShot(10000, self.pdiag.close)
 
     def handle_data(self, data):
 
