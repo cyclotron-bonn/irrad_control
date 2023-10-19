@@ -417,11 +417,12 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
     wait_mu_y = row_data['row_start_y'] - scan_y_offset
     
     # Check If scan went from left to right or vice versa to correctly fill bins with respective currents
+    # Allow the position to be not exact; sometimes motorstage controller is a step off, allow a 1 mm window
     # This row is scanned from left to right; we waited on the left side from the previous scan
-    if row_data['row_start_x'] == scan_area_start_x:
+    if scan_area_start_x - 0.5 < row_data['row_start_x'] < scan_area_start_x + 0.5:
         wait_mu_x = map_bin_edges_x[0]
     # We scanned right to left; we waited on the right side from the previous scan
-    elif row_data['row_start_x'] == scan_area_stop_x:
+    elif scan_area_stop_x - 0.5 < row_data['row_start_x'] < scan_area_stop_x + 0.5:
         wait_mu_x = map_bin_edges_x[-1]
     else:
         raise ValueError('Row started at neither edge of scan area')
@@ -515,11 +516,12 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     mu_y = row_data['row_start_y'] - scan_y_offset
 
     # Check if scan goes from left to right or vice versa to correctly fill bins with respective currents
+    # Allow the position to be not exact; sometimes motorstage controller is a step off, allow a 1 mm window
     # This row is scanned from left to right; bin centers are correct
-    if row_data['row_start_x'] == scan_area_start_x:
+    if scan_area_start_x - 0.5 < row_data['row_start_x'] < scan_area_start_x + 0.5:
         x_bin_centers = map_bin_centers_x
     # This row is scanned from right to left; bin centers need to be reversed to correctly reflect where the beam current is deposited
-    elif row_data['row_start_x'] == scan_area_stop_x:
+    elif scan_area_stop_x - 0.5 < row_data['row_start_x'] < scan_area_stop_x + 0.5:
         x_bin_centers = map_bin_centers_x[::-1]
     else:
         raise ValueError('Row started at neither edge of scan area')
