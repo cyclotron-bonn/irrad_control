@@ -83,8 +83,8 @@ class TestConverter(unittest.TestCase):
         self.cmd_req.send_json({'target': target, 'cmd': cmd, 'data': cmd_data})
 
         return self.cmd_req.recv_json()
-
-    def test_raw_data_conversion(self):
+    
+    def _start_converter(self):
 
         # Start converter interpretation loop
         converter_start_reply = self._send_cmd_get_reply(target='interpreter', cmd='start', cmd_data=self.config)
@@ -95,18 +95,7 @@ class TestConverter(unittest.TestCase):
         # Assert that PIDs are the same
         assert converter_start_reply['data'] == self.pid_content['pid']
 
-        meta = {'timestamp': 0, 'name': 'localhost', 'type': 'raw_data'}
-        data = {ch: None for ch in self.config['server']['localhost']['readout']['channels']}
-        data_dtype_names = [n for n in self.data['Server_1']['Raw'].dtype.names if n != 'timestamp']
-
-        # Loop over raw data
-        for raw in self.data['Server_1']["Raw"]:
-            meta['timestamp'] = float(raw['timestamp'])
-            for dtname in data_dtype_names:
-                data[dtname] = float(raw[dtname])
-            self.data_pub.send_json({'meta': meta, 'data': data})
-            
-            time.sleep(0.005)  # Emulate ~200 Hz data rate
+    def _shutdown_converter(self):
 
         # Send shutdown command
         self._send_cmd_get_reply(target='interpreter', cmd='shutdown')    
@@ -117,6 +106,8 @@ class TestConverter(unittest.TestCase):
         # Check pid file is gone
         assert not os.path.isfile(pid_file)
 
+    def _check_output_data(self):
+
         # Open output file
         out_data, _ = load_irrad_data(data_file=self.config['session']['outfile']+'.h5',
                                       config_file=self.test_base+'.yaml',
@@ -126,8 +117,101 @@ class TestConverter(unittest.TestCase):
         # assert len(out_data['Server_1']) == len(self.data['Server_1'])
         assert len(out_data['Server_1']['Raw']) == len(self.data['Server_1']['Raw'])
         assert np.array_equal(out_data['Server_1']['Raw'], self.data['Server_1']['Raw'])
+
+    def _send_raw_data(self, raw):
+
+        # Create raw data to be sent
+        meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'raw_data'}
+        data = {dtname: float(raw[dtname]) for dtname in self.config['server']['localhost']['readout']['channels']}
+
+        self.data_pub.send_json({'meta': meta, 'data': data})
+
+    def _send_scan_data(self, status, raw, scan=0, row=0):
+
+        if status == 'scan_init':
+
+            # Initialize scan
+            meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'scan'}
+            data = {'status': status, 'row_sep': 4, 'n_rows': 10,
+                    'aim_damage': 'neq', 'aim_value': 1e14,
+                    'min_current': 700e-9,
+                    'scan_origin': (100, 100),
+                    'scan_area_start': (120, 110),
+                    'scan_area_stop': (200, 70),
+                    'dut_rect_start': (150, 95),
+                    'dut_rect_stop': (170, 85),
+                    'beam_fwhm': (10, 10)}
         
-               
+        elif status == 'scan_complete':
+            # Publish data
+            meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'scan'}
+            data = {'status': 'scan_complete', 'scan': scan}
+
+        elif status == 'scan_finished':
+            # Put finished data
+            meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'scan'}
+            data = {'status': status}
+
+        elif status == 'scan_start':
+            # Publish data
+            meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'scan'}
+            data = {'status': status, 'scan': scan, 'row': row,
+                    'speed': 70,
+                    'accel': 2500,
+                    'x_start': 120 if row % 2 == 0 else 200,
+                    'y_start': 110 - row}
+                
+        elif status == 'scan_stop':
+            # Publish stop data
+            meta = {'timestamp': float(raw['timestamp']), 'name': 'localhost', 'type': 'scan'}
+            data = {'status': status,
+                    'x_stop': 200 if row % 2 == 0 else 120,
+                    'y_stop': 110 - row}
+                
+        self.data_pub.send_json({'meta': meta, 'data': data})
+
+    def test_interpretation(self):
+
+        self._start_converter()
+
+        scan = 0
+        cnt = 1
+        idx = 0
+    
+        # Loop over raw data
+        for i, raw in enumerate(self.data['Server_1']["Raw"]):
+
+            self._send_raw_data(raw)
+        
+            time.sleep(0.01)  # Emulate ~50 Hz data rate
+            
+            if i == 5:
+                # Init scan
+                self._send_scan_data('scan_init', raw)
+
+            if cnt % 10 == 0:
+                self._send_scan_data('scan_complete', raw, scan, cnt)
+                cnt = 1
+                scan += 1
+            
+            if i > 10:
+
+                if idx == 10:
+                    self._send_scan_data('scan_stop', raw, scan, cnt)
+                    cnt += 1
+                    idx = 0
+                    continue
+
+                self._send_scan_data('scan_start', raw, scan, cnt)
+                idx += 1
+        
+        self._send_scan_data('scan_finished', raw)
+
+        self._shutdown_converter()
+
+        self._check_output_data()
+        
+           
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s")
     suite = unittest.TestLoader().loadTestsFromTestCase(TestConverter)
