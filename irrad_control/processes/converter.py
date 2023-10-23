@@ -430,6 +430,14 @@ class IrradConverter(DAQProcess):
         start_ts = self.data_arrays[server]['scan']['row_start_timestamp']
         stop_ts = self.data_arrays[server]['scan']['row_stop_timestamp']
 
+        # Due to a fault in the scan behaviour where the scan stage does not correctly stop at the target position but a step before/behind
+        # there is a bug where the next start timestamp gets send before this statement is checked. We need to catch this because
+        # otherwise the slice of beam_currents is empty. In this case, we determine the start_ts by considering the scan speed and travel
+        if start_ts >= stop_ts:
+            scan_mm = abs(self.data_arrays[server]['irrad']['scan_area_stop_x'][0] - self.data_arrays[server]['irrad']['scan_area_start_x'][0])
+            scan_secs = scan_mm / self.data_arrays[server]['scan']['row_scan_speed'][0] + 2 * self.data_arrays[server]['scan']['row_scan_speed'][0] / self.data_arrays[server]['scan']['row_scan_accel'][0]
+            start_ts = stop_ts - scan_secs
+
         # Look at beam currents which already have been filled
         tmp_beam = self._beam_currents[server][:self._beam_idxs[server]]
 
@@ -438,7 +446,13 @@ class IrradConverter(DAQProcess):
         start_idx = np.searchsorted(-tmp_beam['timestamp'], -stop_ts)[0]
         stop_idx = np.searchsorted(-tmp_beam['timestamp'], -start_ts)[0]
 
-        return tmp_beam[start_idx:stop_idx]
+        relevant_currents = tmp_beam[start_idx:stop_idx]
+
+        # If the array is still empty, take the last 10 measurements before the stop ts
+        if relevant_currents.size == 0:
+            relevant_currents = tmp_beam[start_idx:][:10]
+
+        return relevant_currents
     
     def _check_remaining_n_scans(self, server):
 
