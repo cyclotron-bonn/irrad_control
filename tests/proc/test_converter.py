@@ -114,7 +114,7 @@ class TestConverter(unittest.TestCase):
                                       subtract_raw_offset=False)
 
         # FIXME: update test fixtures to have SEE data
-        # assert len(out_data['Server_1']) == len(self.data['Server_1'])
+        #assert len(out_data['Server_1']) == len(self.data['Server_1'])
         assert len(out_data['Server_1']['Raw']) == len(self.data['Server_1']['Raw'])
         assert np.array_equal(out_data['Server_1']['Raw'], self.data['Server_1']['Raw'])
 
@@ -183,7 +183,7 @@ class TestConverter(unittest.TestCase):
 
             self._send_raw_data(raw)
         
-            time.sleep(0.01)  # Emulate ~50 Hz data rate
+            time.sleep(0.005)  # Emulate ~200 Hz data rate
             
             if i == 5:
                 # Init scan
