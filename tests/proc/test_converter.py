@@ -207,7 +207,7 @@ class TestConverter(unittest.TestCase):
 
             self._send_raw_data(raw)
         
-            time.sleep(5e-3)  # Emulate ~200 Hz data rate
+            time.sleep(7.5e-3)  # Emulate ~133 Hz data rate
             
             self._emulate_scan(raw_data=raw, idx=i)
 
