@@ -127,17 +127,15 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             # Add the current row fluence to the respective row in the histogram
             row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
             
-            overview['row_hist']['center_timestamp'][cridx] = row_center_ts
-            overview['row_hist']['primary_damage'][cridx] += entry['row_primary_fluence']
-            overview['row_hist']['primary_damage_error'][cridx] = entry['row_primary_fluence_error']
-            overview['row_hist']['number'][cridx] = entry['row']
+            current_row_idx = int(entry['row']) + current_offset
+
+            overview['row_hist']['center_timestamp'][current_row_idx] = row_center_ts
+            overview['row_hist']['primary_damage'][current_row_idx] += entry['row_primary_fluence']
+            overview['row_hist']['primary_damage_error'][current_row_idx] = entry['row_primary_fluence_error']
+            overview['row_hist']['number'][current_row_idx] = entry['row']
 
         # Add this to all remaining entries
         offset_future_scans = overview['row_hist']['primary_damage'][current_offset:cridx+1]
-        
-        # Check if we we're in order (0 to n_rows); if not; reverse 
-        if overview['row_hist']['number'][cridx] == 0:
-            offset_future_scans = offset_future_scans[::-1]
 
         # Add this scans resulting fluence as offset to all subsequent scans
         overview['row_hist']['primary_damage'][(scan+1)*n_rows:] = np.tile(offset_future_scans, n_complete_scans-(scan+1))
@@ -168,7 +166,7 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             overview['correction_scans']['number'][i] = entry['row']
 
         # Have the resulting hist sorted in rows
-        overview['correction_hist'] = overview['row_hist'][-n_rows:][np.argsort(overview['row_hist'][-n_rows:])] 
+        overview['correction_hist'] = overview['row_hist'][-n_rows:]
 
     return overview
 
