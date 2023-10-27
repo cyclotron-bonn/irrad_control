@@ -65,6 +65,11 @@ class TestConverter(unittest.TestCase):
         # Add 'ports' to config so the converter knows where the data comes from 
         cls.config['server']['localhost']['ports'] = {'data': cmd_port}
 
+        # Scan number for faking the scan data
+        cls._scan_number = 0
+        cls._scan_cnt = 1
+        cls._scan_idx = 0
+
     @classmethod
     def tearDownClass(cls):
         
@@ -170,14 +175,35 @@ class TestConverter(unittest.TestCase):
                 
         self.data_pub.send_json({'meta': meta, 'data': data})
 
+    def _emulate_scan(self, raw_data, idx):
+
+        if idx == 5:
+            # Init scan
+            self._send_scan_data('scan_init', raw_data)
+
+        if self._scan_cnt % 10 == 0:
+            self._send_scan_data('scan_complete', raw_data, self._scan_number, self._scan_cnt)
+            self._scan_cnt = 1
+            self._scan_number += 1
+        
+        if idx > 10:
+
+            if self._scan_idx == 10:
+                self._send_scan_data('scan_stop', raw_data, self._scan_number, self._scan_cnt)
+                self._scan_cnt += 1
+                self._scan_idx = 0
+                return
+
+            self._send_scan_data('scan_start', raw_data, self._scan_number, self._scan_cnt)
+            self._scan_idx += 1
+
+        if idx == len(self.data['Server_1']["Raw"]):
+            self._send_scan_data('scan_finished', raw_data)
+
     def test_interpretation(self):
 
         self._start_converter()
 
-        scan = 0
-        cnt = 1
-        idx = 0
-    
         # Loop over raw data
         for i, raw in enumerate(self.data['Server_1']["Raw"]):
 
@@ -185,27 +211,7 @@ class TestConverter(unittest.TestCase):
         
             time.sleep(0.005)  # Emulate ~200 Hz data rate
             
-            if i == 5:
-                # Init scan
-                self._send_scan_data('scan_init', raw)
-
-            if cnt % 10 == 0:
-                self._send_scan_data('scan_complete', raw, scan, cnt)
-                cnt = 1
-                scan += 1
-            
-            if i > 10:
-
-                if idx == 10:
-                    self._send_scan_data('scan_stop', raw, scan, cnt)
-                    cnt += 1
-                    idx = 0
-                    continue
-
-                self._send_scan_data('scan_start', raw, scan, cnt)
-                idx += 1
-        
-        self._send_scan_data('scan_finished', raw)
+            self._emulate_scan(raw_data=raw, idx=i)
 
         self._shutdown_converter()
 
