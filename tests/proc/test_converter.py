@@ -3,7 +3,6 @@ import time
 import logging
 import unittest
 import zmq
-import tables as tb
 import numpy as np
 
 from irrad_control import pid_file
@@ -21,7 +20,7 @@ class TestConverter(unittest.TestCase):
         cls.context = zmq.Context()
 
         cls.fixture_path = os.path.join(os.path.dirname(__file__), '../fixtures')
-        cls.test_base = os.path.join(cls.fixture_path, f'test_irradiation_multipart_part_1')
+        cls.test_base = os.path.join(cls.fixture_path, f'test_irradiation')
 
         # Load the data
         cls.data, cls.config = load_irrad_data(data_file=cls.test_base+'.h5',
@@ -54,8 +53,8 @@ class TestConverter(unittest.TestCase):
         cls.config['session']['outfile'] = os.path.join(cls.output_dir, 'test_converter_outfile')
 
         # Overwrite server ip to localhsot
-        cls.config['server']['localhost'] = cls.config['server']['131.220.221.101']
-        del cls.config['server']['131.220.221.101']
+        cls.config['server']['localhost'] = cls.config['server']['131.220.221.103']
+        del cls.config['server']['131.220.221.103']
 
         # Open socket for reqests aka send commands
         cls.cmd_req = cls.context.socket(zmq.REQ)
@@ -95,7 +94,7 @@ class TestConverter(unittest.TestCase):
         converter_start_reply = self._send_cmd_get_reply(target='interpreter', cmd='start', cmd_data=self.config)
         
         # Allow some time for converter to setup sockets etc
-        time.sleep(1)
+        time.sleep(2)
 
         # Assert that PIDs are the same
         assert converter_start_reply['data'] == self.pid_content['pid']
@@ -118,10 +117,9 @@ class TestConverter(unittest.TestCase):
                                       config_file=self.test_base+'.yaml',
                                       subtract_raw_offset=False)
 
-        # FIXME: update test fixtures to have SEE data
-        #assert len(out_data['Server_1']) == len(self.data['Server_1'])
-        assert len(out_data['Server_1']['Raw']) == len(self.data['Server_1']['Raw'])
-        assert np.array_equal(out_data['Server_1']['Raw'], self.data['Server_1']['Raw'])
+        assert len(out_data['HSR']) == len(self.data['HSR'])
+        assert len(out_data['HSR']['Raw']) == len(self.data['HSR']['Raw'])
+        assert np.array_equal(out_data['HSR']['Raw'], self.data['HSR']['Raw'])
 
     def _send_raw_data(self, raw):
 
@@ -197,7 +195,7 @@ class TestConverter(unittest.TestCase):
             self._send_scan_data('scan_start', raw_data, self._scan_number, self._scan_cnt)
             self._scan_idx += 1
 
-        if idx == len(self.data['Server_1']["Raw"]):
+        if idx == len(self.data['HSR']["Raw"]):
             self._send_scan_data('scan_finished', raw_data)
 
     def test_interpretation(self):
@@ -205,11 +203,11 @@ class TestConverter(unittest.TestCase):
         self._start_converter()
 
         # Loop over raw data
-        for i, raw in enumerate(self.data['Server_1']["Raw"]):
+        for i, raw in enumerate(self.data['HSR']["Raw"]):
 
             self._send_raw_data(raw)
         
-            time.sleep(0.005)  # Emulate ~200 Hz data rate
+            time.sleep(5e-3)  # Emulate ~200 Hz data rate
             
             self._emulate_scan(raw_data=raw, idx=i)
 
