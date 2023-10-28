@@ -66,16 +66,21 @@ class TestConverter(unittest.TestCase):
         # Add 'ports' to config so the converter knows where the data comes from 
         cls.config['server']['localhost']['ports'] = {'data': cmd_port}
 
+        # Relevant scan variables
+        cls._scan_started = False
+        cls._scan_stopped = False
+        cls._scan_start_idx = 0
+        cls._scan_stop_idx = 0
+        cls._scan_idx = 0
+
     @classmethod
     def tearDownClass(cls):
         
         # Delete files
-        #for root, _, files in os.walk(cls.output_dir):
-        #    for fname in files:
-        #        os.remove(os.path.join(root, fname))
-        #os.rmdir(cls.output_dir)
-
-        time.sleep(1)
+        for root, _, files in os.walk(cls.output_dir):
+            for fname in files:
+                os.remove(os.path.join(root, fname))
+        os.rmdir(cls.output_dir)
 
     @classmethod
     def _send_cmd_get_reply(self, target, cmd, cmd_data=None,):
@@ -91,7 +96,7 @@ class TestConverter(unittest.TestCase):
         converter_start_reply = self._send_cmd_get_reply(target='interpreter', cmd='start', cmd_data=self.config)
         
         # Allow some time for converter to setup sockets etc
-        time.sleep(2)
+        time.sleep(1)
 
         # Assert that PIDs are the same
         assert converter_start_reply['data'] == self.pid_content['pid']
@@ -118,15 +123,17 @@ class TestConverter(unittest.TestCase):
 
         for data in ('Raw', 'Beam', 'See', 'Scan', 'Damage', 'Irrad', 'Result'):
 
+            # Check data is same length
+            assert len(out_data[self.server][data]) == len(self.data[self.server][data])
+
             # Check all the arrays are not empty
             for dname in out_data[self.server][data].dtype.names:
+
                 assert out_data[self.server][data][dname].size > 0
-            
-            # Check data is same length
-            if data in ('Raw', 'Beam', 'See'):
-                assert 0.9 * len(self.data[self.server][data]) <= len(out_data[self.server][data]) <= len(self.data[self.server][data])
-            else:
-                assert len(out_data[self.server][data]) == len(self.data[self.server][data])
+
+                if all(x not in dname for x in ('fluence', 'tid', 'row_mean', 'aim_damage')):
+                    np.testing.assert_almost_equal(out_data[self.server][data][dname], self.data[self.server][data][dname], decimal=5)
+
 
     def _send_raw_data(self, raw):
 
@@ -194,16 +201,61 @@ class TestConverter(unittest.TestCase):
         
         self.data_pub.send_json({'meta': meta, 'data': data})
 
+    def _evaluate_scan_progression(self, raw_data):
+
+        if self._scan_stopped:
+            return
+
+        raw_ts = raw_data['timestamp']
+
+        try:
+
+            if not self._scan_started:
+                
+                # Initiate scan
+                if raw_ts >= self.data[self.server]['Irrad']['timestamp'][0]:
+                    self._send_scan_data(status='scan_init')
+                    self._scan_started = True
+
+            else:
+
+                # Terminate scan and leave loop
+                if self._scan_stop_idx == self.data[self.server]['Scan']['scan'].shape[0]:
+                    self._send_scan_data(status='scan_complete', scan_idx=self._scan_idx)
+                    self._scan_stopped = True
+                    return
+
+                # Check if we have reached a new can already; if so send comletion
+                if self.data[self.server]['Scan']['scan'][self._scan_stop_idx] != -1:
+                    if self.data[self.server]['Damage']['scan'][self._scan_idx] != self.data[self.server]['Scan']['scan'][self._scan_stop_idx]:
+                        self._send_scan_data(status='scan_complete', scan_idx=self._scan_idx)
+                        self._scan_idx += 1
+
+                # We have not sent th start row scan or have just sent a stop row and nee to find a new one
+                if self._scan_start_idx == self._scan_stop_idx:
+
+                    # Check if it is time to send out a scan start / stop
+                    if raw_ts >= self.data[self.server]['Scan']['row_start_timestamp'][self._scan_start_idx]:
+                        self._send_scan_data(status='scan_start', scan_idx=self._scan_start_idx)
+                        self._scan_start_idx += 1
+
+                else:
+
+                    # Check if it is time to send out a scan stop
+                    if raw_ts >= self.data[self.server]['Scan']['row_stop_timestamp'][self._scan_stop_idx]:
+                        self._send_scan_data(status='scan_stop', scan_idx=self._scan_stop_idx)
+                        self._scan_stop_idx += 1
+        finally:
+
+            if self._scan_stopped:
+                time.sleep(0.1)
+                self._send_scan_data(status='scan_finished')
+
     def test_interpretation(self):
 
         self._start_converter()
 
         time.sleep(1)
-
-        scan_start = False
-        scan_start_idx = 0
-        scan_stop_idx = 0
-        scan_idx = 0
 
         # Loop over raw data
         for i, raw in enumerate(self.data[self.server]['Raw']):
@@ -212,47 +264,7 @@ class TestConverter(unittest.TestCase):
         
             time.sleep(5e-3)  # Emulate ~133 Hz data rate
 
-            raw_ts = raw['timestamp']
-
-            if not scan_start:
-                
-                # Initiate scan
-                if raw_ts >= self.data[self.server]['Irrad']['timestamp'][0]:
-                    self._send_scan_data(status='scan_init')
-                    scan_start = True
-
-            else:
-
-                # Terminate scan and leave loop
-                if scan_stop_idx == self.data[self.server]['Scan']['scan'].shape[0]:
-                    self._send_scan_data(status='scan_complete', scan_idx=scan_idx)
-                    break
-
-                # Check if we have reached a new can already; if so send comletion
-                if self.data[self.server]['Scan']['scan'][scan_stop_idx] != -1:
-                    if self.data[self.server]['Damage']['scan'][scan_idx] != self.data[self.server]['Scan']['scan'][scan_stop_idx]:
-                        self._send_scan_data(status='scan_complete', scan_idx=scan_idx)
-                        print(f"Current {scan_idx}")
-                        scan_idx += 1
-
-                # We have not sent th start row scan or have just sent a stop row and nee to find a new one
-                if scan_start_idx == scan_stop_idx:
-
-                    # Check if it is time to send out a scan start / stop
-                    if raw_ts >= self.data[self.server]['Scan']['row_start_timestamp'][scan_start_idx]:
-                        self._send_scan_data(status='scan_start', scan_idx=scan_start_idx)
-                        scan_start_idx += 1
-
-                else:
-
-                    # Check if it is time to send out a scan stop
-                    if raw_ts >= self.data[self.server]['Scan']['row_stop_timestamp'][scan_stop_idx]:
-                        self._send_scan_data(status='scan_stop', scan_idx=scan_stop_idx)
-                        scan_stop_idx += 1
-
-        time.sleep(1)
-
-        self._send_scan_data(status='scan_finished')
+            self._evaluate_scan_progression(raw_data=raw)
 
         self._shutdown_converter()
 
