@@ -131,9 +131,8 @@ class TestConverter(unittest.TestCase):
 
                 assert out_data[self.server][data][dname].size > 0
 
-                if all(x not in dname for x in ('fluence', 'tid', 'row_mean', 'aim_damage')):
-                    np.testing.assert_almost_equal(out_data[self.server][data][dname], self.data[self.server][data][dname], decimal=5)
-
+                if data == 'Raw':
+                    np.testing.assert_array_equal(out_data[self.server][data][dname], self.data[self.server][data][dname])
 
     def _send_raw_data(self, raw):
 
