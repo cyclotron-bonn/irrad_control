@@ -319,13 +319,13 @@ class IrradConverter(DAQProcess):
     def _calc_mean_and_error(self, data):
 
         # Calculate mean and error on mean
-        mean_w_err = np.mean(data)
+        mean_w_err = np.nanmean(data)
 
         # Uncertainty on mean is error and std quadratically added
         if hasattr(mean_w_err, 'n') and hasattr(mean_w_err, 's'):
-            res = mean_w_err.n, (mean_w_err.s ** 2 + unumpy.nominal_values(data).std() ** 2) ** 0.5
+            res = mean_w_err.n, (mean_w_err.s ** 2 + np.nanstd(unumpy.nominal_values(data)) ** 2) ** 0.5
         else:
-            res = mean_w_err, np.std(data)
+            res = mean_w_err, np.nanstd(data)
 
         return res
 
@@ -406,8 +406,8 @@ class IrradConverter(DAQProcess):
 
         relevant_beam_data = tmp_beam[:check_win_idx]
 
-        beam_std = relevant_beam_data['beam'].std()
-        beam_mean = relevant_beam_data['beam'].mean()
+        beam_std = np.nanstd(relevant_beam_data['beam'])
+        beam_mean = np.nanmean(relevant_beam_data['beam'])
 
         if beam_std >= self._beam_unstable_std_ratio * self._lookups[server]['full_scale_current']['sem_sum']:
             return True
@@ -457,7 +457,7 @@ class IrradConverter(DAQProcess):
     def _check_remaining_n_scans(self, server):
 
         # Estimate remaining n_scans
-        _mean_primary_fluence = np.mean(self._row_fluence_hist[server]).n
+        _mean_primary_fluence = np.nanmean(self._row_fluence_hist[server]).n
 
         try:
             # Check damage type
@@ -822,8 +822,8 @@ class IrradConverter(DAQProcess):
 
             scan_currents = self._extract_scan_currents(server=server)
 
-            row_mean_beam_current = np.mean(scan_currents['beam'])
-            row_mean_beam_current_err = (np.std(scan_currents['beam'])**2 + (np.sqrt(np.sum(np.square(scan_currents['beam_err'])))/len(scan_currents))**2)**.5
+            row_mean_beam_current = np.nanmean(scan_currents['beam'])
+            row_mean_beam_current_err = (np.nanstd(scan_currents['beam'])**2 + (np.sqrt(np.sum(np.square(scan_currents['beam_err'])))/len(scan_currents))**2)**.5
 
             # Calculate mean row fluence and error
             # row_mean_beam_current, row_mean_beam_current_err = self._calc_mean_and_error(data=self._scan_currents[server])
@@ -924,7 +924,7 @@ class IrradConverter(DAQProcess):
 
             self.data_arrays[server]['result']['timestamp'] = meta['timestamp']
 
-            mean_result_primary_fluence = np.mean(self._row_fluence_hist[server])
+            mean_result_primary_fluence = np.nanmean(self._row_fluence_hist[server])
             mean_result_tid = analysis.formulas.tid_per_scan(primary_fluence=mean_result_primary_fluence, stopping_power=self._daq_params[server]['stopping_power'])
             mean_result_neq_fluence = mean_result_primary_fluence * ufloat(*self._daq_params[server]['kappa'])
 

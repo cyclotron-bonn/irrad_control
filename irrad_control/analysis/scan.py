@@ -235,7 +235,7 @@ def main(data, config):
         'title': "Beam current distribution during scan",
         'fmt': 'C0'
     }
-    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(beam_currents_during_scan[beam_during_scan_mask].mean(), u'\u00b1', beam_currents_during_scan[beam_during_scan_mask].std())
+    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(np.nanmean(beam_currents_during_scan[beam_during_scan_mask]), u'\u00b1', np.nanstd(beam_currents_during_scan[beam_during_scan_mask]))
 
     fig, _ = plotting.plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
     figs.append(fig)

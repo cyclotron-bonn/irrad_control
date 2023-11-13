@@ -218,11 +218,11 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
 
     # Get statistical calibration constant and use it to cut the fit data on 2 sigma
     beta_stat_array = current_cup_ch / current_sem_ch
-    beta_stat = ufloat(beta_stat_array.mean(), beta_stat_array.std())
+    beta_stat = ufloat(np.nanmean(beta_stat_array), np.nanstd(beta_stat_array))
     beta_stat_mask = (beta_stat_array > (beta_stat.n - 2 * beta_stat.s)) & (beta_stat_array < (beta_stat.n + 2 * beta_stat.s))
     
     lambda_stat_array = beta_stat_array[beta_stat_mask] / ref_voltage
-    lambda_stat = ufloat(lambda_stat_array.mean(), lambda_stat_array.std())
+    lambda_stat = ufloat(np.nanmean(lambda_stat_array), np.nanstd(lambda_stat_array))
 
     logging.debug("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~beta_stat_mask), 100 * (np.count_nonzero(~beta_stat_mask) / beta_stat_mask.shape[0])))
     

@@ -1,5 +1,6 @@
 from irrad_control.analysis import plotting, constants
 from irrad_control.utils.utils import duration_str_from_secs
+from numpy import nanmean, nanstd
 
 def main(data, config=None):
 
@@ -22,7 +23,7 @@ def main(data, config=None):
         'title': "Beam current distribution",
         'fmt': 'C0'
     }
-    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(beam_current.mean(), u'\u00b1', beam_current.std())
+    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(nanmean(beam_current), u'\u00b1', nanstd(beam_current))
 
     fig, _ = plotting.plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
     figs.append(fig)

@@ -87,7 +87,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=F
         ax.set_zlabel(f"{damage_unit}")
 
     if damage_map is not None and dut and not uncertainty_map:
-        mean, std = damage_map.mean(), damage_map.std()
+        mean, std = np.nanmean(damage_map), np.nanstd(damage_map)
         damage_mean_std = "Mean = {:.2E}{}{:.2E} {}".format(mean, u'\u00b1', std, damage_unit)
         ax.set_title(damage_mean_std)
 
@@ -280,11 +280,11 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         dmg_lbl, dmg_unt, dmg_trgt = _get_damage_label_unit_target(damage=damage, ion_name=ion_name)
 
         # Fake a little legend
-        ax[0].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(comp_map.mean(), u'\u00b1', comp_map.std(), dmg_unt),
+        ax[0].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(comp_map), u'\u00b1', np.nanstd(comp_map), dmg_unt),
                     x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
                     transform=ax[0].transAxes)
-        ax[1].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(corr_map.mean(), u'\u00b1', corr_map.std(), dmg_unt),
+        ax[1].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(corr_map), u'\u00b1', np.nanstd(corr_map), dmg_unt),
                     x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
                     bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
                     transform=ax[1].transAxes)
@@ -326,7 +326,7 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
 
         # Fake a little legend
-        ax.text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(damage_map.mean(), u'\u00b1', damage_map.std(), dmg_unt),
+        ax.text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(damage_map), u'\u00b1', np.nanstd(damage_map), dmg_unt),
                 x=abs(ax.get_xlim()[0] - ax.get_xlim()[1]) * 0.225 + ax.get_xlim()[0],
                 y=ax.get_ylim()[0]*0.05, rotation=0, fontsize=10,
                 bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
@@ -463,7 +463,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
             indv_row_scans[row] += 1
 
         # Resulting mean fluence on 1D
-        mean = np.mean(list(indv_row_offsets.values()))
+        mean = np.nanmean(list(indv_row_offsets.values()))
         ax_correction.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
 
         leg1 = ax_correction.legend(loc='upper center', fontsize=10)
@@ -521,7 +521,7 @@ def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp
     if hist_data:
         if isinstance(hist_data['bins'], (int, str, type(None))):
             if hist_data['bins'] == 'stat':
-                n, s = np.mean(plot_data['xdata']), np.std(plot_data['xdata'])
+                n, s = np.nanmean(plot_data['xdata']), np.nanstd(plot_data['xdata'])
                 binwidth = 6 * s / 100.
                 bins = np.arange(n-3*s, n+3*s + binwidth, binwidth)
             else:
@@ -631,11 +631,11 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     ax_hist_v.set_ylabel('Rel. vertical deviation / %')
 
     # Fake a little legend
-    ax_hist_h.text(s=r'$\mathrm{\mu_h}$='+"({:.1f}{}{:.1f}) %".format(horizontal_pos.mean(), u'\u00b1', horizontal_pos.std()),
+    ax_hist_h.text(s=r'$\mathrm{\mu_h}$='+"({:.1f}{}{:.1f}) %".format(np.nanmean(horizontal_pos), u'\u00b1', np.nanstd(horizontal_pos)),
                    x=x_min*0.95,
                    y=ax_hist_h.get_ylim()[-1]*0.775, rotation=0, fontsize=10,
                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.33))
-    ax_hist_v.text(s=r'$\mathrm{\mu_v}$='+"({:.1f}{}{:.1f}) %".format(vertical_pos.mean(), u'\u00b1', vertical_pos.std()),
+    ax_hist_v.text(s=r'$\mathrm{\mu_v}$='+"({:.1f}{}{:.1f}) %".format(np.nanmean(vertical_pos), u'\u00b1', np.nanstd(vertical_pos)),
                    x=ax_hist_v.get_xlim()[0]*0.925,
                    y=y_min*0.925, rotation=90, fontsize=10,
                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.33))
@@ -680,7 +680,7 @@ def plot_fluence_distribution(fluence_data, ion, hardness_factor=1, stoping_powe
         'xdata': fluence_data,
         'xlabel': f"Fluence per scanned row / {ion}s/cm^2",
         'ylabel': '#',
-        'label': "({:.2E}{}{:.2E}) {}s / cm^2".format(fluence_data.mean(), u'\u00b1', fluence_data.std(), ion),
+        'label': "({:.2E}{}{:.2E}) {}s / cm^2".format(np.nanmean(fluence_data), u'\u00b1', np.nanstd(fluence_data), ion),
         'title': "Row fluence distribution",
         'fmt': 'C0'
     }
