@@ -403,6 +403,15 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_complete.errorbar(_to_dt(overview['scan_hist']['center_timestamp']), damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
     ax_complete.set_ylabel(dmg_label)
     ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
+
+    # Plot mask of where irradiation was halted for longer than 30 seconds
+    halt_start_idxs = np.argwhere(np.diff(overview['row_hist']['center_timestamp'][chrono_ts_idxs]) > 30)
+    for i in range(len(halt_start_idxs)):
+        h_start = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]]
+        h_stop = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]+1]
+        ax_complete.bar(_to_dt(h_start), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs][halt_start_idxs[i]]), _to_dt(h_stop-h_start, True),
+                        align='edge', label='Scan halt' if i == 0 else '', color='grey', ls='-', alpha=0.33, linewidth=0, edgecolor='k')
+
     ax_complete.legend(loc='upper left', fontsize=10)    
 
     # Add scan number ticks
@@ -426,7 +435,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel(f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}")
-    ax_beam.legend(loc='upper left', fontsize=10)
+    ax_beam.legend(loc='upper left', fontsize=8)
 
 
     # Plot last scan distribution
@@ -496,7 +505,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
                                                     stop_ts,
                                                     to_secs=False)
             ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
-        ax_temp.legend(loc='lower right', fontsize=10)
+        ax_temp.legend(loc='upper center', fontsize=8)
 
     ax[1].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
     for label in ax[1].get_xticklabels(which='major'):
