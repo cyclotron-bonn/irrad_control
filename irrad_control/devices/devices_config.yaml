@@ -81,3 +81,24 @@ RadiationMonitor:
     counter_type: GasCounter
     counter_port: /dev/Arduino-Radiation-Monitor
     hv_port: /dev/ISEG-HV
+
+ArduinoGPIOSwitch:
+  init:
+    port: /dev/Arduino-GPIO-Switch
+    baudrate: 115200
+    timeout: 2
+    switch_config:
+      ping_timeout: 5
+      ping_rate: 1
+      default_state:
+        0: 0
+        1: 0
+        2: 0
+        3: 0
+        4: 0
+        5: 0
+        6: 0
+        7: 0
+      groups:
+        A: [0, 1, 2]
+        B: [3, 7]
