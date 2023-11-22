@@ -425,6 +425,14 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
     ax_tid.set_ylabel('TID / Mrad')
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
+
+    # Irradiations plotted happened across different days
+    if datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y') != datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y'):
+        time_label = f"Time between {datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y')} and {datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y')}"
+        time_fmt = '%H'
+    else:
+        time_label = f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}"
+        time_fmt = '%H:%M'
     
     # Plot beam current
     beam_ts, beam_nanos = _win_from_timestamps(beam_data['timestamp'],
@@ -435,7 +443,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.plot(_to_dt(beam_ts), beam_nanos, label='Beam current')
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
-    ax_beam.set_xlabel(f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}")
+    ax_beam.set_xlabel(time_label)
     ax_beam.legend(loc='upper left', fontsize=8)
 
 
@@ -508,8 +516,8 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
             ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
         ax_temp.legend(loc='upper center', fontsize=8)
 
-    ax[1].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
-    for label in ax[1].get_xticklabels(which='major'):
+    ax_beam.xaxis.set_major_formatter(md.DateFormatter(time_fmt))
+    for label in ax_beam.get_xticklabels(which='major'):
         label.set_ha('right')
         label.set_rotation(30)
 
