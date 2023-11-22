@@ -351,8 +351,8 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
             d_ts = d_ts - d_ts[0]
         return d_ts, d_ot
     
-    def _to_dt(ts):
-        return [datetime.fromtimestamp(t) for t in ts]
+    def _to_dt(ts, delta=False):
+        return [datetime.fromtimestamp(t) if not delta else timedelta(seconds=float(t)) for t in ts]
     
     # Plot scan overview
     if 'kappa' in daq_config and not np.isnan(daq_config['kappa']['nominal']):
@@ -367,37 +367,27 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         damage = lambda x: x
         dmg_label = rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$"
 
-    if 'correction_hist' in overview:
-        # Make figure and gridspec on which to place subplots
-        fig = plt.figure()
-        gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.15)
-        
-        # Make axes
-        ax_complete = fig.add_subplot(gs[0])
-        ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
-        ax_correction = fig.add_subplot(gs[1])
-        
-        # Set axes parameters
-        ax_correction.yaxis.set_tick_params(labelright=False, right=False, labelleft=True, left=True)
-        ax_correction.yaxis.grid()
-        ax_correction.set_xlabel('Row')
-        ax_correction.set_ylabel(dmg_label)
+    # Make figure and gridspec on which to place subplots
+    fig = plt.figure()
+    gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.15)
+    
+    # Make axes
+    ax_complete = fig.add_subplot(gs[0])
+    ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
+    ax_result = fig.add_subplot(gs[1])
+    
+    # Set axes parameters
+    ax_result.yaxis.set_tick_params(labelright=False, right=False, labelleft=True, left=True)
+    ax_result.yaxis.grid()
+    ax_result.set_xlabel('Row')
+    ax_result.set_ylabel(dmg_label)
 
-        # Make TID axis and plot title
-        ax_tid = ax_correction.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
-        ax_complete.set_title("Irradiation overview", y=1.15, loc='right')
-        
-        # Axes container
-        ax = (ax_complete, ax_beam, ax_correction)
-    else:
-        fig, (ax_complete, ax_beam) = plt.subplots(2, 1, height_ratios=(2.5, 1), sharex=True)
-
-        # Make TID axis and plot title
-        ax_tid = ax_complete.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
-        ax_complete.set_title("Irradiation overview")
-        
-        # Axes container
-        ax = (ax_complete, ax_beam)
+    # Make TID axis and plot title
+    ax_tid = ax_result.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
+    ax_complete.set_title("Irradiation overview", y=1.15, loc='right')
+    
+    # Axes container
+    ax = (ax_complete, ax_beam, ax_result)
 
     # No labels on xaxis of main plots; add grid
     ax_complete.xaxis.set_tick_params(labelbottom=False)
@@ -409,12 +399,20 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     start_ts, stop_ts = overview['row_hist']['center_timestamp'][0], overview['row_hist']['center_timestamp'][-1]
     chrono_ts_idxs = np.argsort(overview['row_hist']['center_timestamp'])
 
-
-    ax_complete.step(_to_dt(overview['row_hist']['center_timestamp'][chrono_ts_idxs]), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs]), label='Row fluence', where='mid', lw=.75)
-    ax_complete.fill_between(_to_dt(overview['row_hist']['center_timestamp'][chrono_ts_idxs]), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs]), step='mid', alpha=.33)
+    ax_complete.bar(_to_dt(overview['row_hist']['center_timestamp'][chrono_ts_idxs]), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs]), _to_dt(overview['row_hist']['duration'][chrono_ts_idxs], True) , label='Row fluence')
     ax_complete.errorbar(_to_dt(overview['scan_hist']['center_timestamp']), damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
     ax_complete.set_ylabel(dmg_label)
     ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
+
+    # Plot mask of where irradiation was halted for longer than 30 seconds
+    halt_criteria = overview['row_hist']['duration'].mean() + 3 * overview['row_hist']['duration'].std() + 10  # 10 seconds to acount for row switching and condition checking 
+    halt_start_idxs = np.argwhere(np.diff(overview['row_hist']['center_timestamp'][chrono_ts_idxs]) > halt_criteria)
+    for i in range(len(halt_start_idxs)):
+        h_start = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]]
+        h_stop = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]+1]
+        ax_complete.bar(_to_dt(h_start), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs][halt_start_idxs[i]]), _to_dt(h_stop-h_start, True),
+                        align='edge', label='Scan halt' if i == 0 else '', color='gray', ls='-', alpha=0.33, zorder=-1)
+
     ax_complete.legend(loc='upper left', fontsize=10)    
 
     # Add scan number ticks
@@ -427,6 +425,14 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
     ax_tid.set_ylabel('TID / Mrad')
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
+
+    # Irradiations plotted happened across different days
+    if datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y') != datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y'):
+        time_label = f"Time between {datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y')} and {datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y')}"
+        time_fmt = '%H'
+    else:
+        time_label = f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}"
+        time_fmt = '%H:%M'
     
     # Plot beam current
     beam_ts, beam_nanos = _win_from_timestamps(beam_data['timestamp'],
@@ -437,19 +443,20 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.plot(_to_dt(beam_ts), beam_nanos, label='Beam current')
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
-    ax_beam.set_xlabel(f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}")
-    ax_beam.legend(loc='upper left', fontsize=10)
+    ax_beam.set_xlabel(time_label)
+    ax_beam.legend(loc='upper left', fontsize=8)
 
-    # We have correction scans
-    if len(ax) == 3:
+
+    # Plot last scan distribution
+    ax_result.bar(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage']), label='Result')
+    ax_result.yaxis.offsetText.set(va='bottom', ha='center')
+
+    if 'correction_scans' in overview:
+
         # Count the amount of individual scans and fluence inside
-        indv_row_scans = dict(zip(overview['correction_hist']['number'], [1] * len(overview['correction_hist']['number'])))
-        indv_row_offsets = dict(zip(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage'])))
+        indv_row_scans = dict(zip(overview['result_hist']['number'], [1] * len(overview['result_hist']['number'])))
+        indv_row_offsets = dict(zip(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage'])))
         corrections_scans_labels = []
-        
-        # Plot last scan distribution
-        ax_correction.bar(overview['correction_hist']['number'], damage(overview['correction_hist']['primary_damage']), label='Scan result')
-        ax_correction.yaxis.offsetText.set(va='bottom', ha='center')
 
         # Loop over individual scans
         for entry in overview['correction_scans']:
@@ -457,16 +464,16 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
             row = entry['number']
             indv_damage = damage(entry['primary_damage'])
 
-            ax_correction.bar(row, indv_damage, bottom=indv_row_offsets[row], color=f"C{indv_row_scans[row]}")
+            ax_result.bar(row, indv_damage, bottom=indv_row_offsets[row], color=f"C{indv_row_scans[row]}")
             indv_row_offsets[row] += indv_damage
             corrections_scans_labels.append(indv_row_scans[row])
             indv_row_scans[row] += 1
 
         # Resulting mean fluence on 1D
         mean = np.nanmean(list(indv_row_offsets.values()))
-        ax_correction.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
+        ax_result.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
 
-        leg1 = ax_correction.legend(loc='upper center', fontsize=10)
+        leg1 = ax_result.legend(loc='upper center', fontsize=10)
 
         # Make custom colorbar to show number of correction scans, it's cheecky breeky-style
         max_indv_scans = max(indv_row_scans.values())
@@ -479,14 +486,23 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         ax_cbar.remove()  # Cheeky-breeky remove the orginal axes where the cbar axes was attached at the top, hehe
 
         # Zoom in correction plot to see resulting distribution
-        ax_correction.set_ylim(min(damage(overview['correction_hist']['primary_damage']))*0.85, max(list(indv_row_offsets.values()))*1.15)
+        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(list(indv_row_offsets.values()))*1.05)
 
         # Beautiful custom patch showing colorbar
         cmh = [Rectangle((0, 0), 1, 1)]
         handler_map = dict(zip(cmh, [HandlerColormap(cmap, num_stripes=max_indv_scans-1)]))
-        ax_correction.legend(handles=leg1.legendHandles+cmh,
-                             labels=[t.get_text() for t in leg1.get_texts()] + ['Corrections'],
-                             handler_map=handler_map, loc='upper center', fontsize=10)
+        ax_result.legend(handles=leg1.legendHandles+cmh,
+                         labels=[t.get_text() for t in leg1.get_texts()] + ['Corrections'],
+                         handler_map=handler_map, loc='upper center', fontsize=10)
+    else:
+        # Resulting mean fluence on 1D
+        mean = np.nanmean(damage(overview['result_hist']['primary_damage']))
+        ax_result.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
+
+        ax_result.legend(loc='upper center', fontsize=10)
+
+        # Zoom in correction plot to see resulting distribution
+        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(damage(overview['result_hist']['primary_damage']))*1.05)
 
     if temp_data is not None:
         ax_temp = ax_beam.twinx()
@@ -498,10 +514,10 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
                                                     stop_ts,
                                                     to_secs=False)
             ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
-        ax_temp.legend(loc='lower right', fontsize=10)
+        ax_temp.legend(loc='upper center', fontsize=8)
 
-    ax[1].xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
-    for label in ax[1].get_xticklabels(which='major'):
+    ax_beam.xaxis.set_major_formatter(md.DateFormatter(time_fmt))
+    for label in ax_beam.get_xticklabels(which='major'):
         label.set_ha('right')
         label.set_rotation(30)
 

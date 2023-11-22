@@ -94,7 +94,8 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
     hist_shape = n_rows * n_complete_scans
 
     # Make nice hists for rows and scans
-    overview['row_hist'] = np.zeros(shape=hist_shape, dtype=[('center_timestamp', '<f8'),
+    overview['row_hist'] = np.zeros(shape=hist_shape, dtype=[('duration', '<f4'),
+                                                             ('center_timestamp', '<f8'),
                                                              ('primary_damage', '<f4'),
                                                              ('primary_damage_error', '<f4'),
                                                              ('number', '<i2')])
@@ -102,9 +103,6 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
     overview['scan_hist'] = np.zeros(shape=n_complete_scans, dtype=overview['row_hist'].dtype)
 
     if n_indv_scans > 0:
-
-        # Make nice hists for rows and scans
-        overview['correction_hist'] = np.zeros(shape=n_rows, dtype=overview['row_hist'].dtype)
         
         overview['correction_scans'] = np.zeros(shape=n_indv_scans, dtype=overview['row_hist'].dtype)
 
@@ -125,10 +123,12 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             cridx = current_offset + i
 
             # Add the current row fluence to the respective row in the histogram
-            row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
+            row_duration = entry['row_stop_timestamp'] - entry['row_start_timestamp']
+            row_center_ts = row_duration / 2 + entry['row_start_timestamp']
             
             current_row_idx = int(entry['row']) + current_offset
 
+            overview['row_hist']['duration'][current_row_idx] = row_duration
             overview['row_hist']['center_timestamp'][current_row_idx] = row_center_ts
             overview['row_hist']['primary_damage'][current_row_idx] += entry['row_primary_fluence']
             overview['row_hist']['primary_damage_error'][current_row_idx] = entry['row_primary_fluence_error']
@@ -143,11 +143,13 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
         # Center timestamp of this scan
         scan_start_ts = current_scan_data[0]['row_start_timestamp']
         scan_stop_ts = current_scan_data[-1]['row_stop_timestamp']
-        scan_center_ts = (scan_stop_ts - scan_start_ts) / 2 + scan_start_ts
+        scan_duration = scan_stop_ts - scan_start_ts
+        scan_center_ts = scan_duration / 2 + scan_start_ts
         
         # Get scan info from damage data
         current_damage_data = damage_data[np.searchsorted(damage_data['scan'], scan)]
 
+        overview['scan_hist']['duration'][scan] = scan_duration
         overview['scan_hist']['center_timestamp'][scan] = scan_center_ts
         overview['scan_hist']['primary_damage'][scan] = current_damage_data['scan_primary_fluence']
         overview['scan_hist']['primary_damage_error'][scan] = current_damage_data['scan_primary_fluence_error']
@@ -158,15 +160,16 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
         
         for i, entry in enumerate(scan_data[individual_scan_mask]):
             # Add the current row fluence to the respective row in the histogram
-            row_center_ts = (entry['row_stop_timestamp'] - entry['row_start_timestamp']) / 2 + entry['row_start_timestamp']
+            row_duration = entry['row_stop_timestamp'] - entry['row_start_timestamp']
+            row_center_ts = row_duration / 2 + entry['row_start_timestamp']
             
             overview['correction_scans']['center_timestamp'][i] = row_center_ts
             overview['correction_scans']['primary_damage'][i] = entry['row_primary_fluence']
             overview['correction_scans']['primary_damage_error'][i] = entry['row_primary_fluence_error']
             overview['correction_scans']['number'][i] = entry['row']
 
-        # Have the resulting hist sorted in rows
-        overview['correction_hist'] = overview['row_hist'][-n_rows:]
+    # Have the resulting hist sorted in rows
+    overview['result_hist'] = overview['row_hist'][-n_rows:]
 
     return overview
 
