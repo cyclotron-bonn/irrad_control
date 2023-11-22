@@ -405,7 +405,8 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
 
     # Plot mask of where irradiation was halted for longer than 30 seconds
-    halt_start_idxs = np.argwhere(np.diff(overview['row_hist']['center_timestamp'][chrono_ts_idxs]) > 30)
+    halt_criteria = overview['row_hist']['duration'].mean() + 3 * overview['row_hist']['duration'].std() + 10  # 10 seconds to acount for row switching and condition checking 
+    halt_start_idxs = np.argwhere(np.diff(overview['row_hist']['center_timestamp'][chrono_ts_idxs]) > halt_criteria)
     for i in range(len(halt_start_idxs)):
         h_start = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]]
         h_stop = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]+1]
