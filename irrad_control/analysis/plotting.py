@@ -411,7 +411,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         h_start = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]]
         h_stop = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]+1]
         ax_complete.bar(_to_dt(h_start), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs][halt_start_idxs[i]]), _to_dt(h_stop-h_start, True),
-                        align='edge', label='Scan halt' if i == 0 else '', color='grey', ls='-', alpha=0.33, linewidth=0, edgecolor='k')
+                        align='edge', label='Scan halt' if i == 0 else '', color='gray', ls='-', alpha=0.33, zorder=-1)
 
     ax_complete.legend(loc='upper left', fontsize=10)    
 
@@ -440,7 +440,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
 
     # Plot last scan distribution
-    ax_result.bar(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage']), label='Scan result')
+    ax_result.bar(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage']), label='Result')
     ax_result.yaxis.offsetText.set(va='bottom', ha='center')
 
     if 'correction_scans' in overview:
