@@ -49,6 +49,7 @@ def no_title(b):
     """Don't generate plot titles by setting background color to title color"""
     if b:
         plt.rcParams['axes.titlecolor'] = plt.rcParams['axes.facecolor']
+        plt.rcParams['figure.titlesize'] = 1  # TODO: find a better solution
 
 
 def align_axis(ax1, v1, ax2, v2, axis='y'):
