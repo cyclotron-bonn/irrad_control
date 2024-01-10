@@ -13,6 +13,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from irrad_control.analysis.formulas import lin_odr
 from irrad_control.utils.utils import duration_str_from_secs
+from irrad_control.ions import get_ions
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -662,12 +663,14 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
 
 def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lambda, ion_name, ion_energy, hist=False):
 
+    ion = get_ions()[ion_name]
+
     beta_const, lambda_const = beta_lambda
 
     fit_label=r'Linear fit: $\mathrm{I_{Beam} = \beta \cdot I_{SEE}}$;'
     fit_label += '\n\t' + r'$\beta=(%.2E \pm %.2E)$' % (beta_const.n, beta_const.s)
     fit_label += '\n\t' + r'$\lambda=\beta\ /\ 5V=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
-    fit_label += '\n\t' + r'$\mathrm{SEY}=\beta^{-1}=(%.3f \pm %.3f)$' % ((100./beta_const).n, (100./beta_const).s) + ' %'
+    fit_label += '\n\t' + r'$\mathrm{SEY}=q_{%s}\ /\ \beta=(%.2f \pm %.2f)$' % (ion_name, (100.*ion.n_charge/beta_const).n, (100.*ion.n_charge/beta_const).s) + ' %'
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
 
     label_ion = f"{ion_energy:.3f} MeV {ion_name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
@@ -678,7 +681,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lam
                                           'xlabel': r"Secondary electron current $\mathrm{I_{SEE}}$ / nA",
                                           'ylabel': r"Beam current $\mathrm{I_{Beam}}$ / nA",
                                           'label': label_ion,
-                                          'title':"Beam current calibration",
+                                          'title':"Beam monitor calibration",
                                           'fmt':'C0.',
                                           'alpha': 0.33},
                                fit_data={'xdata': calib_data,

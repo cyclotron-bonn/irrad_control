@@ -573,8 +573,10 @@ class IrradConverter(DAQProcess):
                 fc_current = analysis.formulas.v_sig_to_i_sig(v_sig=self.data_arrays[server]['raw'][fc_channel][0],
                                                               full_scale_current=self._lookups[server]['full_scale_current']['cup'],
                                                               full_scale_voltage=self._lookups[server]['full_scale_voltage'])
+                # gamma = I_SEE / I_ion * q_ion
+                sey = see_per_surface / fc_current * self._daq_params[server]['ion'].n_charge * 100  # %
                 
-                self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = see_per_surface / fc_current * 100
+                self.data_arrays[server]['see']['sey'] = beam_data['data']['see']['sey'] = sey
         
         else:
             logging.warning("Beam current cannot be calculated from calibration due to calibration signal of type 'sem_sum' missing")
