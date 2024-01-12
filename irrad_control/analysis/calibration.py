@@ -12,6 +12,7 @@ from irrad_control.analysis import plotting
 
 import irrad_control.analysis.formulas as irrad_formulas
 from irrad_control.devices.readout import RO_DEVICES, DAQ_BOARD_CONFIG
+from irrad_control.ions import get_ions
 
 
 def _get_ifs(channel_idx, config):
@@ -118,7 +119,7 @@ def main(data, config):
                                                ref_data=current_cup_ch[stat_mask],
                                                calib_sig=sem_ch, ref_sig=cup_ch,
                                                red_chi=red_chi,
-                                               beta_lambda=calib_result,
+                                               gamma_lambda=calib_result,
                                                ion_name=ion_name,
                                                ion_energy=ion_energy)
 
@@ -129,7 +130,7 @@ def main(data, config):
                                                ref_data=current_cup_ch[stat_mask],
                                                calib_sig=sem_ch, ref_sig=cup_ch,
                                                red_chi=red_chi,
-                                               beta_lambda=calib_result,
+                                               gamma_lambda=calib_result,
                                                ion_name=ion_name,
                                                ion_energy=ion_energy,
                                                hist=True)
@@ -194,6 +195,7 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
 
     sem_ch = config['readout']['channels'][sem_ch_idx]
     cup_ch = config['readout']['channels'][cup_ch_idx]
+    ion = get_ions()[config['daq']['ion']]
 
     # Initialize arrays containing the IFS values for each entry
     ifs_sem_ch = generate_ch_ifs_array(data=data, config=config, channel_idx=sem_ch_idx, update_ifs_events=update_ifs_events)
@@ -210,47 +212,53 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
 
     ########################################################################
     # Calibration:                                                         #
+    # -> I_SEE = gamma * I_beam / q_ion                                    #
+    # => I_sem_type = gamma * I_cup_type / q_ion                           #
     # -> I_sem_type = U_sem_type / ref_voltage * IFS                       #
-    # -> I_cup_type = beta * I_sem_type with beta = lambda * ref_voltage   #
-    # -> lambda = beta / ref_voltage, [lambda] = 1/V                       #
-    # -> I_beam(U_sem_type, IFS) = lambda * IFS * U_sem_type               #
+    # -> gamma * I_cup_type / q_ion = U_sem_type / ref_voltage * IFS       #
+    # <=> I_cup_type = q_ion / (gamma * ref_volatge) * IFS * U_sem_type    #
+    # <=> I_cup_type = lambda * IFS * U_sem_type                           #
+    # -> lambda = q_ion / (gamma * ref_voltage), [lambda] = 1/V            #
+    # => I_beam(U_sem_type, IFS) = lambda * IFS * U_sem_type               #
     ########################################################################
 
     # Get statistical calibration constant and use it to cut the fit data on 2 sigma
-    beta_stat_array = current_cup_ch / current_sem_ch
-    beta_stat = ufloat(np.nanmean(beta_stat_array), np.nanstd(beta_stat_array))
-    beta_stat_mask = (beta_stat_array > (beta_stat.n - 2 * beta_stat.s)) & (beta_stat_array < (beta_stat.n + 2 * beta_stat.s))
+    gamma_stat_array = current_sem_ch / current_cup_ch * ion.n_charge
+    gamma_stat = ufloat(np.nanmean(gamma_stat_array), np.nanstd(gamma_stat_array))
+    gamma_stat_mask = (gamma_stat_array > (gamma_stat.n - 2 * gamma_stat.s)) & (gamma_stat_array < (gamma_stat.n + 2 * gamma_stat.s))
     
-    lambda_stat_array = beta_stat_array[beta_stat_mask] / ref_voltage
+    lambda_stat_array = ion.n_charge / (gamma_stat_array[gamma_stat_mask] * ref_voltage)
     lambda_stat = ufloat(np.nanmean(lambda_stat_array), np.nanstd(lambda_stat_array))
 
-    logging.debug("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~beta_stat_mask), 100 * (np.count_nonzero(~beta_stat_mask) / beta_stat_mask.shape[0])))
+    logging.debug("Discarding {} ({:.2f} %) entries for calibration fit due to 2 sigma cut".format(np.count_nonzero(~gamma_stat_mask), 100 * (np.count_nonzero(~gamma_stat_mask) / gamma_stat_mask.shape[0])))
     
     # Do fit
-    popt, perr, red_chi = fit(xdata=current_sem_ch[beta_stat_mask],
-                              ydata=current_cup_ch[beta_stat_mask],
-                              xerr=current_sem_ch_error[beta_stat_mask],
-                              yerr=current_cup_ch_error[beta_stat_mask],
+    popt, perr, red_chi = fit(xdata=current_cup_ch[gamma_stat_mask],
+                              ydata=current_sem_ch[gamma_stat_mask],
+                              xerr=current_sem_ch_error[gamma_stat_mask],
+                              yerr=current_cup_ch_error[gamma_stat_mask],
                               use_odr=True)
 
-    # get slope and finally lambda_const which is calibration value
-    beta_fit = ufloat(popt[0], perr[0])
-    lambda_fit = beta_fit / ufloat(ref_voltage, ref_voltage*0.01)
+    # Get slope and finally lambda_const which is calibration value
+    gamma_fit = ufloat(popt[0], perr[0]) * ion.n_charge
+    
+    # Mean of fit and stat
+    gamma_res = (gamma_fit + gamma_stat) / 2.0
+    lambda_res = ion.n_charge / (gamma_res * ufloat(ref_voltage, ref_voltage*0.01))
 
     # Notify the user if red. Chi² is very fishy
-    if not 0.1 <= red_chi <= 5:
-        logging.warning(f"The calibration fit resulted in a red. Chi^2 of {red_chi:.2f} which indicates a faulty fit or model.")
+    if not 0.05 <= red_chi <= 5:
+        logging.warning(f"The calibration fit resulted in a red. Chi^2 of {red_chi:.2E} which indicates a faulty fit or model.")
 
-    logging.debug(f"Calibration of linear model I_cup_type = beta * I_sem_type -> beta={beta_fit.n:.2E}+-{beta_fit.s:.2E} @ red. Chi^2 {red_chi:.2f}")
+    logging.debug(f"Calibration of linear model I_SEE = gamma * I_beam / q_ion -> gamma=({100*gamma_fit.n:.2E}+-{100*gamma_fit.s:.2E}) % @ red. Chi^2 {red_chi:.2f}")
 
-    logging.info("Beam current calibration result for '{}' vs '{}': {} 1/V [{} 1/V]".format(cup_ch, sem_ch,
-                                                                                            '{}=({:.3f}{}{:.3f})'.format(u'\u03bb' + '_fit', lambda_fit.n, u'\u00b1', lambda_fit.s),
-                                                                                            '{}=({:.3f}{}{:.3f})'.format(u'\u03bb' + '_stat', lambda_stat.n, u'\u00b1', lambda_stat.s)))
+    logging.info("Beam monitor calibration for '{}' vs '{}': {} 1/V".format(cup_ch, sem_ch,
+                                                                            '{}=({:.3f}{}{:.3f})'.format(u'\u03bb', lambda_res.n, u'\u00b1', lambda_res.s)))
 
     if return_full:
-        return (beta_fit, lambda_fit), (beta_stat, lambda_stat), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array, beta_stat_mask)
+        return (gamma_res, lambda_res), (gamma_stat, lambda_stat), (popt, perr, red_chi), (current_sem_ch, current_cup_ch, lambda_stat_array, gamma_stat_mask)
     else:
-        return (beta_fit, lambda_fit), (beta_stat, lambda_stat)
+        return (gamma_res, lambda_res), (gamma_stat, lambda_stat)
 
 def fit(xdata, ydata, yerr=None, xerr=None, use_odr=True, p0=(1,), fit_func=irrad_formulas.lin_odr):
 

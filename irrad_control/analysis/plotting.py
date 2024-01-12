@@ -661,32 +661,33 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     return fig, (ax_hist_2d, ax_hist_h, ax_hist_v)
 
 
-def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, beta_lambda, ion_name, ion_energy, hist=False):
+def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_lambda, ion_name, ion_energy, hist=False):
 
     ion = get_ions()[ion_name]
 
-    beta_const, lambda_const = beta_lambda
+    gamma_const, lambda_const = gamma_lambda
+    gamma_percent = gamma_const * 100
 
-    fit_label=r'Linear fit: $\mathrm{I_{Beam} = \beta \cdot I_{SEE}}$;'
-    fit_label += '\n\t' + r'$\beta=(%.2E \pm %.2E)$' % (beta_const.n, beta_const.s)
-    fit_label += '\n\t' + r'$\lambda=\beta\ /\ 5V=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
-    fit_label += '\n\t' + r'$\mathrm{SEY}=q_{%s}\ /\ \beta=(%.2f \pm %.2f)$' % (ion_name, (100.*ion.n_charge/beta_const).n, (100.*ion.n_charge/beta_const).s) + ' %'
-    fit_label += '\n\t' + r'$\chi^2_{red}= %.2f\ $' % red_chi
+    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ q_{%s}}$' % ion_name
+    fit_label += '\n\t' + fr'$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %'
+    fit_label += '\n\t' + r'$\lambda=q_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion_name
+    fit_label += '\n\t' + r'$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
+    fit_label += '\n\t' + r'$\chi^2_{red}= %.2E\ $' % red_chi
 
     label_ion = f"{ion_energy:.3f} MeV {ion_name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
 
     # Make figure and axis
-    fig, ax = plot_generic_fig(plot_data={'xdata': calib_data,
-                                          'ydata': ref_data,
-                                          'xlabel': r"Secondary electron current $\mathrm{I_{SEE}}$ / nA",
-                                          'ylabel': r"Beam current $\mathrm{I_{Beam}}$ / nA",
+    fig, ax = plot_generic_fig(plot_data={'xdata': ref_data,
+                                          'ydata': calib_data,
+                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $\mathrm{I_{beam}}$ / nA",
+                                          'ylabel': r"Surface-normalized SEE current $\mathrm{I_{SEE}}$ / nA",
                                           'label': label_ion,
                                           'title':"Beam monitor calibration",
                                           'fmt':'C0.',
                                           'alpha': 0.33},
-                               fit_data={'xdata': calib_data,
+                               fit_data={'xdata': ref_data,
                                          'func': lin_odr,
-                                         'fit_args': [[beta_const.n], calib_data],
+                                         'fit_args': [[gamma_const.n / ion.n_charge], ref_data],
                                          'fmt': 'C1-',
                                          'label': fit_label},
                                hist_data={'bins': (100, 100), 'norm': mc.LogNorm()} if hist else {})
