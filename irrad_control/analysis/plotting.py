@@ -18,7 +18,7 @@ from irrad_control.ions import get_ions
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
 plt.rcParams.update({
-    'font.size': 11,  # default 10
+    'font.size': 12,  # default 10
     'figure.figsize': [8, 6],  # default [6.4, 4.8]
     'grid.alpha': 0.75,  # default 1.0
     'figure.max_open_warning': 0,  # default 20; disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
