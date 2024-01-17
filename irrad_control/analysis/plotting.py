@@ -400,30 +400,32 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     # Start/stop overview plot at beginning/end of irradiation
     start_ts, stop_ts = overview['row_hist']['center_timestamp'][0], overview['row_hist']['center_timestamp'][-1]
     chrono_ts_idxs = np.argsort(overview['row_hist']['center_timestamp'])
+    row_chrono = overview['row_hist'][chrono_ts_idxs]
 
-    ax_complete.bar(_to_dt(overview['row_hist']['center_timestamp'][chrono_ts_idxs]), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs]), _to_dt(overview['row_hist']['duration'][chrono_ts_idxs], True) , label='Row fluence')
+    ax_complete.bar(_to_dt(row_chrono['center_timestamp']), damage(row_chrono['primary_damage']), _to_dt(row_chrono['duration'], True) , label='Row fluence')
     ax_complete.errorbar(_to_dt(overview['scan_hist']['center_timestamp']), damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
     ax_complete.set_ylabel(dmg_label)
     ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
 
     # Plot mask of where irradiation was halted for longer than 30 seconds
     halt_criteria = overview['row_hist']['duration'].mean() + 3 * overview['row_hist']['duration'].std() + 10  # 10 seconds to acount for row switching and condition checking 
-    halt_start_idxs = np.argwhere(np.diff(overview['row_hist']['center_timestamp'][chrono_ts_idxs]) > halt_criteria)
+    halt_start_idxs = np.argwhere(np.diff(row_chrono['center_timestamp']) > halt_criteria)
     for i in range(len(halt_start_idxs)):
-        h_start = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]]
-        h_stop = overview['row_hist']['center_timestamp'][chrono_ts_idxs][halt_start_idxs[i]+1]
-        ax_complete.bar(_to_dt(h_start), damage(overview['row_hist']['primary_damage'][chrono_ts_idxs][halt_start_idxs[i]]), _to_dt(h_stop-h_start, True),
-                        align='edge', label='Scan halt' if i == 0 else '', color='gray', ls='-', alpha=0.33, zorder=-1)
+        h_start = row_chrono['center_timestamp'][halt_start_idxs[i]]
+        h_stop = row_chrono['center_timestamp'][halt_start_idxs[i]+1]
+        scan_hist_idx = np.searchsorted(overview['scan_hist']['scan'], row_chrono['scan'][halt_start_idxs[i]])
+        ax_complete.bar(_to_dt(h_start), damage(overview['scan_hist']['primary_damage'][scan_hist_idx]), _to_dt(h_stop-h_start, True),
+                        align='edge', label='Halt' if i == 0 else '', color='red', ls='-', alpha=1, zorder=-1)
 
     ax_complete.legend(loc='upper left', fontsize=10)    
 
     # Add scan number ticks
     ax_scan = ax_complete.secondary_xaxis('top')
     ax_scan.set_xlabel('Scan number')
-    every_10nth_scan = len(overview['scan_hist']['number'])//10 + 1
+    every_10nth_scan = len(overview['scan_hist']['scan'])//10 + 1
 
     ax_scan.set_xticks(_to_dt(overview['scan_hist']['center_timestamp'][::every_10nth_scan]),
-                       overview['scan_hist']['number'][::every_10nth_scan])
+                       overview['scan_hist']['scan'][::every_10nth_scan])
 
     ax_tid.set_ylabel('TID / Mrad')
     align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
@@ -450,20 +452,20 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
 
     # Plot last scan distribution
-    ax_result.bar(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage']), label='Result')
+    ax_result.bar(overview['result_hist']['row'], damage(overview['result_hist']['primary_damage']), label='Result')
     ax_result.yaxis.offsetText.set(va='bottom', ha='center')
 
     if 'correction_scans' in overview:
 
         # Count the amount of individual scans and fluence inside
-        indv_row_scans = dict(zip(overview['result_hist']['number'], [1] * len(overview['result_hist']['number'])))
-        indv_row_offsets = dict(zip(overview['result_hist']['number'], damage(overview['result_hist']['primary_damage'])))
+        indv_row_scans = dict(zip(overview['result_hist']['row'], [1] * len(overview['result_hist']['row'])))
+        indv_row_offsets = dict(zip(overview['result_hist']['row'], damage(overview['result_hist']['primary_damage'])))
         corrections_scans_labels = []
 
         # Loop over individual scans
         for entry in overview['correction_scans']:
 
-            row = entry['number']
+            row = entry['row']
             indv_damage = damage(entry['primary_damage'])
 
             ax_result.bar(row, indv_damage, bottom=indv_row_offsets[row], color=f"C{indv_row_scans[row]}")
@@ -488,7 +490,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         ax_cbar.remove()  # Cheeky-breeky remove the orginal axes where the cbar axes was attached at the top, hehe
 
         # Zoom in correction plot to see resulting distribution
-        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(list(indv_row_offsets.values()))*1.05)
+        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(list(indv_row_offsets.values()))*1.075)
 
         # Beautiful custom patch showing colorbar
         cmh = [Rectangle((0, 0), 1, 1)]

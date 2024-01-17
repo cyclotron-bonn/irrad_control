@@ -98,7 +98,8 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
                                                              ('center_timestamp', '<f8'),
                                                              ('primary_damage', '<f4'),
                                                              ('primary_damage_error', '<f4'),
-                                                             ('number', '<i2')])
+                                                             ('row', '<i2'),
+                                                             ('scan', '<i2')])
     
     overview['scan_hist'] = np.zeros(shape=n_complete_scans, dtype=overview['row_hist'].dtype)
 
@@ -132,7 +133,8 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             overview['row_hist']['center_timestamp'][current_row_idx] = row_center_ts
             overview['row_hist']['primary_damage'][current_row_idx] += entry['row_primary_fluence']
             overview['row_hist']['primary_damage_error'][current_row_idx] = entry['row_primary_fluence_error']
-            overview['row_hist']['number'][current_row_idx] = entry['row']
+            overview['row_hist']['row'][current_row_idx] = entry['row']
+            overview['row_hist']['scan'][current_row_idx] = entry['scan']
 
         # Add this to all remaining entries
         offset_future_scans = overview['row_hist']['primary_damage'][current_offset:cridx+1]
@@ -153,7 +155,7 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
         overview['scan_hist']['center_timestamp'][scan] = scan_center_ts
         overview['scan_hist']['primary_damage'][scan] = current_damage_data['scan_primary_fluence']
         overview['scan_hist']['primary_damage_error'][scan] = current_damage_data['scan_primary_fluence_error']
-        overview['scan_hist']['number'][scan] = scan
+        overview['scan_hist']['scan'][scan] = scan
     
     # Now we add the individual row scans
     if n_indv_scans > 0:
@@ -166,7 +168,7 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
             overview['correction_scans']['center_timestamp'][i] = row_center_ts
             overview['correction_scans']['primary_damage'][i] = entry['row_primary_fluence']
             overview['correction_scans']['primary_damage_error'][i] = entry['row_primary_fluence_error']
-            overview['correction_scans']['number'][i] = entry['row']
+            overview['correction_scans']['row'][i] = entry['row']
 
     # Have the resulting hist sorted in rows
     overview['result_hist'] = overview['row_hist'][-n_rows:]
