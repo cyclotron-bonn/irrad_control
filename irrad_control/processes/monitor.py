@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui
 
 from irrad_control.processes.gui import IrradGUI
 from irrad_control.gui.tabs import IrradMonitorTab
@@ -64,7 +64,7 @@ class MonitorGUI(IrradGUI):
         self.minimal_input_window = QtWidgets.QMainWindow()
         self.minimal_input_window.setWindowTitle("Input monitor GUI data")
         # Make this window blocking parent window
-        self.minimal_input_window.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.minimal_input_window.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         screen = QtWidgets.QDesktopWidget().screenGeometry()
         self.minimal_input_window.resize(int(0.5 * screen.width()), int(0.5 * screen.height()))
 
