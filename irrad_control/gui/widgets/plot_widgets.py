@@ -7,7 +7,7 @@ from matplotlib import cm as mcmaps, colors as mcolors
 from PyQt6 import QtWidgets, QtCore, QtGui
 
 # Package imports
-import irrad_control.analysis as analysis
+from irrad_control.analysis.dtype import IrradHists
 from irrad_control.ions import get_ions
 from irrad_control.gui.widgets.util_widgets import GridContainer
 
@@ -572,7 +572,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
             self._idx += 1
 
             # Set data in curves
-            for ch in data:
+            for ch in self.channels:
                 # Shift data to the right and set 0th element
                 self._data[ch][1:] = self._data[ch][:-1]
                 self._data[ch][0] = data[ch]
@@ -647,6 +647,113 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
         # Update
         self._time = new_time
         self._data = new_data
+
+
+class IrradDataHist(IrradPlotWidget):
+    """This implements a 1D histogram plot with an additional indicator of where the latest entry was"""
+
+    def __init__(self, hist_config, xlabel=None, unit=None, name=None, refresh_rate=10, parent=None):
+        super(IrradDataHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+
+        self._data['hist'], self._data['edges'], self._data['centers'] = hist_config
+        self.unit = unit or 'a.u.'
+        self.name = name or type(self).__name__
+        self.xlabel = xlabel or 'Signal'
+
+        self._setup_plot()
+
+    def _setup_plot(self):
+
+        # Get plot item and setup
+        self.plt.setDownsampling(auto=True)
+        self.plt.setTitle(self.name)
+        self.plt.setLabel('left', text='#')
+        self.plt.setLabel('bottom', text=self.xlabel, units=self.unit)
+        self.plt.getAxis('left').enableAutoSIPrefix(False)
+        self.plt.showGrid(x=True, y=True)
+        self.plt.setLimits(xMin=np.min(self._data['edges']), xMax=np.max(self._data['edges']), yMin=0)
+        self.legend = pg.LegendItem(offset=(80, 80))
+        self.legend.setParentItem(self.plt)
+
+        self.enable_stats()
+
+        # Histogram of fraction
+        self.curves['hist'] = pg.PlotCurveItem(name='Histogram')
+        self.curves['hist'].setFillLevel(0.33)
+        self.curves['hist'].setBrush(pg.mkBrush(color=_MPL_COLORS[0]))
+
+        # Init items needed
+        self.curves['value'] = CrosshairItem(color=_MPL_COLORS[1], name='Current value')
+        self.curves['value'].v_shift_line.setValue(1)  # Make crosshair point visible above 0
+        self.curves['value'].v_shift_line.setVisible(False)  # We need x and y for the dot in the middle but we don't want horizontal line to be visible
+        self.curves['value'].set_legend(self.legend)
+        self.curves['value'].set_plotitem(self.plt)
+
+        # Show data and legend
+        for curve in self.curves:
+            self.show_data(curve)
+
+    def set_data(self, data):
+        # Store current fraction
+        self._data['value'] = data
+        self._data_is_set = True
+
+    def update_hist(self, data):
+        # Histogram
+        self._data['hist'][data] += 1
+        self._data['hist_idx'] = data
+
+    def _set_stats(self):
+        """Show curve statistics for active_curves which have been clicked or are hovered over"""
+
+        current_actives = [curve for curve in self.active_curves if self.active_curves[curve]]
+
+        if not current_actives:
+            return
+
+        n_actives = len(current_actives)
+
+        # Update text for statistics widget
+        current_stat_text = 'Curve stats of {} curve{}:\n'.format(n_actives, '' if n_actives == 1 else 's')
+
+        # Loop over active curves and create current stats
+        for curve in current_actives:
+
+            current_stat_text += '  '
+
+            # Histogram stats
+            if 'hist' in curve:
+                try:
+                    mean = np.average(self._data['centers'], weights=self._data['hist'])
+                    std = np.sqrt(np.average((self._data['centers'] - mean)**2, weights=self._data['hist']))
+                except ZeroDivisionError:  # Weights sum up to 0; no histogram entries
+                    mean = std = np.nan
+                current_stat_text += curve + u': ({:.2f} \u00B1 {:.2f}) {}'.format(mean, std, self.plt.getAxis('bottom').labelUnits)
+
+            else:
+                current_stat_text += curve + u': {:.2f} {}'.format(self._data['value'], self.plt.getAxis('bottom').labelUnits)
+
+            current_stat_text += '\n' if curve != current_actives[-1] else ''
+
+        # Set color and text
+        current_stat_color = (100, 100, 100)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.setText(current_stat_text)
+
+    def refresh_plot(self):
+        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
+
+        # test if 'set_data' has been called
+        if self._data_is_set:
+            for curve in self.curves:
+
+                if curve == 'hist':
+                    self.curves[curve].setData(x=self._data['edges'], y=self._data['hist'], stepMode=True)
+                if curve == 'value' and 'hist_idx' in self._data:
+                    self.curves[curve].set_position(x=self._data['value'], y=self._data['hist'][self._data['hist_idx']])
+
+            if self._show_stats:
+                self._set_stats()
 
 
 class RawDataPlot(ScrollingIrradDataPlot):
@@ -922,7 +1029,7 @@ class BeamPositionPlot(IrradPlotWidget):
         self.daq_setup = daq_setup
         self.ro_types = daq_setup['readout']['types']
         self.daq_device = daq_device
-        self.hist_types = analysis.dtype.IrradHists()
+        self.hist_types = IrradHists()
         self._add_hist = add_hist
         self.name = name if name is not None else type(self).__name__ if self.daq_device is None else type(self).__name__ + ' ' + self.daq_device
 
@@ -1176,115 +1283,42 @@ class FluenceHist(IrradPlotWidget):
                     self.curves[curve].setData(x=self._data['hist_rows'][:-1] + 0.5, y=self._data['hist'], height=np.array(self._data['hist_err']), pen=_MPL_COLORS[2])
 
 
-class SEYFractionHist(IrradPlotWidget):
-    """This implements a histogram of the fraction of one signal to another"""
+class SEEFracHist(IrradDataHist):
 
-    def __init__(self, rel_sig, norm_sig, colors=_MPL_COLORS, refresh_rate=10, parent=None):
-        super(SEYFractionHist, self).__init__(refresh_rate=refresh_rate, parent=parent)
+    def __init__(self, name, xlabel, refresh_rate=10, parent=None):
 
-        # Signal names; relative signal versus the signal it's normalized to
-        self.rel_sig = rel_sig
-        self.norm_sig = norm_sig
+        super().__init__(hist_config=IrradHists().create_hist('see'),
+                         xlabel=xlabel,
+                         unit='%',
+                         name=name,
+                         refresh_rate=refresh_rate,
+                         parent=parent)
 
-        # Get colors
-        self.colors = colors
 
-        self.hist_types = analysis.dtype.IrradHists()
-        hist, edges, centers = self.hist_types.create_hist(rel_sig)
-        # Hold data
-        self._data['hist'], self._data['edges'], self._data['centers'] = hist, edges, centers
+class SEYHist(IrradDataHist):
 
-        self._setup_plot()
+    def __init__(self, name, xlabel, refresh_rate=10, parent=None):
 
-    def _setup_plot(self):
+        super().__init__(hist_config=IrradHists().create_hist('sey'),
+                         xlabel=xlabel,
+                         unit='%',
+                         name=name,
+                         refresh_rate=refresh_rate,
+                         parent=parent)
 
-        # Get plot item and setup
-        self.plt.setDownsampling(auto=True)
-        self.plt.setTitle(type(self).__name__ + ' ' + self.rel_sig)
-        self.plt.setLabel('left', text='#')
-        self.plt.setLabel('bottom', text='Fraction {} / {}'.format(self.rel_sig, self.norm_sig), units='%')
-        self.plt.getAxis('left').enableAutoSIPrefix(False)
-        self.plt.showGrid(x=True, y=True)
-        self.plt.setLimits(xMin=self.hist_types[self.rel_sig]['range'][0], xMax=self.hist_types[self.rel_sig]['range'][1], yMin=0)
-        self.legend = pg.LegendItem(offset=(80, 80))
-        self.legend.setParentItem(self.plt)
 
-        self.enable_stats()
+class SEECurrentPlot(ScrollingIrradDataPlot):
+    """Plot for displaying the proton beam current over time. Data is displayed in rolling manner over period seconds"""
 
-        # Histogram of fraction
-        self.curves['hist'] = pg.PlotCurveItem(name='{} / {} histogram'.format(self.rel_sig, self.norm_sig))
-        self.curves['hist'].setFillLevel(0.33)
-        self.curves['hist'].setBrush(pg.mkBrush(color=self.colors[0]))
+    def __init__(self, channels, name=None, parent=None):
 
-        # Init items needed
-        self.curves['current_frac'] = CrosshairItem(color=self.colors[1], name='Current bin')
-        self.curves['current_frac'].v_shift_line.setValue(5)  # Make crosshair point visible above 0
-        self.curves['current_frac'].v_shift_line.setVisible(False)  # We need x and y for the dot in the middle but we don't want horizontal line to be visible
-        self.curves['current_frac'].set_legend(self.legend)
-        self.curves['current_frac'].set_plotitem(self.plt)
-
-        # Show data and legend
-        for curve in self.curves:
-            self.show_data(curve)
-
-    def set_data(self, data):
-        # Store current fraction
-        self._data['fraction'] = data
-        self._data_is_set = True
-
-    def update_hist(self, data):
-        # Histogram fraction
-        self._data['hist'][data] += 1
-        self._data['hist_idx'] = data
-
-    def _set_stats(self):
-        """Show curve statistics for active_curves which have been clicked or are hovered over"""
-
-        current_actives = [curve for curve in self.active_curves if self.active_curves[curve]]
-
-        if not current_actives:
-            return
-
-        n_actives = len(current_actives)
-
-        # Update text for statistics widget
-        current_stat_text = 'Curve stats of {} curve{}:\n'.format(n_actives, '' if n_actives == 1 else 's')
-
-        # Loop over active curves and create current stats
-        for curve in current_actives:
-
-            current_stat_text += '  '
-
-            # Histogram stats
-            if 'hist' in curve:
-                try:
-                    mean = np.average(self._data['centers'], weights=self._data['hist'])
-                    std = np.sqrt(np.average((self._data['centers'] - mean)**2, weights=self._data['hist']))
-                except ZeroDivisionError:  # Weights sum up to 0; no histogram entries
-                    mean = std = np.nan
-                current_stat_text += curve + u': ({:.2f} \u00B1 {:.2f}) {}'.format(mean, std, self.plt.getAxis('bottom').labelUnits)
-
-            else:
-                current_stat_text += curve + u': {:.2f} {}'.format(self._data['fraction'], self.plt.getAxis('bottom').labelUnits)
-
-            current_stat_text += '\n' if curve != current_actives[-1] else ''
-
-        # Set color and text
-        current_stat_color = (100, 100, 100)
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
-        self.stats_text.setText(current_stat_text)
-
-    def refresh_plot(self):
-        """Refresh the plot. This method is supposed to be connected to the timeout-Signal of a QTimer"""
-
-        # test if 'set_data' has been called
-        if self._data_is_set:
-            for curve in self.curves:
-
-                if curve == 'hist':
-                    self.curves[curve].setData(x=self._data['edges'], y=self._data['hist'], stepMode=True)
-                if curve == 'current_frac':
-                    self.curves[curve].set_position(x=self._data['fraction'], y=self._data['hist'][self._data['hist_idx']])
-
-            if self._show_stats:
-                self._set_stats()
+        # Call __init__ of ScrollingIrradDataPlot
+        super(SEECurrentPlot, self).__init__(channels=channels,
+                                              units={'right': 'A', 'left': 'A'},
+                                              name=name or type(self).__name__,
+                                              parent=parent)
+        
+        self.plt.setLabel('left', text='SEE current', units='A')
+        self.plt.hideAxis('left')
+        self.plt.showAxis('right')
+        self.plt.setLabel('right', text='SEE current', units='A')

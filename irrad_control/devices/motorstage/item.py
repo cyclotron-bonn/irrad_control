@@ -193,9 +193,9 @@ class ItemLinearStage(BaseAxis):
         Python interpreter (aka self._daemon.terminate()) since it is not called with sudo privileges.
         Instead call a dedicated script using sudo as subprocess again 
         """
-        subprocess.call([f"{os.path.join(script_path, 'item_daemon.sh')}", '--stop'])
+        self._stop_call = subprocess.run([f"{os.path.join(script_path, 'item_daemon.sh')}", '--stop'])
         self._daemon.wait(timeout=3)
-        logging.info(f"")
+        time.sleep(3)
 
     def start_client(self):
         # Init client

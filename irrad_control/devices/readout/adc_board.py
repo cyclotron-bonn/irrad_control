@@ -1,48 +1,39 @@
 import logging
+from pipyadc import ADS1256
+from pipyadc import ADS1256_definitions as ADS1256_defs
+from pipyadc import ADS1256_default_config as ADS1256_conf
+
 
 # Package imports
-import irrad_control.devices.ic.ADS1256.ADS1256_definitions as ADS1256_defs
-import irrad_control.devices.ic.ADS1256.pipyadc as pipyadc
+from irrad_control.devices import DEVICES_CONFIG
 
 
 class ADCBoard(object):
 
-    drates = dict([(30000, ADS1256_defs.DRATE_30000),
-                   (15000, ADS1256_defs.DRATE_15000),
-                   (7500, ADS1256_defs.DRATE_7500),
-                   (3750, ADS1256_defs.DRATE_3750),
-                   (2000, ADS1256_defs.DRATE_2000),
-                   (1000, ADS1256_defs.DRATE_1000),
-                   (500, ADS1256_defs.DRATE_500),
-                   (100, ADS1256_defs.DRATE_100),
-                   (60, ADS1256_defs.DRATE_60),
-                   (50, ADS1256_defs.DRATE_50),
-                   (30, ADS1256_defs.DRATE_30),
-                   (25, ADS1256_defs.DRATE_25),
-                   (15, ADS1256_defs.DRATE_15),
-                   (10, ADS1256_defs.DRATE_10),
-                   (5, ADS1256_defs.DRATE_5),
-                   (2.5, ADS1256_defs.DRATE_2_5)])
-
     @property
     def drate(self):
         hw_drate = self.adc.drate
-        decimal_drate = [k for k, v in self.drates.items() if v == hw_drate]
-        return decimal_drate[0]
+        decimal_drate, = [k for k, v in DEVICES_CONFIG['ADCBoard']['drates'].items() if v == hw_drate]
+        return decimal_drate
 
     @drate.setter
     def drate(self, val):
-        if val in self.drates:
-            self.adc.drate = self.drates[val]
+        if val in DEVICES_CONFIG['ADCBoard']['drates']:
+            self.adc.drate = DEVICES_CONFIG['ADCBoard']['drates'][val]
         else:
-            msg = "{} not in available data rates: {}".format(val, ', '.join(str(k) for k in self.drates))
+            msg = "{} not in available data rates: {}".format(val, ', '.join(str(k) for k in DEVICES_CONFIG['ADCBoard']['drates']))
             msg += " No changes applied."
             logging.warning(msg)
 
     def __init__(self):
 
+        # Enable AUTOCAL and disable buffer
+        # IMPORTANT: BUFFER_ENABLE bit needs to be DISABLED! Otherwise, voltage range only 0-3V instead of 0-5V
+        ADS1256_conf.gain_flags = ADS1256_defs.GAIN_1  # 0-5V
+        ADS1256_conf.status = ADS1256_defs.AUTOCAL_ENABLE  # 0x04
+
         # Initialize ADS1256
-        self.adc = pipyadc.ADS1256()
+        self.adc = ADS1256(conf=ADS1256_conf)
 
         # Self calibrate
         self.adc.cal_self()
@@ -92,3 +83,6 @@ class ADCBoard(object):
             logging.warning("No input channels to read from are setup. Use 'setup_channels' method")
 
         return result
+
+    def shutdown(self):
+        self.adc.stop()

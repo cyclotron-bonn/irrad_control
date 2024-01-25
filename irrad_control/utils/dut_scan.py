@@ -28,11 +28,17 @@ class DUTScan(object):
     def rows(self, val):
         raise AttributeError("rows is read-only")
 
-    def __init__(self, scan_stage, config=None):
+    def __init__(self, scan_stage, irrad_events, config=None):
 
         # Timing-related
         self._event_wait_time = 0.1  # Wait for events to be set
         self._between_checks_time = 1.0  # Wait for
+
+        # Scan area safety margin to account for e.g. misalignment when placing the DUT.
+        # Scan area beam margin to account for beam size
+        # Asymmetric due to misalignment being more relevant in x than in y
+        self._scan_safety_margin = (10, 5)  # (x, y) mm
+        self._scan_beam_margin = (4, 3)  # (x, y) beam sigmas
 
         self.scan_stage = scan_stage
 
@@ -42,8 +48,11 @@ class DUTScan(object):
         # Minimum info the scan_config must contain in order to scan
         self.scan_reqs = ('origin', 'start', 'end', 'n_rows', 'rows', 'scan_speed', 'row_sep')
 
+        # Events to be automatically updated
+        self.irrad_events = irrad_events
+
         # Events controlling the scanning procedure
-        self._events = {e: threading.Event() for e in ('stop', 'complete', 'standby', 'wait')}
+        self.interaction_events = {e: threading.Event() for e in ('abort', 'finish', 'pause')}
 
         # Scan parameters; derived from scan config
         self._scan_params = {}
@@ -53,9 +62,9 @@ class DUTScan(object):
         if config is not None:
             self.setup_scan(scan_config=config)
 
-    def handle_event(self, event):
+    def handle_interaction(self, interaction):
         """
-        Method to handle an event. *event* is string and can be any of the following
+        Method to handle an interaction. *interaction* is string and can be any of the following
 
         abort:
             Scan stops immediately after scanning current row. Setup relocates to scan origin
@@ -65,33 +74,20 @@ class DUTScan(object):
             Scan pauses until *continue* event before next scan is done. Beam located on shielding
         continue:
             Scan continues after pausing.
-        beam_down:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-        beam_jitter:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-        beam_ok:
-            Scan pauses before/ after scanning row (depending on when event arrives) until *beam_ok* event. Beam located on shielding.
-
         """
 
-        if event == 'abort':
+        if interaction == 'abort':
             logging.warning("Aborting scan!")
-            self._events['stop'].set()
-        elif event == 'finish':
+            self.interaction_events['abort'].set()
+        elif interaction == 'finish':
             logging.info("Finishing scan!")
-            self._events['complete'].set()
-        elif event == 'pause':
+            self.interaction_events['finish'].set()
+        elif interaction == 'pause':
             logging.info("Pausing scan!")
-            self._events['wait'].set()
-        elif event == 'continue':
+            self.interaction_events['pause'].set()
+        elif interaction == 'continue':
             logging.info("Continuing scan!")
-            self._events['wait'].clear()
-        elif event in ('beam_down', 'beam_jitter'):
-            logging.warning("Scan on standby due to beam conditions!")
-            self._events['standby'].set()
-        elif event == 'beam_ok':
-            logging.debug("Beam conditions recovered!")
-            self._events['standby'].clear()
+            self.interaction_events['pause'].clear()
 
     def setup_zmq(self, ctx, skt, addr, sender=None):
         """
@@ -169,9 +165,11 @@ class DUTScan(object):
             scan_accel = self.scan_stage.axis[0].get_accel(unit='mm/s^2')
             # Distance travelled until scan speed is reached
             accel_distance = 0.5 * self._scan_params['scan_speed'] ** 2 / scan_accel
-            # Resulting offsets in x and y
-            scan_offset_x = axis_mm_to_native(0, 3 * beam_sigma_x + 2 * accel_distance)
-            scan_offset_y = axis_mm_to_native(1, 3 * beam_sigma_y)
+            # Resulting offsets in x and y, including safety margins
+            scan_offset_x = self._scan_safety_margin[0] + self._scan_beam_margin[0] * beam_sigma_x + accel_distance
+            scan_offset_y = self._scan_safety_margin[1] + self._scan_beam_margin[1] * beam_sigma_y
+            scan_offset_x = axis_mm_to_native(0, scan_offset_x)
+            scan_offset_y = axis_mm_to_native(1, scan_offset_y)
 
             # Apply offset
             start[0] -= scan_offset_x
@@ -217,7 +215,144 @@ class DUTScan(object):
 
         return True
 
-    def scan_row(self, row, speed=None, repeat=1):
+    def _check_abort(self):
+        """
+        Check if scan is to be aborted.
+
+        Raises
+        ------
+        ScanError
+        """
+        if self.interaction_events['abort'].wait(self._event_wait_time):
+            raise ScanError("Scan was stopped manually")
+
+    def _wait_for_condition(self, condition_call, log_msg=None, log_level='INFO', check_call=None):
+        """
+        Wait for condition, returned by *condition_call*,  to be True.
+        Sleep between conditions, and log *log_msg* with level *log_level*, if given.
+        If given, call *check_call* function every iteration.
+
+        Parameters
+        ----------
+        condition_call : _type_
+            _description_
+        log_msg : _type_, optional
+            _description_, by default None
+        log_level : str, optional
+            _description_, by default 'INFO'
+        check_call : _type_, optional
+            _description_, by default None
+        """
+    
+        while not condition_call():    
+            if log_msg is not None:
+                logging.log(level=logging.getLevelName(log_level), msg=log_msg)
+            if check_call is not None:
+                check_call()
+            time.sleep(self._between_checks_time)
+
+    def _return_to_origin(self, current_x=None, return_speed=10):
+        """
+        Mehod that returns the scan to the origin.
+        It resets the movement speeds, checks the current position and returns the box
+        to the origin without moving the beam though the scan area
+        """
+
+        current_x = current_x or self.scan_stage.axis[0].get_position()
+
+        # Reset speeds
+        for i in (1, 0):
+            self.scan_stage.set_speed(axis=i, value=return_speed, unit='mm/s')
+        
+        # Make 3 sigma margins for x and why to drive around the scan area
+        x_return = 3 / 2.3548 * self._scan_params['beam_fwhm'][0]  # 3 * x beam sigma in mm
+        x_return = self.scan_stage.axis[1].convert_from_unit(x_return, unit='mm')  # Convert to axis units
+
+        y_return = 3 / 2.3548 * self._scan_params['beam_fwhm'][1]  # 3 * y beam sigma in mm
+        y_return = self.scan_stage.axis[1].convert_from_unit(y_return, unit='mm')  # Convert to axis units
+
+        # We are on the close side of the scan area
+        if current_x <= self._scan_params['start'][0]:
+            # Move 3 sigma outside of the scan area, then to origin y and x
+            self._move_and_check(axis=0, position=current_x - x_return, error_check_only=True)
+        
+        # We have to move "around" scan area; We have "unlimited" space to the top so we should return around the bottom
+        elif current_x >= self._scan_params['end'][0]:
+            # Go to x value which is 3 sigma outside the scan area to the right
+            # Go to y value which is 3 sigma outside the scan area to the bottom
+            self._move_and_check(axis=0, position=x_return + current_x, error_check_only=True)
+            self._move_and_check(axis=1, position=y_return + max(self._scan_params['rows'].values()), error_check_only=True)  # Add lowest row a.k.a maximum y value
+            self._move_and_check(axis=0, position=self._scan_params['start'][0] - x_return, error_check_only=True)
+        else:
+            raise ScanError('Trying to return from scan failed. Turn off beam and return manually!')
+        
+        self._move_and_check(axis=1, position=self._scan_params['origin'][1], error_check_only=True)
+        self._move_and_check(axis=0, position=self._scan_params['origin'][0], error_check_only=True)
+
+    def _move_and_check(self, axis, position, unit=None, error_check_only=False, max_tries=5):
+        """
+        Method that moves to an absolute position, checks the respective axis for error and checks whether the target position is read back after the move.
+        If the target is not read back from the axis after the move has been completed, we repeat the move a couple of times and try again.
+        If we end up not reaching the target or the stage has errors, raise ScanError
+
+        Parameters
+        ----------
+        axis : int
+            Index of the axis to be moved
+        position : int, float
+            Target position in units known to axis. If unit is None, use native units
+        unit : str, None, optional
+            String of the unit in which the target position is given. If None, use axis native unit, by default None
+        error_check_only : bool, optional
+            Whether to only check for axis erros and not read back result position, by default False
+        max_tries : int, optional
+            Number of tries to move to position, by default 5
+        
+        Raises
+        ------
+        ScanError
+            The target position could not be read back properly so we don't know whether we moved axis to positon
+        """
+        
+        assert axis < len(self.scan_stage.axis), f"Axis can only be 0 to {len(self.scan_stage.axis)-1}"
+
+        if unit is not None:
+            assert unit in self.scan_stage.axes[axis].units['distance'], f"Unit {unit} not in axis distance units"
+            target_in_native = self.scan_stage.axis[axis].convert_from_unit(position, unit=unit)  # Convert to axis units
+        else:
+            target_in_native = position
+
+
+        success = False
+        # Try to move maximum of 5 times before raising ScanError
+        for n in range(1, max_tries + 1):
+
+            self.scan_stage.move_abs(axis=axis, value=target_in_native)
+
+            success = not bool(self.scan_stage.axis[axis].error)
+            
+            if not error_check_only:
+                # Read back position after move in native
+                success &= self.scan_stage.axis[axis].get_position() == target_in_native
+
+            # If the axis is not at the target or has an error value other than False, try again
+            if not success:
+                msg = f"Moving axis {axis} to position {position} {self.scan_stage.axis[axis].native_unit if unit is None else unit} failed. Try {n} of {max_tries}."
+                logging.error(msg)
+                time.sleep(0.1)
+
+            # Everything looks good so we can break out of the loop
+            else:
+                break
+        
+        # If we enter this else block, we never reached our target / always errored
+        else:
+            msg = f"Moving axis {axis} to position {position} {self.scan_stage.axis[axis].native_unit if unit is None else unit} repeatadly failed."
+            msg += f"Current position: {self.scan_stage.axis[axis].get_position(unit=unit)} {unit or 'native units'}"
+            msg += f"Axis error: {self.scan_stage.axis[axis].error or 'None'}"
+            raise ScanError(msg)
+
+    def scan_row(self, row, speed=None, repeat=1, from_origin=True):
         """
         Method to scan a single row of a device. Uses info about scan parameters from self._scan_params dict.
         Does sanity checks. The actual scan is done in a separate thread which calls self._scan_row.
@@ -230,6 +365,8 @@ class DUTScan(object):
             Scan speed in mm/s or None. If None, current speed of x-axis is used for scanning
         repeat : int
             Number of times *row* should be scanned with *speed*
+        from_origin : bool, optional
+            Whether to scan the row from the scan origin, by default True
         """
 
         # Check scan configuration dict
@@ -237,7 +374,7 @@ class DUTScan(object):
             return
 
         # Start scan in separate thread
-        scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat})
+        scan_thread = threading.Thread(target=self._scan_row, kwargs={'row': row, 'speed': speed, 'repeat': repeat, 'from_origin': from_origin})
         scan_thread.start()
 
     def scan_device(self):
@@ -251,7 +388,7 @@ class DUTScan(object):
         scan_thread = threading.Thread(target=self._scan_device)
         scan_thread.start()
 
-    def _scan_row(self, row, speed=None, scan=-1, data_pub=None, repeat=1):
+    def _scan_row(self, row, speed=None, scan=-1, data_pub=None, repeat=1, from_origin=True):
         """
         Method which is called by self._scan_device or self.scan_row. See docstrings there.
 
@@ -267,6 +404,8 @@ class DUTScan(object):
             Socket on which data is published. If None, check if a socket can be created, if not, no data is published
         repeat : int
             Number of times *row* should be scanned with *speed*
+        from_origin : bool, optional
+            Whether to scan the row from the scan origin, by default True
         """
 
         # Check row is in self._scan_params['rows']
@@ -280,10 +419,6 @@ class DUTScan(object):
         # If we're closing the socket, we have to open one before
         if spawn_pub:
             data_pub = create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
-
-        # Check whether this method is called from within self.scan_device or single row is scanned.
-        # If single row is scanned, we're coming from
-        from_origin = tuple(self.scan_stage.get_position()) == self._scan_params['origin']
 
         # Set custom speed to scan this row
         if speed is not None:
@@ -302,20 +437,10 @@ class DUTScan(object):
 
         # Check whether we are scanning from origin
         if from_origin:
-            self.scan_stage.move_abs(axis=0, value=x_start)
-
-            # Check reply; if something went wrong raise error
-            if self.scan_stage.axis[0].error:
-                msg = "X-axis did not move to start point. Abort"
-                raise ScanError(msg)
+            self._move_and_check(axis=0, position=x_start)
 
         # Move to the current row
-        self.scan_stage.move_abs(axis=1, value=self._scan_params['rows'][row])
-
-        # Check reply; if something went wrong raise error
-        if self.scan_stage.axis[1].error:
-            msg = "Y-axis did not move to row {}. Abort.".format(row)
-            raise ScanError(msg)
+        self._move_and_check(axis=1, position=self._scan_params['rows'][row])
 
         # Scan row *repeat* times
         for _ in range(int(repeat)):
@@ -323,20 +448,11 @@ class DUTScan(object):
             # Current x position
             x_current = self.scan_stage.axis[0].get_position()
 
-            # If we're not at the start or end of a row, something went wrong
-            if x_current not in (x_start, x_end):
-                msg = "Current x-axis position ({}) does not correspond to either start ({}) or end ({}) x-position of the scan. Abort!"
-                msg.format(x_current, x_start, x_end)
-                raise ScanError(msg)
-
-            # Check for beam current to be sufficient / beam to be on for scan; if not wait
-            while self._events['standby'].wait(self._event_wait_time):
-                logging.warning("Insufficient beam conditions. Waiting for beam to stabilize")
-                time.sleep(self._between_checks_time)
-
-                # If beam does not recover and we need to stop manually
-                if self.stop_scan.wait(self._event_wait_time):
-                    raise ScanError("Scan was stopped manually")
+            # Check for beam conditions to be okay before scanning a row, if not wait
+            self._wait_for_condition(condition_call=self.irrad_events.beam_ok,
+                                     log_msg="Insufficient beam conditions. Waiting for beam to stabilize...",
+                                     log_level='WARNING',
+                                     check_call=self._check_abort)  # If beam does not recover and we need to stop manually
 
             # Publish if we have a socket
             if data_pub is not None:
@@ -353,12 +469,7 @@ class DUTScan(object):
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
             # Scan the current row
-            self.scan_stage.move_abs(axis=0, value=x_end if x_current == x_start else x_start)
-
-            # Check reply; if something went wrong raise error
-            if self.scan_stage.axis[0].error:
-                msg = "X-axis did not scan row {}. Abort.".format(row)
-                raise ScanError(msg)
+            self._move_and_check(axis=0, position=x_end if x_current == x_start else x_start)
 
             # Publish if we have a socket
             if data_pub is not None:
@@ -373,9 +484,7 @@ class DUTScan(object):
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
         if from_origin:
-            # Move back to origin; move y first in order to not scan over device
-            self.scan_stage.move_abs(axis=1, value=self._scan_params['origin'][1])
-            self.scan_stage.move_abs(axis=0, value=self._scan_params['origin'][0])
+            self._return_to_origin()
 
         if data_pub is not None:
             # Publish stop data
@@ -402,8 +511,8 @@ class DUTScan(object):
         data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
 
         # Move to start point
-        self.scan_stage.move_abs(axis=0, value=self._scan_params['start'][0])
-        self.scan_stage.move_abs(axis=1, value=self._scan_params['start'][1])
+        self._move_and_check(axis=0, position=self._scan_params['start'][0])
+        self._move_and_check(axis=1, position=self._scan_params['start'][1])
 
         # Set the scan speed
         self.scan_stage.set_speed(value=self._scan_params['scan_speed'], axis=0, unit='mm/s')
@@ -435,13 +544,17 @@ class DUTScan(object):
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
 
-            # Loop until self._events['stop'] or self._events['complete']
-            while not (self._events['stop'].wait(self._event_wait_time) or self._events['complete'].wait(self._event_wait_time)):
+            # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
+            while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
+
+                # Break if the scan is completed
+                if self.irrad_events.IrradiationComplete.value.is_valid():
+                    break
 
                 # Pause scan indefinitely until manually resuming
-                while self._events['wait'].wait(self._event_wait_time):
-                    logging.debug(f'Scan paused after {scan} scans. Waiting to continue')
-                    time.sleep(self._between_checks_time)
+                self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
+                                         log_msg=f"Scan paused after {scan} scans. Waiting to continue",
+                                         log_level='INFO')
 
                 # Determine whether we're scanning top to bottom or opposite
                 current_rows = top_to_bottom_rows if scan % 2 == 0 else bottom_to_top_rows
@@ -450,11 +563,11 @@ class DUTScan(object):
                 for row in current_rows:
 
                     # Check for emergency stop; if so, raise error
-                    if self._events['stop'].wait(self._event_wait_time):
+                    if self.interaction_events['abort'].wait(self._event_wait_time):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
-                    self._scan_row(row=row, scan=scan, data_pub=data_pub)
+                    self._scan_row(row=row, scan=scan, data_pub=data_pub, from_origin=False)
 
                 _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
                 _data = {'status': 'scan_complete', 'scan': scan}
@@ -480,11 +593,8 @@ class DUTScan(object):
 
                 data_pub.close()
 
-            # Reset speeds and move back to origin; move y first in order to not scan over device
-            for i in (1, 0):
-                self.scan_stage.set_speed(value=10, axis=i, unit='mm/s')
-                self.scan_stage.move_abs(axis=i, value=self._scan_params['origin'][i])
+            self._return_to_origin()
 
             # Reset signal so one can scan again
-            for _, e in self._events.items():
+            for _, e in self.interaction_events.items():
                 e.clear()

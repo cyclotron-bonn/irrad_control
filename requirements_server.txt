@@ -1,6 +1,5 @@
 pyzmq  # 0MQ
 pyyaml # yaml package
-wiringpi  # Raspberry Pi library
+pipyadc  # Raspberry Pi ADS1256 library
 zaber.serial  # Zaber Stages serial communictaion
-bitstring  # TCA9555
 pyserial  # Serial communication

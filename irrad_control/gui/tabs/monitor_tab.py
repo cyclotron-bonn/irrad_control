@@ -70,17 +70,30 @@ class IrradMonitorTab(QtWidgets.QWidget):
 
                 elif monitor == 'SEM':
                     plot_wrappers = []
+                    see_current_channels = ['see_total']
+
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_right', 'sem_left')):
-                        self.plots[server]['sem_h_plot'] = plots.SEYFractionHist(rel_sig='sey_horizontal', norm_sig='SEM_{}'.format(u'\u03A3'))
-                        plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_h_plot', server=server))
+                        see_current_channels.append('see_horizontal')
 
                     if all(x in self.setup[server]['readout']['types'] for x in ('sem_up', 'sem_down')):
-                        self.plots[server]['sem_v_plot'] = plots.SEYFractionHist(rel_sig='sey_vertical', norm_sig='SEM_{}'.format(u'\u03A3'))
+                        see_current_channels.append('see_vertical')
+
+                    ion_name_energy = f"{self.setup[server]['daq']['ekin_initial']:.3f} MeV {self.setup[server]['daq']['ion'].capitalize()}s"
+                    self.plots[server]['see_current_plot'] = plots.SEECurrentPlot(channels=see_current_channels, name=f"SEE currents for {ion_name_energy}")
+                    plot_wrappers.append(self._create_plot_wrapper(plot_name='see_current_plot', server=server))
+
+                    self.plots[server]['sey_plot'] = plots.SEYHist(name=f'Secondary-Electron-Yield for {ion_name_energy}', xlabel="SEY")
+                    plot_wrappers.append(self._create_plot_wrapper(plot_name='sey_plot', server=server))
+
+                    if 'see_horizontal' in see_current_channels:
+                        self.plots[server]['sem_h_plot'] = plots.SEEFracHist(name='SEE Horizontal Fraction', xlabel="Horizontal SEE / Total SEE")
+                        plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_h_plot', server=server))
+
+                    if 'see_vertical' in see_current_channels:
+                        self.plots[server]['sem_v_plot'] = plots.SEEFracHist(name='SEE Vertical Fraction', xlabel="Vertical SEE / Total SEE")
                         plot_wrappers.append(self._create_plot_wrapper(plot_name='sem_v_plot', server=server))
-                    if len(plot_wrappers) == 1:
-                        monitor_widget = plot_wrappers[0]
-                    elif plot_wrappers:
-                        monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
+
+                    monitor_widget = plots.MultiPlotWidget(plots=plot_wrappers)
 
             if has_ntc_daq_board_ro or 'ArduinoNTCReadout' in self.setup[server]['devices']:
 

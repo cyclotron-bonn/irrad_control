@@ -1,8 +1,25 @@
 import logging
 import time
-import  fcntl
+import fcntl
+from subprocess import check_output, CalledProcessError
 
-from irrad_control import lock_file
+from irrad_control import lock_file, package_path
+
+
+def get_current_git_branch(default='main'):
+
+    try:
+        # use git default installation via subprocess
+        local_branches = str(check_output(['git', 'branch'],
+                                          cwd=package_path,
+                                          universal_newlines=True))
+        # Fancy x, = [y] notation
+        active_branch, = [b.replace('*', '').strip() for b in local_branches.split('\n') if '*' in b]
+
+        return active_branch
+    
+    except (CalledProcessError, FileNotFoundError):
+        return default
 
 
 def check_zmq_addr(addr):
@@ -99,3 +116,19 @@ class Lock:
     def __exit__(self):
         fcntl.lockf(self.lfh.fileno(), fcntl.LOCK_UN)
         self.lfh.close()
+
+
+def duration_str_from_secs(seconds, as_tuple=False):
+
+    days = seconds / (24 * 3600)
+    hours = (days % 1) * 24
+    minutes = (hours % 1) * 60
+    seconds = (minutes % 1) * 60
+    
+    # Return tuple in full days, hours, minutes and seconds
+    res = tuple(int(x) for x in [days, hours, minutes, seconds])
+
+    if as_tuple:
+        return res
+    else:
+        return ", ".join(f"{a[0]}{a[1]}" for a in zip(res, 'dhms') if a[0]) or '0s'

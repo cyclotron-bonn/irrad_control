@@ -11,6 +11,7 @@ on:
   pull_request:
     branches:
       - main
+      - release*
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -61,3 +62,31 @@ jobs:
 
       - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
         run: pytest
+
+  install:
+    name: Testing install.sh script with Python ${{matrix.python-version}}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10"]
+
+    runs-on: ${{matrix.os}}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Run install.sh
+        run: |
+          echo "Installing to $PWD..."
+          ./scripts/install.sh --ic_path=$PWD 
+
+      - name: Check installation
+        run: |
+          source .venv/bin/activate
+          irrad_control --help
+          irrad_analyse --help

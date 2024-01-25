@@ -6,7 +6,7 @@ from dataclasses import dataclass
 # Event dtype; used to log events such as beam current shutdowns, state changes etc
 _event_dtype = [('timestamp', '<f8'),
                 ('event', '<S64'),
-                ('parameters', '<S256')]
+                ('parameters', '<S256')]  # Parameters is a comma-separated string of key=value entries e.g. 'param1=123,param2=ramadankareem,param3=1.1, ...' which is cut-off after 256 entries
 
 # Motorstage data type; contains motorstage positions and parameters
 _motorstage_dtype = [('timestamp', '<f8'),  # Timestamp [s]
@@ -25,6 +25,12 @@ _beam_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
                ('beam_loss', '<f4'),  # Beam current loss at extraction, detected by Beam-Loss-Monitor [A]
                ('horizontal_beam_position', '<f4'),  # Relative x position of the mean of the beam distribution [%]
                ('vertical_beam_position', '<f4')]  # Relative y position of the mean of the beam distribution [%]
+
+_see_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
+              ('see_total', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
+              ('see_horizontal', '<f4'),  # SEE current delivered by horizontal SEM [A]
+              ('see_vertical', '<f4'),  # SEE current delivered by vertical SEM [A]
+              ('sey', '<f4')]  # SE yield as in SEE current / beam current per surface [%]
 
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan
@@ -89,6 +95,7 @@ class IrradDtypes:
     event = np.dtype(_event_dtype)
     motorstage = np.dtype(_motorstage_dtype)
     beam = np.dtype(_beam_dtype)
+    see = np.dtype(_see_dtype)
     scan = np.dtype(_scan_dtype)
     irrad = np.dtype(_irrad_dtype)
     damage = np.dtype(_damage_dtype)
@@ -111,8 +118,8 @@ class IrradDtypes:
 class IrradHists:
 
     beam_position = {'unit': 'percent', 'bins': (100, 100), 'range': [(-110, 110), (-110, 110)]}
-    sey_horizontal = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
-    sey_vertical = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    see = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
+    sey = {'unit': 'percent', 'bins': 50, 'range': (0, 110)}
 
     def create_hist(self, hist_name, return_edges=True, return_centers=True):
         hist_dict = self.__getitem__(hist_name)
