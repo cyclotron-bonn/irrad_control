@@ -52,10 +52,8 @@ jobs:
             echo "Adding Qt6 backport for ${{ matrix.os }}"
             sudo add-apt-repository ppa:okirby/qt6-backports
           fi
-          sudo add-apt-repository universe
           sudo apt-get update
-          sudo apt-get install qt6-base-dev
-          sudo apt-get install -f
+          sudo apt-get install qt6-base-dev --fix-missing
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   
