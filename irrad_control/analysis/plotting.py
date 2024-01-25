@@ -13,7 +13,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from irrad_control.analysis.formulas import lin_odr
 from irrad_control.utils.utils import duration_str_from_secs
-from irrad_control.ions import get_ions
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -663,25 +662,23 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     return fig, (ax_hist_2d, ax_hist_h, ax_hist_v)
 
 
-def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_lambda, ion_name, ion_energy, hist=False):
-
-    ion = get_ions()[ion_name]
+def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_lambda, ion, ion_energy, hist=False):
 
     gamma_const, lambda_const = gamma_lambda
     gamma_percent = gamma_const * 100
 
-    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ q_{%s}}$' % ion_name
+    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ q_{%s}}$' % ion.name
     fit_label += '\n\t' + fr'$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %'
-    fit_label += '\n\t' + r'$\lambda=q_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion_name
+    fit_label += '\n\t' + r'$\lambda=q_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion.name
     fit_label += '\n\t' + r'$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2E\ $' % red_chi
 
-    label_ion = f"{ion_energy:.3f} MeV {ion_name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
+    label_ion = f"{ion_energy:.3f} MeV {ion.name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
 
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': ref_data,
                                           'ydata': calib_data,
-                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $\mathrm{I_{beam}}$ / nA",
+                                          'xlabel': f"{ion.name.capitalize()} " + r"beam current $\mathrm{I_{beam}}$ / nA",
                                           'ylabel': r"Surface-normalized SEE current $\mathrm{I_{SEE}}$ / nA",
                                           'label': label_ion,
                                           'title':"Beam monitor calibration",

@@ -11,8 +11,8 @@ from collections import defaultdict
 from irrad_control.analysis import plotting
 
 import irrad_control.analysis.formulas as irrad_formulas
+import irrad_control.ions as irrad_ions
 from irrad_control.devices.readout import RO_DEVICES, DAQ_BOARD_CONFIG
-from irrad_control.ions import get_ions
 
 
 def _get_ifs(channel_idx, config):
@@ -36,7 +36,7 @@ def _get_ref_voltage(config):
 def main(data, config):
 
     server = config['name']
-    ion_name = config['daq']['ion']
+    ion = irrad_ions.get_ions()[config['daq']['ion']]
     ion_energy = config['daq']['ekin_initial']
 
     # Get raw data and event data; events are needed in order to check for changing full scale factors when using the IrradDAQBoard
@@ -101,6 +101,7 @@ def main(data, config):
                                                                                       cup_ch_idx=cup_calib_channel[cup_ch]['idx'],
                                                                                       config=config,
                                                                                       update_ifs_events=update_ifs_events,
+                                                                                      ion=ion,
                                                                                       return_full=True)
 
             # Extract results
@@ -120,7 +121,7 @@ def main(data, config):
                                                calib_sig=sem_ch, ref_sig=cup_ch,
                                                red_chi=red_chi,
                                                gamma_lambda=calib_result,
-                                               ion_name=ion_name,
+                                               ion=ion,
                                                ion_energy=ion_energy)
 
             figs.append(fig)
@@ -131,7 +132,7 @@ def main(data, config):
                                                calib_sig=sem_ch, ref_sig=cup_ch,
                                                red_chi=red_chi,
                                                gamma_lambda=calib_result,
-                                               ion_name=ion_name,
+                                               ion=ion,
                                                ion_energy=ion_energy,
                                                hist=True)
 
@@ -191,11 +192,10 @@ def generate_ch_ifs_array(data, config, channel_idx, update_ifs_events=None):
     return ifs_array
 
 
-def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events, return_full=False):
+def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events, ion, return_full=False):
 
     sem_ch = config['readout']['channels'][sem_ch_idx]
     cup_ch = config['readout']['channels'][cup_ch_idx]
-    ion = get_ions()[config['daq']['ion']]
 
     # Initialize arrays containing the IFS values for each entry
     ifs_sem_ch = generate_ch_ifs_array(data=data, config=config, channel_idx=sem_ch_idx, update_ifs_events=update_ifs_events)
