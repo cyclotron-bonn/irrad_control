@@ -2,10 +2,10 @@ import traceback
 import threading
 
 
-# If we can import PyQt5, we want a QtWorker as well as a ThreadWorker
+# If we can import PyQt6, we want a QtWorker as well as a ThreadWorker
 _QT_WORKER = True
 try:
-    from PyQt5 import QtCore
+    from PyQt6 import QtCore
 except ModuleNotFoundError:
     _QT_WORKER = False
 

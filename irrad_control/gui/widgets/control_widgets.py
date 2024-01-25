@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from collections import defaultdict
 
 
@@ -374,14 +374,14 @@ class MotorStageControlWidget(ControlWidget):
 
                     # Make MessageBox
                     mbox = QtWidgets.QMessageBox()
-                    mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                    mbox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
                     mbox.setWindowTitle(f"Movement of {motorstage} restricted by {restricting_ms}")
                     mbox.setText(msg)
-                    mbox.addButton(QtWidgets.QMessageBox.Ok)
-                    mbox.addButton(QtWidgets.QMessageBox.Abort)
+                    mbox.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
+                    mbox.addButton(QtWidgets.QMessageBox.StandardButton.Abort)
 
                     # Move restricting motorstage first
-                    if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                    if mbox.exec() == QtWidgets.QMessageBox.StandardButton.Ok:
                         self.send_cmd(hostname=self.server,
                                       target=restricting_ms,
                                       cmd='move_abs',
@@ -402,14 +402,14 @@ class MotorStageControlWidget(ControlWidget):
 
                 # Make MessageBox
                 mbox = QtWidgets.QMessageBox()
-                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setIcon(QtWidgets.QMessageBox.Icon.Warning)
                 mbox.setWindowTitle(f"Movement of {motorstage} may be restricted by {missing_ms}")
                 mbox.setText(msg)
-                mbox.addButton(QtWidgets.QMessageBox.Ok)
-                mbox.addButton(QtWidgets.QMessageBox.Abort)
+                mbox.addButton(QtWidgets.QMessageBox.StandardButton.Ok)
+                mbox.addButton(QtWidgets.QMessageBox.StandardButton.Abort)
 
                 # Move anyway
-                if mbox.exec_() == QtWidgets.QMessageBox.Ok:
+                if mbox.exec() == QtWidgets.QMessageBox.StandardButton.Ok:
                     move = True
         # Target motorstage is not restricted, just move
         else:
@@ -854,7 +854,7 @@ class DAQControlWidget(ControlWidget):
         self.update_rec_state(state=True)
 
     def update_rec_state(self, state):
-        icon = self._style.standardIcon(self._style.SP_DialogYesButton if state else self._style.SP_DialogNoButton)
+        icon = self._style.standardIcon(self._style.StandardPixmap.SP_DialogYesButton if state else self._style.StandardPixmap.SP_DialogNoButton)
         tooltip = "Recording" if state else "Data recording paused"
         btn_text = "Pause" if state else "Resume"
         self.btn_record.setText(btn_text)

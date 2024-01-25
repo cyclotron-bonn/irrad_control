@@ -1,5 +1,5 @@
 import time
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from collections import defaultdict
 
 # Pacakage imports
@@ -56,13 +56,13 @@ class IrradControlTab(QtWidgets.QWidget):
 
         # Split tab in quadrants
         splitter = QtWidgets.QSplitter()
-        splitter.setOrientation(QtCore.Qt.Vertical)
+        splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         splitter.setChildrenCollapsible(False)
         splitter_upper = QtWidgets.QSplitter()
-        splitter_upper.setOrientation(QtCore.Qt.Horizontal)
+        splitter_upper.setOrientation(QtCore.Qt.Orientation.Horizontal)
         splitter_upper.setChildrenCollapsible(False)
         splitter_lower = QtWidgets.QSplitter()
-        splitter_lower.setOrientation(QtCore.Qt.Horizontal)
+        splitter_lower.setOrientation(QtCore.Qt.Orientation.Horizontal)
         splitter_lower.setChildrenCollapsible(False)
 
         # Make quadrants
@@ -102,16 +102,16 @@ class IrradControlTab(QtWidgets.QWidget):
         self.sendCmd.emit({'hostname': hostname, 'target': target, 'cmd': cmd, 'cmd_data': cmd_data})
 
     def scan_status(self, server, status='started'):
-        read_only = status == 'started'
-        # Set read-only state according to 'status'
+        # Set everything read-only when scan starts
         for t, w in self.tab_widgets[server].items():
-            w.set_read_only(read_only=read_only)
-        
-        # Always have scan interactino stuff and status enabled
-        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
-        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
-        self.tab_widgets[server]['status'].set_read_only(False)
-        self.tab_widgets[server]['scan'].enable_after_scan_ui(not read_only)
+            w.set_read_only(read_only=True)
+        # Always have scan interactino stuff enabled
+        if status == 'started':
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
+        else:
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(False)
+            self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(True)
             
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)

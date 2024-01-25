@@ -1,6 +1,6 @@
 import sys
 import logging
-from PyQt5 import QtCore
+from PyQt6 import QtCore
 
 
 log_levels = dict(logging._levelToName)

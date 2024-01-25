@@ -4,7 +4,7 @@ import pyqtgraph.exporters as pg_ex
 import numpy as np
 import os
 from matplotlib import cm as mcmaps, colors as mcolors
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui
 
 # Package imports
 from irrad_control.analysis.dtype import IrradHists
@@ -32,9 +32,9 @@ class PlotWindow(QtWidgets.QMainWindow):
         
         # Window appearance settings
         self.setWindowTitle(type(plot).__name__)
-        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
-        self.setMinimumSize(int(0.25 * self.screen.width()), int(0.25 * self.screen.height()))
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.setMinimumSize(0.25 * self.screen.width(), 0.25 * self.screen.height())
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         
         # Set plot as central widget
         self.setCentralWidget(self.pw)
@@ -56,7 +56,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # PlotWidget to display; set size policy 
         self.pw = plot
-        self.pw.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.pw.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
         self.external_win = None
 
         # Main layout and sub layout for e.g. checkboxes which allow to show/hide curves in PlotWidget etc.
@@ -113,7 +113,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
             label = self.pw.plt.getAxis('left').labelText or 'Value'
             self.helper_line = pg.InfiniteLine(angle=0, label=label + ': {value:.2E} ' + unit)
             self.helper_line.setMovable(True)
-            self.helper_line.setPen(color='w', style=pg.QtCore.Qt.DashLine, width=2)
+            self.helper_line.setPen(color='w', style=pg.QtCore.Qt.PenStyle.DashLine, width=2)
             if hasattr(self.pw, 'unitChanged'):
                 self.pw.unitChanged.connect(lambda u: setattr(self.helper_line.label, 'format', self.pw.plt.getAxis('left').labelText + ': {value:.2E} ' + u))
                 self.pw.unitChanged.connect(self.helper_line.label.valueChanged)
@@ -145,7 +145,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
         # Button to reset the contents of the self.pw
         if hasattr(self.pw, 'reset_plot'):
             self.btn_reset = QtWidgets.QPushButton()
-            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.SP_BrowserReload))
+            self.btn_reset.setIcon(self.btn_reset.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
             self.btn_reset.setToolTip('Reset plot')
             self.btn_reset.setFixedSize(25, 25)
             self.btn_reset.clicked.connect(self.pw.reset_plot)
@@ -153,7 +153,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to save contents of self.pw.plt instance
         self.btn_save = QtWidgets.QPushButton()
-        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.SP_DriveFDIcon))
+        self.btn_save.setIcon(self.btn_save.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DriveFDIcon))
         self.btn_save.setToolTip('Save plot as PNG')
         self.btn_save.setFixedSize(25, 25)
         self.btn_save.clicked.connect(lambda: self.btn_open.setEnabled(False))
@@ -162,7 +162,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to move self.pw to PlotWindow instance
         self.btn_open = QtWidgets.QPushButton()
-        self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton))
+        self.btn_open.setIcon(self.btn_open.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton))
         self.btn_open.setToolTip('Open plot in window')
         self.btn_open.setFixedSize(25, 25)
         self.btn_open.clicked.connect(self.move_to_win)
@@ -172,7 +172,7 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Button to close self.pw to PlotWindow instance
         self.btn_close = QtWidgets.QPushButton()
-        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton))
+        self.btn_close.setIcon(self.btn_close.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton))
         self.btn_close.setToolTip('Close plot in window')
         self.btn_close.setFixedSize(25, 25)
         self.btn_close.setEnabled(False)
@@ -224,19 +224,19 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
         super(MultiPlotWidget, self).__init__(parent)
 
         # Some basic settings
-        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.setWidgetResizable(True)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         # Main widget is a vertical splitter
         self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.main_splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
 
         # Colors
         p, r = self.palette(), self.backgroundRole()
-        p.setColor(r, self.main_splitter.palette().color(QtGui.QPalette.AlternateBase))
+        p.setColor(r, self.main_splitter.palette().color(QtGui.QPalette.ColorRole.AlternateBase))
         self.setPalette(p)
         self.setAutoFillBackground(True)
 
@@ -259,7 +259,7 @@ class MultiPlotWidget(QtWidgets.QScrollArea):
         elif isinstance(plots, (list, tuple)):
             # Create a horizontal splitter
             splitter = QtWidgets.QSplitter()
-            splitter.setOrientation(QtCore.Qt.Horizontal)
+            splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
             splitter.setChildrenCollapsible(False)
             # Loop over individual plots and add them
             for sub_plot in plots:
@@ -313,7 +313,7 @@ class IrradPlotWidget(pg.PlotWidget):
         self._in_plot_btns = []
 
         # TextItem for showing statistic of curves; set invisible first, only show on user request
-        self.stats_text = pg.TextItem(text='No statistics to show', border=pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine))
+        self.stats_text = pg.TextItem(text='No statistics to show', border=pg.mkPen(color='w', style=pg.QtCore.Qt.PenStyle.SolidLine))
         self._static_stats_text = False
         self._show_stats = False  # Show statistics of curves
         self.stats_text.setVisible(False)
@@ -526,7 +526,7 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
         # Set color and text
         current_stat_color = (100, 100, 100) if n_actives != 1 else self.curves[current_actives[0]].opts['pen'].color()
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
     def reset_plot(self):
@@ -843,7 +843,7 @@ class PlotPushButton(pg.TextItem):
     def __init__(self, plotitem, **kwargs):
 
         if 'border' not in kwargs:
-            kwargs['border'] = pg.mkPen(color='w', style=pg.QtCore.Qt.SolidLine)
+            kwargs['border'] = pg.mkPen(color='w', style=pg.QtCore.Qt.PenStyle.SolidLine)
 
         super(PlotPushButton, self).__init__(**kwargs)
 
@@ -922,9 +922,9 @@ class CrosshairItem:
         self.intersect = pg.ScatterPlotItem()
 
         # Drawing style
-        self.h_shift_line.setPen(color=color, style=pg.QtCore.Qt.SolidLine, width=2)
-        self.v_shift_line.setPen(color=color, style=pg.QtCore.Qt.SolidLine, width=2)
-        self.intersect.setPen(color=color, style=pg.QtCore.Qt.SolidLine)
+        self.h_shift_line.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine, width=2)
+        self.v_shift_line.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine, width=2)
+        self.intersect.setPen(color=color, style=pg.QtCore.Qt.PenStyle.SolidLine)
         self.intersect.setBrush(color=color)
         self.intersect.setSymbol('o' if intersect_symbol is None else intersect_symbol)
         self.intersect.setSize(10)
@@ -1050,8 +1050,8 @@ class BeamPositionPlot(IrradPlotWidget):
 
         self.enable_stats()
 
-        v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
-        h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.DashLine})
+        v_line = self.plt.addLine(x=0, pen={'color': 'w', 'style': pg.QtCore.Qt.PenStyle.DashLine})
+        h_line = self.plt.addLine(y=0., pen={'color': 'w', 'style': pg.QtCore.Qt.PenStyle.DashLine})
         _ = pg.InfLineLabel(line=h_line, text='Left', position=0.05, movable=False)
         _ = pg.InfLineLabel(line=h_line, text='Right', position=0.95, movable=False)
         _ = pg.InfLineLabel(line=v_line, text='Up', position=0.95, movable=False)
@@ -1171,7 +1171,7 @@ class BeamPositionPlot(IrradPlotWidget):
 
         # Set color and text
         current_stat_color = (100, 100, 100)
-        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.SolidPattern)
+        self.stats_text.fill = pg.mkBrush(color=current_stat_color, style=pg.QtCore.Qt.BrushStyle.SolidPattern)
         self.stats_text.setText(current_stat_text)
 
     def refresh_plot(self):
@@ -1230,7 +1230,7 @@ class FluenceHist(IrradPlotWidget):
 
         # Points at respective row positions
         self.curves['points'] = pg.ScatterPlotItem()
-        self.curves['points'].setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.SolidLine)
+        self.curves['points'].setPen(color=_MPL_COLORS[2], style=pg.QtCore.Qt.PenStyle.SolidLine)
         self.curves['points'].setBrush(color=_MPL_COLORS[2])
         self.curves['points'].setSymbol('o')
         self.curves['points'].setSize(10)

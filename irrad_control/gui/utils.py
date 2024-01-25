@@ -1,5 +1,5 @@
 import subprocess
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 
 
 def fill_combobox_items(cbx, fill_dict):
@@ -50,7 +50,7 @@ def get_host_ip():
 
 def check_unique_input(edits, ignore=''):
     """
-    Function which checks whether or not a selection of PyQt5.QLineEdits has only unique inputs
+    Function which checks whether or not a selection of PyQt6.QLineEdits has only unique inputs
 
     Parameters
     ----------

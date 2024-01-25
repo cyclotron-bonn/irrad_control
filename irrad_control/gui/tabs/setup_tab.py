@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from copy import deepcopy
 from irrad_control import config, config_file
 from irrad_control.utils.tools import save_yaml
@@ -29,7 +29,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Splitters
         self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.main_splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.main_splitter.addWidget(self.left_widget)
         self.main_splitter.addWidget(self.right_widget)
         self.main_splitter.setSizes([int(self.width() / 2.)] * 2)

@@ -2,7 +2,7 @@ import os
 import time
 import logging
 import subprocess
-from PyQt5 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore
 from collections import defaultdict
 
 # Package imports
@@ -140,11 +140,11 @@ class SessionSetup(BaseSetupWidget):
         edit_folder.setText(self.output_path)
         edit_folder.setReadOnly(True)
         btn_folder = QtWidgets.QPushButton(' Set folder')
-        btn_folder.setIcon(btn_folder.style().standardIcon(QtWidgets.QStyle.SP_DirIcon))
+        btn_folder.setIcon(btn_folder.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DirIcon))
         btn_folder.clicked.connect(self._get_output_folder)
         btn_folder.clicked.connect(lambda _: edit_folder.setText(self.output_path))
         btn_dump = QtWidgets.QPushButton(' Dump')
-        btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
+        btn_dump.setIcon(btn_dump.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TrashIcon))
         btn_dump.clicked.connect(lambda _: edit_folder.setText(tmp_path))
 
         # Add to layout
@@ -254,9 +254,9 @@ class NetworkSetup(BaseSetupWidget):
         """Add IP address *ip* to irrad_control.server_ips. Sets default IP if wanted"""
 
         msg = 'Set {} as default server address?'.format(ip)
-        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.StandardButton.Yes, QtWidgets.QMessageBox.StandardButton.No)
 
-        if reply == QtWidgets.QMessageBox.Yes:
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             config['server']['default'] = ip
 
         config['server']['all'][ip] = 'none'
@@ -572,7 +572,7 @@ class NTCSetup(BaseSetupWidget):
             chbx.stateChanged.connect(lambda state, e=edit: e.setEnabled(state))
             if i == 0:
                 chbx.setChecked(True)
-            chbx.stateChanged.emit(chbx.checkState())
+            chbx.stateChanged.emit(int(chbx.isChecked()))
             chbxs.append(chbx)
             edits.append(edit)
 

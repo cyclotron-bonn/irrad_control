@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets, QtGui, QtCore
 from collections.abc import Iterable
 
 
@@ -190,8 +190,8 @@ class GridContainer(QtWidgets.QGroupBox):
 
         # Set color palette to indicate status
         palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Base, QtCore.Qt.gray if read_only else QtCore.Qt.white)
-        palette.setColor(QtGui.QPalette.Text, QtCore.Qt.darkGray if read_only else QtCore.Qt.black)
+        palette.setColor(QtGui.QPalette.ColorRole.Base, QtCore.Qt.GlobalColor.gray if read_only else QtCore.Qt.GlobalColor.white)
+        palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.darkGray if read_only else QtCore.Qt.GlobalColor.black)
         widget.setPalette(palette)
 
 
@@ -203,17 +203,17 @@ class NoBackgroundScrollArea(QtWidgets.QScrollArea):
         # Set resizeable
         self.setWidgetResizable(True)
         # Set scroll bars
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         # Palette and background role
         self._p, self._b, = self.palette(), self.backgroundRole()
         self.setAutoFillBackground(True)
-        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
 
         if widget is not None:
             self.setWidget(widget)
 
     def setWidget(self, QWidget):
-        self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.AlternateBase))
+        self._p.setColor(self._b, QWidget.palette().color(QtGui.QPalette.ColorRole.AlternateBase))
         self.setPalette(self._p)
         super(NoBackgroundScrollArea, self).setWidget(QWidget)

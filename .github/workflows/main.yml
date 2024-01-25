@@ -31,7 +31,7 @@ jobs:
     steps:
       
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup python
         uses: actions/setup-python@v4
@@ -46,10 +46,14 @@ jobs:
       - name: Package installation
         run: pip install -e .
 
-      - name: Qt5 default installation  # Needed for running headless
+      - name: Qt6 default installation
         run: |
+          if [[ ${{ matrix.os }} != 'ubuntu-latest' ]]; then
+            echo "Adding Qt6 backport for ${{ matrix.os }}"
+            sudo add-apt-repository ppa:okirby/qt6-backports
+          fi
           sudo apt-get update
-          sudo apt-get install qttools5-dev-tools --fix-missing
+          sudo apt-get install qt6-base-dev --fix-missing
         
       - name: Headless display setup
         uses: pyvista/setup-headless-display-action@v1   

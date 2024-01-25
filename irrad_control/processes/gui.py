@@ -3,8 +3,7 @@ import time
 import logging
 import platform
 import zmq
-
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 from threading import Event
 
 # Package imports
@@ -79,10 +78,10 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Main window settings
         self.setWindowTitle(PROJECT_NAME)
-        self.screen = QtWidgets.QDesktopWidget().screenGeometry()
+        self.screen = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.setMinimumSize(MINIMUM_RESOLUTION[0], MINIMUM_RESOLUTION[1])
         self.resize(self.screen.width(), self.screen.height())
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
 
         # Create main layout
         self.main_widget = QtWidgets.QWidget()
@@ -94,12 +93,12 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Main splitter
         self.main_splitter = QtWidgets.QSplitter()
-        self.main_splitter.setOrientation(QtCore.Qt.Vertical)
+        self.main_splitter.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
 
         # Sub splitter for log and displaying raw data as it comes in
         self.sub_splitter = QtWidgets.QSplitter()
-        self.sub_splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.sub_splitter.setOrientation(QtCore.Qt.Orientation.Horizontal)
         self.sub_splitter.setChildrenCollapsible(False)
 
         # Add to main layout
@@ -118,19 +117,19 @@ class IrradGUI(QtWidgets.QMainWindow):
     def _init_menu(self):
         """Initialize the menu bar of the IrradControlWin"""
 
-        self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction('&Quit', self.file_quit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+        self.file_menu = QtWidgets.QMenu('&File')
+        self.file_menu.addAction('&Quit', self.file_quit, QtGui.QKeySequence(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_Q))
         self.menuBar().addMenu(self.file_menu)
 
-        self.settings_menu = QtWidgets.QMenu('&Settings', self)
+        self.settings_menu = QtWidgets.QMenu('&Settings')
         self.settings_menu.addAction('&Connections')
         self.settings_menu.addAction('&Data path')
         self.menuBar().addMenu(self.settings_menu)
 
-        self.appearance_menu = QtWidgets.QMenu('&Appearance', self)
+        self.appearance_menu = QtWidgets.QMenu('&Appearance')
         self.appearance_menu.setToolTipsVisible(True)
-        self.appearance_menu.addAction('&Show/hide info dock', self.handle_info_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_L)
-        self.appearance_menu.addAction('&Show/hide DAQ dock', self.handle_daq_ui, QtCore.Qt.CTRL + QtCore.Qt.Key_D)
+        self.appearance_menu.addAction('&Show/hide info dock', self.handle_info_ui, QtGui.QKeySequence(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_L))
+        self.appearance_menu.addAction('&Show/hide DAQ dock', self.handle_daq_ui, QtGui.QKeySequence(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_D))
         self.menuBar().addMenu(self.appearance_menu)
 
     def _init_tabs(self):
@@ -182,7 +181,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.pdiag = QtWidgets.QProgressDialog()
         pdiag_label = QtWidgets.QLabel("Launching application:\n\n->Staring data converter...\n->Configuring {0} server(s)...\n->Starting {0} server(s)...".format(len(self.setup['server'])))
-        pdiag_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        pdiag_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.pdiag.setLabel(pdiag_label)
         self.pdiag.setRange(0, 0)
         self.pdiag.setMinimumDuration(0)
@@ -204,8 +203,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Dock in which text widget is placed to make it closable without losing log content
         self.info_dock = QtWidgets.QDockWidget()
         self.info_dock.setWidget(info_tabs)
-        self.info_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.info_dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.info_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.info_dock.setWindowTitle('Info')
 
         # Add to main layout
@@ -220,8 +219,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Dock in which text widget is placed to make it closable without losing log content
         self.daq_dock = QtWidgets.QDockWidget()
         self.daq_dock.setWidget(self.daq_info_widget)
-        self.daq_dock.setAllowedAreas(QtCore.Qt.BottomDockWidgetArea)
-        self.daq_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetClosable)
+        self.daq_dock.setAllowedAreas(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.daq_dock.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable)
         self.daq_dock.setWindowTitle('Data acquisition')
 
         # Add to main layout
@@ -387,9 +386,9 @@ class IrradGUI(QtWidgets.QMainWindow):
                       " Proceeding without terminating the currently running process may lead to faulty behavior".format(proc_kind, pltfrm)
 
                 reply = QtWidgets.QMessageBox.question(self, 'Terminate running {} process and relaunch?'.format(proc_kind),
-                                                       msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+                                                       msg, QtWidgets.QMessageBox.StandardButton.Yes, QtWidgets.QMessageBox.StandardButton.No)
 
-                if reply == QtWidgets.QMessageBox.Yes:
+                if reply == QtWidgets.QMessageBox.StandardButton.Yes:
                     self.proc_mngr.kill_proc(hostname=hostname, pid=orphaned_proc['pid'])
                     self._start_daq_proc(hostname=hostname)  # Try again
 
@@ -758,10 +757,12 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         self.statusBar().showMessage(message, ms)
 
+    @QtCore.pyqtSlot()
     def handle_info_ui(self):
         """Handle whether log widget is visible or not"""
         self.info_dock.setVisible(not self.info_dock.isVisible())
     
+    @QtCore.pyqtSlot()
     def handle_daq_ui(self):
         """Handle whether log widget is visible or not"""
         try:
@@ -769,6 +770,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         except AttributeError:  # DAQ dock has not yet been created
             pass
 
+    @QtCore.pyqtSlot()
     def file_quit(self):
         self.close()
 
@@ -811,12 +813,12 @@ class IrradGUI(QtWidgets.QMainWindow):
                 msg_box = QtWidgets.QMessageBox(self)
                 msg_box.setWindowTitle('Shutdown could not be validated')
                 msg_box.setText(msg)
-                msg_box.setStandardButtons(QtWidgets.QMessageBox.Ignore | QtWidgets.QMessageBox.Retry | QtWidgets.QMessageBox.Abort)
+                msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Ignore | QtWidgets.QMessageBox.StandardButton.Retry | QtWidgets.QMessageBox.StandardButton.Abort)
                 reply = msg_box.exec()
 
-                if reply == QtWidgets.QMessageBox.Ignore:
+                if reply == QtWidgets.QMessageBox.StandardButton.Ignore:
                     self._shutdown_complete = True
-                elif reply == QtWidgets.QMessageBox.Abort:
+                elif reply == QtWidgets.QMessageBox.StandardButton.Abort:
                     for host in self.proc_mngr.active_pids:
                         for pid in self.proc_mngr.active_pids[host]:
                             if self.proc_mngr.active_pids[host][pid]['active']:
@@ -842,10 +844,10 @@ class IrradGUI(QtWidgets.QMainWindow):
             msg_box = QtWidgets.QMessageBox(self)
             msg_box.setWindowTitle('Scan in progress!')
             msg_box.setText(msg)
-            msg_box.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Abort)
+            msg_box.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel | QtWidgets.QMessageBox.StandardButton.Abort)
             reply = msg_box.exec()
 
-            if reply == QtWidgets.QMessageBox.Cancel:
+            if reply == QtWidgets.QMessageBox.StandardButton.Cancel:
                 return False
             else:
                 for s in scan_in_progress_servers:
