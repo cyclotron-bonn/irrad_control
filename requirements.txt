@@ -10,4 +10,4 @@ numba  # NumPy -aware JIT Compiler
 tqdm  # Progressbar for analysis
 scipy  # Optimizer
 pyqtgraph>=0.13  # Fast plotting
-PyQt6==6.2   # Qt library in Python, LTS version
+PyQt6>=6.3   # Qt library in Python, LTS version
