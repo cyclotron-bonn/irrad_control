@@ -758,10 +758,11 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.statusBar().showMessage(message, ms)
 
     @QtCore.pyqtSlot()
-    def handle_log_ui(self):
+    def handle_info_ui(self):
         """Handle whether log widget is visible or not"""
         self.info_dock.setVisible(not self.info_dock.isVisible())
     
+    @QtCore.pyqtSlot()
     def handle_daq_ui(self):
         """Handle whether log widget is visible or not"""
         try:
