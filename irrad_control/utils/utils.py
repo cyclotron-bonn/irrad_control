@@ -7,13 +7,15 @@ from subprocess import check_output, CalledProcessError
 from irrad_control import lock_file, package_path
 
 
-def check_server_available(server, ip):
+def check_server_available(server):
+
+    user, host = server.split('@')
 
     success = False
     try:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=ip, username=server, timeout=1)
+        client.connect(hostname=host, username=user, timeout=1)
         client.close()
         success = True
     except (paramiko.BadHostKeyException, paramiko.AuthenticationException, paramiko.SSHException) as e:

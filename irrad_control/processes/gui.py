@@ -269,7 +269,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         server_config_workers = {}
         for server in self.setup['server']:
             # Connect
-            self.proc_mngr.connect_to_server(hostname=server, username='pi')
+            user, host = server.split('@')
+            self.proc_mngr.connect_to_server(hostname=host, username=user)
 
             # Prepare server in QThread on init
             server_config_workers[server] = QtWorker(func=self.proc_mngr.configure_server,

@@ -1,7 +1,6 @@
 import os
 import time
 import logging
-import subprocess
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
@@ -14,6 +13,7 @@ from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 from irrad_control import config, config_file, tmp_path
 from irrad_control.utils.tools import save_yaml
+from irrad_control.utils.utils import check_server_available
 from irrad_control.ions import get_ions
 
 
@@ -78,17 +78,17 @@ class SessionSetupWidget(QtWidgets.QWidget):
         network_setup = NetworkSetup('Network')
         server_selection = ServerSelection('Server selection')
 
-        network_setup.serverIPsFound.connect(lambda ips: server_selection.add_selection(ips))
+        network_setup.serverIPsFound.connect(lambda servers: server_selection.add_selection(servers))
         network_setup.serverIPsFound.connect(
-            lambda ips: None if len(ips) == 0 else
-            server_selection.widgets[ips[0]]['checkbox'].setChecked(1)
-            if (config['server']['default'] not in ips or len(ips) == 1)
+            lambda servers: None if len(servers) == 0 else
+            server_selection.widgets[servers[0]]['checkbox'].setChecked(1)
+            if (config['server']['default'] not in servers or len(servers) == 1)
             else server_selection.widgets[config['server']['default']]['checkbox'].setChecked(1)
         )
 
         self.layout().addWidget(session_setup)
         self.layout().addWidget(network_setup)
-        self.layout().addWidget(server_selection)
+        self.layout().addWidget(server_selection) 
 
         self.setup_widgets['session'] = session_setup
         self.setup_widgets['network'] = network_setup
@@ -184,7 +184,8 @@ class SessionSetup(BaseSetupWidget):
             self.output_path = path
 
     def setup(self):
-        return {'loglevel': self.widgets['logging_combo'].currentText(),
+        return {'date': time.asctime(),
+                'loglevel': self.widgets['logging_combo'].currentText(),
                 'outfolder': self.widgets['folder_edit'].text(),
                 'outfile': os.path.join(self.widgets['folder_edit'].text(),
                                         self.widgets['outfile_edit'].text() or self.widgets['outfile_edit'].placeholderText())
@@ -226,14 +227,13 @@ class NetworkSetup(BaseSetupWidget):
         self.add_widget(widget=[label_host, edit_host])
 
         # Server IP label and widgets
-        label_add_server = QtWidgets.QLabel('Add server IP:')
+        label_add_server = QtWidgets.QLabel('Add server:')
         edit_server = QtWidgets.QLineEdit()
-        edit_server.setInputMask("000.000.000.000;_")
-        edit_server.textEdited.connect(lambda text: btn_add_server.setEnabled(text != '...' and text not in config['server']['all']))
-        edit_server.textEdited.connect(lambda text: btn_add_server.setToolTip(
-            "IP already in list of known server IPs" if text in config['server']['all'] else "Add IP to list of known servers"))
+        edit_server.setPlaceholderText("server@ip-address")
+        edit_server.textEdited.connect(lambda text: btn_add_server.setEnabled('@' in text and text not in config['server']['all']))
+        edit_server.textEdited.connect(lambda text: btn_add_server.setToolTip("server@ip-address already known" if text in config['server']['all'] else "Add server@ip-address"))
         btn_add_server = QtWidgets.QPushButton('Add')
-        btn_add_server.clicked.connect(lambda _: self._add_to_known_servers(ip=edit_server.text()))
+        btn_add_server.clicked.connect(lambda _: self._add_to_known_servers(addr=edit_server.text()))
         btn_add_server.clicked.connect(lambda _: self.find_servers())
         btn_add_server.clicked.connect(lambda _: btn_add_server.setEnabled(False))
         btn_add_server.setEnabled(False)
@@ -242,7 +242,7 @@ class NetworkSetup(BaseSetupWidget):
         self.add_widget(widget=[label_add_server, edit_server, btn_add_server])
 
         self.label_status = QtWidgets.QLabel("Status")
-        self.serverIPsFound.connect(lambda ips: self.label_status.setText("{} of {} known servers found.".format(len(ips), len(config['server']['all']))))
+        self.serverIPsFound.connect(lambda s: self.label_status.setText("{} of {} known servers found.".format(len(s), len(config['server']['all']))))
 
         # Add to layout
         self.add_widget(widget=self.label_status)
@@ -250,16 +250,16 @@ class NetworkSetup(BaseSetupWidget):
         self.widgets['host_edit'] = edit_host
         self.widgets['server_edit'] = edit_server
 
-    def _add_to_known_servers(self, ip):
+    def _add_to_known_servers(self, addr):
         """Add IP address *ip* to irrad_control.server_ips. Sets default IP if wanted"""
 
-        msg = 'Set {} as default server address?'.format(ip)
-        reply = QtWidgets.QMessageBox.question(self, 'Add server IP', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
+        msg = 'Set {} as default server?'.format(addr)
+        reply = QtWidgets.QMessageBox.question(self, 'Add server', msg, QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
 
         if reply == QtWidgets.QMessageBox.Yes:
-            config['server']['default'] = ip
+            config['server']['default'] = addr
 
-        config['server']['all'][ip] = 'none'
+        config['server']['all'][addr] = 'none'
 
         # Open the config.yaml and overwrite it with current server_ips
         save_yaml(path=config_file, data=config)
@@ -275,16 +275,14 @@ class NetworkSetup(BaseSetupWidget):
         start = time.time()
         while len(self.available_servers) != n_available and time.time() - start < timeout:
 
-            for ip in config['server']['all']:
-                # If we already have found this server in the network, continue
-                if ip in self.available_servers:
+            for server in config['server']['all']:
+                if server in self.available_servers:
                     continue
-
-                p = subprocess.Popen(["ping", "-q", "-c 1", "-W 1", ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                res = p.communicate(), p.returncode
-                if res[-1] == 0:
-                    self.available_servers.append(ip)
+                elif check_server_available(server=server):
+                    logging.debug(f"Server {server} found.")
+                    self.available_servers.append(server)
                 else:
+                    logging.debug(f"Server {server} not availabe.")
                     n_available -= 1
 
         self.serverIPsFound.emit(self.available_servers)
@@ -309,21 +307,21 @@ class ServerSelection(BaseSetupWidget):
 
     def add_selection(self, selection):
 
-        for i, ip in enumerate(selection):
+        for i, server in enumerate(selection):
 
-            if ip in self.widgets:
+            if server in self.widgets:
                 continue
 
-            chbx = QtWidgets.QCheckBox(str(ip))
+            chbx = QtWidgets.QCheckBox(str(server))
             edit = QtWidgets.QLineEdit()
             default = 'Server_{}'.format(i + 1)
-            edit.setPlaceholderText(default if ip not in config['server']['all'] else config['server']['all'][ip] if config['server']['all'][ip] != 'none' else default)
+            edit.setPlaceholderText(default if server not in config['server']['all'] else config['server']['all'][server] if config['server']['all'][server] != 'none' else default)
 
             # Connect
             chbx.stateChanged.connect(self._setup_changed)
             edit.textChanged.connect(self._setup_changed)
 
-            self.widgets[ip] = {'checkbox': chbx, 'edit': edit}
+            self.widgets[server] = {'checkbox': chbx, 'edit': edit}
 
             self.add_widget(widget=[chbx, edit])
 
