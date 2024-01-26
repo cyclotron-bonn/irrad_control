@@ -1,10 +1,26 @@
 import logging
 import time
 import fcntl
+import paramiko
 from subprocess import check_output, CalledProcessError
 
 from irrad_control import lock_file, package_path
 
+
+def check_server_available(server, ip):
+
+    success = False
+    try:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname=ip, username=server, timeout=1)
+        client.close()
+        success = True
+    except (paramiko.BadHostKeyException, paramiko.AuthenticationException, paramiko.SSHException) as e:
+        pass
+    finally:
+        return success
+    
 
 def get_current_git_branch(default='main'):
 
