@@ -681,8 +681,8 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_la
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': ref_data,
                                           'ydata': calib_data,
-                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $I_\mathrm{beam}}$ / nA",
-                                          'ylabel': r"Surface-normalized SEE current $I_\mathrm{SEE}}$ / nA",
+                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $I_\mathrm{beam}$ / nA",
+                                          'ylabel': r"Surface-normalized SEE current $I_\mathrm{SEE}$ / nA",
                                           'label': label_ion,
                                           'title':"Beam monitor calibration",
                                           'fmt':'C0.',
