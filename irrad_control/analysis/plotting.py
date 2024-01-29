@@ -670,9 +670,9 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_la
     gamma_const, lambda_const = gamma_lambda
     gamma_percent = gamma_const * 100
 
-    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ q_{%s}}$' % ion_name
+    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ z_{%s}}$' % ion_name
     fit_label += '\n\t' + fr'$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %'
-    fit_label += '\n\t' + r'$\lambda=q_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion_name
+    fit_label += '\n\t' + r'$\lambda=z_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion_name
     fit_label += '\n\t' + r'$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
     fit_label += '\n\t' + r'$\chi^2_{red}= %.2E\ $' % red_chi
 
