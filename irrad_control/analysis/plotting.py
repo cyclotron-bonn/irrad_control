@@ -670,7 +670,7 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_la
     gamma_const, lambda_const = gamma_lambda
     gamma_percent = gamma_const * 100
 
-    fit_label=r'Linear fit: $\mathrm{I_{SEE} = \gamma \cdot I_{beam}\ /\ z_{%s}}$' % ion_name
+    fit_label=r'Linear fit: $I_\mathrm{SEE} = \gamma \cdot I_\mathrm{beam}\ /\ z_\mathrm{%s}$' % ion_name
     fit_label += '\n\t' + fr'$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %'
     fit_label += '\n\t' + r'$\lambda=z_{%s}\ /\ (\gamma\ \cdot V_{ref})$' % ion_name
     fit_label += '\n\t' + r'$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
@@ -681,8 +681,8 @@ def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_la
     # Make figure and axis
     fig, ax = plot_generic_fig(plot_data={'xdata': ref_data,
                                           'ydata': calib_data,
-                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $\mathrm{I_{beam}}$ / nA",
-                                          'ylabel': r"Surface-normalized SEE current $\mathrm{I_{SEE}}$ / nA",
+                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $I_\mathrm{beam}}$ / nA",
+                                          'ylabel': r"Surface-normalized SEE current $I_\mathrm{SEE}}$ / nA",
                                           'label': label_ion,
                                           'title':"Beam monitor calibration",
                                           'fmt':'C0.',
