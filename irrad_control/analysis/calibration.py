@@ -207,8 +207,8 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     current_sem_ch = irrad_formulas.v_sig_to_i_sig(data[sem_ch], full_scale_current=ifs_sem_ch, full_scale_voltage=ref_voltage)
     current_cup_ch = irrad_formulas.v_sig_to_i_sig(data[cup_ch], full_scale_current=ifs_cup_ch, full_scale_voltage=ref_voltage)
 
-    # Errors are sqrt(1%²+1%²) = sqrt(2%)
-    current_sem_ch_error, current_cup_ch_error = 0.01414 * current_sem_ch, 0.01414 * current_cup_ch
+    # Errors come from I_FS which is sqrt(3%²) = 0.0173
+    current_sem_ch_error, current_cup_ch_error = 0.0173 * current_sem_ch, 0.0173 * current_cup_ch
 
     ########################################################################
     # Calibration:                                                         #
@@ -216,7 +216,7 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     # => I_sem_type = gamma * I_cup_type / q_ion                           #
     # -> I_sem_type = U_sem_type / ref_voltage * IFS                       #
     # -> gamma * I_cup_type / q_ion = U_sem_type / ref_voltage * IFS       #
-    # <=> I_cup_type = q_ion / (gamma * ref_volatge) * IFS * U_sem_type    #
+    # <=> I_cup_type = q_ion / (gamma * ref_voltage) * IFS * U_sem_type    #
     # <=> I_cup_type = lambda * IFS * U_sem_type                           #
     # -> lambda = q_ion / (gamma * ref_voltage), [lambda] = 1/V            #
     # => I_beam(U_sem_type, IFS) = lambda * IFS * U_sem_type               #
@@ -244,7 +244,7 @@ def calibrate_sem_vs_cup(data, sem_ch_idx, cup_ch_idx, config, update_ifs_events
     
     # Mean of fit and stat
     gamma_res = (gamma_fit + gamma_stat) / 2.0
-    lambda_res = ion.n_charge / (gamma_res * ufloat(ref_voltage, ref_voltage*0.01))
+    lambda_res = ion.n_charge / (gamma_res * ref_voltage)
 
     # Notify the user if red. Chi² is very fishy
     if not 0.05 <= red_chi <= 5:
