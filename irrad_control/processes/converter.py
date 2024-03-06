@@ -28,8 +28,7 @@ class IrradConverter(DAQProcess):
         self._data_flush_interval = 1.0
         self._last_data_flush = None
         self._n_offset_samples = 100
-        self._beam_cut_off_threshold = 0.05
-        self._beam_correction_threshold = 0.1
+        self._beam_correction_threshold = 0.02
         self._shifted_beam_array_length = 10000  # Allow to cover for very slow scans ~O(1000s) at default rate
         self._beam_unstable_time_window = 10  # Check the last 10 seconds of beam for stability
         self._beam_unstable_std_ratio = 5e-2  # Consider beam unstable once it fluctuates by 5% around its mean or the std is 5% of the I_FS
@@ -143,7 +142,7 @@ class IrradConverter(DAQProcess):
             self._lookups[server]['sem_h'] = all(x in self._lookups[server]['ro_type_idx'] for x in ('sem_left', 'sem_right'))
             self._lookups[server]['sem_v'] = all(x in self._lookups[server]['ro_type_idx'] for x in ('sem_up', 'sem_down'))
             self._lookups[server]['offset_ch'] = set([ch for ch in self._lookups[server]['ro_type_idx'] if 'ntc' not in ch])
-            self._lookups[server]['full_scale_voltage'] = 5.0 if self.readout_setup[server]['device'] != ro.RO_DEVICES.DAQBoard else 2 * ro.DAQ_BOARD_CONFIG['common']['voltages']['2V5p']
+            self._lookups[server]['full_scale_voltage'] = 5.0
 
             # Full scale currents
             self._lookups[server]['full_scale_current'] = {}
@@ -547,10 +546,10 @@ class IrradConverter(DAQProcess):
             sum_ifs = self._lookups[server]['full_scale_current']['sem_sum']
             sig = data[self.readout_setup[server]['channels'][sum_idx]]
 
-            # Error on beam current measurement: Delta lambda / lambda = Delta I_FS / I_FS = Delta sem_sum / sem_sum = 1% => Delta I / I = sqrt(3%)
-            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=ufloat(sig, 1e-2 * self._lookups[server]['full_scale_voltage']),  # Generally not better than 1 % of ADC input range
-                                                                calibration_factor=ufloat(*self._daq_params[server]['lambda']),
-                                                                full_scale_current=ufloat(sum_ifs, 1e-2 * sum_ifs))
+            # Error on beam current measurement: Delta I_FS / I_FS = sqrt(3%) = 1.73%
+            beam_current = analysis.formulas.calibrated_beam_current(beam_monitor_sig=sig,
+                                                                     calibration_factor=ufloat(*self._daq_params[server]['lambda']),
+                                                                     full_scale_current=ufloat(sum_ifs, 0.0173 * sum_ifs))
             
             self.data_arrays[server]['beam']['beam_current'] = beam_data['data']['current']['beam_current'] = beam_current.n
             self.data_arrays[server]['beam']['beam_current_error'] = beam_data['data']['current']['beam_current_error'] = beam_current.s
@@ -602,10 +601,6 @@ class IrradConverter(DAQProcess):
                     self._check_irrad_event(server=server,
                                             event_name='BeamLoss',
                                             trigger_condition=lambda: rel_beam_loss > self._beam_correction_threshold)
-
-                    # Warn when cut-off is detected
-                    if rel_beam_loss >= self._beam_cut_off_threshold:
-                        logging.warning(f"Beam cut-off detected! Losing {rel_beam_loss*100:.2f} % of beam at extraction!")
 
                     # Warn when extracted beam current is corrected
                     if rel_beam_loss >= self._beam_correction_threshold:
