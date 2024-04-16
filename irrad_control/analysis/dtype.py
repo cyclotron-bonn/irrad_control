@@ -30,7 +30,7 @@ _see_dtype = [('timestamp', '<f8'),  # Timestamp of current measurement [s]
               ('see_total', '<f4'),  # Total Secondary-Electron-Emission (SEE) current [A]
               ('see_horizontal', '<f4'),  # SEE current delivered by horizontal SEM [A]
               ('see_vertical', '<f4'),  # SEE current delivered by vertical SEM [A]
-              ('sey', '<f4')]  # SE yield as in SEE current / beam current per surface [%]
+              ('sey', '<f4')]  # SE yield as in SEE current / ion current * ion_charge [%]
 
 # Scan data type: contains the data gathered while scanning samples through the particle beam.
 _scan_dtype = [('scan', '<i2'),  # Number of current scan

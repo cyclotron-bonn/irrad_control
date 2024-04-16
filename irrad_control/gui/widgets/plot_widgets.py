@@ -516,9 +516,9 @@ class ScrollingIrradDataPlot(IrradPlotWidget):
 
             # Get stats
             if mask is None:
-                mean, std, entries = self._data[curve].mean(), self._data[curve].std(), self._data[curve].shape[0]
+                mean, std, entries = np.nanmean(self._data[curve]), np.nanstd(self._data[curve]), self._data[curve].shape[0]
             else:
-                mean, std, entries = self._data[curve][mask].mean(), self._data[curve][mask].std(), self._data[curve][mask].shape[0]
+                mean, std, entries = np.nanmean(self._data[curve][mask]), np.nanstd(self._data[curve][mask]), self._data[curve][mask].shape[0]
 
             current_stat_text += '  '
             current_stat_text += curve + u': ({:.2E} \u00B1 {:.2E}) {} (#{})'.format(mean, std, self.plt.getAxis('left').labelUnits, entries)

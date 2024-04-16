@@ -428,7 +428,7 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
         raise ValueError('Row started at neither edge of scan area')
 
     # Add variation to the uncertainty
-    wait_ions_std = np.std(wait_beam_data['beam_current'])
+    wait_ions_std = np.nanstd(wait_beam_data['beam_current'])
     
     # Loop over currents and apply Gauss kernel at given position
     for i in range(wait_beam_data.shape[0] - 1):
@@ -511,7 +511,7 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     # Integrate the current measurements with the times spent in each bin to calculate the amount of ions in the bin
     row_bin_center_ions = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
     row_bin_center_ion_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
-    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.std(row_bin_center_ions)**2)**.5
+    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.nanstd(row_bin_center_ions)**2)**.5
 
     mu_y = row_data['row_start_y'] - scan_y_offset
 
