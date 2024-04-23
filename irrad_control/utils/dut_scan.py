@@ -500,7 +500,7 @@ class DUTScan(object):
         if spawn_pub:
             data_pub.close()
 
-    def _scan_device(self, speed=None):
+    def _scan_device(self, speed=None, repeat=None):
         """
         Method which is supposed to be called by self.scan_device. See docstring there.
 
@@ -509,6 +509,9 @@ class DUTScan(object):
         # Check scan configuration dict
         if not self._check_scan():
             return
+        
+        if repeat is not None:
+            target_scan_number = self.n_complete_scan + repeat
 
         # Initialize zmq data publisher if zmq is setup
         data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
@@ -547,9 +550,14 @@ class DUTScan(object):
             # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
             while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
-                # Break if the scan is completed
-                if self.irrad_events.IrradiationComplete.value.is_valid():
-                    break
+                # Break if the scan is completed either b
+                if repeat is None:
+                    if self.irrad_events.IrradiationComplete.value.is_valid():
+                        break
+                else:
+                    if self.n_complete_scan == target_scan_number:
+                        break
+                    
 
                 # Pause scan indefinitely until manually resuming
                 self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),

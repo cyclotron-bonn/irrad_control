@@ -726,7 +726,8 @@ class ScanControlWidget(ControlWidget):
                                       'repeat': self._after_scan_container.widgets['spx_repeat'].value()}
                     else:
                         cmd = '_scan_device'
-                        cmd_kwargs = {'speed': self._after_scan_container.widgets['spx_speed'].value()}
+                        cmd_kwargs = {'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                      'repeat': 1}
 
                     self.send_cmd(hostname=self.server,
                                   target='__scan__',
@@ -737,8 +738,14 @@ class ScanControlWidget(ControlWidget):
                 self.add_widget(self._after_scan_container)
 
                 label_scan =  QtWidgets.QLabel('Re-scan:')
-                rbtn_row = QtWidgets.QRadiobutton('Row')
-                rbtn_area = QtWidgets.QRadiobutton('Area')
+                rbtn_row = QtWidgets.QRadioButton('Row')
+                rbtn_area = QtWidgets.QRadioButton('Area')
+
+                btn_ll = QtWidgets.QHBoxLayout()
+                btn_ll.setSpacing(20)
+                btn_ll.addWidget(label_scan)
+                btn_ll.addWidget(rbtn_row)
+                btn_ll.addWidget(rbtn_area)
 
                 spx_speed = QtWidgets.QDoubleSpinBox()
                 spx_speed.setPrefix('Scan speed: ')
@@ -757,9 +764,12 @@ class ScanControlWidget(ControlWidget):
                 btn_scan = QtWidgets.QPushButton('Scan')
                 btn_scan.clicked.connect(_send_rescan_cmd)
 
-                rbtn_row.toggled.connect(lambda state: spx_row.setEnabled(state))
-                rbtn_row.toggled.connect(lambda state: spx_repeat.setEnabled(state))
+                rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_row, read_only=not state))
+                rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_repeat, read_only=not state))
                 rbtn_row.toggled.connect(lambda state: btn_scan.setText(f"Scan {'row' if state else 'area'}"))
+                
+                # Default value
+                rbtn_row.setChecked(True)
 
                 self._after_scan_container.widgets['rbtn_row'] = rbtn_row
                 self._after_scan_container.widgets['rbtn_area'] = rbtn_area
@@ -768,7 +778,7 @@ class ScanControlWidget(ControlWidget):
                 self._after_scan_container.widgets['spx_repeat'] = spx_repeat
 
                 # Add to container
-                self._after_scan_container.add_widget(widget=[label_scan, rbtn_row, rbtn_area, spx_speed, spx_repeat, btn_scan])
+                self._after_scan_container.add_widget(widget=[btn_ll, spx_speed, spx_row, spx_repeat, btn_scan])
 
             else:
                 self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)
