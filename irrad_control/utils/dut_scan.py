@@ -510,6 +510,8 @@ class DUTScan(object):
         if not self._check_scan():
             return
         
+        # Calculate the target scan number from the current scan number and the number of repetitions
+        # Needed because its possible to perform full scan after main scan so scan number will not be 0
         if repeat is not None:
             target_scan_number = self.n_complete_scan + repeat
 
@@ -550,7 +552,7 @@ class DUTScan(object):
             # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
             while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
-                # Break if the scan is completed either b
+                # Break if the scan is completed either by the corresponding event or the number of repetitions of full scans
                 if repeat is None:
                     if self.irrad_events.IrradiationComplete.value.is_valid():
                         break
