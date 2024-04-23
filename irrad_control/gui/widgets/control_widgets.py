@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import irrad_control.devices.readout as ro
 from irrad_control.devices import DEVICES_CONFIG
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.gui.widgets import GridContainer, NoWheelQComboBox
 from irrad_control.gui.widgets import MotorstagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
@@ -202,7 +202,7 @@ class MotorStageControlWidget(ControlWidget):
             # Predefined positions
             label_pos = QtWidgets.QLabel('Predefined positions:')
             label_pos.setToolTip('Move to or add/edit named stage positions')
-            cbx_pos = QtWidgets.QComboBox()
+            cbx_pos = NoWheelQComboBox()
             btn_pos = QtWidgets.QPushButton('Move to')
 
             # Get number of axis
@@ -210,7 +210,7 @@ class MotorStageControlWidget(ControlWidget):
 
             # Axis selection
             label_axis = QtWidgets.QLabel('Axis selection: ')
-            cbx_axis = QtWidgets.QComboBox()
+            cbx_axis = NoWheelQComboBox()
 
             spxs_range[0].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(v, spxs_range[1].value()))
             spxs_range[1].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(spxs_range[0].value(), v))
@@ -790,9 +790,9 @@ class DAQControlWidget(ControlWidget):
 
         # Change RO scale
         label_ro_scale = QtWidgets.QLabel("Set R/O group scale:")
-        cbx_group = QtWidgets.QComboBox()
+        cbx_group = NoWheelQComboBox()
         cbx_group.addItems(ro.DAQ_BOARD_CONFIG['common']['gain_groups'])
-        cbx_scale = QtWidgets.QComboBox()
+        cbx_scale = NoWheelQComboBox()
         cbx_scale.addItems(ro.DAQ_BOARD_CONFIG['common']['ifs_labels'])
         btn_ro_scale = QtWidgets.QPushButton('Set R/O scale')
         layout_scale = QtWidgets.QHBoxLayout()

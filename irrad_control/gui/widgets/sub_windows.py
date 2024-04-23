@@ -182,7 +182,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
                 spx.setMinimum(self._ms_spnbxs[motorstage][i].minimum())
                 spx.setMaximum(self._ms_spnbxs[motorstage][i].maximum())
                 spx.setValue(coordinates[i])
-                spx.wheelEvent = lambda e: None  # Disable wheel event
+                spx.wheelEvent = lambda we: we.ignore()  # Disable wheel event
                 spx.valueChanged.connect(lambda val, axis=i: _update_pos(val=val, axis=axis, ms=motorstage, psname=name))
                 spx.valueChanged.connect(lambda _: self.btn_save.setEnabled(self._check_edit(motorstage=self.tabs.tabText(self.tabs.currentIndex()))))
                 spxs.append(spx)

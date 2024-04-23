@@ -2,6 +2,15 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from collections.abc import Iterable
 
 
+class NoWheelQComboBox(QtWidgets.QComboBox):
+    """Combobox with scroll wheel event deactivated"""
+    def __init__(self, *args, **kwargs):
+        super(NoWheelQComboBox, self).__init__(*args, **kwargs)
+    
+    def wheelEvent(self, we):
+        we.ignore()
+
+
 class GridContainer(QtWidgets.QGroupBox):
     """Container widget for grouping widgets together in a grid layout."""
 

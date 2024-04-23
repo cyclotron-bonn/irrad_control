@@ -7,7 +7,7 @@ from irrad_control.processes.gui import IrradGUI
 from irrad_control.gui.tabs import IrradMonitorTab
 from irrad_control.gui.widgets.setup_widgets import SessionSetup
 from irrad_control.gui.utils import fill_combobox_items
-from irrad_control.gui.widgets.util_widgets import GridContainer
+from irrad_control.gui.widgets.util_widgets import GridContainer, NoWheelQComboBox
 from irrad_control.utils.tools import load_yaml, save_yaml
 from irrad_control.ions import get_ions
 from irrad_control import config_path, tmp_path
@@ -84,7 +84,7 @@ class MonitorGUI(IrradGUI):
 
             # Ion type
             label_ion = QtWidgets.QLabel('Ion type:')
-            combo_ion = QtWidgets.QComboBox()
+            combo_ion = NoWheelQComboBox()
             fill_combobox_items(combo_ion, self.ions)
 
             # Energy
