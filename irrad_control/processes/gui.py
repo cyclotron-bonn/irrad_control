@@ -489,6 +489,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Disable all record buttons when scan starts
                 self.control_tab.tab_widgets[server]['daq'].btn_record.setEnabled(False)
                 self.daq_info_widget.record_btns[server].setEnabled(False)
+                self.control_tab.tab_widgets[server]['scan'].enable_after_scan_ui(False)
 
             elif data['data']['status'] in ('scan_start', 'scan_stop'):
 

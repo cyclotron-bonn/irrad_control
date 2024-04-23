@@ -715,55 +715,60 @@ class ScanControlWidget(ControlWidget):
         if self.n_rows is not None:
             # Make container
             if self._after_scan_container is None:
+
+                def _send_rescan_cmd():
+                    
+                    # Scanning a row
+                    if self._after_scan_container.widgets['rbtn_row'].isChecked():
+                        cmd = '_scan_row'
+                        cmd_kwargs = {'row': self._after_scan_container.widgets['spx_row'].value(),
+                                      'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                      'repeat': self._after_scan_container.widgets['spx_repeat'].value()}
+                    else:
+                        cmd = '_scan_device'
+                        cmd_kwargs = {'speed': self._after_scan_container.widgets['spx_speed'].value()}
+
+                    self.send_cmd(hostname=self.server,
+                                  target='__scan__',
+                                  cmd=cmd,
+                                  cmd_data={'kwargs': cmd_kwargs, 'threaded': True})
         
                 self._after_scan_container = GridContainer('After scan')
                 self.add_widget(self._after_scan_container)
 
-                # Individual row scanning
-                label_scan_row = QtWidgets.QLabel('Scan individual row:')
-                spx_row = QtWidgets.QSpinBox()
-                spx_row.setPrefix('Row: ')
-                spx_row.setRange(0, self.n_rows - 1)
+                label_scan =  QtWidgets.QLabel('Re-scan:')
+                rbtn_row = QtWidgets.QRadiobutton('Row')
+                rbtn_area = QtWidgets.QRadiobutton('Area')
+
                 spx_speed = QtWidgets.QDoubleSpinBox()
                 spx_speed.setPrefix('Scan speed: ')
                 spx_speed.setSuffix(' mm/s')
                 spx_speed.setRange(1e-3, 110)
                 spx_speed.setValue(self.scan_params['scan_speed'])
+
+                # Individual row setting
+                spx_row = QtWidgets.QSpinBox()
+                spx_row.setPrefix('Row: ')
+                spx_row.setRange(0, self.n_rows - 1)
                 spx_repeat = QtWidgets.QSpinBox()
                 spx_repeat.setPrefix('Repeat: ')
                 spx_repeat.setRange(1, 100)
-                btn_scan_row = QtWidgets.QPushButton('Scan row')
-                btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                                    target='__scan__',
-                                                                    cmd='_scan_row',
-                                                                    cmd_data={'kwargs': {'row': self._after_scan_container.widgets['spx_row'].value(),
-                                                                                        'speed': self._after_scan_container.widgets['spx_speed'].value(),
-                                                                                        'repeat': self._after_scan_container.widgets['spx_repeat'].value()},
-                                                                            'threaded': True}))
 
+                btn_scan = QtWidgets.QPushButton('Scan')
+                btn_scan.clicked.connect(_send_rescan_cmd)
+
+                rbtn_row.toggled.connect(lambda state: spx_row.setEnabled(state))
+                rbtn_row.toggled.connect(lambda state: spx_repeat.setEnabled(state))
+                rbtn_row.toggled.connect(lambda state: btn_scan.setText(f"Scan {'row' if state else 'area'}"))
+
+                self._after_scan_container.widgets['rbtn_row'] = rbtn_row
+                self._after_scan_container.widgets['rbtn_area'] = rbtn_area
                 self._after_scan_container.widgets['spx_row'] = spx_row
                 self._after_scan_container.widgets['spx_speed'] = spx_speed
                 self._after_scan_container.widgets['spx_repeat'] = spx_repeat
 
-                # Entire DUT scanning
-                label_scan_full = QtWidgets.QLabel('Full re-scan:')
-                spx_speed_full = QtWidgets.QDoubleSpinBox()
-                spx_speed_full.setPrefix('Scan speed: ')
-                spx_speed_full.setSuffix(' mm/s')
-                spx_speed_full.setRange(1e-3, 110)
-                spx_speed_full.setValue(self.scan_params['scan_speed'])
-                btn_scan_full = QtWidgets.QPushButton('Scan row')
-                btn_scan_full.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                                    target='__scan__',
-                                                                    cmd='_scan_device',
-                                                                    cmd_data={'kwargs': {'speed': self._after_scan_container.widgets['spx_speed_full'].value()},
-                                                                            'threaded': True}))
-                
-                self._after_scan_container.widgets['spx_speed_full'] = spx_speed_full
-
                 # Add to container
-                self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
-                self._after_scan_container.add_widget(widget=[label_scan_full, spx_speed_full, btn_scan_full])
+                self._after_scan_container.add_widget(widget=[label_scan, rbtn_row, rbtn_area, spx_speed, spx_repeat, btn_scan])
 
             else:
                 self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)
