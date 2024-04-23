@@ -745,7 +745,25 @@ class ScanControlWidget(ControlWidget):
                 self._after_scan_container.widgets['spx_speed'] = spx_speed
                 self._after_scan_container.widgets['spx_repeat'] = spx_repeat
 
+                # Entire DUT scanning
+                label_scan_full = QtWidgets.QLabel('Full re-scan:')
+                spx_speed_full = QtWidgets.QDoubleSpinBox()
+                spx_speed_full.setPrefix('Scan speed: ')
+                spx_speed_full.setSuffix(' mm/s')
+                spx_speed_full.setRange(1e-3, 110)
+                spx_speed_full.setValue(self.scan_params['scan_speed'])
+                btn_scan_full = QtWidgets.QPushButton('Scan row')
+                btn_scan_full.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
+                                                                    target='__scan__',
+                                                                    cmd='_scan_device',
+                                                                    cmd_data={'kwargs': {'speed': self._after_scan_container.widgets['spx_speed_full'].value()},
+                                                                            'threaded': True}))
+                
+                self._after_scan_container.widgets['spx_speed_full'] = spx_speed_full
+
+                # Add to container
                 self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
+                self._after_scan_container.add_widget(widget=[label_scan_full, spx_speed_full, btn_scan_full])
 
             else:
                 self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)

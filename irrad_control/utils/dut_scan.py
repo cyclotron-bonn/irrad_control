@@ -42,6 +42,9 @@ class DUTScan(object):
 
         self.scan_stage = scan_stage
 
+        # Keep track of scan number
+        self.n_complete_scan = 0
+
         # ZMQ configuration
         self.zmq_config = {}
 
@@ -497,7 +500,7 @@ class DUTScan(object):
         if spawn_pub:
             data_pub.close()
 
-    def _scan_device(self):
+    def _scan_device(self, speed=None):
         """
         Method which is supposed to be called by self.scan_device. See docstring there.
 
@@ -515,7 +518,7 @@ class DUTScan(object):
         self._move_and_check(axis=1, position=self._scan_params['start'][1])
 
         # Set the scan speed
-        self.scan_stage.set_speed(value=self._scan_params['scan_speed'], axis=0, unit='mm/s')
+        self.scan_stage.set_speed(value=self._scan_params['scan_speed'] if speed is None else speed, axis=0, unit='mm/s')
 
         if data_pub is not None:
 
@@ -537,9 +540,6 @@ class DUTScan(object):
         # Start actual scan: each scan is counted as one coverage of the entire area
         try:
 
-            # Initialize scan number
-            scan = 0
-
             # Initialize rows of scan for top to bottom and bottom to top scan; reuse to safe resources
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
@@ -553,11 +553,11 @@ class DUTScan(object):
 
                 # Pause scan indefinitely until manually resuming
                 self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
-                                         log_msg=f"Scan paused after {scan} scans. Waiting to continue",
+                                         log_msg=f"Scan paused after {self.n_complete_scan} scans. Waiting to continue",
                                          log_level='INFO')
 
                 # Determine whether we're scanning top to bottom or opposite
-                current_rows = top_to_bottom_rows if scan % 2 == 0 else bottom_to_top_rows
+                current_rows = top_to_bottom_rows if self.n_complete_scan % 2 == 0 else bottom_to_top_rows
 
                 # Loop over rows
                 for row in current_rows:
@@ -567,15 +567,15 @@ class DUTScan(object):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
-                    self._scan_row(row=row, scan=scan, data_pub=data_pub, from_origin=False)
+                    self._scan_row(row=row, scan=self.n_complete_scan, data_pub=data_pub, from_origin=False)
 
                 _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
-                _data = {'status': 'scan_complete', 'scan': scan}
+                _data = {'status': 'scan_complete', 'scan': self.n_complete_scan}
 
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
                 # Increment
-                scan += 1
+                self.n_complete_scan += 1
 
         # Some axis command didn't succeed or emergency exit was issued
         except ScanError:
