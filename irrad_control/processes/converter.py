@@ -717,7 +717,7 @@ class IrradConverter(DAQProcess):
 
         # If beam is unstable
         self._check_irrad_event(server=server,
-                                event_name='BeamUnstable',
+                                event_name='BeamJitter',
                                 trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
         
         # Append data to table within this interpretation cycle
