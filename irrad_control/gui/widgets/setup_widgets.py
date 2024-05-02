@@ -11,7 +11,7 @@ from irrad_control.utils.logger import log_levels
 from irrad_control.utils.worker import QtWorker
 from irrad_control.gui.utils import check_unique_input, fill_combobox_items, remove_widget, get_host_ip
 from irrad_control.devices import DEVICES_CONFIG
-from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
+from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea, NoWheelQComboBox
 from irrad_control import config, config_file, tmp_path
 from irrad_control.utils.tools import save_yaml
 from irrad_control.ions import get_ions
@@ -162,7 +162,7 @@ class SessionSetup(BaseSetupWidget):
 
         # Label and combobox to set logging level
         label_logging = QtWidgets.QLabel('Logging level:')
-        combo_logging = QtWidgets.QComboBox()
+        combo_logging = NoWheelQComboBox()
         combo_logging.addItems([log_levels[lvl] for lvl in sorted([n_lvl for n_lvl in log_levels if isinstance(n_lvl, int)])])
         combo_logging.setCurrentIndex(combo_logging.findText('INFO'))
 
@@ -631,7 +631,7 @@ class DAQSetup(BaseSetupWidget):
         
         # Label for name of DAQ device which is represented by the ADC
         label_ion = QtWidgets.QLabel('Ion:')
-        combo_ion = QtWidgets.QComboBox()
+        combo_ion = NoWheelQComboBox()
         fill_combobox_items(combo_ion, self.ions)
 
         # Add to layout
@@ -640,6 +640,7 @@ class DAQSetup(BaseSetupWidget):
         # Label for name of DAQ device which is represented by the ADC
         label_energy = QtWidgets.QLabel('Kinetic energy [MeV]:')
         spbx_energy = QtWidgets.QDoubleSpinBox()
+        spbx_energy.wheelEvent = lambda we: we.ignore()  # Ignore wheel event
         spbx_energy.setDecimals(3)
 
         # Add to layout
@@ -654,7 +655,7 @@ class DAQSetup(BaseSetupWidget):
 
         # Label for readout scale combobox
         label_kappa = QtWidgets.QLabel('Hardness factor %s:' % u'\u03ba')
-        combo_kappa = QtWidgets.QComboBox()
+        combo_kappa = NoWheelQComboBox()
 
         # Add to layout
         self.add_widget(widget=[label_kappa, combo_kappa])
@@ -662,7 +663,7 @@ class DAQSetup(BaseSetupWidget):
         # Proportionality constant related widgets
         label_prop = QtWidgets.QLabel('Calibration factor %s [1/V]:' % u'\u03bb')
         label_prop.setToolTip('Constant translating SEM signal to actual proton beam current via I_Beam = %s * I_FS * SEM_%s' % (u'\u03A3', u'\u03bb'))
-        combo_prop = QtWidgets.QComboBox()
+        combo_prop = NoWheelQComboBox()
 
         # Add to layout
         self.add_widget(widget=[label_prop, combo_prop])
@@ -810,7 +811,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
 
         # Sampling rate related widgets
         label_sps = QtWidgets.QLabel('Sampling rate [sps]:')
-        combo_srate = QtWidgets.QComboBox()
+        combo_srate = NoWheelQComboBox()
         combo_srate.addItems([str(drate) for drate in DEVICES_CONFIG['ADCBoard']['drates']])
         combo_srate.setCurrentIndex(list(DEVICES_CONFIG['ADCBoard']['drates'].keys()).index(100))
         self.widgets['srate_combo'] = combo_srate
@@ -827,7 +828,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
         widgets_to_add = [label_scale]
 
         if self.device != ro.RO_DEVICES.DAQBoard:
-            combo_scale = QtWidgets.QComboBox()
+            combo_scale = NoWheelQComboBox()
             combo_scale.addItems(ro.RO_ELECTRONICS_CONFIG['ifs_labels'])
             combo_scale.setCurrentIndex(ro.RO_ELECTRONICS_CONFIG['ifs_scales'].index(ro.RO_ELECTRONICS_CONFIG['defaults']['ifs']))
             checkbox_scale = QtWidgets.QCheckBox('Set scale per channel')  # Allow individual scales per channel
@@ -841,7 +842,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
             combo_group_scale = {}
             lo = QtWidgets.QHBoxLayout()
             for group in ro.DAQ_BOARD_CONFIG['common']['gain_groups']:
-                combo_group_scale[group] = QtWidgets.QComboBox()
+                combo_group_scale[group] = NoWheelQComboBox()
                 combo_group_scale[group].addItems(ro.DAQ_BOARD_CONFIG['common']['ifs_labels'])
                 label_group = QtWidgets.QLabel('R/O group ' + group + ': ')
                 lo.addWidget(label_group)
@@ -909,7 +910,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
 
             if self.device != ro.RO_DEVICES.DAQBoard:
                 # Channel RO scale combobox
-                _cbx_scale = QtWidgets.QComboBox()
+                _cbx_scale = NoWheelQComboBox()
                 _cbx_scale.addItems(ro.RO_ELECTRONICS_CONFIG['ifs_labels'])
                 _cbx_scale.setToolTip('Select R/O scale I_FS for each channel individually.')
                 _cbx_scale.setCurrentIndex(combo_scale.currentIndex())
@@ -930,7 +931,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
                 widgets_to_add.append(_cbx_scale)
 
             else:
-                _cbx_group = QtWidgets.QComboBox()
+                _cbx_group = NoWheelQComboBox()
                 _cbx_group.addItems(ro.DAQ_BOARD_CONFIG['common']['mux_groups'])
                 _cbx_group.setToolTip('Select R/O group for each channel.')
                 _cbx_group.setCurrentIndex(_cbx_group.findText(ro.RO_DEFAULTS['ch_groups'][i]) if i < len(ro.RO_DEFAULTS['ch_names']) else 1)  # ch12
@@ -944,7 +945,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
                 widgets_to_add.append(_cbx_group)
 
             # Channel type combobox
-            _cbx_type = QtWidgets.QComboBox()
+            _cbx_type = NoWheelQComboBox()
             _cbx_type.addItems(ro.RO_TYPES)
             _cbx_type.setToolTip('Select type of channel. If *general_purpose*, this info is used for interpretation.')
             _cbx_type.setCurrentIndex(_cbx_type.findText(ro.RO_DEFAULTS['ch_types'][i]) if i < len(ro.RO_DEFAULTS['ch_names']) else ro.RO_TYPES.index('general_purpose'))
@@ -954,7 +955,7 @@ class ReadoutDeviceSetup(BaseSetupWidget):
             widgets_to_add.append(_cbx_type)
 
             # Reference channel to measure voltage; can be GND or any of the other channels
-            _cbx_ref = QtWidgets.QComboBox()
+            _cbx_ref = NoWheelQComboBox()
             _cbx_ref.addItems(['GND'] + [str(k) for k in range(1, self.n_channels + 1) if k != i + 1])
             _cbx_ref.setCurrentIndex(0)
             _cbx_ref.setProperty('lastitem', 'GND')

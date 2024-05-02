@@ -150,6 +150,9 @@ class IrradConverter(DAQProcess):
 
             self._raw_offsets[server] = defaultdict(list)
 
+            # Internal variable to hold the row fluence histogram for each server
+            self._row_fluence_hist[server] = None
+
             # Create needed tables and arrays
             for dname in ('Raw', 'RawOffset', 'Beam', 'See', 'Damage', 'Scan', 'Irrad', 'Result'):
                 self._create_data_entry(server=server, dname=dname.lower(), location=f"/{server_setup['name']}")
@@ -717,7 +720,7 @@ class IrradConverter(DAQProcess):
 
         # If beam is unstable
         self._check_irrad_event(server=server,
-                                event_name='BeamUnstable',
+                                event_name='BeamJitter',
                                 trigger_condition=lambda s=server: self._check_beam_unstable(server=s))
         
         # Append data to table within this interpretation cycle
@@ -793,7 +796,8 @@ class IrradConverter(DAQProcess):
             self.data_arrays[server]['irrad']['beam_fwhm_y'] = data['beam_fwhm'][1]
 
             # Fluence hist
-            self._row_fluence_hist[server] = [0] * data['n_rows']
+            if self._row_fluence_hist[server] is None: 
+                self._row_fluence_hist[server] = [0] * data['n_rows']
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['irrad'] = True

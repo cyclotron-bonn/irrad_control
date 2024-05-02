@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import irrad_control.devices.readout as ro
 from irrad_control.devices import DEVICES_CONFIG
-from irrad_control.gui.widgets import GridContainer
+from irrad_control.gui.widgets import GridContainer, NoWheelQComboBox
 from irrad_control.gui.widgets import MotorstagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
@@ -202,7 +202,7 @@ class MotorStageControlWidget(ControlWidget):
             # Predefined positions
             label_pos = QtWidgets.QLabel('Predefined positions:')
             label_pos.setToolTip('Move to or add/edit named stage positions')
-            cbx_pos = QtWidgets.QComboBox()
+            cbx_pos = NoWheelQComboBox()
             btn_pos = QtWidgets.QPushButton('Move to')
 
             # Get number of axis
@@ -210,7 +210,7 @@ class MotorStageControlWidget(ControlWidget):
 
             # Axis selection
             label_axis = QtWidgets.QLabel('Axis selection: ')
-            cbx_axis = QtWidgets.QComboBox()
+            cbx_axis = NoWheelQComboBox()
 
             spxs_range[0].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(v, spxs_range[1].value()))
             spxs_range[1].valueChanged.connect(lambda v, sa=spx_abs: sa.setRange(spxs_range[0].value(), v))
@@ -715,37 +715,70 @@ class ScanControlWidget(ControlWidget):
         if self.n_rows is not None:
             # Make container
             if self._after_scan_container is None:
+
+                def _send_rescan_cmd():
+                    
+                    # Scanning a row
+                    if self._after_scan_container.widgets['rbtn_row'].isChecked():
+                        cmd = '_scan_row'
+                        cmd_kwargs = {'row': self._after_scan_container.widgets['spx_row'].value(),
+                                      'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                      'repeat': self._after_scan_container.widgets['spx_repeat'].value()}
+                    else:
+                        cmd = '_scan_device'
+                        cmd_kwargs = {'speed': self._after_scan_container.widgets['spx_speed'].value(),
+                                      'repeat': 1}
+
+                    self.send_cmd(hostname=self.server,
+                                  target='__scan__',
+                                  cmd=cmd,
+                                  cmd_data={'kwargs': cmd_kwargs, 'threaded': True})
         
                 self._after_scan_container = GridContainer('After scan')
                 self.add_widget(self._after_scan_container)
 
-                # Individual row scanning
-                label_scan_row = QtWidgets.QLabel('Scan individual row:')
-                spx_row = QtWidgets.QSpinBox()
-                spx_row.setPrefix('Row: ')
-                spx_row.setRange(0, self.n_rows - 1)
+                label_scan =  QtWidgets.QLabel('Re-scan:')
+                rbtn_row = QtWidgets.QRadioButton('Row')
+                rbtn_area = QtWidgets.QRadioButton('Area')
+
+                btn_ll = QtWidgets.QHBoxLayout()
+                btn_ll.setSpacing(20)
+                btn_ll.addWidget(label_scan)
+                btn_ll.addWidget(rbtn_row)
+                btn_ll.addWidget(rbtn_area)
+
                 spx_speed = QtWidgets.QDoubleSpinBox()
                 spx_speed.setPrefix('Scan speed: ')
                 spx_speed.setSuffix(' mm/s')
                 spx_speed.setRange(1e-3, 110)
                 spx_speed.setValue(self.scan_params['scan_speed'])
+
+                # Individual row setting
+                spx_row = QtWidgets.QSpinBox()
+                spx_row.setPrefix('Row: ')
+                spx_row.setRange(0, self.n_rows - 1)
                 spx_repeat = QtWidgets.QSpinBox()
                 spx_repeat.setPrefix('Repeat: ')
                 spx_repeat.setRange(1, 100)
-                btn_scan_row = QtWidgets.QPushButton('Scan row')
-                btn_scan_row.clicked.connect(lambda _: self.send_cmd(hostname=self.server,
-                                                                    target='__scan__',
-                                                                    cmd='_scan_row',
-                                                                    cmd_data={'kwargs': {'row': self._after_scan_container.widgets['spx_row'].value(),
-                                                                                        'speed': self._after_scan_container.widgets['spx_speed'].value(),
-                                                                                        'repeat': self._after_scan_container.widgets['spx_repeat'].value()},
-                                                                            'threaded': True}))
 
+                btn_scan = QtWidgets.QPushButton('Scan')
+                btn_scan.clicked.connect(_send_rescan_cmd)
+
+                rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_row, read_only=not state))
+                rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_repeat, read_only=not state))
+                rbtn_row.toggled.connect(lambda state: btn_scan.setText(f"Scan {'row' if state else 'area'}"))
+                
+                # Default value
+                rbtn_row.setChecked(True)
+
+                self._after_scan_container.widgets['rbtn_row'] = rbtn_row
+                self._after_scan_container.widgets['rbtn_area'] = rbtn_area
                 self._after_scan_container.widgets['spx_row'] = spx_row
                 self._after_scan_container.widgets['spx_speed'] = spx_speed
                 self._after_scan_container.widgets['spx_repeat'] = spx_repeat
 
-                self._after_scan_container.add_widget(widget=[label_scan_row, spx_row, spx_speed, spx_repeat, btn_scan_row])
+                # Add to container
+                self._after_scan_container.add_widget(widget=[btn_ll, spx_speed, spx_row, spx_repeat, btn_scan])
 
             else:
                 self._after_scan_container.widgets['spx_row'].setRange(0, self.n_rows - 1)
@@ -790,9 +823,9 @@ class DAQControlWidget(ControlWidget):
 
         # Change RO scale
         label_ro_scale = QtWidgets.QLabel("Set R/O group scale:")
-        cbx_group = QtWidgets.QComboBox()
+        cbx_group = NoWheelQComboBox()
         cbx_group.addItems(ro.DAQ_BOARD_CONFIG['common']['gain_groups'])
-        cbx_scale = QtWidgets.QComboBox()
+        cbx_scale = NoWheelQComboBox()
         cbx_scale.addItems(ro.DAQ_BOARD_CONFIG['common']['ifs_labels'])
         btn_ro_scale = QtWidgets.QPushButton('Set R/O scale')
         layout_scale = QtWidgets.QHBoxLayout()

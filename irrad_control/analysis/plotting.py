@@ -82,7 +82,7 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=F
 
     ax.set_xlabel(f'{damage_target} area horizontal / mm')
     ax.set_ylabel(f'{damage_target} area vertical / mm')
-    plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target} Area {'' if not server else server}")
+    plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target}")
 
     # 3D plot
     if hasattr(ax, 'set_zlabel'):

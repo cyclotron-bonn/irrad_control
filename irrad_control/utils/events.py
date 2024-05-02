@@ -63,7 +63,7 @@ def create_irrad_events():
 
         # Beam-related events
         BeamOff = BaseEvent(cooldown=1, description="Beam current below measureable resolution")
-        BeamUnstable = BaseEvent(cooldown=2, description="Beam current fluctuates")
+        BeamJitter = BaseEvent(cooldown=2, description="Beam current fluctuates")
         BeamLoss = BaseEvent(cooldown=1, description="Beam current lost at extraction")
         BeamDrift = BaseEvent(cooldown=1, description="Beam position deviates from center")
         BeamLow = BaseEvent(cooldown=1, description="Beam current below threshold")

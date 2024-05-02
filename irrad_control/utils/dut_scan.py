@@ -42,6 +42,9 @@ class DUTScan(object):
 
         self.scan_stage = scan_stage
 
+        # Keep track of scan number
+        self.n_complete_scan = 0
+
         # ZMQ configuration
         self.zmq_config = {}
 
@@ -497,7 +500,7 @@ class DUTScan(object):
         if spawn_pub:
             data_pub.close()
 
-    def _scan_device(self):
+    def _scan_device(self, speed=None, repeat=None):
         """
         Method which is supposed to be called by self.scan_device. See docstring there.
 
@@ -506,6 +509,11 @@ class DUTScan(object):
         # Check scan configuration dict
         if not self._check_scan():
             return
+        
+        # Calculate the target scan number from the current scan number and the number of repetitions
+        # Needed because its possible to perform full scan after main scan so scan number will not be 0
+        if repeat is not None:
+            target_scan_number = self.n_complete_scan + repeat
 
         # Initialize zmq data publisher if zmq is setup
         data_pub = None if not self.zmq_config else create_pub_from_ctx(ctx=self.zmq_config['ctx'], addr=self.zmq_config['addr'])
@@ -515,7 +523,7 @@ class DUTScan(object):
         self._move_and_check(axis=1, position=self._scan_params['start'][1])
 
         # Set the scan speed
-        self.scan_stage.set_speed(value=self._scan_params['scan_speed'], axis=0, unit='mm/s')
+        self.scan_stage.set_speed(value=self._scan_params['scan_speed'] if speed is None else speed, axis=0, unit='mm/s')
 
         if data_pub is not None:
 
@@ -537,9 +545,6 @@ class DUTScan(object):
         # Start actual scan: each scan is counted as one coverage of the entire area
         try:
 
-            # Initialize scan number
-            scan = 0
-
             # Initialize rows of scan for top to bottom and bottom to top scan; reuse to safe resources
             top_to_bottom_rows = range(self._scan_params['n_rows'])
             bottom_to_top_rows = range(self._scan_params['n_rows']-1, -1, -1)  # Same as reversed, but not iterator -> can be reused
@@ -547,17 +552,22 @@ class DUTScan(object):
             # Loop until self.interaction_events['abort'] or self.interaction_events['finish']
             while not any(self.interaction_events[iv].wait(self._event_wait_time) for iv in ('abort', 'finish')):
 
-                # Break if the scan is completed
-                if self.irrad_events.IrradiationComplete.value.is_valid():
-                    break
+                # Break if the scan is completed either by the corresponding event or the number of repetitions of full scans
+                if repeat is None:
+                    if self.irrad_events.IrradiationComplete.value.is_valid():
+                        break
+                else:
+                    if self.n_complete_scan == target_scan_number:
+                        break
+                    
 
                 # Pause scan indefinitely until manually resuming
                 self._wait_for_condition(condition_call=lambda: not self.interaction_events['pause'].wait(self._event_wait_time),
-                                         log_msg=f"Scan paused after {scan} scans. Waiting to continue",
+                                         log_msg=f"Scan paused after {self.n_complete_scan} scans. Waiting to continue",
                                          log_level='INFO')
 
                 # Determine whether we're scanning top to bottom or opposite
-                current_rows = top_to_bottom_rows if scan % 2 == 0 else bottom_to_top_rows
+                current_rows = top_to_bottom_rows if self.n_complete_scan % 2 == 0 else bottom_to_top_rows
 
                 # Loop over rows
                 for row in current_rows:
@@ -567,15 +577,15 @@ class DUTScan(object):
                         raise ScanError("Scan was stopped manually")
 
                     # Scan row
-                    self._scan_row(row=row, scan=scan, data_pub=data_pub, from_origin=False)
+                    self._scan_row(row=row, scan=self.n_complete_scan, data_pub=data_pub, from_origin=False)
 
                 _meta = {'timestamp': time.time(), 'name': self._scan_params['server'], 'type': 'scan'}
-                _data = {'status': 'scan_complete', 'scan': scan}
+                _data = {'status': 'scan_complete', 'scan': self.n_complete_scan}
 
                 data_pub.send_json({'meta': _meta, 'data': _data})
 
                 # Increment
-                scan += 1
+                self.n_complete_scan += 1
 
         # Some axis command didn't succeed or emergency exit was issued
         except ScanError:
