@@ -34,14 +34,14 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # Setup dict of the irradiation; is set when setup tab is completed
         self.setup = None
-        
+
         # Needed in order to stop receiver threads
         self.stop_recv = Event()
-        
+
         # ZMQ context; THIS IS THREADSAFE! SOCKETS ARE NOT!
         # EACH SOCKET NEEDS TO BE CREATED WITHIN ITS RESPECTIVE THREAD/PROCESS!
         self.context = zmq.Context()
-        
+
         # QThreadPool manages GUI threads on its own; every runnable started via start(runnable) is auto-deleted after.
         self.threadpool = QtCore.QThreadPool()
 
@@ -56,7 +56,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self._shutdown_initiated = False
         self._shutdown_complete = False
         self._stopped_daq_proc_hostnames = []
-        
+
         # Connect signals
         self.data_received.connect(lambda data: self.handle_data(data))
         self.log_received.connect(lambda log: self.handle_log(log))
@@ -67,11 +67,12 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.setup_tab = None
         self.control_tab = None
         self.monitor_tab = None
+        self.devices_tab = None
 
         # Init user interface
         self._init_ui()
         self._init_logging()
-        
+
     def _init_ui(self):
         """
         Initializes the user interface and displays "Hello"-message
@@ -111,10 +112,10 @@ class IrradGUI(QtWidgets.QMainWindow):
         self._init_menu()
         self._init_tabs()
         self._init_info_dock()
-        
+
         self.sub_splitter.setSizes([int(1. / 3. * self.width()), int(2. / 3. * self.width())])
         self.main_splitter.setSizes([int(0.8 * self.height()), int(0.2 * self.height())])
-        
+
     def _init_menu(self):
         """Initialize the menu bar of the IrradControlWin"""
 
@@ -200,7 +201,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         info_tabs = QtWidgets.QTabWidget()
         info_tabs.addTab(self.log_widget, 'Log')
         info_tabs.addTab(self.event_widget, 'Event')
-        
+
         # Dock in which text widget is placed to make it closable without losing log content
         self.info_dock = QtWidgets.QDockWidget()
         self.info_dock.setWidget(info_tabs)
@@ -246,7 +247,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         # Connect logger signal to logger console
         LoggingStream.stdout().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
         LoggingStream.stderr().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
-        
+
         logging.info('Started "irrad_control" on %s' % platform.system())
 
     def handle_log(self, log_dict):
@@ -292,7 +293,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def _started_daq_proc(self, hostname):
         """A DQAProcess has been sucessfully started on *hostname*"""
-        
+
         self._started_daq_proc_hostnames.append(hostname)
 
         # Enable Control and Monitor tabs for this
@@ -364,7 +365,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             servers_launched = all(server in self.proc_mngr.launched_procs for server in self.setup['server'])
             converter_launched = 'localhost' in self.proc_mngr.launched_procs
 
-            # Servers AND converter need to be launched before collecting infos for event distribution 
+            # Servers AND converter need to be launched before collecting infos for event distribution
             if servers_launched and converter_launched:
                 proc_info_worker = QtWorker(func=self.collect_proc_infos)
                 proc_info_worker.signals.finished.connect(self._init_recv_threads)
@@ -404,7 +405,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
     def _connect_worker_exception(self, worker):
         worker.signals.exception.connect(lambda e, trace: logging.error("{} on sub-thread: {}".format(type(e).__name__, trace)))
-        
+
     def _tcp_addr(self, port, ip='*'):
         """Creates string of complete tcp address which sockets can bind to"""
         return 'tcp://{}:{}'.format(ip, port)
@@ -445,7 +446,7 @@ class IrradGUI(QtWidgets.QMainWindow):
     def handle_event(self, event_data):
         event_data['server'] = self.setup['server'][event_data['server']]['name']
         self.event_widget.register_event(event_dict=event_data)
-    
+
     def handle_data(self, data):
 
         server = data['meta']['name']
@@ -524,7 +525,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                 # Check whether data is interpreted
             elif data['data']['status'] == 'interpreted':
                 self.monitor_tab.plots[server]['fluence_plot'].set_data(data)
-                
+
                 self.control_tab.tab_widgets[server]['status'].update_status(status='scan',
                                                                              status_values=data['data'],
                                                                              ignore_status=('fluence_hist',
@@ -540,7 +541,7 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         elif data['meta']['type'] == 'dose_rate':
             self.monitor_tab.plots[server]['dose_rate_plot'].set_data(meta=data['meta'], data=data['data'])
-            
+
         elif data['meta']['type'] == 'axis':
             self.control_tab.tab_widgets[server]['status'].update_status(status=data['data']['axis_domain'],
                                                                          status_values=data['data'],
@@ -549,7 +550,7 @@ class IrradGUI(QtWidgets.QMainWindow):
             self.control_tab.tab_widgets[server]['motorstage'].update_motorstage_properties(motorstage=data['data']['axis_domain'],
                                                                                             properties={'position': data['data']['position']},
                                                                                             axis=data['data']['axis'])
-            
+
     def send_cmd(self, hostname, target, cmd, cmd_data=None, timeout=5):
         """Send a command *cmd* to a target *target* running within the server or interpreter process.
         The command can have respective data *cmd_data*."""
@@ -657,7 +658,7 @@ class IrradGUI(QtWidgets.QMainWindow):
                     self.monitor_tab.add_fluence_hist(server=hostname,
                                                       kappa=self.setup['server'][hostname]['daq']['kappa']['nominal'],
                                                       n_rows=reply_data['result']['n_rows'])
-                    
+
                     self.control_tab.scan_status(server=hostname, status='started')
                     self.control_tab.tab_widgets[hostname]['scan'].enable_after_scan_ui(False)
                     self.control_tab.tab_widgets[hostname]['scan'].n_rows = reply_data['result']['n_rows']
@@ -721,7 +722,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
 
         logging.info(recv_msg or f"Start receiving from {stream} stream")
-        
+
         while not self.stop_recv.is_set():
             try:
                 res = getattr(sub, recv_func)()
@@ -762,7 +763,7 @@ class IrradGUI(QtWidgets.QMainWindow):
     def handle_info_ui(self):
         """Handle whether log widget is visible or not"""
         self.info_dock.setVisible(not self.info_dock.isVisible())
-    
+
     def handle_daq_ui(self):
         """Handle whether log widget is visible or not"""
         try:
@@ -791,16 +792,16 @@ class IrradGUI(QtWidgets.QMainWindow):
 
         # If all servers and the converters have responded to the shutdown, we proceed
         if len(self._stopped_daq_proc_hostnames) == len(self.proc_mngr.active_pids):
-            
-            # Check if all processes have indeed terminated; give it a couple of tries due to the shutdown of a server can take a second or two 
+
+            # Check if all processes have indeed terminated; give it a couple of tries due to the shutdown of a server can take a second or two
             for _ in range(10):
                 time.sleep(0.5)
                 self.proc_mngr.check_active_processes()
-                
+
                 if not any(self.proc_mngr.active_pids[h][pid]['active'] for h in self.proc_mngr.active_pids for pid in self.proc_mngr.active_pids[h]):
                     self._shutdown_complete = True
                     break
-            
+
             # Unfortunately, we could not verify the close, inform user and close
             else:
 
@@ -879,9 +880,9 @@ class IrradGUI(QtWidgets.QMainWindow):
 
                 # Loop over all started processes and send shutdown cmd
                 for host in self.proc_mngr.active_pids:
-                    
+
                     target = 'interpreter' if host == 'localhost' else 'server'
-                    
+
                     shutdown_worker = QtWorker(func=self._send_cmd_get_reply,
                                             hostname=host,
                                             cmd_dict={'target': target, 'cmd': 'shutdown'},
