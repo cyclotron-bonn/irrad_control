@@ -101,7 +101,7 @@ class MotorStageControlWidget(ControlWidget):
         return DEVICES_CONFIG[motorstage]['init'].get('n_axis', 1)
 
     def _update_ui_elements(self, motorstage):
-        
+
         if self._get_n_axis(motorstage) == 1:
             self._ms_widgets[motorstage]['spxs_range'][0].setValue(self.motorstage_properties[motorstage]['range'][0])
             self._ms_widgets[motorstage]['spxs_range'][1].setValue(self.motorstage_properties[motorstage]['range'][1])
@@ -255,7 +255,7 @@ class MotorStageControlWidget(ControlWidget):
                 spxs_range[1].setValue(self.motorstage_properties[motorstage]['range'][1])
                 spx_abs.setMaximum(DEVICES_CONFIG[motorstage]['init']['travel'] * 1e3)
                 spx_speed.setValue(self.motorstage_properties[motorstage]['speed'])
-        
+
             ### Connections ###
             ### Connect widgets ###
 
@@ -295,7 +295,7 @@ class MotorStageControlWidget(ControlWidget):
                                                                                        'callback':
                                                                                            {'method': 'get_physical_props',
                                                                                             'kwargs': {'base_unit': 'mm'}}}))
-            
+
             # Rel. movement
             btn_rel.clicked.connect(lambda _, ms=motorstage: self._send_movement_cmd(motorstage=ms,
                                                                                      cmd='move_rel',
@@ -320,7 +320,7 @@ class MotorStageControlWidget(ControlWidget):
             self._ms_widgets[motorstage]['spx_speed'] = spx_speed
             self._ms_widgets[motorstage]['cbx_pos'] = cbx_pos
             self._ms_widgets[motorstage]['spx_abs'] = spx_abs
-            
+
             # Add everything to container
             container = GridContainer(name='')
             container.grid.addWidget(_label_curr_pos, container.grid.rowCount(), 0)
@@ -340,14 +340,14 @@ class MotorStageControlWidget(ControlWidget):
             self.motorstage_positions_window.add_motorstage(motorstage=motorstage, positions=positions, properties=properties)
 
     def _send_movement_cmd(self, motorstage, cmd, cmd_data):
-        
+
         restricted = ('SetupTableStage', 'ExternalCupStage')
         restricted_controllable = [r in self.motorstage_properties for r in restricted]
         move = False
 
         # Do checks on restricted movement
         if motorstage in restricted:
-            
+
             # We have control over all stages which is nice
             if all(restricted_controllable):
 
@@ -358,12 +358,12 @@ class MotorStageControlWidget(ControlWidget):
                     # We need to move restricted[0] to 0 first to allow movement of restricted[1]
                     restricting_ms = restricted[0]
                 else:
-                    restricting_ms = None        
-                
+                    restricting_ms = None
+
                 # If no restriction, move
                 if restricting_ms is None:
                     move = True
-                
+
                 else:
                     # Construct message for user
                     msg = f"Movement of {motorstage} is currently restricted due to {restricting_ms} position being not 0 mm"
@@ -387,12 +387,12 @@ class MotorStageControlWidget(ControlWidget):
                                       cmd='move_abs',
                                       cmd_data={'kwargs': {'value': 0, 'unit': 'mm'},
                                                 'threaded': True})
-            
-            # We have control over *motorstage* but not the other one        
+
+            # We have control over *motorstage* but not the other one
             else:
 
                 missing_ms = [restricted[i] for i, k in enumerate(restricted_controllable) if not k]
-                
+
                 # Construct message for user
                 msg = f"Movement of {motorstage} may be restricted due to {missing_ms} not being at 0 position."
                 msg += f" {missing_ms} is currently not controlled by irrad_control and its position can not be checked."
@@ -414,7 +414,7 @@ class MotorStageControlWidget(ControlWidget):
         # Target motorstage is not restricted, just move
         else:
             move = True
-        
+
         if move:
             self.send_cmd(hostname=self.server, target=motorstage, cmd=cmd, cmd_data=cmd_data)
 
@@ -446,9 +446,9 @@ class ScanControlWidget(ControlWidget):
         self.scan_in_progress = False
 
         super(ScanControlWidget, self).__init__(name='Scan Control', parent=parent, enable=enable)
-    
+
     def _init_widget(self):
-        
+
         self._init_ui()
 
         spacer = QtWidgets.QVBoxLayout()
@@ -466,7 +466,7 @@ class ScanControlWidget(ControlWidget):
         self.scanParamsUpdated.emit(self.scan_params)
 
     def _damage_toggled(self, damage_buttons, sv, se):
-        
+
         # Get active button
         active = damage_buttons.checkedButton()
         if active is None:
@@ -532,7 +532,7 @@ class ScanControlWidget(ControlWidget):
         scan_parameters_container.add_widget(widget=[spx_row_sep, spx_scan_speed, spx_min_current])
 
         damage_container = GridContainer('Radiation damage')
-               
+
         label_damage_target = QtWidgets.QLabel('Target:')
         spx_damage_val = QtWidgets.QDoubleSpinBox()
         spx_damage_val.setRange(1e-3, 10)
@@ -551,13 +551,13 @@ class ScanControlWidget(ControlWidget):
 
         # Add radio buttons for different types of damage
         if self.daq_setup['kappa'] is None:
-            damage_buttons.removeButton(rbtn_neq)    
+            damage_buttons.removeButton(rbtn_neq)
         if self.daq_setup['stopping_power'] is None:
             damage_buttons.removeButton(rbtn_tid)
 
         for btn in damage_buttons.buttons():
             btn.toggled.connect(lambda _, bg=damage_buttons, sv=spx_damage_val, se=spx_damage_exp: self._damage_toggled(bg, sv, se))
-        
+
         spx_damage_val.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{v}e{spx_damage_exp.value()}')))
         spx_damage_exp.valueChanged.connect(lambda v: self.update_scan_params(aim_value=float(f'{spx_damage_val.value()}e{v}')))
 
@@ -587,12 +587,12 @@ class ScanControlWidget(ControlWidget):
         spx_fwhm_y.valueChanged.connect(lambda v, s=spx_fwhm_x: self.update_scan_params(beam_fwhm=[s.value(), v]))
 
         beam_container.add_widget(widget=[label_fwhm, spx_fwhm_x, spx_fwhm_y])
-        
-        
+
+
         # Define DUT rectangle relative to the origin of the scan coordinate system
         dut_rect_container = GridContainer(name='Dut rectangle')
         dut_rect_container.setToolTip('Define the DUT area relative to the scan origin. Complete scan area will be calculated according to scan speed and beam fwhm')
-        
+
         label_start = QtWidgets.QLabel('Start:')
         spx_start_x = QtWidgets.QDoubleSpinBox()
         spx_start_x.setRange(-300., 300.)
@@ -631,7 +631,7 @@ class ScanControlWidget(ControlWidget):
         checkbox_scan_rect.stateChanged.connect(lambda state: self.update_scan_params(dut_rect_is_scan_area=bool(state)))
 
         dut_rect_container.add_widget(widget=[label_start, spx_start_x, spx_start_y, label_end, spx_end_x, spx_end_y, checkbox_scan_rect])
-        
+
         scan_interaction_container = GridContainer(name='Scan interaction')
         scan_interaction_container.setToolTip("Interact with the scanning routine during the scan")
 
@@ -695,12 +695,12 @@ class ScanControlWidget(ControlWidget):
                                                                                       target='server',
                                                                                       cmd='toggle_event',
                                                                                       cmd_data={'event': ev, 'disabled': not state}))
-            
+
             if i == 0 or scan_interaction_container.columns_in_row() > 5:
                 scan_interaction_container.add_widget(widget=evt_chbx)
             else:
                 scan_interaction_container.add_widget(widget=evt_chbx, row='current')
-            
+
         # Add to layout
         self.add_widget(damage_container)
         self.add_widget(scan_parameters_container)
@@ -717,7 +717,7 @@ class ScanControlWidget(ControlWidget):
             if self._after_scan_container is None:
 
                 def _send_rescan_cmd():
-                    
+
                     # Scanning a row
                     if self._after_scan_container.widgets['rbtn_row'].isChecked():
                         cmd = '_scan_row'
@@ -733,7 +733,7 @@ class ScanControlWidget(ControlWidget):
                                   target='__scan__',
                                   cmd=cmd,
                                   cmd_data={'kwargs': cmd_kwargs, 'threaded': True})
-        
+
                 self._after_scan_container = GridContainer('After scan')
                 self.add_widget(self._after_scan_container)
 
@@ -767,7 +767,7 @@ class ScanControlWidget(ControlWidget):
                 rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_row, read_only=not state))
                 rbtn_row.toggled.connect(lambda state: self._after_scan_container.set_widget_read_only(widget=spx_repeat, read_only=not state))
                 rbtn_row.toggled.connect(lambda state: btn_scan.setText(f"Scan {'row' if state else 'area'}"))
-                
+
                 # Default value
                 rbtn_row.setChecked(True)
 
@@ -798,7 +798,7 @@ class DAQControlWidget(ControlWidget):
         self.ro_device = ro_device
         self._enable_rad_mon = enable_rad_mon
         self._style = QtWidgets.qApp.style()
-        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable or enable_rad_mon) 
+        super(DAQControlWidget, self).__init__(name='DAQ Control', parent=parent, enable=enable or enable_rad_mon)
 
     def _init_widget(self):
         self._init_ui()
@@ -864,13 +864,13 @@ class DAQControlWidget(ControlWidget):
                     lambda state: chkbx_rad_mon_hv.setText(f"HV ({'on' if bool(state) else 'off'})")]:
 
             chkbx_rad_mon_hv.stateChanged.connect(con)
-        
+
         for con in [lambda _, btn=btn_toggle_rad_mon: self.send_cmd(hostname=self.server,
                                                                     target='RadiationMonitor',
                                                                     cmd='_send_data',
                                                                     cmd_data={'kwargs': {'send': 'Start' in btn.text()}}),
                     lambda _, btn=btn_toggle_rad_mon: btn.setText('Start DAQ' if 'Stop' in btn.text() else 'Stop DAQ')]:
-            
+
             btn_toggle_rad_mon.clicked.connect(con)
 
         if self.ro_device is not None:
@@ -924,7 +924,7 @@ class StatusInfoWidget(GridContainer):
             status_text += ' mm/s'
         elif 'accel' in status_key:
             status_text += ' mm/s^2'
-        
+
         return status_text
 
     def _format_float(self, val):
@@ -947,9 +947,9 @@ class StatusInfoWidget(GridContainer):
             status_text = '{0}=\n{1}'.format(*status_text.split('='))
 
         return self._add_unit(status_key, status_text)
-    
+
     def add_status(self, status):
-        
+
         if status in self._status_containers:
             return
 
@@ -971,7 +971,7 @@ class StatusInfoWidget(GridContainer):
 
         # Get container
         container = self._status_containers[status]
-        
+
         for k, v in status_values.items():
             # Only make status entry for allowed types e.g. ignore arrays, etc
             if not isinstance(v, self.allowed_status_types):
@@ -982,10 +982,10 @@ class StatusInfoWidget(GridContainer):
 
             if only_status != 'all' and k not in only_status:
                 continue
-                
+
             status_text = self.format_status(status_key=k, status_value=v)
             if k in self._status_labels[status]:
                 self._status_labels[status][k].setText(status_text)
-            else:    
+            else:
                 self._status_labels[status][k] = QtWidgets.QLabel(status_text)
                 container.add_widget(self._status_labels[status][k])

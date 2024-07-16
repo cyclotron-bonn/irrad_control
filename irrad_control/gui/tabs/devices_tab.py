@@ -6,9 +6,11 @@ from irrad_control.gui.widgets.arduino_mux_widget import ArduinoMuxWidget
 from irrad_control.gui.widgets import NoBackgroundScrollArea
 
 class IrradDevicesTab(QtWidgets.QWidget):
+
+    sendCmd = QtCore.pyqtSignal(dict)
+
     def __init__(self, setup, parent=None):
         super(IrradDevicesTab, self).__init__(parent)
-
         self.setup = setup
 
         self.setLayout(QtWidgets.QVBoxLayout())
@@ -25,14 +27,11 @@ class IrradDevicesTab(QtWidgets.QWidget):
 
         for server in self.setup:
             self._init_tab(server=server)
-            self.enable_control(server=server, enable=False)
 
 
     def _init_tab(self, server):
         # TODO: make devices selectable
-
         arduino_mux = ArduinoMuxWidget(server=server)
-
         # Split tab in quadrants
         splitter = QtWidgets.QSplitter()
         splitter.setOrientation(QtCore.Qt.Vertical)
@@ -70,13 +69,7 @@ class IrradDevicesTab(QtWidgets.QWidget):
         self.sendCmd.emit({'hostname': hostname, 'target': target, 'cmd': cmd, 'cmd_data': cmd_data})
 
 
-    def enable_control(self, server, enable=True):
-        pass
-
-
-    def scan_status(self, server, status='started'):
-        pass
-
-
-    def update_rec_state(self, server, state):
-        pass
+    def enable_devices(self, server, enable=True):
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == self.setup[server]['name']:
+                self.tabs.widget(i).setEnabled(enable)

@@ -13,7 +13,7 @@ from irrad_control.utils.worker import QtWorker
 from irrad_control.utils.proc_manager import ProcessManager
 from irrad_control.utils.utils import get_current_git_branch
 from irrad_control.gui.widgets import DaqInfoWidget, LoggingWidget, EventWidget
-from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab
+from irrad_control.gui.tabs import IrradSetupTab, IrradControlTab, IrradMonitorTab, IrradDevicesTab
 
 
 PROJECT_NAME = 'Irrad Control'
@@ -116,6 +116,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         self.sub_splitter.setSizes([int(1. / 3. * self.width()), int(2. / 3. * self.width())])
         self.main_splitter.setSizes([int(0.8 * self.height()), int(0.2 * self.height())])
 
+
     def _init_menu(self):
         """Initialize the menu bar of the IrradControlWin"""
 
@@ -140,7 +141,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         """
 
         # Add tab_widget and widgets for the different analysis steps
-        self.tab_order = ('Setup', 'Control', 'Monitor')
+        self.tab_order = ('Setup', 'Control', 'Devices', 'Monitor')
 
         # Store tabs
         tw = {}
@@ -245,8 +246,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.getLogger().addHandler(self.logger)
 
         # Connect logger signal to logger console
-        LoggingStream.stdout().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
-        LoggingStream.stderr().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
+        #LoggingStream.stdout().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
+        #LoggingStream.stderr().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
 
         logging.info('Started "irrad_control" on %s' % platform.system())
 
@@ -300,6 +301,7 @@ class IrradGUI(QtWidgets.QMainWindow):
         if hostname in self.setup['server']:
             self.control_tab.enable_control(server=hostname)
             self.monitor_tab.enable_monitor(server=hostname)
+            self.devices_tab.enable_devices(server=hostname)
 
         # All servers have launched successfully
         if all(s in self._started_daq_proc_hostnames for s in self.setup['server']):
@@ -411,13 +413,13 @@ class IrradGUI(QtWidgets.QMainWindow):
         return 'tcp://{}:{}'.format(ip, port)
 
     def update_tabs(self):
-
         current_tab = self.tabs.currentIndex()
-
         # Create missing tabs
         self.control_tab = IrradControlTab(setup=self.setup['server'], parent=self.tabs)
         self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs,
                                            plot_path=self.setup['session']['outfolder'])
+        self.devices_tab = IrradDevicesTab(setup=self.setup['server'], parent=self.tabs)
+
 
         # Connect control tab
         self.control_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))
@@ -430,8 +432,12 @@ class IrradGUI(QtWidgets.QMainWindow):
                                                         cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == 'Resume')))
             if enable else self.daq_info_widget.record_btns[server].clicked.disconnect())  # Pretty crazy connection. Basically connects or disconnects a button
 
+        #connect devices tab
+        self.devices_tab.sendCmd.connect(lambda cmd_dict: self.send_cmd(**cmd_dict))
+
+
         # Make temporary dict for updated tabs
-        tmp_tw = {'Control': self.control_tab, 'Monitor': self.monitor_tab}
+        tmp_tw = {'Control': self.control_tab, 'Devices': self.devices_tab, 'Monitor': self.monitor_tab}
 
         for tab in self.tab_order:
             if tab in tmp_tw:

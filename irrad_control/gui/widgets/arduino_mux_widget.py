@@ -5,15 +5,18 @@ from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets import GridContainer, NoWheelQComboBox
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
-from irrad_controll.gui.widgets.control_widgets import ControlWidget
+from irrad_control.gui.widgets.control_widgets import ControlWidget
 
-class ArduinoMuxWidget(ControlWdiget):
-    def __init__(self, server):
+class ArduinoMuxWidget(ControlWidget):
+    def __init__(self, server, parent=None):
         self.server = server
+        super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent)
 
 
     def _init_widget(self):
-        pass
+        self.tabs = QtWidgets.QTabWidget()
+        self._init_buttons()
+        self.add_widget(self.tabs)
 
 
     def _init_buttons(self):
