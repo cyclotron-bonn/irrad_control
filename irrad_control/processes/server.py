@@ -64,9 +64,6 @@ class IrradServer(DAQProcess):
                                             address=self._internal_sub_addr,
                                             sender=self.server)
 
-        logging.error("loading devices or somehting")
-
-        lkasdfljasd;lf
 
         # Loop over server devices and initialize
         for dev in self.setup['server']['devices']:
