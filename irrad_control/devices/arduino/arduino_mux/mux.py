@@ -1,6 +1,7 @@
 from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 import threading
 import time
+import logging
 
 class ArduinoMUX(ArduinoSerial):
     CMDS = {
@@ -34,6 +35,7 @@ class ArduinoMUX(ArduinoSerial):
 
 
     def enable_channel(self, channel: int):
+        logging.debug("called enable channel")
         self.write(self.create_cmd(self.CMDS['enable_channel'], channel))
 
 
