@@ -7,21 +7,34 @@ from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
 from irrad_control.gui.widgets.control_widgets import ControlWidget
 
+import logging
+
 class ArduinoMuxWidget(ControlWidget):
     def __init__(self, server, parent=None):
+        logging.info("initializing arduino mux widget")
         self.server = server
         super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent)
 
 
     def _init_widget(self):
-        self.tabs = QtWidgets.QTabWidget()
+        #self.tabs = QtWidgets.QTabWidget()
         self._init_buttons()
-        self.add_widget(self.tabs)
+        logging.info("ran init widget")
+        #self.add_widget(self.tabs)
 
 
     def _init_buttons(self):
+        logging.info("running init buttons for arduino")
         # TODO: make 16 checkboxes in two groups
         transmit_state_button = QtWidgets.QPushButton('send set state')
         transmit_state_button.clicked.connect(lambda _: None) # TODO: implement actuall cmd
 
+        test_label = QtWidgets.QLabel('TEST')
+
         channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(16)]
+        logging.info("finished making buttons for arduino")
+
+        self.add_widget(widget=[test_label])
+        self.add_widget(widget=channel_boxes)
+        self.add_widget(transmit_state_button)
+        logging.info("finished adding buttons for arduino")

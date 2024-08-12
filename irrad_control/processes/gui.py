@@ -78,6 +78,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         Initializes the user interface and displays "Hello"-message
         """
 
+        logging.debug("test")
+
         # Main window settings
         self.setWindowTitle(PROJECT_NAME)
         self.screen = QtWidgets.QDesktopWidget().screenGeometry()
@@ -415,6 +417,8 @@ class IrradGUI(QtWidgets.QMainWindow):
     def update_tabs(self):
         current_tab = self.tabs.currentIndex()
         # Create missing tabs
+        logging.info("initializing tabs")
+
         self.control_tab = IrradControlTab(setup=self.setup['server'], parent=self.tabs)
         self.monitor_tab = IrradMonitorTab(setup=self.setup['server'], parent=self.tabs,
                                            plot_path=self.setup['session']['outfolder'])

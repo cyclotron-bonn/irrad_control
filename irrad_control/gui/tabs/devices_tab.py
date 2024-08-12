@@ -5,11 +5,14 @@ from collections import defaultdict
 from irrad_control.gui.widgets.arduino_mux_widget import ArduinoMuxWidget
 from irrad_control.gui.widgets import NoBackgroundScrollArea
 
+import logging
+
 class IrradDevicesTab(QtWidgets.QWidget):
 
     sendCmd = QtCore.pyqtSignal(dict)
 
     def __init__(self, setup, parent=None):
+        logging.info("initializing devices tab")
         super(IrradDevicesTab, self).__init__(parent)
         self.setup = setup
 
@@ -31,6 +34,7 @@ class IrradDevicesTab(QtWidgets.QWidget):
 
     def _init_tab(self, server):
         # TODO: make devices selectable
+        logging.info("initing devices tab")
         arduino_mux = ArduinoMuxWidget(server=server)
         # Split tab in quadrants
         splitter = QtWidgets.QSplitter()
@@ -44,18 +48,14 @@ class IrradDevicesTab(QtWidgets.QWidget):
         splitter_lower.setChildrenCollapsible(False)
 
         splitter_upper.addWidget(arduino_mux)
-
         self.tabs.addTab(NoBackgroundScrollArea(widget=splitter), self.setup[server]['name'])
+
+        # Add to splitter
+        splitter.addWidget(splitter_upper)
+        splitter.addWidget(splitter_lower)
 
         # Add to container
         self.tab_widgets[server]['arduino mux'] = arduino_mux
-
-        # Appearance
-        self.show()
-
-        splitter_upper.setSizes([self.width(), self.width()])
-        splitter_lower.setSizes([self.width(), self.width()])
-        splitter.setSizes([self.height(), self.height()])
 
         # Appearance
         self.show()
