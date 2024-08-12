@@ -64,6 +64,10 @@ class IrradServer(DAQProcess):
                                             address=self._internal_sub_addr,
                                             sender=self.server)
 
+        logging.error("loading devices or somehting")
+
+        lkasdfljasd;lf
+
         # Loop over server devices and initialize
         for dev in self.setup['server']['devices']:
 
@@ -159,7 +163,7 @@ class IrradServer(DAQProcess):
                                                skt=self.socket_type['data'],
                                                addr=self._internal_sub_addr,
                                                sender=self.server)
-        
+
         if 'RadiationMonitor' in self.devices:
             # Add custom methods for being able to pause/resume data sending
             self.devices['RadiationMonitor']._send_data = lambda send: getattr(self.stop_flags['wait_rad_mon'], 'set' if send else 'clear')()
@@ -239,7 +243,7 @@ class IrradServer(DAQProcess):
         # Stop waiting with RadiationMonitorDAQ
         while not self.stop_flags['wait_rad_mon'].is_set():
             sleep(1)
-        
+
         dose_rate, frequency = self.devices['RadiationMonitor'].get_dose_rate(return_frequency=True)
 
         # Add meta data and data
@@ -261,7 +265,7 @@ class IrradServer(DAQProcess):
             # Check for callback
             if callback and hasattr(self.devices[device], callback['method']):
                 res['callback'] = {**callback}
-                callback_kwargs = res['callback'].get('kwargs', {}) 
+                callback_kwargs = res['callback'].get('kwargs', {})
                 res['callback']['result'] = getattr(self.devices[device], res['callback']['method'])(**callback_kwargs)
 
             return res
@@ -275,7 +279,7 @@ class IrradServer(DAQProcess):
                 data = self.launch_thread(target=_call, call_kwargs=call_kwargs, callback=callback)  # data will be None
             else:
                 data =_call(call_kwargs, callback)
-            
+
             self._send_reply(reply=method, sender=device, _type='STANDARD', data=data)
         except Exception as e:
             self._send_reply(reply=method, _type='ERROR', sender=device, data=repr(e))
@@ -316,7 +320,7 @@ class IrradServer(DAQProcess):
         if event_data['server'] != self.server:
             logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")
             return
-        
+
         try:
             event_name = event_data['event']
             self.irrad_events[event_name].value.active = event_data['active']
@@ -339,7 +343,7 @@ def run(blocking=True):
 
     irrad_server = IrradServer()
     irrad_server.start()
-    
+
     if blocking:
         irrad_server.join()
 

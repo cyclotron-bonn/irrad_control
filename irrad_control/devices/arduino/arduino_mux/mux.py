@@ -18,7 +18,7 @@ class ArduinoMUX(ArduinoSerial):
     delay = 1.0
 
 
-    def __init__(self, port, baudrate=115200, timeout=1):
+    def __init__(self, port="/dev/ttyS0", baudrate=115200, timeout=1):
         super().__init__(port, baudrate, timeout)
         # start ping thread here??
 
