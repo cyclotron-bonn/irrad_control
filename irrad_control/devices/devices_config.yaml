@@ -84,6 +84,6 @@ RadiationMonitor:
 
 ArduinoMUX:
   init:
-    port: /dev/zero
-    baudrate: 115200
+    port: /dev/ttyS0
+    baudrate: 9600
     timeout: 5
