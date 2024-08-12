@@ -91,6 +91,7 @@ class IrradControlTab(QtWidgets.QWidget):
         splitter_lower.setSizes([self.width(), self.width()])
         splitter.setSizes([self.height(), self.height()])
 
+
     def enable_control(self, server, enable=True):
         for i in range(self.tabs.count()):
             if self.tabs.tabText(i) == self.setup[server]['name']:
@@ -106,12 +107,12 @@ class IrradControlTab(QtWidgets.QWidget):
         # Set read-only state according to 'status'
         for t, w in self.tab_widgets[server].items():
             w.set_read_only(read_only=read_only)
-        
+
         # Always have scan interactino stuff and status enabled
         self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
         self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
         self.tab_widgets[server]['status'].set_read_only(False)
         self.tab_widgets[server]['scan'].enable_after_scan_ui(not read_only)
-            
+
     def update_rec_state(self, server, state):
         self.tab_widgets[server]['daq'].update_rec_state(state)
