@@ -1,6 +1,7 @@
 from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 import threading
 import time
+import logging
 
 class ArduinoMUX(ArduinoSerial):
     CMDS = {
@@ -18,8 +19,11 @@ class ArduinoMUX(ArduinoSerial):
     delay = 1.0
 
 
-    def __init__(self, port, baudrate=115200, timeout=1):
-        super().__init__(port, baudrate, timeout)
+    def __init__(self, port="/dev/ttyS0", baudrate=9600, timeout=1):
+        logging.error("initiating arduino mux")
+        logging.error("port={} baudrate={} timeout={}".format(port, baudrate, timeout))
+        super().__init__(port=port, baudrate=baudrate, timeout=timeout)
+        logging.error("super init finished")
         # start ping thread here??
 
 
@@ -33,15 +37,17 @@ class ArduinoMUX(ArduinoSerial):
         self.write(self.create_cmd(self.CMDS['ping']))
 
 
-    def enable_channel(self, channel: int):
+    def _enable_channel(self, channel: int = 16):
+        logging.error("called enable channel")
         self.write(self.create_cmd(self.CMDS['enable_channel'], channel))
 
 
-    def disable_channel(self, channel: int):
+    def _disable_channel(self, channel: int = 16):
+        logging.error("called disable channel")
         self.write(self.create_cmd(self.CMDS['disable_channel'], channel))
 
 
-    @property
+    #@property
     def channel_states(self):
         response = self.query(self.create_cmd(self.CMDS['get_status']))
         response = response.split()

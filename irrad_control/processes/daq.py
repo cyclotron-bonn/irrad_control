@@ -73,7 +73,7 @@ class DAQProcess(Process):
 
         # List of input data stream addresses
         self.daq_streams = []
-        
+
         if daq_streams is not None:
             self.add_daq_stream(daq_stream=daq_streams)
 
@@ -256,6 +256,7 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
+        logging.error("generated tcp address for ip: {}".format(ip))
         return 'tcp://{}:{}'.format(ip, port)
 
     def recv_cmd(self):
@@ -395,7 +396,6 @@ class DAQProcess(Process):
         stream_container: list
             List to which stream address is to be added to
         """
-
         streams_to_add = stream if isinstance(stream, (list, tuple)) else [stream]
 
         if not all(isinstance(ds, str) for ds in streams_to_add):
@@ -404,6 +404,7 @@ class DAQProcess(Process):
 
         for strm in streams_to_add:
             if check_zmq_addr(strm) and strm not in stream_container:
+                logging.error("adding {} to steams".format(stream))
                 stream_container.append(strm)
 
     def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
@@ -423,6 +424,8 @@ class DAQProcess(Process):
         delay : float, optional
             Time in seconds sleep in between incoming data checks; useful save resources, by default None
         """
+
+        logging.error(stream)
 
         if stream:
 

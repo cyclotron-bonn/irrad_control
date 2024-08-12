@@ -9,32 +9,45 @@ from irrad_control.gui.widgets.control_widgets import ControlWidget
 
 import logging
 
+
 class ArduinoMuxWidget(ControlWidget):
     def __init__(self, server, parent=None):
-        logging.info("initializing arduino mux widget")
         self.server = server
-        super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent)
+        super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent, enable=True)
 
 
     def _init_widget(self):
         #self.tabs = QtWidgets.QTabWidget()
         self._init_buttons()
-        logging.info("ran init widget")
-        #self.add_widget(self.tabs)
 
 
     def _init_buttons(self):
-        logging.info("running init buttons for arduino")
-        # TODO: make 16 checkboxes in two groups
-        transmit_state_button = QtWidgets.QPushButton('send set state')
-        transmit_state_button.clicked.connect(lambda _: None) # TODO: implement actuall cmd
-
         test_label = QtWidgets.QLabel('TEST')
 
         channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(16)]
-        logging.info("finished making buttons for arduino")
-
+        transmit_state_button = QtWidgets.QPushButton('send set state')
+        transmit_state_button.clicked.connect(lambda _: self.transmit_state(channel_boxes))
         self.add_widget(widget=[test_label])
         self.add_widget(widget=channel_boxes)
         self.add_widget(transmit_state_button)
-        logging.info("finished adding buttons for arduino")
+
+
+    def transmit_state(self, check_boxes):
+        for i in range(len(check_boxes)):
+            logging.error("setting channel " + str(i) + " to " + str(check_boxes[i].isChecked()))
+            self.set_channel(i, check_boxes[i].isChecked())
+
+
+    def set_channel(self, channel, state):
+        if state:
+            self.send_cmd(hostname=self.server,
+                      target='ArduinoMUX',
+                      cmd='_enable_channel',
+                      cmd_data={'kwargs': {'channel': channel}}
+            )
+        else:
+            self.send_cmd(hostname=self.server,
+                        target='ArduinoMUX',
+                        cmd='_disable_channel',
+                        cmd_data={'kwargs': {'channel': channel}}
+            )
