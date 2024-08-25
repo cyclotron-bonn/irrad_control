@@ -40,10 +40,10 @@ class ArduinoMuxWidget(ControlWidget):
         if state:
             self.send_cmd(hostname=self.server,
                       target='ArduinoMUX',
-                      cmd='enable_channel',
-                      cmd_data={'channel': channel})
+                      cmd='_enable_channel',
+                      cmd_data={'kwd_args': {'channel': channel}})
         else:
             self.send_cmd(hostname=self.server,
                         target='ArduinoMUX',
-                        cmd='disable_channel',
-                        cmd_data={'channel': channel})
+                        cmd='_disable_channel',
+                        cmd_data={'kwd_args': {'channel': channel}})
