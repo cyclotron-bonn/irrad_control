@@ -9,10 +9,6 @@ from irrad_control.gui.widgets.control_widgets import ControlWidget
 
 import logging
 
-def transmit_state(state, sender):
-    for i in range(1):#len(state)):
-        sender(i, state[i].isChecked())
-
 
 class ArduinoMuxWidget(ControlWidget):
     def __init__(self, server, parent=None):
@@ -30,10 +26,15 @@ class ArduinoMuxWidget(ControlWidget):
 
         channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(16)]
         transmit_state_button = QtWidgets.QPushButton('send set state')
-        transmit_state_button.clicked.connect(lambda _: transmit_state(channel_boxes, self.set_channel))
+        transmit_state_button.clicked.connect(lambda _: self.transmit_state(channel_boxes))
         self.add_widget(widget=[test_label])
         self.add_widget(widget=channel_boxes)
         self.add_widget(transmit_state_button)
+
+
+    def transmit_state(self, check_boxes):
+        for i in range(1):
+            self.set_channel(i, check_boxes[i].isChecked())
 
 
     def set_channel(self, channel, state):

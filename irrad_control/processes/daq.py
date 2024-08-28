@@ -73,7 +73,7 @@ class DAQProcess(Process):
 
         # List of input data stream addresses
         self.daq_streams = []
-        
+
         if daq_streams is not None:
             self.add_daq_stream(daq_stream=daq_streams)
 
@@ -256,7 +256,7 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
-        return 'tcp://{}:{}'.format(ip, port)
+        return 'ipc://{}:{}'.format(ip, port)
 
     def recv_cmd(self):
         """
@@ -423,6 +423,8 @@ class DAQProcess(Process):
         delay : float, optional
             Time in seconds sleep in between incoming data checks; useful save resources, by default None
         """
+
+        logging.error(stream)
 
         if stream:
 
