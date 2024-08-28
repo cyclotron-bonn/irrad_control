@@ -10,14 +10,14 @@ from irrad_control.gui.widgets.control_widgets import ControlWidget
 import logging
 
 def transmit_state(state, sender):
-    for i in range(len(state)):
+    for i in range(1):#len(state)):
         sender(i, state[i].isChecked())
 
 
 class ArduinoMuxWidget(ControlWidget):
     def __init__(self, server, parent=None):
         self.server = server
-        super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent)
+        super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent, enable=True)
 
 
     def _init_widget(self):
@@ -37,13 +37,16 @@ class ArduinoMuxWidget(ControlWidget):
 
 
     def set_channel(self, channel, state):
+        logging.error(self.server)
         if state:
             self.send_cmd(hostname=self.server,
                       target='ArduinoMUX',
                       cmd='_enable_channel',
-                      cmd_data={'kwd_args': {'channel': channel}})
+                      cmd_data={'kwargs': {'channel': channel}}
+            )
         else:
             self.send_cmd(hostname=self.server,
                         target='ArduinoMUX',
                         cmd='_disable_channel',
-                        cmd_data={'kwd_args': {'channel': channel}})
+                        cmd_data={'kwargs': {'channel': channel}}
+            )
