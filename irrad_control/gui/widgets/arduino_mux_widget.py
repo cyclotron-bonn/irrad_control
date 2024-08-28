@@ -33,12 +33,12 @@ class ArduinoMuxWidget(ControlWidget):
 
 
     def transmit_state(self, check_boxes):
-        for i in range(1):
+        for i in range(len(check_boxes)):
+            logging.error("setting channel " + str(i) + " to " + str(check_boxes[i].isChecked()))
             self.set_channel(i, check_boxes[i].isChecked())
 
 
     def set_channel(self, channel, state):
-        logging.error(self.server)
         if state:
             self.send_cmd(hostname=self.server,
                       target='ArduinoMUX',

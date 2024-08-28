@@ -35,12 +35,12 @@ class ArduinoMUX(ArduinoSerial):
 
 
     def _enable_channel(self, channel: int = 16):
-        logging.error("called enable channel")
+        logging.info("called enable channel")
         self.write(self.create_cmd(self.CMDS['enable_channel'], channel))
 
 
     def _disable_channel(self, channel: int = 16):
-        logging.error("called disable channel")
+        logging.info("called disable channel")
         self.write(self.create_cmd(self.CMDS['disable_channel'], channel))
 
 
