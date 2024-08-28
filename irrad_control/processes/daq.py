@@ -132,7 +132,7 @@ class DAQProcess(Process):
                 self.sockets[sock].setsockopt(zmq.LINGER, rep_linger)
 
             # Bind socket to random port
-            self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='ipc://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
+            self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='tcp://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
 
     def create_internal_data_pub(self):
         """
@@ -256,7 +256,7 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
-        return 'ipc://{}:{}'.format(ip, port)
+        return 'tcp://{}:{}'.format(ip, port)
 
     def recv_cmd(self):
         """
