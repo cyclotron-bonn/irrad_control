@@ -44,7 +44,7 @@ class ArduinoMUX(ArduinoSerial):
         self.write(self.create_cmd(self.CMDS['disable_channel'], channel))
 
 
-    @property
+    #@property
     def channel_states(self):
         response = self.query(self.create_cmd(self.CMDS['get_status']))
         response = response.split()
