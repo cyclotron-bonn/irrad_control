@@ -9,6 +9,7 @@ from irrad_control.gui.widgets import MotorstagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
 
+import logging
 
 class ControlWidget(GridContainer):
 
@@ -24,6 +25,10 @@ class ControlWidget(GridContainer):
 
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
+        logging.error({'hostname': hostname,
+                           'target': target,
+                           'cmd': cmd,
+                           'cmd_data': cmd_data})
         self.sendCmd.emit({'hostname': hostname,
                            'target': target,
                            'cmd': cmd,
