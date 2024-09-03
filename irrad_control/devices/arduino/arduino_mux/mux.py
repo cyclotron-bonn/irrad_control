@@ -1,7 +1,7 @@
 from irrad_control.devices.arduino.arduino_serial import ArduinoSerial
 import threading
 import time
-#import logging
+import logging
 
 class ArduinoMUX(ArduinoSerial):
     CMDS = {
@@ -20,6 +20,7 @@ class ArduinoMUX(ArduinoSerial):
 
 
     def __init__(self, port="/dev/ttyS0", baudrate=9600, timeout=1):
+        logging.error("initiating arduino mux")
         super().__init__(port, baudrate, timeout)
         # start ping thread here??
 
