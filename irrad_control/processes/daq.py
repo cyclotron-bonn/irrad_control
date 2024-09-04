@@ -256,6 +256,7 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
+        logging.error("generated tcp address for ip: {}".format(ip))
         return 'tcp://{}:{}'.format(ip, port)
 
     def recv_cmd(self):
