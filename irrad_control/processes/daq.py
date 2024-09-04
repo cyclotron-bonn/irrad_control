@@ -395,7 +395,7 @@ class DAQProcess(Process):
         stream_container: list
             List to which stream address is to be added to
         """
-
+        logging.error("adding {} to steams".format(stream))
         streams_to_add = stream if isinstance(stream, (list, tuple)) else [stream]
 
         if not all(isinstance(ds, str) for ds in streams_to_add):

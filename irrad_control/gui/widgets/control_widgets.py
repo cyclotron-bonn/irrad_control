@@ -25,10 +25,6 @@ class ControlWidget(GridContainer):
 
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
-        logging.error({'hostname': hostname,
-                           'target': target,
-                           'cmd': cmd,
-                           'cmd_data': cmd_data})
         self.sendCmd.emit({'hostname': hostname,
                            'target': target,
                            'cmd': cmd,
