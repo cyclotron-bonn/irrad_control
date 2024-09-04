@@ -60,6 +60,7 @@ def check_zmq_addr(addr):
             return False
 
         if len(ip) >= 5:
+            logging.error("ip not a valid ip: {}".format(ip))
             return False
 
         try:
