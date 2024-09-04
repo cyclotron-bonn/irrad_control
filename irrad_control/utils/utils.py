@@ -59,7 +59,7 @@ def check_zmq_addr(addr):
             logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
             return False
 
-        if len(ip) >= 5:
+        if len(ip) <= 5:
             logging.error("ip not a valid ip: {}".format(ip))
             return False
 
