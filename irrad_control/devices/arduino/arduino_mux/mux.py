@@ -21,6 +21,7 @@ class ArduinoMUX(ArduinoSerial):
 
     def __init__(self, port="/dev/ttyS0", baudrate=9600, timeout=1):
         logging.error("initiating arduino mux")
+        logging.error("port={} baudrate={} timeout={}".format(port, baudrate, timeout))
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
         logging.error("super init finished")
         # start ping thread here??

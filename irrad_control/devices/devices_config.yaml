@@ -86,4 +86,4 @@ ArduinoMUX:
   init:
     port: /dev/ttyS0
     baudrate: 9600
-    timeout: 5
+    timeout: 1
