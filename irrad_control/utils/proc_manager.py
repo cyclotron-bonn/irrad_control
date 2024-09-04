@@ -160,7 +160,7 @@ class ProcessManager(object):
         if hostname not in self.client:
             logging.warning("SSH-client not connected to server. Call {}.connect_to_server method."
                             .format(self.__class__.__name__))
-            return
+            return [None]
 
         # Execute; this is non-blocking so we have to wait until cmd has been transmitted to server before closing
         stdin, stdout, stderr = self.client[hostname].exec_command(cmd)
@@ -182,7 +182,7 @@ class ProcessManager(object):
         stdout.close()
         stderr.close()
 
-        return stdout_lines if return_stdout else None
+        return stdout_lines if return_stdout else [None]
 
     def copy_to_server(self, hostname, local_filepath, remote_filepath):
         """Copy local file at local_filepath to server at remote_filepath"""
