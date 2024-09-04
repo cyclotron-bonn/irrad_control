@@ -396,7 +396,6 @@ class DAQProcess(Process):
         stream_container: list
             List to which stream address is to be added to
         """
-        logging.error("adding {} to steams".format(stream))
         streams_to_add = stream if isinstance(stream, (list, tuple)) else [stream]
 
         if not all(isinstance(ds, str) for ds in streams_to_add):
@@ -405,6 +404,7 @@ class DAQProcess(Process):
 
         for strm in streams_to_add:
             if check_zmq_addr(strm) and strm not in stream_container:
+                logging.error("adding {} to steams".format(stream))
                 stream_container.append(strm)
 
     def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
