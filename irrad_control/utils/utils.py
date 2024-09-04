@@ -17,7 +17,7 @@ def get_current_git_branch(default='main'):
         active_branch, = [b.replace('*', '').strip() for b in local_branches.split('\n') if '*' in b]
 
         return active_branch
-    
+
     except (CalledProcessError, FileNotFoundError):
         return default
 
@@ -58,6 +58,10 @@ def check_zmq_addr(addr):
         if ip[:2] != '//':
             logging.error("Incorrect address format. Must be 'protocol://address:port' for 'tcp/udp' protocols")
             return False
+
+        if len(ip) >= 5:
+            return False
+
         try:
             port = int(port)
             if not 0 < port < 2 ** 16 - 1:
@@ -107,7 +111,7 @@ class Lock:
     """
     Unix-style lock using file lock
     Mainly used to write to one irrad_control.pid file
-    when there are more then 1 DAQProcess running on host 
+    when there are more then 1 DAQProcess running on host
     """
     def __enter__(self):
         self.lfh = open(lock_file)
@@ -124,7 +128,7 @@ def duration_str_from_secs(seconds, as_tuple=False):
     hours = (days % 1) * 24
     minutes = (hours % 1) * 60
     seconds = (minutes % 1) * 60
-    
+
     # Return tuple in full days, hours, minutes and seconds
     res = tuple(int(x) for x in [days, hours, minutes, seconds])
 
