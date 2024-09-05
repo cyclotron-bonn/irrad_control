@@ -16,7 +16,7 @@ void reset_in(int ms) {
 void dead_state() {
     for (uint c = 0; c < state::channel_count; ++c) {
         digitalWrite(state::channels[c], state::default_state[c]);
-    }    
+    }
 }
 
 
@@ -30,7 +30,7 @@ void output_pin_state() {
 }
 
 
-//parses the read buffer and 
+//parses the read buffer and
 // returns zero on success or numerical error code on failure
 int parse(uint read_size) {
     int cmd_c;
@@ -49,7 +49,7 @@ int parse(uint read_size) {
     }
 
     if (state::read_buffer[0] == state::enable_char) {
-        cmd_c = atoi(state::read_buffer + 1);
+        cmd_c = atoi(state::read_buffer + 2);
         if (cmd_c < 0 || cmd_c >= state::channel_count) {
             return 1;
         }
@@ -59,7 +59,7 @@ int parse(uint read_size) {
     }
 
     if (state::read_buffer[0] == state::disable_char) {
-        cmd_c = atoi(state::read_buffer + 1);
+        cmd_c = atoi(state::read_buffer + 2);
         if (cmd_c < 0 || cmd_c >= state::channel_count) {
             return 1;
         }
@@ -102,7 +102,7 @@ void loop() {
     uint read_len = state::serial.readBytesUntil(state::terminator, state::read_buffer, state::buff_len);
 
     if (!read_len) dead_state(); // read_len being zero implies no data received in the timeout time
-    
+
     // should it shut down on invalid data or just wait for valid data??
     else if (parse(read_len)) dead_state(); // a parse failure implies invalid data in the received
     else if (state::changes_occured) output_pin_state();
