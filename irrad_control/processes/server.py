@@ -285,6 +285,8 @@ class IrradServer(DAQProcess):
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
+        logging.error("got command: {} {}".format(target, cmd))
+
         # Check if we want to call a devices method directly
         if target in self.devices and hasattr(self.devices[target], cmd):
             self._call_device_method(device=target, method=cmd, call_data=data)
