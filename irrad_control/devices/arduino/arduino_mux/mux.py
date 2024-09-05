@@ -25,29 +25,34 @@ class ArduinoMUX(ArduinoSerial):
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
         logging.error("super init finished")
         # start ping thread here??
+        self.enable_ping = True
+        self.ping_thread = threading.Thread(target = self.ping_loop)
 
 
     def ping_loop(self):
-        while True:
+        while self.enable_ping:
             self.ping()
             time.sleep(self.delay)
 
 
     def ping(self):
-        self.write(self.create_cmd(self.CMDS['ping']))
+        logging.error("pinging")
+        self.write(self.create_command(self.CMDS['ping']))
 
 
     def _enable_channel(self, channel: int = 16):
         logging.error("called enable channel")
-        self.write(self.create_cmd(self.CMDS['enable_channel'], channel))
+        logging.error("{}".format(self.create_command(self.CMDS['enable_channel'], channel)))
+        self.write(self.create_command(self.CMDS['enable_channel'], channel))
 
 
     def _disable_channel(self, channel: int = 16):
         logging.error("called disable channel")
-        self.write(self.create_cmd(self.CMDS['disable_channel'], channel))
+        logging.error("{}".format(self.create_command(self.CMDS['disable_channel'], channel)))
+        self.write(self.create_command(self.CMDS['disable_channel'], channel))
 
 
     #@property
     def channel_states(self):
-        response = self.query(self.create_cmd(self.CMDS['get_status']))
+        response = self.query(self.create_command(self.CMDS['get_status']))
         response = response.split()
