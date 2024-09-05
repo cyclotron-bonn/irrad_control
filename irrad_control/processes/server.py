@@ -51,6 +51,7 @@ class IrradServer(DAQProcess):
         self._launch_daq_threads()
 
         # Listen to events from converter
+        logging.error("server setting up event stream with {}".format(self.setup['host']))
         self.add_event_stream(event_stream=self._tcp_addr(ip=self.setup['host'], port=self.setup['ports']['event']))
         self.launch_thread(target=self.recv_event)
 
@@ -284,6 +285,7 @@ class IrradServer(DAQProcess):
     def handle_cmd(self, target, cmd, data=None):
         """Handle all commands. After every command a reply must be send."""
 
+
         # Check if we want to call a devices method directly
         if target in self.devices and hasattr(self.devices[target], cmd):
             self._call_device_method(device=target, method=cmd, call_data=data)
@@ -311,8 +313,8 @@ class IrradServer(DAQProcess):
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
-    def handle_event(self, event_data):
 
+    def handle_event(self, event_data):
         # Only handle events of this server
         if event_data['server'] != self.server:
             logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")
