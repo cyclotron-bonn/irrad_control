@@ -20,10 +20,10 @@ class ArduinoMUX(ArduinoSerial):
 
 
     def __init__(self, port="/dev/ttyS0", baudrate=9600, timeout=1):
-        logging.error("initiating arduino mux")
-        logging.error("port={} baudrate={} timeout={}".format(port, baudrate, timeout))
+        #logging.error("initiating arduino mux")
+        #logging.error("port={} baudrate={} timeout={}".format(port, baudrate, timeout))
         super().__init__(port=port, baudrate=baudrate, timeout=timeout)
-        logging.error("super init finished")
+        #logging.error("super init finished")
         # start ping thread here??
         self.enable_ping = True
         self.ping_thread = threading.Thread(target = self.ping_loop)
@@ -37,19 +37,19 @@ class ArduinoMUX(ArduinoSerial):
 
 
     def ping(self):
-        logging.error("pinging")
+        #logging.error("pinging")
         self.write(self.create_command(self.CMDS['ping']))
 
 
     def _enable_channel(self, channel: int = 16):
-        logging.error("called enable channel")
-        logging.error("{}".format(self.create_command(self.CMDS['enable_channel'], channel)))
+        #logging.error("called enable channel")
+        #logging.error("{}".format(self.create_command(self.CMDS['enable_channel'], channel)))
         self.write(self.create_command(self.CMDS['enable_channel'], channel))
 
 
     def _disable_channel(self, channel: int = 16):
-        logging.error("called disable channel")
-        logging.error("{}".format(self.create_command(self.CMDS['disable_channel'], channel)))
+        #logging.error("called disable channel")
+        #logging.error("{}".format(self.create_command(self.CMDS['disable_channel'], channel)))
         self.write(self.create_command(self.CMDS['disable_channel'], channel))
 
 
