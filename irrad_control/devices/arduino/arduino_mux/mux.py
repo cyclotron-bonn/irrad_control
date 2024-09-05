@@ -27,6 +27,7 @@ class ArduinoMUX(ArduinoSerial):
         # start ping thread here??
         self.enable_ping = True
         self.ping_thread = threading.Thread(target = self.ping_loop)
+        self.ping_thread.start()
 
 
     def ping_loop(self):
