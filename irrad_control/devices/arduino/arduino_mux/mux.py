@@ -57,3 +57,8 @@ class ArduinoMUX(ArduinoSerial):
     def channel_states(self):
         response = self.query(self.create_command(self.CMDS['get_status']))
         response = response.split()
+
+
+    def shutdown(self):
+        self.enable_ping = False
+        self.ping_thread.join()
