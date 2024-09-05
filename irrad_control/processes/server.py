@@ -313,10 +313,8 @@ class IrradServer(DAQProcess):
             logging.error(f"Command {cmd} with target {target} does not exist for server {self.name}.")
             self._send_reply(reply=cmd, _type='ERROR', sender=target)
 
-        logging.error("got command: {} {} {}".format(target, cmd, data))
 
     def handle_event(self, event_data):
-
         # Only handle events of this server
         if event_data['server'] != self.server:
             logging.warning(f"Received event of server {event_data['server']} not meant for this server {self.server}!")

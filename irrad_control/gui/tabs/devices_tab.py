@@ -30,12 +30,17 @@ class IrradDevicesTab(QtWidgets.QWidget):
 
         for server in self.setup:
             self._init_tab(server=server)
+            self.enable_devices(server=server, enable=True)
 
 
     def _init_tab(self, server):
         # TODO: make devices selectable
         logging.info("initing devices tab")
         arduino_mux = ArduinoMuxWidget(server=server)
+
+        #connect send_cmd
+        arduino_mux.sendCmd.connect(lambda cmd: self.send_cmd(**cmd))
+
         # Split tab in quadrants
         splitter = QtWidgets.QSplitter()
         splitter.setOrientation(QtCore.Qt.Vertical)

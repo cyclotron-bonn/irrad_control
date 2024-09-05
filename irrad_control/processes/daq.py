@@ -256,7 +256,6 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
-        logging.error("generated tcp address for ip: {}".format(ip))
         return 'tcp://{}:{}'.format(ip, port)
 
     def recv_cmd(self):
@@ -404,7 +403,6 @@ class DAQProcess(Process):
 
         for strm in streams_to_add:
             if check_zmq_addr(strm) and strm not in stream_container:
-                logging.error("adding {} to steams".format(stream))
                 stream_container.append(strm)
 
     def _recv_from_stream(self, kind, stream, callback, pub_results=False, delay=None):
@@ -424,8 +422,6 @@ class DAQProcess(Process):
         delay : float, optional
             Time in seconds sleep in between incoming data checks; useful save resources, by default None
         """
-
-        logging.error("receiving from stream: {}".format(stream))
 
         if stream:
 
