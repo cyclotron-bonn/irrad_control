@@ -425,7 +425,7 @@ class DAQProcess(Process):
             Time in seconds sleep in between incoming data checks; useful save resources, by default None
         """
 
-        logging.error(stream)
+        logging.error("receiving from stream: {}".format(stream))
 
         if stream:
 

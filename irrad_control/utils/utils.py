@@ -43,6 +43,8 @@ def check_zmq_addr(addr):
 
     addr_components = addr.split(':')
 
+    logging.error("addr components are: {}".format(addr_components))
+
     # Not TCP or UDP
     if len(addr_components) == 2:
         protocol, endpoint = addr_components
