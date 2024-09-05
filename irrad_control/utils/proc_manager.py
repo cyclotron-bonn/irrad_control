@@ -126,7 +126,8 @@ class ProcessManager(object):
 
         if hostname in self.client:
             cmd_check_file_exits = 'if [[ -f {} ]]; then echo "1"; else echo "0"; fi'.format(file_path)
-            file_exists = int(self._exec_cmd(hostname=hostname, cmd=cmd_check_file_exits, return_stdout=True)[0]) == 1
+            response = self._exec_cmd(hostname=hostname, cmd=cmd_check_file_exits, return_stdout=True)
+            file_exists = len(response) > 0 and int(response) == 1
         else:
             file_exists = os.path.isfile(file_path)
 
