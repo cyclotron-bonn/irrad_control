@@ -424,7 +424,7 @@ class DAQProcess(Process):
         """
 
         if stream:
-
+            logging.error(stream)
             logging.info(f'Start receiving {kind}')
 
             # Create subscriber for raw and XY-Stage data
