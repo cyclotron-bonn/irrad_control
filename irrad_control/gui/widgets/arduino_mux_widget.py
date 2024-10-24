@@ -19,6 +19,11 @@ class ArduinoMuxWidget(ControlWidget):
     def _init_widget(self):
         #self.tabs = QtWidgets.QTabWidget()
         self._init_buttons()
+        self._init_info_boxes()
+
+
+    def _init_info_boxes(self):
+        pass
 
 
     def _init_buttons(self):
@@ -34,11 +39,6 @@ class ArduinoMuxWidget(ControlWidget):
 
     def transmit_state(self, check_boxes):
         for i in range(len(check_boxes)):
-            self.send_cmd(hostname=self.server,
-                      target='ArduinoMUX',
-                      cmd='_enable_channel',
-                      cmd_data={'kwargs': {'channel': 3}}
-            )
             self.set_channel(i, check_boxes[i].isChecked())
 
 
