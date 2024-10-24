@@ -248,8 +248,8 @@ class IrradGUI(QtWidgets.QMainWindow):
         logging.getLogger().addHandler(self.logger)
 
         # Connect logger signal to logger console
-        #LoggingStream.stdout().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
-        #LoggingStream.stderr().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
+        LoggingStream.stdout().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
+        LoggingStream.stderr().messageWritten.connect(lambda msg: self.log_widget.write_log(msg))
 
         logging.info('Started "irrad_control" on %s' % platform.system())
 
