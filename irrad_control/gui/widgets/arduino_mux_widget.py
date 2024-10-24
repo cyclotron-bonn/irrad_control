@@ -29,7 +29,7 @@ class ArduinoMuxWidget(ControlWidget):
     def _init_buttons(self):
         test_label = QtWidgets.QLabel('TEST')
 
-        channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(16)]
+        channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(1, 17)]
         transmit_state_button = QtWidgets.QPushButton('send set state')
         transmit_state_button.clicked.connect(lambda _: self.transmit_state(channel_boxes))
         self.add_widget(widget=[test_label])
