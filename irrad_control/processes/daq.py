@@ -460,6 +460,7 @@ class DAQProcess(Process):
                 # Publish data
                 if pub_results:
                     for res in result:
+                        logging.error(res)
                         internal_pub.send_json(res)
 
             external_sub.close()
