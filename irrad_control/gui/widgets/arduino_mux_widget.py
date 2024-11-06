@@ -19,26 +19,70 @@ class ArduinoMuxWidget(ControlWidget):
     def _init_widget(self):
         #self.tabs = QtWidgets.QTabWidget()
         self._init_buttons()
-        self._init_info_boxes()
+        #self._init_info_boxes()
 
 
     def _init_info_boxes(self):
         pass
 
+    def activate_transmit(self):
+        self.transmit_state_button.setEnabled(True)
+
 
     def _init_buttons(self):
-        test_label = QtWidgets.QLabel('TEST')
+#        channel_boxes = [QtWidgets.QCheckBox('channel ' + str(n)) for n in range(1, 17)]
+        self.channel_boxes = [QtWidgets.QPushButton('channel ' + str(n)) for n in range(1, 17)]
 
-        channel_boxes = [QtWidgets.QCheckBox('channel' + str(n)) for n in range(1, 17)]
-        transmit_state_button = QtWidgets.QPushButton('send set state')
-        transmit_state_button.clicked.connect(lambda _: self.transmit_state(channel_boxes))
-        self.add_widget(widget=[test_label])
-        self.add_widget(widget=channel_boxes)
-        self.add_widget(transmit_state_button)
+        style = """QPushButton {
+            background-color: grey;
+        }
+        QPushButton:checked {
+            background-color: red;
+        }"""
+
+        for i in range(len(self.channel_boxes)):
+            self.channel_boxes[i].setCheckable(True)
+            self.channel_boxes[i].setFixedSize(80, 60)
+            self.channel_boxes[i].setStyleSheet(style)
+            self.channel_boxes[i].clicked.connect(self.activate_transmit)
+
+        label_con1 = QtWidgets.QLineEdit('Connector 1')
+        label_con1.setAlignment(QtCore.Qt.AlignCenter)
+        label_con1.setReadOnly(True)
+        label_con2 = QtWidgets.QLineEdit('Connector 2')
+        label_con2.setAlignment(QtCore.Qt.AlignCenter)
+        label_con2.setReadOnly(True)
+
+        con1_box = QtWidgets.QGridLayout()
+        #con1_box.setSpacing(2)
+        con2_box = QtWidgets.QGridLayout()
+        #con2_box.setSpacing(2)
+
+        con1_box.addWidget(label_con1, 0, 0, 1, 2)
+        con2_box.addWidget(label_con2, 0, 0, 1, 2)
+
+        for i in range(4):
+            con1_box.addWidget(self.channel_boxes[i], i + 1, 0)
+            con1_box.addWidget(self.channel_boxes[i + 4], i + 1, 1)
+
+            con2_box.addWidget(self.channel_boxes[i + 8], i + 1, 0)
+            con2_box.addWidget(self.channel_boxes[i + 4 + 8], i + 1, 1)
+
+        self.transmit_state_button = QtWidgets.QPushButton('send set state')
+        self.transmit_state_button.clicked.connect(lambda _: self.transmit_state(self.channel_boxes))
+
+        meta_box = QtWidgets.QHBoxLayout()
+        meta_box.addLayout(con1_box)
+        meta_box.addLayout(con2_box)
+
+        self.add_widget(meta_box)
+        self.add_widget(self.transmit_state_button)
 
 
     def transmit_state(self, check_boxes):
+        self.transmit_state_button.setEnabled(False)
         for i in range(len(check_boxes)):
+            print(str(i) + ' ' + str(check_boxes[i].isChecked()))
             self.set_channel(i, check_boxes[i].isChecked())
 
 
