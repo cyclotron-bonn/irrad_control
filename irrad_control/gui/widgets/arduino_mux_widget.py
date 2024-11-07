@@ -14,6 +14,7 @@ import logging
 class ArduinoMuxWidget(ControlWidget):
     def __init__(self, server, parent=None):
         self.server = server
+        self.internal_state = None
         super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent, enable=True)
 
 
@@ -46,7 +47,7 @@ class ArduinoMuxWidget(ControlWidget):
 
         for i in range(len(self.channel_boxes)):
             self.channel_boxes[i].setCheckable(True)
-            self.channel_boxes[i].setFixedSize(100, 60)
+            self.channel_boxes[i].setFixedSize(80, 40)
             self.channel_boxes[i].setStyleSheet(style)
             self.channel_boxes[i].clicked.connect(self.activate_transmit)
 
@@ -88,17 +89,21 @@ class ArduinoMuxWidget(ControlWidget):
 
     def rename_channel_buttons(self, naming_string):
         for line in naming_string.split('\n'):
-            num = int(line.split(":")[0])
-            name = "".join(line.split(":")[1:])
-            self.channel_boxes[num - 1].setText(name)
+            try:
+                num = int(line.split(":")[0])
+                name = "".join(line.split(":")[1:])
+                self.channel_boxes[num - 1].setText(name)
+            except:
+                pass
 
 
     def input_dialog(self):
-        filename , ok = QtWidgets.QFileDialog.getOpenFileName(self, 'InputDialog','channel: name')
+        filename , ok = QtWidgets.QFileDialog.getOpenFileName(self, 'Select channel file','channel: name')
         if ok:
             with open(filename) as file:
                 text = file.read()
                 self.rename_channel_buttons(text)
+
 
     def transmit_state(self, check_boxes):
         self.transmit_state_button.setEnabled(False)
