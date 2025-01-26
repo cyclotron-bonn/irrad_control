@@ -94,3 +94,6 @@ session:
   loglevel: NOTSET
   outfile: /home/irradiation/Messungen/PI/Silab/Bestrahlungen/ITkPixV1_Pascal/mixed_irradiation/9e15/9e15_itkpix
   outfolder: /home/irradiation/Messungen/PI/Silab/Bestrahlungen/ITkPixV1_Pascal/mixed_irradiation/9e15
+  sid:
+    - SID-69420a-MONOPIX-SiLab-TJ2-2025
+    - SID-69420b-MONOPIX-SiLab-LF2-2025
