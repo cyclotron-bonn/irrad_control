@@ -3,7 +3,7 @@ pyzmq  # 0MQ
 paramiko>=3.4.0  # SSH API in python
 pyyaml  # yaml
 tables  # pytables HDF5 library in Python
-matplotlib  # Plotting colors
+matplotlib<3.9.0  # Plotting colors
 uncertainties  # Error propagation
 pytest  # Tests
 numba  # NumPy -aware JIT Compiler
