@@ -1,4 +1,5 @@
 import tables as tb
+import numpy as np
 import collections.abc
 
 # Package imports
@@ -84,3 +85,49 @@ def load_irrad_data(data_file, config_file, specify_entries=None, subtract_raw_o
                         irrad_data[server_name]['Raw'][dname] -= irrad_data[server_name]['RawOffset'][-1][dname]
 
     return irrad_data, irrad_config
+
+
+def duration_str_from_secs(seconds, as_tuple=False):
+
+    days = seconds / (24 * 3600)
+    hours = (days % 1) * 24
+    minutes = (hours % 1) * 60
+    seconds = (minutes % 1) * 60
+    
+    # Return tuple in full days, hours, minutes and seconds
+    res = tuple(int(x) for x in [days, hours, minutes, seconds])
+
+    if as_tuple:
+        return res
+    else:
+        return ", ".join(f"{a[0]}{a[1]}" for a in zip(res, 'dhms') if a[0]) or '0s'
+
+
+def win_from_timestamps(ts_data, other_data, ts_start, ts_stop, to_secs=False):
+        idx_start, idx_stop = np.searchsorted(ts_data, [ts_start, ts_stop])
+        d_ts, d_ot = ts_data[idx_start:idx_stop], other_data[idx_start:idx_stop]
+        if to_secs:
+            d_ts = d_ts - d_ts[0]
+        return d_ts, d_ot
+
+
+def generate_default_summary_dict():
+    return {
+            'beam': {
+                     'ion': None,
+                     'kappa': None,
+                     'energy': None,
+                     'current': None,
+                     'lambda': None
+                    },
+            'irrad': {
+                     'date': None,
+                     'duration': None,
+                     'scan': None,
+                     'fluence_ion': None,
+                     'fluence_neq': None,
+                     'tid': None,
+                     'temp': None
+                    },
+            'sid': None,
+            'summary_generated': False}
