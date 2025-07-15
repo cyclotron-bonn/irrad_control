@@ -1,5 +1,5 @@
 pyzmq==26.2.0  # 0MQ
-pyyam==6.0.2 # yaml package
+pyyaml==6.0.2 # yaml package
 pipyadc==2.1  # Raspberry Pi ADS1256 library
 zaber.serial==0.9.1  # Zaber Stages serial communictaion
 pyserial==3.5  # Serial communication
