@@ -81,3 +81,9 @@ RadiationMonitor:
     counter_type: GasCounter
     counter_port: /dev/Arduino-Radiation-Monitor
     hv_port: /dev/ISEG-HV
+
+ArduinoMUX:
+  init:
+    port: /dev/ttyS0
+    baudrate: 9600
+    timeout: 1

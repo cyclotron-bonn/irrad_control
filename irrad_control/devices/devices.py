@@ -1,5 +1,7 @@
 from . import DEVICES_CONFIG
 
+import logging
+
 # Readout-related
 from .readout.daq_board import IrradDAQBoard
 from .readout.adc_board import ADCBoard
@@ -11,6 +13,7 @@ from .motorstage.motorstage import ScanStage, SetupTableStage, ExternalCupStage
 
 # Arduino
 from .arduino.ntc_readout.arduino_ntc import ArduinoNTCReadout
+from .arduino.arduino_mux.mux import ArduinoMUX
 
 # RadMonitor
 from .rad_monitor.rad_monitor import RadiationMonitor
