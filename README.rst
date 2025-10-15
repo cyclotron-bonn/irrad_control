@@ -32,7 +32,7 @@ Installation
 Prerequisites
 -------------
 
-``irrad_control`` requires Python >= 3.9 (3.9, 3.10 are tested). When installing using the ``install.sh`` script (see below), the current active Python environment is used to create a virtual environment.
+``irrad_control`` requires Python >= 3.11 (3.11 and latest (3.X) are tested). When installing using the ``install.sh`` script (see below), the current active Python environment is used to create a virtual environment.
 However, it is recommended to use a Python interpreter isolated from your system Python such as `Miniconda <https://conda.io/miniconda.html>`_. After installation, the included ``conda`` package manager
 allows to easily create new, isolated environments and activate them using the ``conda activate YourEnvName`` command.
 
@@ -208,13 +208,10 @@ information on the setup, the irradiation procedure & characteristics or addiati
 Publications
 ============
 
-Publications related to the proton irradiation site can be found below. If you are publishing results obtained by performing
-irradiations or test beams at the proton irradiation site at Bonn university, please cite a suitable publication.
+Publications related to the proton irradiation site can be found `here <https://www.zyklotron.hiskp.uni-bonn.de/publications_EN.html>`_, on the the cyclotron homepage. If you are publishing results obtained by performing
+irradiations or test beams at the proton irradiation site at Bonn university, please cite the paper below:
 
-* 2022
-
-    #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for Si-Detectors at the Bonn Isochronous Cyclotron”, in Proc. IPAC'22, Bangkok, Thailand, Jun. 2022, pp. 130-132. doi:10.18429/JACoW-IPAC2022-MOPOST030 <https://ipac2022.vrws.de/papers/mopost030.pdf>`_
-    #. `D. Sauerland, R. Beck, J. Dingfelder, P.D. Eversheim, and P. Wolf, “Proton Irradiation Site for High-Uniformity Radiation Hardness Tests of Silicon Detectors at the Bonn Isochronous Cyclotron”, in Proc. Cyclotrons'22, Beijing, China, Dec. 2022, PREPRINT <https://www.zyklotron.hiskp.uni-bonn.de/zyklo/sources/proceedings/MOBO03.pdf>`_) 
+`P. Wolf, D. Sauerland, R. Beck and J. Dingfelder, “A beam-driven proton irradiation setup for precision radiation damage tests of silicon detectors”, NIMA, Volume 1064, July 2024, doi:10.1016/j.nima.2024.169358 <https://www.sciencedirect.com/science/article/pii/S0168900224002845>`_
 
 
 .. |test-status| image:: https://github.com/Cyclotron-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=main
