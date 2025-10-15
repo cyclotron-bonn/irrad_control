@@ -1,3 +1,5 @@
+
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
@@ -10,10 +12,12 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from irrad_control.analysis.formulas import lin_odr
-from irrad_control.utils.utils import duration_str_from_secs
+from irrad_control.analysis.utils import duration_str_from_secs, win_from_timestamps
 from irrad_control.ions import get_ions
+from irrad_control import package_path
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
@@ -345,14 +349,7 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
 
 def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
-
-    def _win_from_timestamps(ts_data, other_data, ts_start, ts_stop, to_secs=False):
-        idx_start, idx_stop = np.searchsorted(ts_data, [ts_start, ts_stop])
-        d_ts, d_ot = ts_data[idx_start:idx_stop], other_data[idx_start:idx_stop]
-        if to_secs:
-            d_ts = d_ts - d_ts[0]
-        return d_ts, d_ot
-    
+   
     def _to_dt(ts, delta=False):
         return [datetime.fromtimestamp(t) if not delta else timedelta(seconds=float(t)) for t in ts]
     
@@ -439,11 +436,11 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         time_fmt = '%H:%M'
     
     # Plot beam current
-    beam_ts, beam_nanos = _win_from_timestamps(beam_data['timestamp'],
-                                               beam_data['beam_current'] / irrad_consts.nano,
-                                               start_ts,
-                                               stop_ts,
-                                               to_secs=False)
+    beam_ts, beam_nanos = win_from_timestamps(beam_data['timestamp'],
+                                              beam_data['beam_current'] / irrad_consts.nano,
+                                              start_ts,
+                                              stop_ts,
+                                              to_secs=False)
     ax_beam.plot(_to_dt(beam_ts), beam_nanos, label='Beam current')
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
@@ -512,11 +509,11 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
         ax_temp = ax_beam.twinx()
         ax_temp.set_ylabel(r'Temperature / $\mathrm{^\circ C}$')
         for i, temp in enumerate(t for t in temp_data.dtype.names if t != 'timestamp'):
-            temp_ts, temp_dt = _win_from_timestamps(temp_data['timestamp'],
-                                                    temp_data[temp],
-                                                    start_ts,
-                                                    stop_ts,
-                                                    to_secs=False)
+            temp_ts, temp_dt = win_from_timestamps(temp_data['timestamp'],
+                                                   temp_data[temp],
+                                                   start_ts,
+                                                   stop_ts,
+                                                   to_secs=False)
             ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
         ax_temp.legend(loc='upper center', fontsize=8)
 
@@ -715,3 +712,65 @@ def plot_fluence_distribution(fluence_data, ion, hardness_factor=1, stoping_powe
     align_axis(ax, 0, ax_neq, 0, axis='x')
     ax_neq.grid(False)
     return fig, ax
+
+
+def generate_summary_page(summary_dict):
+
+    # Build a rectangle in axes coords
+    left, width = .25, .5
+    bottom, height = .25, .5
+    right = left + width
+    top = bottom + height
+
+    # Empty figure to start with
+    fig = plt.figure()
+    #FigureCanvasAgg(fig)
+    ax = fig.add_subplot(111)
+    ax.axis('off')
+
+    # Add HISKP logo to top right corner
+    logo_half_size = plt.imread(os.path.abspath(os.path.join(package_path, '../assets/hiskp.png')))
+    fig.figimage(logo_half_size, fig.bbox.xmax * .825, fig.bbox.ymax  * .825)
+
+    # Make title
+    ax.text(s="Summary of Irradiation Campaign",x=0.5*(left+right),
+            y=bottom+top, horizontalalignment='center', verticalalignment='center', rotation=0, fontsize=16,
+            bbox=dict(boxstyle='round', facecolor='white', edgecolor='#004e9f', alpha=1))
+    
+    # Locations of individual tables
+    bboxxs = {'beam': (0.0, 0.3, 0.5, 0.5),
+              'irrad': (0.5, 0.3, 0.5, 0.5),
+              'sid': (0.0, 0.0, 1.0, 0.3)}
+    
+    bold_prop_text = lambda desc: rf"$\mathrm{{\mathbf{{[{desc}]}}\Rightarrow}}$"
+
+    headers = {'beam': 'Beam Properties', 'irrad': 'Irradiation Properties', 'sid': 'Sample ID(s)'}
+    
+    # Formatting
+    props = {'ion': lambda t: "{} {}".format(bold_prop_text('Ion'), t.capitalize()),
+             'kappa': lambda t: "{} {:.2f}".format(bold_prop_text('Hardness\, factor'), t),
+             'energy': lambda t: "{} {:.2f}".format(bold_prop_text('Energy\, /\, MeV'), t),
+             'current': lambda t: "{} {:.2f}".format(bold_prop_text('Avg.\, current\, /\, nA'), t),
+             'lambda': lambda t: "{} {:.3f}".format(bold_prop_text('Calibration\, /\, V^{-1}'), t),
+             'date': lambda t: "{} {}".format(bold_prop_text('Date'), datetime.fromtimestamp(t).strftime('%b %d %H:%M %Y')),
+             'duration': lambda t: "{} {}".format(bold_prop_text('Duration'), duration_str_from_secs(t)),
+             'fluence_ion': lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{%s}\, /\, ions/cm^{2}" % summary_dict['beam']['ion']), t),
+             'fluence_neq': lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{n_{eq}}\, /\, n_{eq}/cm^{2}"), t),
+             'tid': lambda t: "{} {:.1f}".format(bold_prop_text('TID\, /\, Mrad'), t),
+             'temp': lambda t: "{} {:.1f}".format(bold_prop_text('Avg.\, temperature\, /\, °C'), t),
+             'scan': lambda t: "{} {:d}".format(bold_prop_text('\#\, scans'), t)}
+    
+    for prp in summary_dict:
+        
+        if isinstance(summary_dict[prp], dict):
+            cell_text = [[summary_dict[prp][v] if v not in props else props[v](summary_dict[prp][v])] for v in summary_dict[prp] if summary_dict[prp][v] is not None]
+        elif isinstance(summary_dict[prp], list):
+            cell_text = [[v if v not in props else props[v](v)] for v in summary_dict[prp] if v is not None]
+        else:
+            continue
+
+        if cell_text:
+            tab = ax.table(cellText=cell_text, colLabels=[headers[prp]], bbox=bboxxs[prp], cellLoc='left', colColours=['#fcba00'])
+            tab.set_fontsize(8)
+
+    return fig

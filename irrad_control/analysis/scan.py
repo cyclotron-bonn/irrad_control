@@ -2,7 +2,7 @@ import logging
 import numpy as np
 
 from irrad_control.analysis import plotting, constants
-from irrad_control.utils.utils import duration_str_from_secs
+from irrad_control.analysis.utils import duration_str_from_secs, win_from_timestamps
 
 
 def create_beam_scan_mask(beam_data, scan_data):
@@ -55,7 +55,7 @@ def generate_scan_resolved_damage_map(scan_data, irrad_data, damage='row_primary
     # Make empty map of shape n_total_scans x n_rows
     resolved_map = np.zeros(shape=(n_rows, n_total_scans))
 
-    logging.info(f"Generating row- and scan-resolved {damage} distribution for {n_rows} rows and {n_total_scans} scans...")
+    logging.info(f"Generating row- and scan-resolved {damage} distribution for {n_rows} rows, {n_complete_scans} complete and {n_individual_scans} correction scans...")
 
     # Loop over complete scan data and add to map
     for i in range(len(complete_scan_data)):
@@ -176,7 +176,7 @@ def generate_scan_overview(scan_data, damage_data, irrad_data):
     return overview
 
         
-def main(data, config):
+def main(data, config, summary=None):
     
     # Container for figures
     figs = []
@@ -226,6 +226,23 @@ def main(data, config):
     # Get indices of start and end of scan
     scan_idxs = np.nonzero(beam_during_scan_mask)[0]
     scan_idx_start, scan_idx_end = scan_idxs[0], scan_idxs[-1]
+
+    # Update summary
+    summary['irrad']['duration'] = beam_during_scan['timestamp'][-1]-beam_during_scan['timestamp'][0]
+    summary['irrad']['date'] = beam_during_scan['timestamp'][0]
+    summary['irrad']['scan'] = scan_overview['scan_hist']['scan'][-1] + 1
+    if temp_data is not None:
+        for temp_set in temp_data.dtype.names:
+            if 'dut' in temp_set.lower():        
+                summary['irrad']['temp'] = np.nanmean(win_from_timestamps(temp_data['timestamp'], temp_data[temp_set], beam_during_scan['timestamp'][0], beam_during_scan['timestamp'][-1])[1])
+                break
+    summary['beam']['current'] = np.nanmean(beam_currents_during_scan)
+    summary['beam']['ion'] = config['daq']['ion']
+    summary['beam']['energy'] = config['daq']['ekin']
+    summary['beam']['lambda'] = config['daq']['lambda']['nominal']
+    summary['beam']['kappa'] = None if 'kappa' not in config['daq'] else config['daq']['kappa']['nominal']
+    summary['summary_generated'] = True
+
 
     fig, _ = plotting.plot_beam_current(timestamps=data[server]['Beam']['timestamp'][scan_idx_start:scan_idx_end],
                                         beam_current=beam_currents_during_scan[scan_idx_start:scan_idx_end],

@@ -6,7 +6,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from tqdm import tqdm
 
 import irrad_control.analysis as irrad_analysis
-from irrad_control.analysis.utils import load_irrad_data
+from irrad_control.analysis.utils import load_irrad_data, generate_default_summary_dict
+from irrad_control.analysis.plotting import generate_summary_page
 
 
 # Logging level
@@ -158,7 +159,15 @@ def main():
         # Open PDF 
         with PdfPages(analysis_out_pdf) as out_pdf:
 
-            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']))
+            # Dictionary holding summary of irradiation to generate summary page
+            summary = generate_default_summary_dict()
+
+            res = irrad_analysis.damage.main(data=input_files(infiles=parsed['infile']), summary=summary)
+
+            # Generate and prepend summary page to results
+            if summary['summary_generated']:
+                summary_page = generate_summary_page(summary)
+                res.insert(0, summary_page)
 
             save_plots(plots=res, outfile=out_pdf)
 
@@ -180,16 +189,37 @@ def main():
 
             with PdfPages(actual_analysis_out_pdf) as out_pdf:
 
+                results = {}
+
                 # Loop over different irradiation server and perform analysis
                 for _, content in config['server'].items():
+
+                    server = content['name']
                     
+                    # Container for figures and summary per irradiation server
+                    results[server] = {'figs': [], 'summary': generate_default_summary_dict()}
+
+                    if 'sid' in config['session']:
+                        results[server]['summary']['sid'] = config['session']['sid']
+                        results[server]['summary']['summary_generated'] = True
+
                     # Loop over flags and perform analysis if flag is set
                     for a_flag in ANALYSIS_FLAGS:
                         if parsed[a_flag]:
                             
                             # Load submodule with same name as flag and call main analyis
-                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content)
-                            save_plots(res, out_pdf)
+                            res = getattr(irrad_analysis, a_flag).main(data=data, config=content, summary=results[server]['summary'])
+                            results[server]['figs'].extend(res)
+                
+                # Loop over servers
+                for _, fgs_smmr in results.items():
+
+                    # Generate and prepend summary page to results
+                    if fgs_smmr['summary']['summary_generated']:
+                        summary_page = generate_summary_page(fgs_smmr['summary'])
+                        fgs_smmr['figs'].insert(0, summary_page)
+
+                    save_plots(fgs_smmr['figs'], out_pdf)
 
 
 if __name__ == '__main__':

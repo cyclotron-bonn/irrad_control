@@ -13,7 +13,7 @@ import irrad_control.devices.readout as ro
 from irrad_control.processes.daq import DAQProcess
 from irrad_control.ions import get_ions
 from irrad_control.utils.events import create_irrad_events
-from irrad_control.utils.utils import duration_str_from_secs
+from irrad_control.analysis.utils import duration_str_from_secs
 
 
 class IrradConverter(DAQProcess):

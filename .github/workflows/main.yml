@@ -52,7 +52,7 @@ jobs:
           sudo apt-get install qttools5-dev-tools --fix-missing
         
       - name: Headless display setup
-        uses: pyvista/setup-headless-display-action@v1   
+        uses: pyvista/setup-headless-display-action@v3  
 
       - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
         run: pytest
