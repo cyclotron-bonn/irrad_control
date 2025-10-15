@@ -209,9 +209,9 @@ Publications
 ============
 
 Publications related to the proton irradiation site can be found `here <https://www.zyklotron.hiskp.uni-bonn.de/publications_EN.html>`_, on the the cyclotron homepage. If you are publishing results obtained by performing
-irradiations or test beams at the proton irradiation site at Bonn university, please cite he paper below:
+irradiations or test beams at the proton irradiation site at Bonn university, please cite the paper below:
 
-`P. Wolf, D. Sauerland, R. Beck and J. Dingfelder, “A beam-driven proton irradiation setup for precision radiation damage tests of silicon detectors”, NIMA Volume 1064, July 2024, doi:10.1016/j.nima.2024.169358 <https://www.sciencedirect.com/science/article/pii/S0168900224002845>`_
+`P. Wolf, D. Sauerland, R. Beck and J. Dingfelder, “A beam-driven proton irradiation setup for precision radiation damage tests of silicon detectors”, NIMA, Volume 1064, July 2024, doi:10.1016/j.nima.2024.169358 <https://www.sciencedirect.com/science/article/pii/S0168900224002845>`_
 
 
 .. |test-status| image:: https://github.com/Cyclotron-Bonn/irrad_control/actions/workflows/main.yml/badge.svg?branch=main
