@@ -73,7 +73,7 @@ class DAQProcess(Process):
 
         # List of input data stream addresses
         self.daq_streams = []
-        
+
         if daq_streams is not None:
             self.add_daq_stream(daq_stream=daq_streams)
 
