@@ -1,4 +1,4 @@
-numpy<2.0.0  # C-like arrays and vectorized functions
+numpy<=1.26  # C-like arrays and vectorized functions
 pyzmq  # 0MQ
 paramiko>=3.4.0  # SSH API in python
 pyyaml  # yaml
