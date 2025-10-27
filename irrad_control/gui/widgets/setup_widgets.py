@@ -2,7 +2,7 @@ import os
 import time
 import logging
 import subprocess
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from collections import defaultdict
 
 # Package imports
@@ -129,6 +129,7 @@ class SessionSetup(BaseSetupWidget):
 
         # Attributes for paths and files
         self.output_path = os.getcwd()
+        self.sids = []
 
         self._init_setup()
 
@@ -160,6 +161,45 @@ class SessionSetup(BaseSetupWidget):
         # Add to layout
         self.add_widget(widget=[label_out_file, edit_out_file])
 
+        # Label and widgets for SIDs
+        label_sid = QtWidgets.QLabel('Sample ID(s):')
+        label_sid.setToolTip('Sample ID (SID) of the device to be irradiated. Given by radiation protection')
+        layout_sid = QtWidgets.QHBoxLayout()
+        edit_running_number = QtWidgets.QLineEdit()
+        edit_running_number.setPlaceholderText('Running ID number')
+        edit_running_number.setValidator(QtGui.QIntValidator())
+        edit_sub_letter = QtWidgets.QLineEdit()
+        edit_sub_letter.setPlaceholderText('Sub ID letter')
+        edit_group = QtWidgets.QLineEdit()
+        edit_group.setPlaceholderText('Group / Experiment')
+        edit_desc = QtWidgets.QLineEdit()
+        edit_desc.setPlaceholderText('Description')
+        button_add_sid = QtWidgets.QPushButton('Add SID')
+        button_add_sid.setToolTip('Add SID for this session. Enter at least the running number to add.')
+        button_add_sid.setEnabled(False)
+        
+        self.widgets_sid = {'ern': edit_running_number, 'esl': edit_sub_letter, 'eg': edit_group, 'ed': edit_desc, 'bas': button_add_sid}
+
+        for i, k in enumerate(('ern', 'esl', 'eg', 'ed')):
+            ws = self.widgets_sid[k]
+            if isinstance(ws, QtWidgets.QLineEdit):
+                ws.setAlignment(QtCore.Qt.AlignHCenter)
+                ws.textChanged.connect(lambda _: self._check_sid())
+
+            if i != 0:
+                layout_sid.addWidget(QtWidgets.QLabel('-'))
+
+            layout_sid.addWidget(ws)
+
+        button_add_sid.clicked.connect(self._add_sid)
+
+        # Add to layout
+        self.add_widget(widget=[label_sid, layout_sid, button_add_sid])
+
+        self.sid_container = GridContainer(name='Selected SIDs')
+        self.sid_container.setToolTip('Showing currently selected SIDs')
+        self.add_widget(widget=[QtWidgets.QLabel(''), self.sid_container])
+        
         # Label and combobox to set logging level
         label_logging = QtWidgets.QLabel('Logging level:')
         combo_logging = NoWheelQComboBox()
@@ -183,12 +223,59 @@ class SessionSetup(BaseSetupWidget):
         if path and path != self.output_path:
             self.output_path = path
 
+    def _build_sid(self):
+        # SID pattern -> SID-RunningNumber(SubIdentifier)-Group-Description
+        sid_base = f"SID-{self.widgets_sid['ern'].text()}{self.widgets_sid['esl'].text()}"
+        sid_tail = '-'.join(self.widgets_sid[k].text() for k in ('eg', 'ed') if self.widgets_sid[k].text())
+        return f"{sid_base}-{sid_tail}" 
+
+    def _check_sid(self):
+        # Don't require sub letter of SID
+        check = all(self.widgets_sid[k].text() for k in ('ern', 'eg', 'ed'))
+        check = check and self._build_sid() not in self.sids 
+        self.widgets_sid['bas'].setEnabled(check)
+
+    def _add_sid(self):
+
+        sid = self._build_sid()
+        sid_label = QtWidgets.QLabel(f"SID #{len(self.sids)}:" + '\t' + f"{sid}")
+        sid_label.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        btn_sid_rmv = QtWidgets.QPushButton()
+        btn_sid_rmv.setIcon(btn_sid_rmv.style().standardIcon(QtWidgets.QStyle.SP_TrashIcon))
+        btn_sid_rmv.setToolTip(f'Remove SID: {sid}')
+        btn_sid_rmv.clicked.connect(lambda _, s=sid: self._remove_sid(s))
+
+        self.sid_container.widgets[sid] = {'label': sid_label, 'btn': btn_sid_rmv}
+        self.sid_container.add_widget(widget=[sid_label, btn_sid_rmv])
+
+        self.sids.append(sid)
+
+        # Clear input after adding SID
+        for _, ws in self.widgets_sid.items():
+            if isinstance(ws, QtWidgets.QLineEdit):
+                ws.clear()
+
+    def _remove_sid(self, sid):
+
+        self.sids.remove(sid)
+        self.sid_container.remove_widget(widget=self.sid_container.widgets[sid].values())
+        del self.sid_container.widgets[sid]
+
+        # Reorder labels
+        for i, s in enumerate(self.sids):
+            self.sid_container.widgets[s]['label'].setText(f"SID #{i}:" + '\t' + f"{s}")
+
     def setup(self):
-        return {'loglevel': self.widgets['logging_combo'].currentText(),
-                'outfolder': self.widgets['folder_edit'].text(),
-                'outfile': os.path.join(self.widgets['folder_edit'].text(),
-                                        self.widgets['outfile_edit'].text() or self.widgets['outfile_edit'].placeholderText())
-                }
+
+        setup = {}
+        setup['loglevel'] = self.widgets['logging_combo'].currentText()
+        setup['outfolder'] = self.widgets['folder_edit'].text()
+        setup['outfile'] = os.path.join(self.widgets['folder_edit'].text(), self.widgets['outfile_edit'].text() or self.widgets['outfile_edit'].placeholderText())
+        
+        if self.sids:
+            setup['sids'] = self.sids
+        
+        return setup
 
 
 class NetworkSetup(BaseSetupWidget):

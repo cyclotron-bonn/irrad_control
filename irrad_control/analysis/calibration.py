@@ -33,12 +33,12 @@ def _get_ref_voltage(config):
     return 5.
 
 
-def main(data, config):
+def main(data, config, summary=None):
 
     server = config['name']
     ion_name = config['daq']['ion']
     ion_energy = config['daq']['ekin_initial']
-
+    
     # Get raw data and event data; events are needed in order to check for changing full scale factors when using the IrradDAQBoard
     raw_data = data[server]['Raw']
 

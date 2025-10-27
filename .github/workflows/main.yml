@@ -22,8 +22,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
-        python-version: ["3.9", "3.10"]
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.X"]
 
     runs-on: ${{matrix.os}}    
 
@@ -31,10 +31,10 @@ jobs:
     steps:
       
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Setup python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: ${{matrix.python-version}}
       
@@ -52,7 +52,7 @@ jobs:
           sudo apt-get install qttools5-dev-tools --fix-missing
         
       - name: Headless display setup
-        uses: pyvista/setup-headless-display-action@v1   
+        uses: pyvista/setup-headless-display-action@v4  
 
       - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
         run: pytest
@@ -64,7 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.11", "3.X"]
 
     runs-on: ${{matrix.os}}
 
@@ -72,7 +72,12 @@ jobs:
     steps:
       
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{matrix.python-version}}
 
       - name: Run install.sh
         run: |

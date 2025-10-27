@@ -2,7 +2,7 @@ import logging
 from irrad_control.analysis import plotting, fluence, formulas
 
 
-def main(data, config=None):
+def main(data, config=None, summary=None):
 
     figs = []
     bins = (100, 100)
@@ -33,6 +33,15 @@ def main(data, config=None):
                 server = server_config['name']
                 ion_name = server_config['daq']['ion']
                 irrad_data=data_part[server]['Irrad']
+                
+                # Summary
+                summary['beam']['ion'] = ion_name
+                summary['beam']['energy'] = server_config['daq']['ekin']
+                summary['beam']['lambda'] = server_config['daq']['lambda']['nominal']
+                summary['irrad']['date'] = irrad_data['timestamp'][0]
+                if 'sid' in config_part['session']:
+                    summary['sid'] = config_part['session']['sid']
+                summary['summary_generated'] = True
 
             if server not in data_part:
                 raise KeyError(f"Server '{server}' not present in file {session_basename}!")
@@ -60,6 +69,7 @@ def main(data, config=None):
             else:
                 results['neq'] = results['primary'] * server_config['daq']['kappa']['nominal']
                 errors['neq'] = ((server_config['daq']['kappa']['nominal'] * errors['primary'])**2 + (results['primary'] * server_config['daq']['kappa']['sigma'])**2)**0.5
+                summary['beam']['kappa'] = server_config['daq']['kappa']['nominal']
             
             if server_config['daq']['stopping_power'] is None:
                 del results['tid']
@@ -72,6 +82,13 @@ def main(data, config=None):
         server = config['name']
         ion_name = config['daq']['ion']
         irrad_data=data[server]['Irrad']
+
+        # Summary
+        summary['beam']['ion'] = ion_name
+        summary['beam']['energy'] = config['daq']['ekin']
+        summary['beam']['lambda'] = config['daq']['lambda']['nominal']
+        summary['irrad']['date'] = irrad_data['timestamp'][0]
+        summary['summary_generated'] = True
                     
         results['primary'], errors['primary'], bin_centers['x'], bin_centers['y'] = fluence.generate_fluence_map(beam_data=data[server]['Beam'],
                                                                                                                scan_data=data[server]['Scan'],
@@ -83,7 +100,8 @@ def main(data, config=None):
         else:
             results['neq'] = results['primary'] * config['daq']['kappa']['nominal']
             errors['neq'] = ((config['daq']['kappa']['nominal'] * errors['primary'])**2 + (results['primary'] * config['daq']['kappa']['sigma'])**2)**.5
-        
+            summary['beam']['kappa'] = config['daq']['kappa']['nominal']
+
         if config['daq']['stopping_power'] is None:
             del results['tid']
         else:
@@ -92,6 +110,9 @@ def main(data, config=None):
 
     if any(a is None for a in (list(bin_centers.values()) + list(results.values()))):
         raise ValueError('Uninitialized values! Something went wrong - maybe files not found?')
+    
+    # Generate summary information
+    summary_irrad_keys = {'primary': 'fluence_ion', 'neq': 'fluence_neq', 'tid': 'tid'}
 
     logging.info("Generating plots ...")
 
@@ -108,6 +129,9 @@ def main(data, config=None):
                                                       map_bin_centers_x=bin_centers['x'],
                                                       map_bin_centers_y=bin_centers['y'],
                                                       irrad_data=irrad_data)
+        
+        summary['irrad'][summary_irrad_keys[damage]] = dut_map.mean()
+        summary['summary_generated'] = True
 
         for damage_map, centers_x, centers_y in [(map, bin_centers['x'], bin_centers['y']), (dut_map, dut_centers_x, dut_centers_y)]:
 
