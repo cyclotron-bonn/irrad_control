@@ -1,16 +1,18 @@
-__all__ = ["IrradDAQBoard",
-           "ADCBoard",
-           "ZaberAsciiPort",
-           "ZaberStepAxis",
-           "ZaberMultiAxis",
-           "ItemLinearStage",
-           "ScanStage",
-           "SetupTableStage",
-           "ExternalCupStage",
-           "ArduinoNTCReadout",
-           "ArduinoMUX",
-           "RadiationMonitor",
-           "TCA9555"]
+__all__ = [
+    "IrradDAQBoard",
+    "ADCBoard",
+    "ZaberAsciiPort",
+    "ZaberStepAxis",
+    "ZaberMultiAxis",
+    "ItemLinearStage",
+    "ScanStage",
+    "SetupTableStage",
+    "ExternalCupStage",
+    "ArduinoNTCReadout",
+    "ArduinoMUX",
+    "RadiationMonitor",
+    "TCA9555",
+]
 
 
 # Readout-related

@@ -6,12 +6,14 @@ from irrad_control.devices.ic.TCA9555.tca9555 import TCA9555
 
 
 class IrradDAQBoard(object):
-
-    def __init__(self, port, version='v0.1', address=0x20):
-
+    def __init__(self, port, version="v0.1", address=0x20):
         # Check for version support
-        if version not in DAQ_BOARD_CONFIG['version']:
-            raise ValueError("{} not supported. Supported versions are {}".format(version, ', '.join(DAQ_BOARD_CONFIG['version'].keys())))
+        if version not in DAQ_BOARD_CONFIG["version"]:
+            raise ValueError(
+                "{} not supported. Supported versions are {}".format(
+                    version, ", ".join(DAQ_BOARD_CONFIG["version"].keys())
+                )
+            )
 
         # Initialize the interface to the board via I2C
         self._intf = TCA9555(port=port, address=address)
@@ -30,17 +32,16 @@ class IrradDAQBoard(object):
         self.restore_defaults()
 
     def restore_defaults(self):
-
         # Set the direction (in or output) of the pins
-        self._intf.set_direction(direction=0, bits=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['output'])
-        self._intf.set_direction(direction=1, bits=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['input'])
+        self._intf.set_direction(direction=0, bits=DAQ_BOARD_CONFIG["version"][self.version]["defaults"]["output"])
+        self._intf.set_direction(direction=1, bits=DAQ_BOARD_CONFIG["version"][self.version]["defaults"]["input"])
 
         # Set the input current scale IFS
-        self.set_ifs(group='sem', ifs=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['sem_ifs'])
+        self.set_ifs(group="sem", ifs=DAQ_BOARD_CONFIG["version"][self.version]["defaults"]["sem_ifs"])
         # Set the input current scale
-        self.set_ifs(group='ch12', ifs=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ch12_ifs'])
+        self.set_ifs(group="ch12", ifs=DAQ_BOARD_CONFIG["version"][self.version]["defaults"]["ch12_ifs"])
 
-        self.set_ntc_channel(channel=DAQ_BOARD_CONFIG['version'][self.version]['defaults']['ntc_ch'])
+        self.set_ntc_channel(channel=DAQ_BOARD_CONFIG["version"][self.version]["defaults"]["ntc_ch"])
 
     def init_ntc_readout(self, ntc_channels):
         self.ntc_channels = [ntc_channels] if isinstance(ntc_channels, int) else ntc_channels
@@ -50,97 +51,96 @@ class IrradDAQBoard(object):
     @property
     def jumper_scale(self):
         # FIXME
-        return DAQ_BOARD_CONFIG['common']['jumper_scale']
+        return DAQ_BOARD_CONFIG["common"]["jumper_scale"]
 
     @jumper_scale.setter
     def jumper_scale(self, js):
         if js not in (1, 10):
-            raise ValueError('The input jumper scales the full-scale current range (IFS) either by 1 or 10.')
+            raise ValueError("The input jumper scales the full-scale current range (IFS) either by 1 or 10.")
         # FIXME this changes value in global constant config
-        DAQ_BOARD_CONFIG['common']['jumper_scale'] = js
+        DAQ_BOARD_CONFIG["common"]["jumper_scale"] = js
 
     @property
     def gpio_value(self):
-        return self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio'])
+        return self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"])
 
     @gpio_value.setter
     def gpio_value(self, val):
-        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio'], val=val)
+        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"], val=val)
 
     @property
     def gpio_direction(self):
-        return [self._intf.format_config()['config'][p] for p in DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio']]
+        return [
+            self._intf.format_config()["config"][p] for p in DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"]
+        ]
 
     @gpio_direction.setter
     def gpio_direction(self, direction):
-        self._intf.set_direction(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio'], direction=direction)
+        self._intf.set_direction(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"], direction=direction)
 
     def set_mux_value(self, group, val):
-
-        self._intf.int_to_bits(DAQ_BOARD_CONFIG['version'][self.version]['pins'][group], val=val)
+        self._intf.int_to_bits(DAQ_BOARD_CONFIG["version"][self.version]["pins"][group], val=val)
 
     def get_mux_value(self, group):
-
-        return self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins'][group])
+        return self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"][group])
 
     def get_ntc_channel(self, cached=False):
-
         if self.ntc is None or not cached:
-            self.ntc = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'])
+            self.ntc = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"]["ntc"])
 
         return self.ntc
 
     def set_ntc_channel(self, channel, check_cycle=True):
-
         # In case of cycling channels
         if check_cycle and self.is_cycling_ntc_channels():
             self.stop_cycle_ntc_channels()
 
-        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins']['ntc'], val=channel)
-        
+        self._intf.int_to_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"]["ntc"], val=channel)
+
         self.ntc = channel
 
     def set_ifs(self, group, ifs):
         # FIXME
-        ifs_idx = DAQ_BOARD_CONFIG['common']['ifs_scales'].index(ifs / DAQ_BOARD_CONFIG['common']['jumper_scale'])
+        ifs_idx = DAQ_BOARD_CONFIG["common"]["ifs_scales"].index(ifs / DAQ_BOARD_CONFIG["common"]["jumper_scale"])
 
-        self._intf.int_to_bits(DAQ_BOARD_CONFIG['version'][self.version]['pins'][group], val=ifs_idx)
+        self._intf.int_to_bits(DAQ_BOARD_CONFIG["version"][self.version]["pins"][group], val=ifs_idx)
 
     def get_ifs(self, group):
-
-        ifs_idx = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins'][group])
+        ifs_idx = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"][group])
         # FIXME
-        return DAQ_BOARD_CONFIG['common']['ifs_scales'][ifs_idx] * DAQ_BOARD_CONFIG['common']['jumper_scale']
+        return DAQ_BOARD_CONFIG["common"]["ifs_scales"][ifs_idx] * DAQ_BOARD_CONFIG["common"]["jumper_scale"]
 
     def get_ifs_label(self, group):
-
-        ifs_idx = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG['version'][self.version]['pins'][group])
+        ifs_idx = self._intf.int_from_bits(bits=DAQ_BOARD_CONFIG["version"][self.version]["pins"][group])
         # FIXME
-        return DAQ_BOARD_CONFIG['common']['ifs_labels'][ifs_idx] if DAQ_BOARD_CONFIG['common']['jumper_scale'] == 1 else DAQ_BOARD_CONFIG['common']['ifs_labels_10'][ifs_idx]
+        return (
+            DAQ_BOARD_CONFIG["common"]["ifs_labels"][ifs_idx]
+            if DAQ_BOARD_CONFIG["common"]["jumper_scale"] == 1
+            else DAQ_BOARD_CONFIG["common"]["ifs_labels_10"][ifs_idx]
+        )
 
     def _check_and_map_gpio(self, pins):
-
         pins = [pins] if isinstance(pins, int) else pins
 
-        if any(not 0 <= p < len(DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio']) for p in pins):
-            raise IndexError("GPIO pins are indexed from {} to {}".format(0, len(DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio']) - 1))
+        if any(not 0 <= p < len(DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"]) for p in pins):
+            raise IndexError(
+                "GPIO pins are indexed from {} to {}".format(
+                    0, len(DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"]) - 1
+                )
+            )
 
-        return [DAQ_BOARD_CONFIG['version'][self.version]['pins']['gpio'][p] for p in pins]
+        return [DAQ_BOARD_CONFIG["version"][self.version]["pins"]["gpio"][p] for p in pins]
 
     def set_gpio_value(self, pins, value):
-
         self._intf.int_to_bits(bits=self._check_and_map_gpio(pins=pins), val=value)
 
     def set_gpio_direction(self, pins, direction):
-
         self._intf.set_direction(bits=self._check_and_map_gpio(pins=pins), direction=direction)
 
     def set_gpio_pins(self, pins):
-
         self._intf.set_bits(bits=self._check_and_map_gpio(pins=pins))
 
     def unset_gpio_pins(self, pins):
-
         self._intf.unset_bits(bits=self._check_and_map_gpio(pins=pins))
 
     def is_cycling_ntc_channels(self):
@@ -155,21 +155,18 @@ class IrradDAQBoard(object):
         self._ntc_cycle_thread = None
 
     def cycle_ntc_channels(self, timeout=None):
-
         # In case of restart
         if self.is_cycling_ntc_channels():
             self.stop_cycle_ntc_channels()
 
-        self._ntc_cycle_thread = Thread(target=self._cycle_ntc_channels, args=(timeout, ))
+        self._ntc_cycle_thread = Thread(target=self._cycle_ntc_channels, args=(timeout,))
         self._ntc_cycle_thread.start()
 
     def _cycle_ntc_channels(self, timeout=None):
-
         while not self._stop_ntc_cycle_flag.wait(timeout=timeout):
             self.next_ntc(check_cycle=False)
 
     def next_ntc(self, check_cycle=True):
-
         # If there are not ntc channels or there is only one, do nothing
         if self.ntc_channels is None or len(self.ntc_channels) == 1:
             return

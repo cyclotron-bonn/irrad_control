@@ -50,9 +50,9 @@ class DAQProcess(Process):
         self.state_flags = defaultdict(Event)  # Create events in subclasses on demand
 
         # Ports/sockets used by this process
-        self.ports = {'log': None, 'cmd': None, 'data': None, 'event': None}
-        self.sockets = {'log': None, 'cmd': None, 'data': None, 'event': None}
-        self.socket_type = {'log': zmq.PUB, 'cmd': zmq.REP, 'data': zmq.PUB, 'event': zmq.PUB}
+        self.ports = {"log": None, "cmd": None, "data": None, "event": None}
+        self.sockets = {"log": None, "cmd": None, "data": None, "event": None}
+        self.socket_type = {"log": zmq.PUB, "cmd": zmq.REP, "data": zmq.PUB, "event": zmq.PUB}
 
         # Attribute holding zmq context
         self.context = None
@@ -60,7 +60,9 @@ class DAQProcess(Process):
         # Sets internal subscriber address from which data is gathered (from potentially many sources) and published (on one port);
         # usually this is some intra-process communication protocol such as inproc/ipc. If not, this process listens to a different
         # DAQ processes DAQ threads in an attempt to distribute the load on multiple CPU cores more evenly
-        self._internal_sub_addr = internal_sub if internal_sub is not None and check_zmq_addr(internal_sub) else 'inproc://internal'
+        self._internal_sub_addr = (
+            internal_sub if internal_sub is not None and check_zmq_addr(internal_sub) else "inproc://internal"
+        )
 
         # High-water mark for all ZMQ sockets
         self.hwm = 100 if hwm is None or not isinstance(hwm, int) else hwm
@@ -77,21 +79,21 @@ class DAQProcess(Process):
         if daq_streams is not None:
             self.add_daq_stream(daq_stream=daq_streams)
 
-         # List of input data stream addresses
+        # List of input data stream addresses
         self.event_streams = []
 
         if event_streams is not None:
             self.add_event_stream(event_stream=event_streams)
 
     def _enable_graceful_shutdown(self):
-        """ Method that redirects systems interrupt and terminatioin signals to the instances *shutdown* method """
+        """Method that redirects systems interrupt and terminatioin signals to the instances *shutdown* method"""
 
         # Enable graceful termination
         for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGQUIT):
             signal.signal(sig, self.shutdown)
 
     def _setup_zmq(self):
-        """ Setup the zmq context instance and allocate needed sockets """
+        """Setup the zmq context instance and allocate needed sockets"""
 
         # Create a context instance
         self.context = zmq.Context()
@@ -119,7 +121,6 @@ class DAQProcess(Process):
 
         # Loop over needed sockets and create and bind
         for sock in self.sockets:
-
             # Create socket
             self.sockets[sock] = self.context.socket(self.socket_type[sock])
 
@@ -132,7 +133,9 @@ class DAQProcess(Process):
                 self.sockets[sock].setsockopt(zmq.LINGER, rep_linger)
 
             # Bind socket to random port
-            self.ports[sock] = self.sockets[sock].bind_to_random_port(addr='tcp://*', min_port=min_port, max_port=max_port, max_tries=max_tries)
+            self.ports[sock] = self.sockets[sock].bind_to_random_port(
+                addr="tcp://*", min_port=min_port, max_port=max_port, max_tries=max_tries
+            )
 
     def create_internal_data_pub(self):
         """
@@ -163,16 +166,16 @@ class DAQProcess(Process):
         proc_info = {}
 
         # Fill dict
-        proc_info['pid'] = self.pid
-        proc_info['name'] = self.pname
-        proc_info['ports'] = self.ports
+        proc_info["pid"] = self.pid
+        proc_info["name"] = self.pname
+        proc_info["ports"] = self.ports
 
         # Make file path; if a file already exists,overwrite
-        with open(pid_file, 'w') as pf:
+        with open(pid_file, "w") as pf:
             yaml.safe_dump(proc_info, pf, default_flow_style=False)
 
     def _remove_pid_file(self):
-        """ Method that removes the PID file in the config-folder of this package on process shutdown process """
+        """Method that removes the PID file in the config-folder of this package on process shutdown process"""
         if os.path.isfile(pid_file):
             os.remove(pid_file)
 
@@ -224,22 +227,22 @@ class DAQProcess(Process):
         """
 
         # Numeric logging level
-        numeric_level = getattr(logging, self.setup['session']['loglevel'].upper(), None)
+        numeric_level = getattr(logging, self.setup["session"]["loglevel"].upper(), None)
         if not isinstance(numeric_level, int):
-            raise ValueError('Invalid log level: {}'.format(self.setup['session']['loglevel'].capitalize()))
+            raise ValueError("Invalid log level: {}".format(self.setup["session"]["loglevel"].capitalize()))
 
         # Set level
         logging.getLogger().setLevel(level=numeric_level)
 
         # Create logging publisher first
-        handler = handlers.PUBHandler(self.sockets['log'])
+        handler = handlers.PUBHandler(self.sockets["log"])
         logging.getLogger().addHandler(handler)
 
         # Allow connections to be made
         sleep(1)
 
     @staticmethod
-    def _tcp_addr(port, ip='*'):
+    def _tcp_addr(port, ip="*"):
         """
         Creates string of a complete tcp address which sockets can bind/connect to
 
@@ -256,7 +259,7 @@ class DAQProcess(Process):
             Formatted string that sockets can bind/connect to
 
         """
-        return 'tcp://{}:{}'.format(ip, port)
+        return "tcp://{}:{}".format(ip, port)
 
     def recv_cmd(self):
         """
@@ -266,40 +269,38 @@ class DAQProcess(Process):
         """
 
         # Receive commands; wait 10 ms for stop flag
-        while not self.stop_flags['__recv__'].wait(1e-2):
-
+        while not self.stop_flags["__recv__"].wait(1e-2):
             # Check if were working on a command. We have to work sequentially
-            if not self.state_flags['__busy__'].is_set():
-
+            if not self.state_flags["__busy__"].is_set():
                 # Poll the command receiver socket for 1 ms; continue if there are no commands
-                if not self.sockets['cmd'].poll(timeout=1, flags=zmq.POLLIN):
+                if not self.sockets["cmd"].poll(timeout=1, flags=zmq.POLLIN):
                     continue
 
                 logging.debug("Receiving command")
 
                 # Cmd must be dict with command as 'cmd' key and 'args', 'kwargs' keys
-                cmd_dict = self.sockets['cmd'].recv_json()
+                cmd_dict = self.sockets["cmd"].recv_json()
 
                 # Command data
-                if 'data' not in cmd_dict:
-                    cmd_dict['data'] = None
+                if "data" not in cmd_dict:
+                    cmd_dict["data"] = None
 
                 error_reply = self._check_cmd(cmd_dict=cmd_dict)
 
                 # Check for errors
                 if error_reply:
-                    self._send_reply(reply=error_reply, sender=self.pname, _type='ERROR', data=None)
+                    self._send_reply(reply=error_reply, sender=self.pname, _type="ERROR", data=None)
                 else:
-                    logging.debug('Handling command {}'.format(cmd_dict['cmd']))
+                    logging.debug("Handling command {}".format(cmd_dict["cmd"]))
 
                     # Set cmd to busy; other commands send will be queued and received later
-                    self.state_flags['__busy__'].set()
+                    self.state_flags["__busy__"].set()
 
                     self.handle_cmd(**cmd_dict)
 
                 # Check if a reply has been sent while handling the command. If not send generic reply which resets flag
-                if self.state_flags['__busy__'].is_set():
-                    self._send_reply(reply=cmd_dict['cmd'], sender=cmd_dict['target'], _type='STANDARD')
+                if self.state_flags["__busy__"].is_set():
+                    self._send_reply(reply=cmd_dict["cmd"], sender=cmd_dict["target"], _type="STANDARD")
                     # Now flag is cleared
 
     def _check_cmd(self, cmd_dict):
@@ -322,12 +323,15 @@ class DAQProcess(Process):
 
         # Extract info from cmd_dict
         try:
-
-            _, _ = cmd_dict['target'], cmd_dict['cmd']
+            _, _ = cmd_dict["target"], cmd_dict["cmd"]
 
         except KeyError:
             error_reply += "Command dict incomplete. Missing 'cmd' or 'target' field!\n"
-            logging.error("Incomplete command dict. Missing field(s): {}".format(', '.join(x for x in ('target', 'cmd') if x not in cmd_dict)))
+            logging.error(
+                "Incomplete command dict. Missing field(s): {}".format(
+                    ", ".join(x for x in ("target", "cmd") if x not in cmd_dict)
+                )
+            )
 
         return error_reply
 
@@ -349,15 +353,15 @@ class DAQProcess(Process):
         """
 
         # Make reply dict
-        reply_dict = {'reply': reply, 'type': _type, 'sender': sender}
+        reply_dict = {"reply": reply, "type": _type, "sender": sender}
 
         # Add data if needed
         if data is not None:
-            reply_dict['data'] = data
+            reply_dict["data"] = data
 
         # Send away and clear busy flag
-        self.sockets['cmd'].send_json(reply_dict)
-        self.state_flags['__busy__'].clear()
+        self.sockets["cmd"].send_json(reply_dict)
+        self.state_flags["__busy__"].clear()
 
     def send_data(self):
         """
@@ -367,10 +371,9 @@ class DAQProcess(Process):
 
         internal_data_sub = self.context.socket(zmq.SUB)
         internal_data_sub.bind(self._internal_sub_addr)
-        internal_data_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+        internal_data_sub.setsockopt(zmq.SUBSCRIBE, b"")  # specify bytes for Py3
 
-        while not self.stop_flags['__send__'].is_set():  # Send data out as fast as possible
-
+        while not self.stop_flags["__send__"].is_set():  # Send data out as fast as possible
             # Poll the command receiver socket for 1 ms; continue if there are no commands
             if not internal_data_sub.poll(timeout=1, flags=zmq.POLLIN):
                 continue
@@ -379,7 +382,7 @@ class DAQProcess(Process):
             data = internal_data_sub.recv_json(zmq.NOBLOCK)
 
             # Send data on socket
-            self.sockets['data'].send_json(data)
+            self.sockets["data"].send_json(data)
 
         internal_data_sub.close()
 
@@ -425,8 +428,7 @@ class DAQProcess(Process):
         """
 
         if stream:
-
-            logging.info(f'Start receiving {kind}')
+            logging.info(f"Start receiving {kind}")
 
             # Create subscriber for raw and XY-Stage data
             external_sub = self.context.socket(zmq.SUB)
@@ -436,14 +438,13 @@ class DAQProcess(Process):
                 external_sub.connect(s)
 
             # Subscribe to all topics
-            external_sub.setsockopt(zmq.SUBSCRIBE, b'')  # specify bytes for Py3
+            external_sub.setsockopt(zmq.SUBSCRIBE, b"")  # specify bytes for Py3
 
             if pub_results:
                 internal_pub = self.create_internal_data_pub()
 
             # While event not set receive data
-            while not self.stop_flags['__recv__'].is_set():
-
+            while not self.stop_flags["__recv__"].is_set():
                 # Poll the socket for 1 ms; continue if there is nothing
                 if not external_sub.poll(timeout=1, flags=zmq.POLLIN):
                     # Allow the thread to release the GIL while sleeping if we don't need to check for incoming stream data full-speed
@@ -483,7 +484,7 @@ class DAQProcess(Process):
 
     def recv_data(self):
         """Main method which receives raw data and calls interpretation and data storage methods"""
-        self._recv_from_stream(kind='data', stream=self.daq_streams, callback=self.handle_data, pub_results=True)
+        self._recv_from_stream(kind="data", stream=self.daq_streams, callback=self.handle_data, pub_results=True)
 
     def add_event_stream(self, event_stream):
         """
@@ -499,7 +500,7 @@ class DAQProcess(Process):
 
     def recv_event(self):
         """Main method which receives events and calls handle event"""
-        self._recv_from_stream(kind='events', stream=self.event_streams, callback=self.handle_event, delay=1e-2)
+        self._recv_from_stream(kind="events", stream=self.event_streams, callback=self.handle_event, delay=1e-2)
 
     def shutdown(self, signum=None, frame=None):
         """
@@ -528,19 +529,18 @@ class DAQProcess(Process):
         """
 
         # Check threads until stop flag is set
-        while not self.stop_flags['__watch__'].wait(1.0):
-
+        while not self.stop_flags["__watch__"].wait(1.0):
             # Loop over all threads and check whether exceptions have occurred
             for thread in self.threads:
-
                 is_alive = thread.is_alive()
 
                 # If an exception occurred and has not yet been reported
                 if thread.exception is not None:
-
                     # Construct error message
-                    msg = "A {} exception occurred in thread executing function '{}':\n".format(type(thread.exception).__name__, thread.name)
-                    msg += "{}\nThread is currently {}alive ".format(thread.traceback_str, '' if is_alive else 'not ')
+                    msg = "A {} exception occurred in thread executing function '{}':\n".format(
+                        type(thread.exception).__name__, thread.name
+                    )
+                    msg += "{}\nThread is currently {}alive ".format(thread.traceback_str, "" if is_alive else "not ")
 
                     # Log message
                     logging.error(msg)
@@ -550,7 +550,6 @@ class DAQProcess(Process):
                     self.threads.remove(thread)
 
     def _close(self):
-
         # Wait for all the threads to join
         for t in self.threads:
             t.join()
@@ -564,7 +563,7 @@ class DAQProcess(Process):
         logging.info("Process {} with PID {} shut down successfully".format(self.pname, self.pid))
 
     def run(self):
-        """ Main process function"""
+        """Main process function"""
 
         # Setup everything
         self._setup()

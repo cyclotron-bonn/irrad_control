@@ -3,16 +3,15 @@ from time import sleep
 
 
 class SerialDevice(object):
-
-    WRITE_TERMINATION = '\n'
-    READ_TERMINATION = '\n'
+    WRITE_TERMINATION = "\n"
+    READ_TERMINATION = "\n"
 
     ERRORS = {}
 
     def __init__(self, port, baudrate=9600, timeout=1):
-        self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout) 
+        self._intf = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
         sleep(0.5)  # Allow connections to be made
-    
+
     def reset_buffers(self):
         """
         Sleep for a bit and reset buffers to reset serial
@@ -56,7 +55,7 @@ class SerialDevice(object):
 
         if read_value in self.ERRORS:
             raise RuntimeError(self.ERRORS[read_value])
-        
+
         return read_value
 
     def query(self, msg):

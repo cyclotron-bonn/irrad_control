@@ -4,7 +4,6 @@ from time import time
 
 
 class BaseEvent(object):
-
     @property
     def active(self):
         return self._active_event.is_set()
@@ -28,9 +27,9 @@ class BaseEvent(object):
         else:
             self._disabled_event.clear()
 
-    def __init__(self, cooldown=0, description=''):
+    def __init__(self, cooldown=0, description=""):
         super().__init__()
-        
+
         self.cooldown = cooldown
         self.description = description
 
@@ -60,7 +59,6 @@ def create_irrad_events():
     """
 
     class IrradEvents(Enum):
-
         # Beam-related events
         BeamOff = BaseEvent(cooldown=1, description="Beam current below measureable resolution")
         BeamJitter = BaseEvent(cooldown=2, description="Beam current fluctuates")
@@ -82,7 +80,7 @@ def create_irrad_events():
 
         @classmethod
         def beam_events(cls):
-            return Enum('BeamEvents', [(ev.name, ev.value) for ev in cls if 'Beam' in ev.name])
+            return Enum("BeamEvents", [(ev.name, ev.value) for ev in cls if "Beam" in ev.name])
 
         @classmethod
         def beam_ok(cls):
@@ -91,13 +89,17 @@ def create_irrad_events():
         @classmethod
         def to_dict(cls, event):
             try:
-                return {'event': cls[event].name,
-                        'active': cls[event].value.active,
-                        'disabled': cls[event].value.disabled,
-                        'description': cls[event].value.description,
-                        'last_triggered': cls[event].value._last_triggered}
+                return {
+                    "event": cls[event].name,
+                    "active": cls[event].value.active,
+                    "disabled": cls[event].value.disabled,
+                    "description": cls[event].value.description,
+                    "last_triggered": cls[event].value._last_triggered,
+                }
             except KeyError:
-                raise KeyError(f"'{event}' not in IrradEvents! \
-                                Available events: {', '.join(ev.name for ev in cls)}")
+                raise KeyError(
+                    f"'{event}' not in IrradEvents! \
+                                Available events: {', '.join(ev.name for ev in cls)}"
+                )
 
     return IrradEvents

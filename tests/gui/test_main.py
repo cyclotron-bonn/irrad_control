@@ -9,10 +9,8 @@ from irrad_control.processes.gui import IrradGUI
 
 
 class TestMain(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
-
         # Make QApplication which starts event loop in order to create widgets
         cls.test_app = QtWidgets.QApplication(sys.argv)
 
@@ -26,7 +24,6 @@ class TestMain(unittest.TestCase):
         time.sleep(1)
 
     def test_setup_main_state(self):
-
         # Check if we have 4 tabs: ('Setup', 'Control', 'Device', 'Monitor')
         assert self.irrad_window.tabs.count() == 4
 
@@ -37,7 +34,9 @@ class TestMain(unittest.TestCase):
         assert not self.irrad_window.tabs.isTabEnabled(3)
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s")
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s"
+    )
     suite = unittest.TestLoader().loadTestsFromTestCase(TestMain)
     unittest.TextTestRunner(verbosity=2).run(suite)

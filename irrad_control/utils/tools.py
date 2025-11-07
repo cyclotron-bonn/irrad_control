@@ -2,7 +2,7 @@ import os
 import yaml
 
 
-__all__ = ['location', 'make_path', 'save_yaml', 'load_yaml']
+__all__ = ["location", "make_path", "save_yaml", "load_yaml"]
 
 
 def location(f):
@@ -14,14 +14,12 @@ def make_path(*args):
 
 
 def load_yaml(path):
-
-    with open(path, 'r') as _a:
+    with open(path, "r") as _a:
         _b = yaml.safe_load(_a)
 
     return _b
 
 
 def save_yaml(path, data):
-
-    with open(path, 'w') as _a:
+    with open(path, "w") as _a:
         yaml.safe_dump(data, _a, default_flow_style=False)
