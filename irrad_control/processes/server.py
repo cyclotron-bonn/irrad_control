@@ -51,7 +51,6 @@ class IrradServer(DAQProcess):
         self._launch_daq_threads()
 
         # Listen to events from converter
-        logging.error("server setting up event stream with {}".format(self.setup['host']))
         self.add_event_stream(event_stream=self._tcp_addr(ip=self.setup['host'], port=self.setup['ports']['event']))
         self.launch_thread(target=self.recv_event)
 
