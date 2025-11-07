@@ -571,7 +571,9 @@ class TCA9555(object):
         format_: str
             Any attribute of BitArray-class
         """
-        fmt = lambda s: format(int(s, base=2), format_) if format_ is not None else s 
+        def fmt(s):
+            return format(int(s, base=2), format_) if format_ is not None else s
+         
         return {reg: fmt(state) for reg, state in self.config.items()}
 
     def set_bits(self, bits=None):

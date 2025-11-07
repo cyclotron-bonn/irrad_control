@@ -83,7 +83,7 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
                                        scan_area_start_x=irrad_data['scan_area_start_x'][0],
                                        scan_area_stop_x=irrad_data['scan_area_stop_x'][0])
 
-    logging.info(f"Finished generating fluence distribution.")
+    logging.info("Finished generating fluence distribution.")
     
     # Take sqrt of error map squared
     fluence_map_error = np.sqrt(fluence_map_error)                                  
@@ -142,7 +142,8 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_dat
     map_bin_edges_x = np.linspace(0, scan_area_x, len(map_bin_centers_x)+1)
     map_bin_edges_y = np.linspace(0, scan_area_y, len(map_bin_centers_y)+1)
 
-    get_dut_rect = lambda sax, say, dr: ((sax - dr[0])/2., (say - dr[1])/2., (sax + dr[0])/2., (say + dr[1])/2.)
+    def get_dut_rect(sax, say, dr):
+        return ((sax - dr[0])/2., (say - dr[1])/2., (sax + dr[0])/2., (say + dr[1])/2.)
     
     # Prioritize irrad data 
     if irrad_data is not None:

@@ -401,10 +401,12 @@ class ItemLinearStage(BaseAxis):
             unit in which target is given. Must be in self.dist_units. If None, interpret as steps
         """
 
-        actual_move = lambda t: self._client.send_cmd(cmd='MOVETOMM', data=[self.controller_id,
-                                                                            t,
-                                                                            int(self.get_speed()),
-                                                                            int(self.get_accel())])
+        def actual_move(t):
+            return self._client.send_cmd(cmd='MOVETOMM',
+                                         data=[self.controller_id,
+                                               t,
+                                               int(self.get_speed()),
+                                               int(self.get_accel())])
 
         # Get target of travel in mm
         target = value if unit is None else self.convert_from_unit(value, unit)

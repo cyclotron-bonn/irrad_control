@@ -30,8 +30,8 @@ def fill_combobox_items(cbx, fill_dict):
             else:
                 cbx.insertItem(i, k)
 
-            for l in fill_dict[k]:
-                tool_tip += '{}: {}\n'.format(l, fill_dict[k][l])
+            for itm in fill_dict[k]:
+                tool_tip += '{}: {}\n'.format(itm, fill_dict[k][itm])
         else:
             cbx.insertItem(i, k)
             tool_tip += '{}: {}\n'.format(k, fill_dict[k])

@@ -911,7 +911,7 @@ class IrradConverter(DAQProcess):
                                                                                             abs_tid.s))
             
             if self.irrad_events[server].IrradiationComplete.value.is_valid():
-                logging.info(f"Irradiation completed!")
+                logging.info("Irradiation completed!")
 
             # Append data to table within this interpretation cycle
             self.data_flags[server]['damage'] = True

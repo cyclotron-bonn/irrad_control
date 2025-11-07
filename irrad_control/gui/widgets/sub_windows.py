@@ -319,7 +319,7 @@ class MotorstagePositionWindow(QtWidgets.QMainWindow):
 
             # Buffer should have all the positions, check that the right ones were deleted
             if any(pos in positions for pos in remove):
-                logging.error(f"Position deletion unsuccessful")
+                logging.error("Position deletion unsuccessful")
                 return
                 
             for pos in remove:

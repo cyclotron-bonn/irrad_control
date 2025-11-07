@@ -1,3 +1,7 @@
+__all__ = ["DaqInfoWidget",
+           "LoggingWidget",
+           "EventWidget"]
+
 from .daq_info_widget import DaqInfoWidget
 from .logging_widget import LoggingWidget
 from .event_widget import EventWidget

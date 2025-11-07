@@ -1,4 +1,3 @@
-import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
