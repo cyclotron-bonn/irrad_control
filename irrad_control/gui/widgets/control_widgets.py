@@ -9,7 +9,6 @@ from irrad_control.gui.widgets import MotorstagePositionWindow
 from irrad_control.gui.utils import fill_combobox_items
 from irrad_control.utils.events import create_irrad_events
 
-import logging
 
 class ControlWidget(GridContainer):
 

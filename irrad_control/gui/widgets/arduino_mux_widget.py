@@ -1,14 +1,5 @@
-from os import rename
 from PyQt5 import QtWidgets, QtCore
-from collections import defaultdict
-
-from irrad_control.devices import DEVICES_CONFIG
-from irrad_control.gui.widgets import GridContainer, NoWheelQComboBox
-from irrad_control.gui.utils import fill_combobox_items
-from irrad_control.utils.events import create_irrad_events
 from irrad_control.gui.widgets.control_widgets import ControlWidget
-
-import logging
 
 
 class ArduinoMuxWidget(ControlWidget):
