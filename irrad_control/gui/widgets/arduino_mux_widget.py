@@ -8,15 +8,8 @@ class ArduinoMuxWidget(ControlWidget):
         self.internal_state = None
         super(ArduinoMuxWidget, self).__init__(name='Arduino Mux widget', parent=parent, enable=True)
 
-
     def _init_widget(self):
-        #self.tabs = QtWidgets.QTabWidget()
         self._init_buttons()
-        #self._init_info_boxes()
-
-
-    def _init_info_boxes(self):
-        pass
 
     def activate_transmit(self):
         button_states = [b.isChecked() for b in self.channel_boxes]
@@ -24,7 +17,6 @@ class ArduinoMuxWidget(ControlWidget):
             self.transmit_state_button.setEnabled(True)
         else:
             self.transmit_state_button.setEnabled(False)
-
 
     def _init_buttons(self):
         self.channel_boxes = [QtWidgets.QPushButton('channel ' + str(n)) for n in range(1, 17)]
@@ -108,12 +100,12 @@ class ArduinoMuxWidget(ControlWidget):
         if state:
             self.send_cmd(hostname=self.server,
                       target='ArduinoMUX',
-                      cmd='_enable_channel',
+                      cmd='enable_channel',
                       cmd_data={'kwargs': {'channel': channel}}
             )
         else:
             self.send_cmd(hostname=self.server,
                         target='ArduinoMUX',
-                        cmd='_disable_channel',
+                        cmd='disable_channel',
                         cmd_data={'kwargs': {'channel': channel}}
             )
