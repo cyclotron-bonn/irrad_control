@@ -11,7 +11,7 @@ from .motorstage.motorstage import ScanStage, SetupTableStage, ExternalCupStage
 
 # Arduino
 from .arduino.ntc_readout.arduino_ntc import ArduinoNTCReadout
-from .arduino.arduino_mux.mux import ArduinoMUX
+from .arduino.multiplexer.arduino_mux import ArduinoMUX
 
 # RadMonitor
 from .rad_monitor.rad_monitor import RadiationMonitor
