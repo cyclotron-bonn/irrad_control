@@ -27,13 +27,14 @@ class TestMain(unittest.TestCase):
 
     def test_setup_main_state(self):
 
-        # Check if we have 3 tabs: ('Setup', 'Control', 'Monitor')
+        # Check if we have 4 tabs: ('Setup', 'Control', 'Device', 'Monitor')
         assert self.irrad_window.tabs.count() == 4
 
-        # Check if we have setup enabled, nothing else tabs: ('Setup', 'Control', 'Monitor')
+        # Check if we have setup enabled, nothing else
         assert self.irrad_window.tabs.isTabEnabled(0)
         assert not self.irrad_window.tabs.isTabEnabled(1)
         assert not self.irrad_window.tabs.isTabEnabled(2)
+        assert not self.irrad_window.tabs.isTabEnabled(3)
 
 
 if __name__ == '__main__':
