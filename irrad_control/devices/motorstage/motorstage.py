@@ -7,10 +7,10 @@ class ScanStage(ZaberMultiAxis):
     """
     2-dimensional (XY-plane w.r.t beam axis (Z)) motorstage configuration used to scan DUTs through the beam.
     """
-    def __init__(self, **kwargs):
 
+    def __init__(self, **kwargs):
         # Get init kwargs from config
-        init = DEVICES_CONFIG[type(self).__name__]['init']
+        init = DEVICES_CONFIG[type(self).__name__]["init"]
 
         # Update init kwargs if *kwargs* are given
         init.update(kwargs)
@@ -23,10 +23,10 @@ class SetupTableStage(ZaberStepAxis):
     1-dimensional (Z-axis aka beam axis) motorstage which moves the setup table, on which the ScanStage is mounted,
     along the beam axis.
     """
-    def __init__(self, **kwargs):
 
+    def __init__(self, **kwargs):
         # Get init kwargs from config
-        init = DEVICES_CONFIG[type(self).__name__]['init']
+        init = DEVICES_CONFIG[type(self).__name__]["init"]
 
         # Update init kwargs if *kwargs* are given
         init.update(kwargs)
@@ -41,9 +41,8 @@ class ExternalCupStage(ItemLinearStage):
     """
 
     def __init__(self, **kwargs):
-
         # Get init kwargs from config
-        init = DEVICES_CONFIG[type(self).__name__]['init']
+        init = DEVICES_CONFIG[type(self).__name__]["init"]
 
         # Update init kwargs if *kwargs* are given
         init.update(kwargs)

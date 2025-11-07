@@ -15,7 +15,7 @@ from irrad_control.analysis.constants import elementary_charge
 def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     """
     Generates a two-dimensional fluence map of the entire scan area from irrad_control output data.
-    
+
     Parameters
     ----------
     beam_data : np.array, pytables.Table
@@ -34,17 +34,21 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
         Tuple containing fluence map, fluence map error, bin_centers_x, bin_centers_y
     """
 
-    total_scans = np.max(scan_data['scan']) + 1
-    n_rows = irrad_data['n_rows'][0]
+    total_scans = np.max(scan_data["scan"]) + 1
+    n_rows = irrad_data["n_rows"][0]
     total_rows = total_scans * n_rows
-    beam_sigma = (irrad_data['beam_fwhm_x'][0]/2.3548, irrad_data['beam_fwhm_y'][0]/2.3548)
+    beam_sigma = (irrad_data["beam_fwhm_x"][0] / 2.3548, irrad_data["beam_fwhm_y"][0] / 2.3548)
 
     logging.info(f"Generating fluence distribution from {total_scans} scans, containing {total_rows} total rows")
-    logging.info("Using Gaussian beam model with dimensions {}_x = {:.2f} mm, {}_y = {:.2f}mm".format(u'\u03c3', beam_sigma[0], u'\u03c3', beam_sigma[1]))
-    
+    logging.info(
+        "Using Gaussian beam model with dimensions {}_x = {:.2f} mm, {}_y = {:.2f}mm".format(
+            "\u03c3", beam_sigma[0], "\u03c3", beam_sigma[1]
+        )
+    )
+
     # Everything in base unit mm
-    scan_area_start = (irrad_data['scan_area_start_x'][0], irrad_data['scan_area_start_y'][0])
-    scan_area_end = (irrad_data['scan_area_stop_x'][0], irrad_data['scan_area_stop_y'][0])
+    scan_area_start = (irrad_data["scan_area_start_x"][0], irrad_data["scan_area_start_y"][0])
+    scan_area_end = (irrad_data["scan_area_stop_x"][0], irrad_data["scan_area_stop_y"][0])
 
     # Fluence map
     fluence_map = np.zeros(shape=bins)
@@ -53,13 +57,15 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     # Create fluence map bin edge points
     map_bin_edges_y = np.linspace(0, abs(scan_area_start[1] - scan_area_end[1]), bins[0] + 1)
     map_bin_edges_x = np.linspace(0, abs(scan_area_end[0] - scan_area_start[0]), bins[1] + 1)
-    
+
     # Create fluence map bin centers
     map_bin_centers_y = 0.5 * (map_bin_edges_y[:-1] + map_bin_edges_y[1:])
     map_bin_centers_x = 0.5 * (map_bin_edges_x[:-1] + map_bin_edges_x[1:])
 
-    logging.info(f"Initializing fluence map of ({map_bin_edges_x[-1]:.2f}x{map_bin_edges_y[-1]:.2f}) mm² scan area in {bins[1]}x{bins[0]} bins")
-    
+    logging.info(
+        f"Initializing fluence map of ({map_bin_edges_x[-1]:.2f}x{map_bin_edges_y[-1]:.2f}) mm² scan area in {bins[1]}x{bins[0]} bins"
+    )
+
     # Row bin times
     row_bin_transit_times = np.zeros_like(map_bin_centers_x)
 
@@ -67,26 +73,27 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     current_row_idx = 0
 
     # Loop over scanned rows
-    for row_data in tqdm(scan_data, desc='Generating fluence distribution', unit='rows'):
-
-        current_row_idx = _process_row(row_data=row_data,
-                                       beam_data=beam_data,
-                                       fluence_map=fluence_map,
-                                       fluence_map_error=fluence_map_error,
-                                       row_bin_transit_times=row_bin_transit_times,
-                                       map_bin_edges_x=map_bin_edges_x,
-                                       map_bin_centers_x=map_bin_centers_x,
-                                       map_bin_centers_y=map_bin_centers_y,
-                                       beam_sigma=beam_sigma,
-                                       scan_y_offset=scan_area_start[-1],
-                                       current_row_idx=current_row_idx,
-                                       scan_area_start_x=irrad_data['scan_area_start_x'][0],
-                                       scan_area_stop_x=irrad_data['scan_area_stop_x'][0])
+    for row_data in tqdm(scan_data, desc="Generating fluence distribution", unit="rows"):
+        current_row_idx = _process_row(
+            row_data=row_data,
+            beam_data=beam_data,
+            fluence_map=fluence_map,
+            fluence_map_error=fluence_map_error,
+            row_bin_transit_times=row_bin_transit_times,
+            map_bin_edges_x=map_bin_edges_x,
+            map_bin_centers_x=map_bin_centers_x,
+            map_bin_centers_y=map_bin_centers_y,
+            beam_sigma=beam_sigma,
+            scan_y_offset=scan_area_start[-1],
+            current_row_idx=current_row_idx,
+            scan_area_start_x=irrad_data["scan_area_start_x"][0],
+            scan_area_stop_x=irrad_data["scan_area_stop_x"][0],
+        )
 
     logging.info("Finished generating fluence distribution.")
-    
+
     # Take sqrt of error map squared
-    fluence_map_error = np.sqrt(fluence_map_error)                                  
+    fluence_map_error = np.sqrt(fluence_map_error)
 
     # Scale from ions / mm² (intrinsic unit) to ions / cm²
     fluence_map *= 100
@@ -95,7 +102,9 @@ def generate_fluence_map(beam_data, scan_data, irrad_data, bins=(100, 100)):
     return fluence_map, fluence_map_error, map_bin_centers_x, map_bin_centers_y
 
 
-def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_data=None, dut_rectangle=None, center_symm=False):
+def extract_dut_map(
+    fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_data=None, dut_rectangle=None, center_symm=False
+):
     """
     Extracts the DUT region from the fluence map.
 
@@ -112,7 +121,7 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_dat
     center_symm: bool
         If True, the *dut_rectangle* has the form of (x_width, y_width) and the exctracted map is centered symmetrically
 
-        (0, 0)-----------------------------------------------------------------------------     
+        (0, 0)-----------------------------------------------------------------------------
              |                               Fluence map                                   |
              |                                                                             |
              |    --- (x_min, y_min) -----------------------------                         |
@@ -135,23 +144,24 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_dat
     if irrad_data is None and dut_rectangle is None:
         raise ValueError("Either *irrad_data* or a *dut_rectangle* has to be given")
 
-    scan_area_x = map_bin_centers_x[-1] + (map_bin_centers_x[1] - map_bin_centers_x[0])/2.
-    scan_area_y = map_bin_centers_y[-1] + (map_bin_centers_y[1] - map_bin_centers_y[0])/2.
+    scan_area_x = map_bin_centers_x[-1] + (map_bin_centers_x[1] - map_bin_centers_x[0]) / 2.0
+    scan_area_y = map_bin_centers_y[-1] + (map_bin_centers_y[1] - map_bin_centers_y[0]) / 2.0
 
     # Make map edges
-    map_bin_edges_x = np.linspace(0, scan_area_x, len(map_bin_centers_x)+1)
-    map_bin_edges_y = np.linspace(0, scan_area_y, len(map_bin_centers_y)+1)
+    map_bin_edges_x = np.linspace(0, scan_area_x, len(map_bin_centers_x) + 1)
+    map_bin_edges_y = np.linspace(0, scan_area_y, len(map_bin_centers_y) + 1)
 
     def get_dut_rect(sax, say, dr):
-        return ((sax - dr[0])/2., (say - dr[1])/2., (sax + dr[0])/2., (say + dr[1])/2.)
-    
-    # Prioritize irrad data 
+        return ((sax - dr[0]) / 2.0, (say - dr[1]) / 2.0, (sax + dr[0]) / 2.0, (say + dr[1]) / 2.0)
+
+    # Prioritize irrad data
     if irrad_data is not None:
-        
-        dut_rectangle = (irrad_data['dut_rect_start_x'][0] - irrad_data['scan_area_start_x'][0],
-                         irrad_data['dut_rect_start_y'][0] - irrad_data['scan_area_start_y'][0],
-                         irrad_data['dut_rect_stop_x'][0] - irrad_data['scan_area_start_x'][0],
-                         irrad_data['dut_rect_stop_y'][0] - irrad_data['scan_area_start_y'][0])
+        dut_rectangle = (
+            irrad_data["dut_rect_start_x"][0] - irrad_data["scan_area_start_x"][0],
+            irrad_data["dut_rect_start_y"][0] - irrad_data["scan_area_start_y"][0],
+            irrad_data["dut_rect_stop_x"][0] - irrad_data["scan_area_start_x"][0],
+            irrad_data["dut_rect_stop_y"][0] - irrad_data["scan_area_start_y"][0],
+        )
 
     elif dut_rectangle is not None:
         if center_symm and len(dut_rectangle) != 2:
@@ -162,10 +172,20 @@ def extract_dut_map(fluence_map, map_bin_centers_x, map_bin_centers_y, irrad_dat
         if not center_symm and len(dut_rectangle) != 4:
             raise ValueError("*dut_rectangle needs to be in the form of (x_min, y_min, x_max, y_max)")
 
-    x_min_idx, x_max_idx = np.searchsorted(map_bin_edges_x, dut_rectangle[0]), np.searchsorted(map_bin_edges_x, dut_rectangle[-2], side='right')
-    y_min_idx, y_max_idx = np.searchsorted(map_bin_edges_y, dut_rectangle[1]), np.searchsorted(map_bin_edges_y, dut_rectangle[-1], side='right')
+    x_min_idx, x_max_idx = (
+        np.searchsorted(map_bin_edges_x, dut_rectangle[0]),
+        np.searchsorted(map_bin_edges_x, dut_rectangle[-2], side="right"),
+    )
+    y_min_idx, y_max_idx = (
+        np.searchsorted(map_bin_edges_y, dut_rectangle[1]),
+        np.searchsorted(map_bin_edges_y, dut_rectangle[-1], side="right"),
+    )
 
-    return fluence_map[y_min_idx:y_max_idx, x_min_idx:x_max_idx], map_bin_centers_x[x_min_idx:x_max_idx], map_bin_centers_y[y_min_idx:y_max_idx]
+    return (
+        fluence_map[y_min_idx:y_max_idx, x_min_idx:x_max_idx],
+        map_bin_centers_x[x_min_idx:x_max_idx],
+        map_bin_centers_y[y_min_idx:y_max_idx],
+    )
 
 
 @njit
@@ -234,7 +254,7 @@ def gauss_2d_volume(amplitude, sigma_x, sigma_y):
 def gauss_2d_norm(amplitude, sigma_x, sigma_y):
     """
     Calculate normalized amplitude to satisfy integral(gauss_2D_pdf) == 1
-    
+
     Parameters
     ----------
     amplitude : float
@@ -253,7 +273,20 @@ def gauss_2d_norm(amplitude, sigma_x, sigma_y):
 
 
 @njit
-def apply_gauss_2d_kernel(map_2d, map_2d_error, amplitude, amplitude_error, bin_centers_x, bin_centers_y, mu_x, mu_y, sigma_x, sigma_y, normalized, skip_sigmas=6):
+def apply_gauss_2d_kernel(
+    map_2d,
+    map_2d_error,
+    amplitude,
+    amplitude_error,
+    bin_centers_x,
+    bin_centers_y,
+    mu_x,
+    mu_y,
+    sigma_x,
+    sigma_y,
+    normalized,
+    skip_sigmas=6,
+):
     """
     Applies a 2D Gaussian kernel on *map_2d* and *map_2d_error*, along given bin centers in x and y dimension. See *gauss_2d_pdf* function
     for more info.
@@ -290,47 +323,49 @@ def apply_gauss_2d_kernel(map_2d, map_2d_error, amplitude, amplitude_error, bin_
     if skip_sigmas < 3:
         raise ValueError("Minimum of skip_sigmas is 3 to maintain reasonable accuracy")
 
-    error_amplitude_squared = amplitude_error ** 2
-    
+    error_amplitude_squared = amplitude_error**2
+
     # Loop over y indices
     for j in range(map_2d.shape[0]):
-        
         # Extract current y coordinate
         y_coord = bin_centers_y[j]
-        
+
         # Check y coordinate
         if abs(y_coord - mu_y) > skip_sigmas * sigma_y:
             continue
-        
+
         # Loop over x indices
         for i in range(map_2d.shape[1]):
-
-            # Extract current x coordinate            
+            # Extract current x coordinate
             x_coord = bin_centers_x[i]
 
             # Check x coordinate
             if abs(x_coord - mu_x) > skip_sigmas * sigma_x:
                 continue
-            
+
             # Apply Gaussian to map
-            map_2d[j, i] += gauss_2d_pdf(x=x_coord,
-                                         y=y_coord,
-                                         mu_x=mu_x,
-                                         mu_y=mu_y,
-                                         sigma_x=sigma_x,
-                                         sigma_y=sigma_y,
-                                         amplitude=amplitude,
-                                         normalized=normalized)
+            map_2d[j, i] += gauss_2d_pdf(
+                x=x_coord,
+                y=y_coord,
+                mu_x=mu_x,
+                mu_y=mu_y,
+                sigma_x=sigma_x,
+                sigma_y=sigma_y,
+                amplitude=amplitude,
+                normalized=normalized,
+            )
 
             # Apply Gaussian to error map e.g. with squared amplitude
-            map_2d_error[j, i] += gauss_2d_pdf(x=x_coord,
-                                               y=y_coord,
-                                               mu_x=mu_x,
-                                               mu_y=mu_y,
-                                               sigma_x=sigma_x,
-                                               sigma_y=sigma_y,
-                                               amplitude=error_amplitude_squared,
-                                               normalized=normalized)
+            map_2d_error[j, i] += gauss_2d_pdf(
+                x=x_coord,
+                y=y_coord,
+                mu_x=mu_x,
+                mu_y=mu_y,
+                sigma_x=sigma_x,
+                sigma_y=sigma_y,
+                amplitude=error_amplitude_squared,
+                normalized=normalized,
+            )
 
 
 @njit
@@ -362,7 +397,7 @@ def _calc_bin_transit_times(bin_transit_times, bin_edges, scan_speed, scan_accel
 
     # Distance covered for de/acceleration
     # s = a/2 * t^2
-    de_accel_dist = scan_accel / 2. * de_accel_time ** 2.
+    de_accel_dist = scan_accel / 2.0 * de_accel_time**2.0
 
     # Get index up to / from which is accelerated / decelerated
     idx = np.searchsorted(bin_edges, de_accel_dist)
@@ -374,15 +409,29 @@ def _calc_bin_transit_times(bin_transit_times, bin_edges, scan_speed, scan_accel
     for i in range(idx):
         reverse_idx = -(i + 1)
         # Calculate time
-        bin_transit_times[i] = ((2 * bin_sizes[i] * scan_accel + current_speed ** 2) ** 0.5 - current_speed) / scan_accel
-        bin_transit_times[reverse_idx] = ((2 * bin_sizes[reverse_idx] * scan_accel + current_speed ** 2) ** 0.5 - current_speed) / scan_accel
+        bin_transit_times[i] = ((2 * bin_sizes[i] * scan_accel + current_speed**2) ** 0.5 - current_speed) / scan_accel
+        bin_transit_times[reverse_idx] = (
+            (2 * bin_sizes[reverse_idx] * scan_accel + current_speed**2) ** 0.5 - current_speed
+        ) / scan_accel
 
         # Update speed
         current_speed += scan_accel * bin_transit_times[i]
 
 
 @njit
-def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, scan_area_start_x, scan_area_stop_x):
+def _process_row_wait(
+    row_data,
+    wait_beam_data,
+    fluence_map,
+    fluence_map_error,
+    map_bin_edges_x,
+    map_bin_centers_x,
+    map_bin_centers_y,
+    beam_sigma,
+    scan_y_offset,
+    scan_area_start_x,
+    scan_area_stop_x,
+):
     """
     Processes the times where the beam is waiting on the periphery of the scan area or switches rows.
     Always checks the wait time from previous row until current row.
@@ -415,53 +464,67 @@ def _process_row_wait(row_data, wait_beam_data, fluence_map, fluence_map_error, 
         X-value of the end of the scan area (right side)
     """
 
-    wait_mu_y = row_data['row_start_y'] - scan_y_offset
-    
+    wait_mu_y = row_data["row_start_y"] - scan_y_offset
+
     # Check If scan went from left to right or vice versa to correctly fill bins with respective currents
     # Allow the position to be not exact; sometimes motorstage controller is a step off, allow a 1 mm window
     # This row is scanned from left to right; we waited on the left side from the previous scan
-    if scan_area_start_x - 0.5 < row_data['row_start_x'] < scan_area_start_x + 0.5:
+    if scan_area_start_x - 0.5 < row_data["row_start_x"] < scan_area_start_x + 0.5:
         wait_mu_x = map_bin_edges_x[0]
     # We scanned right to left; we waited on the right side from the previous scan
-    elif scan_area_stop_x - 0.5 < row_data['row_start_x'] < scan_area_stop_x + 0.5:
+    elif scan_area_stop_x - 0.5 < row_data["row_start_x"] < scan_area_stop_x + 0.5:
         wait_mu_x = map_bin_edges_x[-1]
     else:
-        raise ValueError('Row started at neither edge of scan area')
+        raise ValueError("Row started at neither edge of scan area")
 
     # Add variation to the uncertainty
-    wait_ions_std = np.nanstd(wait_beam_data['beam_current'])
-    
+    wait_ions_std = np.nanstd(wait_beam_data["beam_current"])
+
     # Loop over currents and apply Gauss kernel at given position
     for i in range(wait_beam_data.shape[0] - 1):
-
         # Get beam current measurement
-        wait_current = wait_beam_data[i]['beam_current']
-        wait_current_error = wait_beam_data[i]['beam_current_error']
+        wait_current = wait_beam_data[i]["beam_current"]
+        wait_current_error = wait_beam_data[i]["beam_current_error"]
 
         # Calculate how many seconds this current was present while waiting
-        wait_interval = wait_beam_data[i+1]['timestamp'] - wait_beam_data[i]['timestamp']
+        wait_interval = wait_beam_data[i + 1]["timestamp"] - wait_beam_data[i]["timestamp"]
 
         # Integrate over *wait_interval* to obtain number of ions induced
         wait_ions = wait_current * wait_interval / elementary_charge
         wait_ions_error = wait_current_error * wait_interval / elementary_charge
-        wait_ions_error = (wait_ions_error**2 + wait_ions_std**2)**.5
+        wait_ions_error = (wait_ions_error**2 + wait_ions_std**2) ** 0.5
 
         # Apply Gaussian kernel for ions
-        apply_gauss_2d_kernel(map_2d=fluence_map,
-                              map_2d_error=fluence_map_error,
-                              amplitude=wait_ions,
-                              amplitude_error=wait_ions_error,
-                              bin_centers_x=map_bin_centers_x,
-                              bin_centers_y=map_bin_centers_y,
-                              mu_x=wait_mu_x,
-                              mu_y=wait_mu_y,
-                              sigma_x=beam_sigma[0],
-                              sigma_y=beam_sigma[1],
-                              normalized=False)
+        apply_gauss_2d_kernel(
+            map_2d=fluence_map,
+            map_2d_error=fluence_map_error,
+            amplitude=wait_ions,
+            amplitude_error=wait_ions_error,
+            bin_centers_x=map_bin_centers_x,
+            bin_centers_y=map_bin_centers_y,
+            mu_x=wait_mu_x,
+            mu_y=wait_mu_y,
+            sigma_x=beam_sigma[0],
+            sigma_y=beam_sigma[1],
+            normalized=False,
+        )
 
 
 @njit
-def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, scan_area_start_x, scan_area_stop_x):
+def _process_row_scan(
+    row_data,
+    row_beam_data,
+    fluence_map,
+    fluence_map_error,
+    row_bin_transit_times,
+    map_bin_edges_x,
+    map_bin_centers_x,
+    map_bin_centers_y,
+    beam_sigma,
+    scan_y_offset,
+    scan_area_start_x,
+    scan_area_stop_x,
+):
     """
     Processes the scanning of a single row.
 
@@ -494,58 +557,86 @@ def _process_row_scan(row_data, row_beam_data, fluence_map, fluence_map_error, r
     """
 
     # Update row bin times
-    _calc_bin_transit_times(bin_transit_times=row_bin_transit_times, bin_edges=map_bin_edges_x, scan_speed=row_data['row_scan_speed'], scan_accel=row_data['row_scan_accel'])
+    _calc_bin_transit_times(
+        bin_transit_times=row_bin_transit_times,
+        bin_edges=map_bin_edges_x,
+        scan_speed=row_data["row_scan_speed"],
+        scan_accel=row_data["row_scan_accel"],
+    )
 
     # Determine communication timing overhead; assume symmetric dead time at row start and end
-    row_start_overhead = (row_data['row_stop_timestamp'] - row_data['row_start_timestamp'] - row_bin_transit_times.sum()) / 2.0
-    
-    # Get the timestamp from which to check for beam currents, adjusted by the overhead
-    actual_row_start_timestamp = row_data['row_start_timestamp'] + row_start_overhead
+    row_start_overhead = (
+        row_data["row_stop_timestamp"] - row_data["row_start_timestamp"] - row_bin_transit_times.sum()
+    ) / 2.0
 
-    # Calculate the timstamps which correspond to being in the map_bin_centers_x 
-    row_bin_center_timestamps = actual_row_start_timestamp + np.cumsum(row_bin_transit_times) - row_bin_transit_times / 2.0
-    
+    # Get the timestamp from which to check for beam currents, adjusted by the overhead
+    actual_row_start_timestamp = row_data["row_start_timestamp"] + row_start_overhead
+
+    # Calculate the timstamps which correspond to being in the map_bin_centers_x
+    row_bin_center_timestamps = (
+        actual_row_start_timestamp + np.cumsum(row_bin_transit_times) - row_bin_transit_times / 2.0
+    )
+
     # Interpolate the beam current measurements at the bin center for this scan
-    row_bin_center_currents = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current'])
-    row_bin_center_current_errors = np.interp(row_bin_center_timestamps, row_beam_data['timestamp'], row_beam_data['beam_current_error'])
+    row_bin_center_currents = np.interp(
+        row_bin_center_timestamps, row_beam_data["timestamp"], row_beam_data["beam_current"]
+    )
+    row_bin_center_current_errors = np.interp(
+        row_bin_center_timestamps, row_beam_data["timestamp"], row_beam_data["beam_current_error"]
+    )
 
     # Integrate the current measurements with the times spent in each bin to calculate the amount of ions in the bin
     row_bin_center_ions = (row_bin_center_currents * row_bin_transit_times) / elementary_charge
     row_bin_center_ion_errors = (row_bin_center_current_errors * row_bin_transit_times) / elementary_charge
-    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.nanstd(row_bin_center_ions)**2)**.5
+    row_bin_center_ion_errors = (row_bin_center_ion_errors**2 + np.nanstd(row_bin_center_ions) ** 2) ** 0.5
 
-    mu_y = row_data['row_start_y'] - scan_y_offset
+    mu_y = row_data["row_start_y"] - scan_y_offset
 
     # Check if scan goes from left to right or vice versa to correctly fill bins with respective currents
     # Allow the position to be not exact; sometimes motorstage controller is a step off, allow a 1 mm window
     # This row is scanned from left to right; bin centers are correct
-    if scan_area_start_x - 0.5 < row_data['row_start_x'] < scan_area_start_x + 0.5:
+    if scan_area_start_x - 0.5 < row_data["row_start_x"] < scan_area_start_x + 0.5:
         x_bin_centers = map_bin_centers_x
     # This row is scanned from right to left; bin centers need to be reversed to correctly reflect where the beam current is deposited
-    elif scan_area_stop_x - 0.5 < row_data['row_start_x'] < scan_area_stop_x + 0.5:
+    elif scan_area_stop_x - 0.5 < row_data["row_start_x"] < scan_area_stop_x + 0.5:
         x_bin_centers = map_bin_centers_x[::-1]
     else:
-        raise ValueError('Row started at neither edge of scan area')
+        raise ValueError("Row started at neither edge of scan area")
 
     # Loop over ions in bins; due to symmetric bin transit times, we can reverse the bin center position for right to left scans to fill correctly
     for i in range(row_bin_center_ions.shape[0]):
-        
         # Apply Gaussian kernel for ions
-        apply_gauss_2d_kernel(map_2d=fluence_map,
-                              map_2d_error=fluence_map_error,
-                              amplitude=row_bin_center_ions[i],
-                              amplitude_error=row_bin_center_ion_errors[i],
-                              bin_centers_x=map_bin_centers_x,
-                              bin_centers_y=map_bin_centers_y,
-                              mu_x=x_bin_centers[i],
-                              mu_y=mu_y,
-                              sigma_x=beam_sigma[0],
-                              sigma_y=beam_sigma[1],
-                              normalized=False)
+        apply_gauss_2d_kernel(
+            map_2d=fluence_map,
+            map_2d_error=fluence_map_error,
+            amplitude=row_bin_center_ions[i],
+            amplitude_error=row_bin_center_ion_errors[i],
+            bin_centers_x=map_bin_centers_x,
+            bin_centers_y=map_bin_centers_y,
+            mu_x=x_bin_centers[i],
+            mu_y=mu_y,
+            sigma_x=beam_sigma[0],
+            sigma_y=beam_sigma[1],
+            normalized=False,
+        )
 
 
 @njit
-def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_transit_times, map_bin_edges_x, map_bin_centers_x, map_bin_centers_y, beam_sigma, scan_y_offset, current_row_idx, scan_area_start_x, scan_area_stop_x):
+def _process_row(
+    row_data,
+    beam_data,
+    fluence_map,
+    fluence_map_error,
+    row_bin_transit_times,
+    map_bin_edges_x,
+    map_bin_centers_x,
+    map_bin_centers_y,
+    beam_sigma,
+    scan_y_offset,
+    current_row_idx,
+    scan_area_start_x,
+    scan_area_stop_x,
+):
     """
     Process the scanning and waiting / switching of a single row
 
@@ -589,47 +680,49 @@ def _process_row(row_data, beam_data, fluence_map, fluence_map_error, row_bin_tr
     current_beam_data = beam_data[current_row_idx:]
 
     # Get indice limits of beam currents measured during scanning of current row
-    row_start_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_start_timestamp'], side='left')
-    row_stop_idx = np.searchsorted(current_beam_data['timestamp'], row_data['row_stop_timestamp'], side='right')
+    row_start_idx = np.searchsorted(current_beam_data["timestamp"], row_data["row_start_timestamp"], side="left")
+    row_stop_idx = np.searchsorted(current_beam_data["timestamp"], row_data["row_stop_timestamp"], side="right")
 
     # Get beam data current measurements and corresponding timestamps of this row scan
     row_beam_data = current_beam_data[row_start_idx:row_stop_idx]
-    
+
     # If this is not the first row, we want to process the waiting / switching row
     if current_row_idx > 0:
-        
         # Get beam current measurements which were taken while waiting to start next row
         wait_beam_data = current_beam_data[:row_start_idx]
 
         # Only process wait data if there is any; sometimes there is none
         if wait_beam_data.shape[0] > 0:
-
             # Process the currents measured while waiting
-            _process_row_wait(row_data=row_data,
-                            wait_beam_data=wait_beam_data,
-                            fluence_map=fluence_map,
-                            fluence_map_error=fluence_map_error,
-                            map_bin_edges_x=map_bin_edges_x,
-                            map_bin_centers_x=map_bin_centers_x,
-                            map_bin_centers_y=map_bin_centers_y,
-                            beam_sigma=beam_sigma,
-                            scan_y_offset=scan_y_offset,
-                            scan_area_start_x=scan_area_start_x,
-                            scan_area_stop_x=scan_area_stop_x)
+            _process_row_wait(
+                row_data=row_data,
+                wait_beam_data=wait_beam_data,
+                fluence_map=fluence_map,
+                fluence_map_error=fluence_map_error,
+                map_bin_edges_x=map_bin_edges_x,
+                map_bin_centers_x=map_bin_centers_x,
+                map_bin_centers_y=map_bin_centers_y,
+                beam_sigma=beam_sigma,
+                scan_y_offset=scan_y_offset,
+                scan_area_start_x=scan_area_start_x,
+                scan_area_stop_x=scan_area_stop_x,
+            )
 
     # Process the scan
-    _process_row_scan(row_data=row_data,
-                      row_beam_data=row_beam_data,
-                      fluence_map=fluence_map,
-                      fluence_map_error=fluence_map_error,
-                      row_bin_transit_times=row_bin_transit_times,
-                      map_bin_edges_x=map_bin_edges_x,
-                      map_bin_centers_x=map_bin_centers_x,
-                      map_bin_centers_y=map_bin_centers_y,
-                      beam_sigma=beam_sigma,
-                      scan_y_offset=scan_y_offset,
-                      scan_area_start_x=scan_area_start_x,
-                      scan_area_stop_x=scan_area_stop_x)
-    
+    _process_row_scan(
+        row_data=row_data,
+        row_beam_data=row_beam_data,
+        fluence_map=fluence_map,
+        fluence_map_error=fluence_map_error,
+        row_bin_transit_times=row_bin_transit_times,
+        map_bin_edges_x=map_bin_edges_x,
+        map_bin_centers_x=map_bin_centers_x,
+        map_bin_centers_y=map_bin_centers_y,
+        beam_sigma=beam_sigma,
+        scan_y_offset=scan_y_offset,
+        scan_area_start_x=scan_area_start_x,
+        scan_area_stop_x=scan_area_stop_x,
+    )
+
     # Calculate index to return
     return current_row_idx + row_stop_idx

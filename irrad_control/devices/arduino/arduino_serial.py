@@ -3,16 +3,11 @@ from irrad_control.devices.serial_device import SerialDevice
 
 
 class ArduinoSerial(SerialDevice):
-    
-    CMD_DELIMITER = ':'
-    
-    CMDS = {
-        'communication_delay': 'D'
-    }
+    CMD_DELIMITER = ":"
 
-    ERRORS = {
-        'error': "An error occured"
-    }
+    CMDS = {"communication_delay": "D"}
+
+    ERRORS = {"error": "An error occured"}
 
     @property
     def communication_delay(self):
@@ -24,7 +19,7 @@ class ArduinoSerial(SerialDevice):
         int
             Communication delay in milliseconds
         """
-        return int(self.query(self.create_command(self.CMDS['communication_delay'])))
+        return int(self.query(self.create_command(self.CMDS["communication_delay"])))
 
     @communication_delay.setter
     def communication_delay(self, comm_delay):
@@ -36,10 +31,10 @@ class ArduinoSerial(SerialDevice):
         comm_delay : int
             Communication delay in milliseconds
         """
-        self._set_and_retrieve(cmd='communication_delay', val=comm_delay)
+        self._set_and_retrieve(cmd="communication_delay", val=comm_delay)
 
     def __init__(self, port, baudrate=115200, timeout=1):
-        super().__init__(port=port, baudrate=baudrate, timeout=timeout) 
+        super().__init__(port=port, baudrate=baudrate, timeout=timeout)
         sleep(2)  # Allow Arduino to reboot; serial connection resets the Arduino
         self.CMDS.update(ArduinoSerial.CMDS)
         self.ERRORS.update(ArduinoSerial.ERRORS)
@@ -63,19 +58,18 @@ class ArduinoSerial(SerialDevice):
         exception_
             Exception is raised when set and retrieved values differ
         """
-        # The self.CMDS['cmd'].lower() invokes the setter, self.CMDS['cmd'] the getter 
+        # The self.CMDS['cmd'].lower() invokes the setter, self.CMDS['cmd'] the getter
         ret_val = self.query(self.create_command(self.CMDS[cmd].lower(), val))
         if ret_val != str(val):
             raise exception_(f"Retrieved value for command {cmd} ({ret_val}) different from set value ({val})")
 
-    
     def create_command(self, *args):
         """
         Create command string according to specified format.
         Arguments to this function are formatted and separated using self._DELIM
-        
+
         Examples:
-        
+
         self.create_command('W', 0x03, 0xFF) -> 'W:3:255:'
         self.create_command('R', 0x03) -> 'R:3:'
 
@@ -84,4 +78,4 @@ class ArduinoSerial(SerialDevice):
         str
             Formatted command string
         """
-        return f'{self.CMD_DELIMITER.join(str(a) for a in args)}{self.CMD_DELIMITER}'.encode()
+        return f"{self.CMD_DELIMITER.join(str(a) for a in args)}{self.CMD_DELIMITER}".encode()

@@ -2,50 +2,49 @@ from irrad_control.devices.serial_device import SerialDevice
 
 
 class IsegNHQx0xx(SerialDevice):
-
     # Command references from protocol
     CMDS = {
-        'get_identifier': '#',
-        'set_break_time': 'W={value}',
-        'get_break_time': 'W',
-        'get_voltage_meas': 'U{channel}',
-        'get_current_meas': 'I{channel}',
-        'get_v_lim': 'M{channel}',
-        'get_i_lim': 'N{channel}',
-        'get_voltage_set': 'D{channel}',
-        'set_voltage': 'D{channel}={value}',
-        'get_ramp_speed': 'V{channel}',
-        'set_ramp_speed': 'V{channel}={value}',
-        'start_voltage_change': 'G{channel}',
-        'set_current_trip': 'L{channel}={value}',
-        'get_current_trip': 'L{channel}',
-        'get_status_word': 'S{channel}',
-        'get_module_status': 'T{channel}',
-        'set_autostart': 'A{channel}={value}',
-        'get_autostart': 'A{channel}'
-        }
+        "get_identifier": "#",
+        "set_break_time": "W={value}",
+        "get_break_time": "W",
+        "get_voltage_meas": "U{channel}",
+        "get_current_meas": "I{channel}",
+        "get_v_lim": "M{channel}",
+        "get_i_lim": "N{channel}",
+        "get_voltage_set": "D{channel}",
+        "set_voltage": "D{channel}={value}",
+        "get_ramp_speed": "V{channel}",
+        "set_ramp_speed": "V{channel}={value}",
+        "start_voltage_change": "G{channel}",
+        "set_current_trip": "L{channel}={value}",
+        "get_current_trip": "L{channel}",
+        "get_status_word": "S{channel}",
+        "get_module_status": "T{channel}",
+        "set_autostart": "A{channel}={value}",
+        "get_autostart": "A{channel}",
+    }
 
     ERRORS = {
-        '????': 'Syntax error in command',
-        '?WCN': 'Wrong channel number',
-        '?TOT': 'Timeout error (Unit will re-initialise)'
+        "????": "Syntax error in command",
+        "?WCN": "Wrong channel number",
+        "?TOT": "Timeout error (Unit will re-initialise)",
     }
 
     STATUS = {
-        'ON': "Output voltage according to set voltage",
-        'OFF': "Channel front panel switch off",
-        'MAN': "Channel is on, set to manual mode",
-        'ERR': "V_MAX or I_MAX was exceeded",
-        'INH': "Inhibit signal was / is active",
-        'QUA': "Quality of output voltage no guaranteed at present",
-        'L2H': "Output voltage increasing",
-        'H2L': "Output voltage decreasing",
-        'LAS': "Look at status (only after G-command)",
-        'TRP': "Current trip was active"
+        "ON": "Output voltage according to set voltage",
+        "OFF": "Channel front panel switch off",
+        "MAN": "Channel is on, set to manual mode",
+        "ERR": "V_MAX or I_MAX was exceeded",
+        "INH": "Inhibit signal was / is active",
+        "QUA": "Quality of output voltage no guaranteed at present",
+        "L2H": "Output voltage increasing",
+        "H2L": "Output voltage decreasing",
+        "LAS": "Look at status (only after G-command)",
+        "TRP": "Current trip was active",
     }
 
-    WRITE_TERMINATION = '\r\n'
-    READ_TERMINATION = '\r\n'
+    WRITE_TERMINATION = "\r\n"
+    READ_TERMINATION = "\r\n"
 
     @property
     def identifier(self):
@@ -57,7 +56,7 @@ class IsegNHQx0xx(SerialDevice):
         str
             Module identifier
         """
-        return self._get_set_property(prop='get_identifier')
+        return self._get_set_property(prop="get_identifier")
 
     @property
     def break_time(self):
@@ -70,13 +69,13 @@ class IsegNHQx0xx(SerialDevice):
         int
             break time in ms (uint8)
         """
-        return int(self._get_set_property(prop='get_break_time'))
+        return int(self._get_set_property(prop="get_break_time"))
 
     @break_time.setter
     def break_time(self, bt):
         if not 1 <= bt <= 255:
             raise ValueError("Break time must be 1 <= break_time <= 255 ms")
-        self._get_set_property(prop='get_break_time', value=bt)
+        self._get_set_property(prop="get_break_time", value=bt)
 
     @property
     def voltage(self):
@@ -88,13 +87,13 @@ class IsegNHQx0xx(SerialDevice):
         float
             Output voltage in V
         """
-        return float(self._get_set_property(prop='get_voltage_meas'))
+        return float(self._get_set_property(prop="get_voltage_meas"))
 
     @voltage.setter
     def voltage(self, voltage):
         if voltage > self.voltage_limit:
             raise ValueError(f"Value too high! Maximum allowed voltage is {self.voltage_limit} V")
-        self._get_set_property(prop='set_voltage', value=voltage)
+        self._get_set_property(prop="set_voltage", value=voltage)
 
     @property
     def voltage_target(self):
@@ -107,7 +106,7 @@ class IsegNHQx0xx(SerialDevice):
         float
             Target voltage in V
         """
-        return float(self._get_set_property(prop='get_voltage_set'))
+        return float(self._get_set_property(prop="get_voltage_set"))
 
     @property
     def current(self):
@@ -119,7 +118,7 @@ class IsegNHQx0xx(SerialDevice):
         float
             Output current in A
         """
-        return float(self._get_set_property(prop='get_current_meas'))
+        return float(self._get_set_property(prop="get_current_meas"))
 
     @property
     def voltage_limit(self):
@@ -131,8 +130,8 @@ class IsegNHQx0xx(SerialDevice):
         float
             Voltage limit in V
         """
-        # Property get_v_lim returns voltage limit as percentage of max voltage 
-        return int(self._get_set_property(prop='get_v_lim')) / 100.0 * float(self.V_MAX[:-1])
+        # Property get_v_lim returns voltage limit as percentage of max voltage
+        return int(self._get_set_property(prop="get_v_lim")) / 100.0 * float(self.V_MAX[:-1])
 
     @property
     def current_limit(self):
@@ -144,8 +143,8 @@ class IsegNHQx0xx(SerialDevice):
         float
             Current limit in A
         """
-        # Property get_i_lim returns voltage limit as percentage of max current 
-        return int(self._get_set_property(prop='get_i_lim')) / 100.0 * float(self.I_MAX[:-2])
+        # Property get_i_lim returns voltage limit as percentage of max current
+        return int(self._get_set_property(prop="get_i_lim")) / 100.0 * float(self.I_MAX[:-2])
 
     @property
     def ramp_speed(self):
@@ -158,13 +157,13 @@ class IsegNHQx0xx(SerialDevice):
         int
             Ramp speed of output voltage
         """
-        return int(self._get_set_property(prop='get_ramp_speed'))
+        return int(self._get_set_property(prop="get_ramp_speed"))
 
     @ramp_speed.setter
     def ramp_speed(self, rs):
         if not 1 <= rs <= 255:
             raise ValueError("Ramp speed must be 1 <= ramp_speed <= 255 V/s")
-        self._get_set_property(prop='set_ramp_speed', value=rs)
+        self._get_set_property(prop="set_ramp_speed", value=rs)
 
     @property
     def current_trip(self):
@@ -176,11 +175,11 @@ class IsegNHQx0xx(SerialDevice):
         int
             Current trip
         """
-        return int(self._get_set_property(prop='get_current_trip'))
+        return int(self._get_set_property(prop="get_current_trip"))
 
     @current_trip.setter
     def current_trip(self, ct):
-        self._get_set_property(prop='set_current_trip', value=ct)
+        self._get_set_property(prop="set_current_trip", value=ct)
 
     @property
     def status_word(self):
@@ -193,7 +192,7 @@ class IsegNHQx0xx(SerialDevice):
         str
             Status word
         """
-        return self._get_set_property(prop='get_status_word')
+        return self._get_set_property(prop="get_status_word")
 
     @property
     def status_description(self):
@@ -209,8 +208,8 @@ class IsegNHQx0xx(SerialDevice):
         for status in self.STATUS:
             if status in status_word:
                 return f"{status_word}: {self.STATUS[status]}"
-        return 'No description'
-        
+        return "No description"
+
     @property
     def module_status(self):
         """
@@ -222,7 +221,7 @@ class IsegNHQx0xx(SerialDevice):
         int
             Value of status
         """
-        return '{:08b}'.format(int(self._get_set_property(prop='get_module_status')))
+        return "{:08b}".format(int(self._get_set_property(prop="get_module_status")))
 
     @property
     def module_description(self):
@@ -234,23 +233,26 @@ class IsegNHQx0xx(SerialDevice):
         str
             Module description string
         """
-        def module_msg(bit, prefix, t_msg, f_msg=''):
-            return f'{prefix} ' + (t_msg if bit == '1' else f_msg)
-        
+
+        def module_msg(bit, prefix, t_msg, f_msg=""):
+            return f"{prefix} " + (t_msg if bit == "1" else f_msg)
+
         _description = {
-            0: lambda b: module_msg(bit=b, prefix='', t_msg="Quality of output voltage not given at present"),
-            1: lambda b: module_msg(bit=b, prefix='', t_msg="V_MAX or I_MAX is / was exceeded"),
-            2: lambda b: module_msg(bit=b, prefix='INHIBIT signal', t_msg="is / was active", f_msg="inactive"),
+            0: lambda b: module_msg(bit=b, prefix="", t_msg="Quality of output voltage not given at present"),
+            1: lambda b: module_msg(bit=b, prefix="", t_msg="V_MAX or I_MAX is / was exceeded"),
+            2: lambda b: module_msg(bit=b, prefix="INHIBIT signal", t_msg="is / was active", f_msg="inactive"),
             3: lambda b: module_msg(bit=b, prefix="KILL_ENABLE is", t_msg="on", f_msg="off"),
             4: lambda b: module_msg(bit=b, prefix="Front-panel HV-ON switch is", t_msg="OFF", f_msg="ON"),
             5: lambda b: module_msg(bit=b, prefix="Polarity set to", t_msg="positive", f_msg="negative"),
             6: lambda b: module_msg(bit=b, prefix="Control via", t_msg="manual", f_msg="RS-232 interface"),
-            7: lambda b: module_msg(bit=b, prefix="Display dialled to", t_msg="voltage measurement", f_msg="current measurement")
+            7: lambda b: module_msg(
+                bit=b, prefix="Display dialled to", t_msg="voltage measurement", f_msg="current measurement"
+            ),
         }
         module_status = self.module_status
-        module_description = ''
+        module_description = ""
         for i, bit in enumerate(module_status):
-            module_description += _description[i](bit) + '\n'
+            module_description += _description[i](bit) + "\n"
         return module_description
 
     @property
@@ -266,11 +268,11 @@ class IsegNHQx0xx(SerialDevice):
         bool
             Wheter autostart is active
         """
-        return self._get_set_property(prop='get_autostart') == '008'
+        return self._get_set_property(prop="get_autostart") == "008"
 
     @autostart.setter
     def autostart(self, state):
-        self._get_set_property(prop='set_autostart', value=8 if state else 0)
+        self._get_set_property(prop="set_autostart", value=8 if state else 0)
 
     @property
     def channel(self):
@@ -284,19 +286,19 @@ class IsegNHQx0xx(SerialDevice):
 
     @property
     def UNIT_NUMBER(self):
-        return self.identifier.split(';')[0]
+        return self.identifier.split(";")[0]
 
     @property
     def SOFTWARE_REL(self):
-        return self.identifier.split(';')[1]
+        return self.identifier.split(";")[1]
 
     @property
     def V_MAX(self):
-        return self.identifier.split(';')[2]
-    
+        return self.identifier.split(";")[2]
+
     @property
     def I_MAX(self):
-        return self.identifier.split(';')[3]
+        return self.identifier.split(";")[3]
 
     def __init__(self, port, n_channel, high_voltage=None):
         super().__init__(port=port, baudrate=9600)
@@ -312,24 +314,23 @@ class IsegNHQx0xx(SerialDevice):
         # Queries take very long which leads to serial timeouts. I suspect the default value on firmware side is in fact 255 ms (not 3 ms).
         # Therefore, setting the break_time as first thing in the __init__ is absolutely REQUIRED
         self.break_time = 1  # ms
-        
+
         # Add error response for attempting to set voltage too high
-        self.ERRORS[f'? UMAX={self.voltage_limit}'] = "Set voltage exceeds voltage limit"
+        self.ERRORS[f"? UMAX={self.voltage_limit}"] = "Set voltage exceeds voltage limit"
 
         # Voltage which is considered the high voltage
         self.high_voltage = high_voltage
 
     def _get_set_property(self, prop, value=None):
-        
-        if '{channel}' in self.CMDS[prop] and '{value}' in self.CMDS[prop]: 
+        if "{channel}" in self.CMDS[prop] and "{value}" in self.CMDS[prop]:
             cmd = self.CMDS[prop].format(channel=self.channel, value=value)
-        elif '{channel}' in self.CMDS[prop]: 
+        elif "{channel}" in self.CMDS[prop]:
             cmd = self.CMDS[prop].format(channel=self.channel)
-        elif '{value}' in self.CMDS[prop]:
+        elif "{value}" in self.CMDS[prop]:
             cmd = self.CMDS[prop].format(value=value)
         else:
             cmd = self.CMDS[prop]
-        
+
         return self.query(cmd)
 
     def query(self, msg):
@@ -357,7 +358,7 @@ class IsegNHQx0xx(SerialDevice):
         Manually initiate the change of the voltage.
         Only needed if self.autostart is False
         """
-        self._get_set_property(prop='start_voltage_change')
+        self._get_set_property(prop="start_voltage_change")
 
     def hv_on(self):
         try:

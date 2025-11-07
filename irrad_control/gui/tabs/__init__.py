@@ -1,7 +1,4 @@
-__all__ = ["IrradSetupTab",
-           "IrradControlTab",
-           "IrradMonitorTab",
-           "IrradDevicesTab"]
+__all__ = ["IrradSetupTab", "IrradControlTab", "IrradMonitorTab", "IrradDevicesTab"]
 
 from .setup_tab import IrradSetupTab
 from .control_tab import IrradControlTab

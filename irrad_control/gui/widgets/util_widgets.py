@@ -4,9 +4,10 @@ from collections.abc import Iterable
 
 class NoWheelQComboBox(QtWidgets.QComboBox):
     """Combobox with scroll wheel event deactivated"""
+
     def __init__(self, *args, **kwargs):
         super(NoWheelQComboBox, self).__init__(*args, **kwargs)
-    
+
     def wheelEvent(self, we):
         we.ignore()
 
@@ -37,7 +38,6 @@ class GridContainer(QtWidgets.QGroupBox):
         self._allowed_items = [QtWidgets.QWidget, QtWidgets.QLayout]
 
     def add_allowed_item(self, item):
-
         if self._valid_item(item):
             pass
         else:
@@ -46,7 +46,8 @@ class GridContainer(QtWidgets.QGroupBox):
     def _valid_item(self, item):
         """Check whether an item ca be added to the grid; only QWidgets and QLayouts default"""
 
-        def _check(x): return any(isinstance(x, allowed) for allowed in self._allowed_items)
+        def _check(x):
+            return any(isinstance(x, allowed) for allowed in self._allowed_items)
 
         return all(_check(x) for x in item) if isinstance(item, Iterable) else _check(item)
 
@@ -71,7 +72,7 @@ class GridContainer(QtWidgets.QGroupBox):
 
         if row is None:
             add_to_row = self.grid.rowCount()
-        elif row == 'current':
+        elif row == "current":
             add_to_row = self.grid.rowCount() - 1
         else:
             add_to_row = row
@@ -93,7 +94,6 @@ class GridContainer(QtWidgets.QGroupBox):
         return self._cols_in_row[self.grid.rowCount() - 1 if row is None else row]
 
     def _add_to_grid(self, item, row, col):
-
         if isinstance(item, QtWidgets.QLayout):
             self.grid.addLayout(item, row, col)
         else:
@@ -106,7 +106,6 @@ class GridContainer(QtWidgets.QGroupBox):
         self.remove_item(layout)
 
     def remove_item(self, item):
-
         """Removes *item* from container where *item* can be any QWidget or an iterable of QWidgets or a QLayout."""
         if not self._valid_item(item):
             raise TypeError("Only QWidgets and QLayouts can be removed!")
@@ -115,10 +114,8 @@ class GridContainer(QtWidgets.QGroupBox):
                 self._remove_from_grid(itm)
 
     def _remove_from_grid(self, item):
-
         # Loop over grid and find item to remove
         for i in range(self.grid.count()):
-
             # Get item in grid at index i
             grid_item = self.grid.itemAt(i)
 
@@ -128,7 +125,6 @@ class GridContainer(QtWidgets.QGroupBox):
 
             # We're trying to remove a QLayout from the grid
             elif isinstance(item, QtWidgets.QLayout):
-
                 if grid_item.layout() == item:
                     # Remove entire layout
                     self._delete_layout_content(grid_item.layout())
@@ -182,7 +178,7 @@ class GridContainer(QtWidgets.QGroupBox):
                         if type(_widget) not in omit:
                             self.set_widget_read_only(widget=_widget, read_only=read_only)
             else:
-                raise TypeError('Item must be either QWidgetItem or QLayoutItem. Found {}'.format(type(item)))
+                raise TypeError("Item must be either QWidgetItem or QLayoutItem. Found {}".format(type(item)))
 
     @staticmethod
     def set_widget_read_only(widget, read_only=True):
@@ -191,7 +187,7 @@ class GridContainer(QtWidgets.QGroupBox):
         # We don't have to do anything with labels
         if not isinstance(widget, QtWidgets.QLabel):
             # Check if we have readOnly method
-            if hasattr(widget, 'setReadOnly'):
+            if hasattr(widget, "setReadOnly"):
                 widget.setReadOnly(read_only)
             # If not, just disable
             else:
@@ -215,7 +211,10 @@ class NoBackgroundScrollArea(QtWidgets.QScrollArea):
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         # Palette and background role
-        self._p, self._b, = self.palette(), self.backgroundRole()
+        (
+            self._p,
+            self._b,
+        ) = self.palette(), self.backgroundRole()
         self.setAutoFillBackground(True)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
 

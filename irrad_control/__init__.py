@@ -3,22 +3,22 @@ import os
 from .utils import tools
 
 # Version
-__version__ = '2.5.0'
+__version__ = "2.5.0"
 
 # Dirs to be checked / made
-tmp_dir = '/tmp/irrad_control'
+tmp_dir = "/tmp/irrad_control"
 config_dir = f"{os.path.expanduser('~')}/.config/irrad_control"
 
 # Paths
 package_path = os.path.dirname(__file__)
 config_path = os.path.abspath(config_dir)
 tmp_path = os.path.abspath(tmp_dir)
-script_path = os.path.abspath(os.path.join(package_path, '../scripts'))
+script_path = os.path.abspath(os.path.join(package_path, "../scripts"))
 
 # Files
-config_file = os.path.join(config_path, 'config.yaml')
-pid_file = os.path.join(config_path, 'irrad_control.pid')
-lock_file = os.path.join(config_path, 'irrad_control.lck')
+config_file = os.path.join(config_path, "config.yaml")
+pid_file = os.path.join(config_path, "irrad_control.pid")
+lock_file = os.path.join(config_path, "irrad_control.lck")
 
 # Check / make
 for check_path in (tmp_path, config_path):
@@ -30,9 +30,9 @@ if os.path.isfile(config_file):
     config = tools.load_yaml(path=config_file)
 else:
     # Create empty config yaml
-    config = {'server': {'all': {}, 'default': None}, 'git': None}
+    config = {"server": {"all": {}, "default": None}, "git": None}
     tools.save_yaml(path=config_file, data=config)
 
 if not os.path.isfile(lock_file):
-    with open(lock_file, 'a'):
+    with open(lock_file, "a"):
         pass
