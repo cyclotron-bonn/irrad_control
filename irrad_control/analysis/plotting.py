@@ -1,4 +1,3 @@
-
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +11,6 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from irrad_control.analysis.formulas import lin_odr
 from irrad_control.analysis.utils import duration_str_from_secs, win_from_timestamps
@@ -21,13 +19,14 @@ from irrad_control import package_path
 
 
 # Set matplotlib rcParams to steer appearance of irrad_analysis plots
-plt.rcParams.update({
-    'font.size': 12,  # default 10
-    'figure.figsize': [8, 6],  # default [6.4, 4.8]
-    'grid.alpha': 0.75,  # default 1.0
-    'figure.max_open_warning': 0,  # default 20; disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
-    'path.simplify': True,  # default False: removes vertices that have no impact on plot visualization for the sake of better rendering performance
-    'image.cmap': 'plasma'
+plt.rcParams.update(
+    {
+        "font.size": 12,  # default 10
+        "figure.figsize": [8, 6],  # default [6.4, 4.8]
+        "grid.alpha": 0.75,  # default 1.0
+        "figure.max_open_warning": 0,  # default 20; disable matplotlib figure number warning; expect people to have more than 2 GB of RAM
+        "path.simplify": True,  # default False: removes vertices that have no impact on plot visualization for the sake of better rendering performance
+        "image.cmap": "plasma",
     }
 )
 
@@ -37,15 +36,17 @@ class HandlerColormap(HandlerBase):
         HandlerBase.__init__(self, **kw)
         self.cmap = cmap
         self.num_stripes = num_stripes
-    def create_artists(self, legend, orig_handle, 
-                       xdescent, ydescent, width, height, fontsize, trans):
+
+    def create_artists(self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans):
         stripes = []
         for i in range(self.num_stripes):
-            s = Rectangle([xdescent + i * width / self.num_stripes, ydescent], 
-                          width / self.num_stripes, 
-                          height, 
-                          fc=self.cmap((2 * i + 1) / (2 * self.num_stripes)), 
-                          transform=trans)
+            s = Rectangle(
+                [xdescent + i * width / self.num_stripes, ydescent],
+                width / self.num_stripes,
+                height,
+                fc=self.cmap((2 * i + 1) / (2 * self.num_stripes)),
+                transform=trans,
+            )
             stripes.append(s)
         return stripes
 
@@ -53,48 +54,55 @@ class HandlerColormap(HandlerBase):
 def no_title(b):
     """Don't generate plot titles by setting background color to title color"""
     if b:
-        plt.rcParams['axes.titlecolor'] = plt.rcParams['axes.facecolor']
-        plt.rcParams['figure.titlesize'] = 1  # TODO: find a better solution
+        plt.rcParams["axes.titlecolor"] = plt.rcParams["axes.facecolor"]
+        plt.rcParams["figure.titlesize"] = 1  # TODO: find a better solution
 
 
-def align_axis(ax1, v1, ax2, v2, axis='y'):
+def align_axis(ax1, v1, ax2, v2, axis="y"):
     """adjust ax2 ylimit so that v2 in ax2 is aligned to v1 in ax1"""
     x1, y1 = ax1.transData.transform((0, v1))
     x2, y2 = ax2.transData.transform((0, v2))
     inv = ax2.transData.inverted()
-    
-    if axis == 'y':
-        _, dy = inv.transform((0, 0)) - inv.transform((0, y1-y2))
+
+    if axis == "y":
+        _, dy = inv.transform((0, 0)) - inv.transform((0, y1 - y2))
         miny, maxy = ax2.get_ylim()
-        ax2.set_ylim(miny+dy, maxy+dy)
+        ax2.set_ylim(miny + dy, maxy + dy)
     else:
-        dx, _ = inv.transform((0, 0)) - inv.transform((0, x1-x2))
+        dx, _ = inv.transform((0, 0)) - inv.transform((0, x1 - x2))
         minx, maxx = ax2.get_xlim()
-        ax2.set_xlim(minx+dx, maxx+dx)
+        ax2.set_xlim(minx + dx, maxx + dx)
 
 
 def _get_damage_label_unit_target(damage, ion_name, dut=False):
-    damage_unit = r'n$_\mathrm{eq}$ cm$^{-2}$' if damage == 'neq' else f'{ion_name}s' + r' cm$^{-2}$' if damage == 'primary' else 'Mrad'
-    damage_label = 'Fluence' if damage in ('neq', 'primary') else 'Total Ionizing Dose'
+    damage_unit = (
+        r"n$_\mathrm{eq}$ cm$^{-2}$"
+        if damage == "neq"
+        else f"{ion_name}s" + r" cm$^{-2}$"
+        if damage == "primary"
+        else "Mrad"
+    )
+    damage_label = "Fluence" if damage in ("neq", "primary") else "Total Ionizing Dose"
     damage_target = "DUT" if dut else "Scan"
     return damage_label, damage_unit, damage_target
 
 
-def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=False, damage_map=None, uncertainty_map=False):
-
+def _apply_labels_damage_plots(
+    ax, damage, ion_name, server="", cbar=None, dut=False, damage_map=None, uncertainty_map=False
+):
     damage_label, damage_unit, damage_target = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=dut)
 
-    ax.set_xlabel(f'{damage_target} area horizontal / mm')
-    ax.set_ylabel(f'{damage_target} area vertical / mm')
+    ax.set_xlabel(f"{damage_target} area horizontal / mm")
+    ax.set_ylabel(f"{damage_target} area vertical / mm")
     plt.suptitle(f"{damage_label}{' Error' if uncertainty_map else ''} Distribution {damage_target}")
 
     # 3D plot
-    if hasattr(ax, 'set_zlabel'):
+    if hasattr(ax, "set_zlabel"):
         ax.set_zlabel(f"{damage_unit}")
 
     if damage_map is not None and dut and not uncertainty_map:
         mean, std = np.nanmean(damage_map), np.nanstd(damage_map)
-        damage_mean_std = "Mean = {:.2E}{}{:.2E} {}".format(mean, u'\u00b1', std, damage_unit)
+        damage_mean_std = "Mean = {:.2E}{}{:.2E} {}".format(mean, "\u00b1", std, damage_unit)
         ax.set_title(damage_mean_std)
 
     if cbar is not None:
@@ -103,7 +111,6 @@ def _apply_labels_damage_plots(ax, damage, ion_name, server='', cbar=None, dut=F
 
 
 def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_axis=True, **cbar_wkargs):
-
     damage_label, damage_unit, _ = _get_damage_label_unit_target(damage=damage, ion_name=ion_name, dut=False)
 
     # Make axis for cbar
@@ -116,14 +123,16 @@ def _make_cbar(fig, damage_map, damage, ion_name, rel_error_lims=None, add_cbar_
 
     if rel_error_lims is not None:
         cbar_rel_axis = cbar_axis.twinx()
-        cbar.ax.yaxis.set_ticks_position('left')
-        cbar.ax.yaxis.set_label_position('left')
+        cbar.ax.yaxis.set_ticks_position("left")
+        cbar.ax.yaxis.set_label_position("left")
         cbar_rel_axis.set_ylabel("Relative uncertainty / %")
-        cbar_rel_axis.ticklabel_format(axis='y', useOffset=False, style='plain')
+        cbar_rel_axis.ticklabel_format(axis="y", useOffset=False, style="plain")
         cbar_rel_axis.set_ylim(rel_error_lims)
 
-def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs):
 
+def plot_damage_error_3d(
+    damage_map, error_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs
+):
     # Make figure
     fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
@@ -131,8 +140,8 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # plot surface
-    surface_3d = ax.plot_surface(mesh_x, mesh_y, error_map, antialiased=True, cmap=plt.rcParams['image.cmap'])
-    
+    surface_3d = ax.plot_surface(mesh_x, mesh_y, error_map, antialiased=True, cmap=plt.rcParams["image.cmap"])
+
     # Adjust angle
     ax.view_init(*view_angle)
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
@@ -140,7 +149,13 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     # Relative errors
     rel_damage_map = error_map / damage_map * 100.0
 
-    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), ion_name=damage_label_kwargs['ion_name'], rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()))
+    _make_cbar(
+        fig=fig,
+        damage_map=surface_3d,
+        damage=damage_label_kwargs.get("damage", "neq"),
+        ion_name=damage_label_kwargs["ion_name"],
+        rel_error_lims=(rel_damage_map.min(), rel_damage_map.max()),
+    )
 
     # Apply labels
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, uncertainty_map=True, **damage_label_kwargs)
@@ -148,8 +163,9 @@ def plot_damage_error_3d(damage_map, error_map, map_centers_x, map_centers_y, vi
     return fig, ax
 
 
-def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs):
-
+def plot_damage_map_3d(
+    damage_map, map_centers_x, map_centers_y, view_angle=(25, -115), contour=False, **damage_label_kwargs
+):
     # Make figure
     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw={"projection": "3d"})
 
@@ -157,19 +173,26 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # plot surface
-    surface_3d = ax.plot_surface(mesh_x, mesh_y, damage_map, antialiased=True, cmap=plt.rcParams['image.cmap'])
+    surface_3d = ax.plot_surface(mesh_x, mesh_y, damage_map, antialiased=True, cmap=plt.rcParams["image.cmap"])
 
     # Plot contour
     if contour:
-        contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, zdir='z', offset=-0.05*damage_map.max(), cmap=plt.rcParams['image.cmap'])
-        ax.set_zlim(-0.05*damage_map.max(), damage_map.max())
-        
+        contour_2d = ax.contourf(
+            mesh_x, mesh_y, damage_map, zdir="z", offset=-0.05 * damage_map.max(), cmap=plt.rcParams["image.cmap"]
+        )
+        ax.set_zlim(-0.05 * damage_map.max(), damage_map.max())
+
     # Adjust angle
     ax.view_init(*view_angle)
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
-    _make_cbar(fig=fig, damage_map=surface_3d, damage=damage_label_kwargs.get('damage', 'neq'), ion_name=damage_label_kwargs['ion_name'])
-    
+    _make_cbar(
+        fig=fig,
+        damage_map=surface_3d,
+        damage=damage_label_kwargs.get("damage", "neq"),
+        ion_name=damage_label_kwargs["ion_name"],
+    )
+
     # Apply labels
     _apply_labels_damage_plots(ax=ax, damage_map=damage_map, **damage_label_kwargs)
 
@@ -177,16 +200,20 @@ def plot_damage_map_3d(damage_map, map_centers_x, map_centers_y, view_angle=(25,
 
 
 def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, **damage_label_kwargs):
-
     # Make figure
     fig, ax = plt.subplots()
-    
-    bin_width_y = (map_centers_y[1] - map_centers_y[0])
-    bin_width_x = (map_centers_x[1] - map_centers_x[0])
-    
-    extent = [map_centers_x[0] - bin_width_x/2., map_centers_x[-1] + bin_width_x/2., map_centers_y[-1] + bin_width_y/2., map_centers_y[0]- bin_width_y/2.]
 
-    im = ax.imshow(damage_map, extent=extent, cmap=plt.rcParams['image.cmap'])
+    bin_width_y = map_centers_y[1] - map_centers_y[0]
+    bin_width_x = map_centers_x[1] - map_centers_x[0]
+
+    extent = [
+        map_centers_x[0] - bin_width_x / 2.0,
+        map_centers_x[-1] + bin_width_x / 2.0,
+        map_centers_y[-1] + bin_width_y / 2.0,
+        map_centers_y[0] - bin_width_y / 2.0,
+    ]
+
+    im = ax.imshow(damage_map, extent=extent, cmap=plt.rcParams["image.cmap"])
 
     cbar = fig.colorbar(im)
 
@@ -197,20 +224,19 @@ def plot_damage_map_2d(damage_map, map_centers_x, map_centers_y, **damage_label_
 
 
 def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_label_kwargs):
-
     # Make figure
     fig, ax = plt.subplots()
 
-     # Generate meshgird to plot on
+    # Generate meshgird to plot on
     mesh_x, mesh_y = np.meshgrid(map_centers_x, map_centers_y)
 
     # Plot contour
-    contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, cmap=plt.rcParams['image.cmap'])
-    _ = plt.clabel(contour_2d, inline=True, fmt='%1.2E', colors='k')
+    contour_2d = ax.contourf(mesh_x, mesh_y, damage_map, cmap=plt.rcParams["image.cmap"])
+    _ = plt.clabel(contour_2d, inline=True, fmt="%1.2E", colors="k")
     ax.set_ylim(ax.get_ylim()[::-1])  # Inverty y axis in order to set origin to upper left
 
     cbar = fig.colorbar(contour_2d)
-    
+
     # Apply labels
     _apply_labels_damage_plots(ax=ax, cbar=cbar, damage_map=damage_map, **damage_label_kwargs)
 
@@ -218,45 +244,64 @@ def plot_damage_map_contourf(damage_map, map_centers_x, map_centers_y, **damage_
 
 
 def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_complete_scans):
-
-    def make_axis_int_only(ax, axis='x'):
-        actual_axis =getattr(ax, 'xaxis' if axis == 'x' else 'yaxis')
-        scan_numbers = [int(lbl.get_position()[0]) for lbl in actual_axis.get_ticklabels() if lbl.get_position()[0] % 1 == 0]
+    def make_axis_int_only(ax, axis="x"):
+        actual_axis = getattr(ax, "xaxis" if axis == "x" else "yaxis")
+        scan_numbers = [
+            int(lbl.get_position()[0]) for lbl in actual_axis.get_ticklabels() if lbl.get_position()[0] % 1 == 0
+        ]
         actual_axis.set_ticks(scan_numbers, labels=[str(i) for i in scan_numbers])
 
     # Our irradiation consisted of complete scans and subsequent correction scans of individual rows
     if n_complete_scans != damage_map.shape[1]:
-        
         # Complete scan and correction scan map
         comp_map = damage_map[:, :n_complete_scans]
-        corr_map = damage_map[: , n_complete_scans:]
+        corr_map = damage_map[:, n_complete_scans:]
 
         # Minimum width the plots get
         min_width = 0.75
 
-        width_ratios = [min_width + comp_map.shape[1] / damage_map.shape[1], min_width + corr_map.shape[1] / damage_map.shape[1]]
+        width_ratios = [
+            min_width + comp_map.shape[1] / damage_map.shape[1],
+            min_width + corr_map.shape[1] / damage_map.shape[1],
+        ]
 
         # From https://stackoverflow.com/questions/32185411/break-in-x-axis-of-matplotlib
-        fig, ax = plt.subplots(1, 2, facecolor='w', width_ratios=width_ratios)
+        fig, ax = plt.subplots(1, 2, facecolor="w", width_ratios=width_ratios)
         plt.subplots_adjust(wspace=0.075)
 
         comp_idx = n_complete_scans - 1
         corr_idx = corr_map.shape[1] - 1
 
         # Scale axis to that scan numbers are centerd under bin
-        comp_extend=[-0.5, comp_idx + 0.5, comp_map.shape[0], 0]
-        corr_extend=[n_complete_scans - 0.5, corr_idx + n_complete_scans + 0.5, comp_map.shape[0], 0]
+        comp_extend = [-0.5, comp_idx + 0.5, comp_map.shape[0], 0]
+        corr_extend = [n_complete_scans - 0.5, corr_idx + n_complete_scans + 0.5, comp_map.shape[0], 0]
 
         # PLot the actual images
-        _ = ax[0].imshow(comp_map, origin='upper', extent=comp_extend, cmap=plt.rcParams['image.cmap'], aspect='auto', vmin=damage_map.min(), vmax=damage_map.max())
-        im_corr = ax[1].imshow(corr_map, origin='upper', extent=corr_extend, cmap=plt.rcParams['image.cmap'], aspect='auto', vmin=damage_map.min(), vmax=damage_map.max())
+        _ = ax[0].imshow(
+            comp_map,
+            origin="upper",
+            extent=comp_extend,
+            cmap=plt.rcParams["image.cmap"],
+            aspect="auto",
+            vmin=damage_map.min(),
+            vmax=damage_map.max(),
+        )
+        im_corr = ax[1].imshow(
+            corr_map,
+            origin="upper",
+            extent=corr_extend,
+            cmap=plt.rcParams["image.cmap"],
+            aspect="auto",
+            vmin=damage_map.min(),
+            vmax=damage_map.max(),
+        )
 
         # Make colorbar for the im_corr map which contains the final map
         _make_cbar(fig=fig, damage_map=im_corr, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.275)
 
         # Hide spines between axes
-        ax[0].spines['right'].set_visible(False)
-        ax[1].spines['left'].set_visible(False)
+        ax[0].spines["right"].set_visible(False)
+        ax[1].spines["left"].set_visible(False)
 
         # Tick stuff
         ax[0].yaxis.tick_left()
@@ -266,8 +311,8 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
 
         # Only lable every 5th row when there are too many
         if damage_map.shape[0] >= 20:
-            ax[0].yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax[0].yaxis.get_ticklabels()))])
-        
+            ax[0].yaxis.set_ticklabels([str(i) if i % 5 == 0 else "" for i in range(len(ax[0].yaxis.get_ticklabels()))])
+
         # X axis labels
         for curr_x in ax:
             make_axis_int_only(curr_x)
@@ -276,53 +321,68 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         ax_mm = ax[1].twinx()
         ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
 
-        ax[0].set_xlabel(r'Complete scan $\mathrm{\#_{scan}}$')
-        ax[1].set_xlabel(r'Correction scan $\mathrm{\#_{corr}}$')
-        ax[0].set_ylabel(r'Row $\mathrm{\#_{row}}$')
-        ax_mm.set_ylabel('Relative row position / mm')
+        ax[0].set_xlabel(r"Complete scan $\mathrm{\#_{scan}}$")
+        ax[1].set_xlabel(r"Correction scan $\mathrm{\#_{corr}}$")
+        ax[0].set_ylabel(r"Row $\mathrm{\#_{row}}$")
+        ax_mm.set_ylabel("Relative row position / mm")
 
-        align_axis(ax1=ax[0], ax2=ax_mm, v1=0, v2=0, axis='y')
+        align_axis(ax1=ax[0], ax2=ax_mm, v1=0, v2=0, axis="y")
 
         dmg_lbl, dmg_unt, dmg_trgt = _get_damage_label_unit_target(damage=damage, ion_name=ion_name)
 
         # Fake a little legend
-        ax[0].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(comp_map), u'\u00b1', np.nanstd(comp_map), dmg_unt),
-                    x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
-                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
-                    transform=ax[0].transAxes)
-        ax[1].text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(corr_map), u'\u00b1', np.nanstd(corr_map), dmg_unt),
-                    x=0.075, y=0.5, rotation=90, fontsize=10, va='center', ha='center',
-                    bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8),
-                    transform=ax[1].transAxes)
-        
+        ax[0].text(
+            s=r"$\mathrm{\mu}$="
+            + "({:.1E}{}{:.1E}) {}".format(np.nanmean(comp_map), "\u00b1", np.nanstd(comp_map), dmg_unt),
+            x=0.075,
+            y=0.5,
+            rotation=90,
+            fontsize=10,
+            va="center",
+            ha="center",
+            bbox=dict(boxstyle="round", facecolor="white", edgecolor="grey", alpha=0.8),
+            transform=ax[0].transAxes,
+        )
+        ax[1].text(
+            s=r"$\mathrm{\mu}$="
+            + "({:.1E}{}{:.1E}) {}".format(np.nanmean(corr_map), "\u00b1", np.nanstd(corr_map), dmg_unt),
+            x=0.075,
+            y=0.5,
+            rotation=90,
+            fontsize=10,
+            va="center",
+            ha="center",
+            bbox=dict(boxstyle="round", facecolor="white", edgecolor="grey", alpha=0.8),
+            transform=ax[1].transAxes,
+        )
+
         fig.suptitle(f"{dmg_lbl} on {dmg_trgt.lower()} area, row-resolved")
 
         # Make the break lines
-        d = .015  # how big to make the diagonal lines in axes coordinates
+        d = 0.015  # how big to make the diagonal lines in axes coordinates
         # arguments to pass plot, just so we don't keep repeating them
-        kwargs = dict(transform=ax[0].transAxes, color='k', clip_on=False)
-        ax[0].plot((1-d, 1+d), (-d, +d), **kwargs)
-        ax[0].plot((1-d, 1+d), (1-d, 1+d), **kwargs)
+        kwargs = dict(transform=ax[0].transAxes, color="k", clip_on=False)
+        ax[0].plot((1 - d, 1 + d), (-d, +d), **kwargs)
+        ax[0].plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
 
         kwargs.update(transform=ax[1].transAxes)  # switch to the bottom axes
-        ax[1].plot((-d, +d), (1-d, 1+d), **kwargs)
+        ax[1].plot((-d, +d), (1 - d, 1 + d), **kwargs)
         ax[1].plot((-d, +d), (-d, +d), **kwargs)
 
     else:
-
         # Make figure
         fig, ax = plt.subplots()
 
-        im = ax.imshow(damage_map, origin='upper', cmap=plt.rcParams['image.cmap'], aspect='auto')
+        im = ax.imshow(damage_map, origin="upper", cmap=plt.rcParams["image.cmap"], aspect="auto")
 
         make_axis_int_only(ax)
 
         # Show ticks for every row
         ax.yaxis.set_ticks(range(damage_map.shape[0]))
-        
+
         # Only lable every 5th row when there are too many
         if damage_map.shape[0] >= 20:
-            ax.yaxis.set_ticklabels([str(i) if i%5 == 0 else '' for i in range(len(ax.yaxis.get_ticklabels()))])
+            ax.yaxis.set_ticklabels([str(i) if i % 5 == 0 else "" for i in range(len(ax.yaxis.get_ticklabels()))])
 
         _make_cbar(fig=fig, damage_map=im, damage=damage, ion_name=ion_name, add_cbar_axis=False, pad=0.125)
 
@@ -332,59 +392,77 @@ def plot_scan_damage_resolved(damage_map, damage, ion_name, row_separation, n_co
         ax_mm.set_ylim(row_separation * damage_map.shape[0], 0)
 
         # Fake a little legend
-        ax.text(s=r'$\mathrm{\mu}$='+"({:.1E}{}{:.1E}) {}".format(np.nanmean(damage_map), u'\u00b1', np.nanstd(damage_map), dmg_unt),
-                x=abs(ax.get_xlim()[0] - ax.get_xlim()[1]) * 0.225 + ax.get_xlim()[0],
-                y=ax.get_ylim()[0]*0.05, rotation=0, fontsize=10,
-                bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.8))
+        ax.text(
+            s=r"$\mathrm{\mu}$="
+            + "({:.1E}{}{:.1E}) {}".format(np.nanmean(damage_map), "\u00b1", np.nanstd(damage_map), dmg_unt),
+            x=abs(ax.get_xlim()[0] - ax.get_xlim()[1]) * 0.225 + ax.get_xlim()[0],
+            y=ax.get_ylim()[0] * 0.05,
+            rotation=0,
+            fontsize=10,
+            bbox=dict(boxstyle="round", facecolor="white", edgecolor="grey", alpha=0.8),
+        )
 
         # Axes labels
-        ax.set_xlabel(r'Complete scan $\mathrm{\#_{scan}}$')
-        ax.set_ylabel(r'Row $\mathrm{\#_{row}}$')
-        ax_mm.set_ylabel('Relative row position / mm')
+        ax.set_xlabel(r"Complete scan $\mathrm{\#_{scan}}$")
+        ax.set_ylabel(r"Row $\mathrm{\#_{row}}$")
+        ax_mm.set_ylabel("Relative row position / mm")
         ax.set_title(f"{dmg_lbl} on {dmg_trgt.lower()} area, row-resolved")
 
-        align_axis(ax1=ax, ax2=ax_mm, v1=0, v2=0, axis='y')
+        align_axis(ax1=ax, ax2=ax_mm, v1=0, v2=0, axis="y")
 
     return fig, ax
 
 
 def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
-   
     def _to_dt(ts, delta=False):
         return [datetime.fromtimestamp(t) if not delta else timedelta(seconds=float(t)) for t in ts]
-    
+
     # Plot scan overview
-    if 'kappa' in daq_config and not np.isnan(daq_config['kappa']['nominal']):
-        kappa = daq_config['kappa']['nominal']
-        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config['stopping_power']
-        TIDToFluence = lambda t: t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
-        damage = lambda x: x * kappa
+    if "kappa" in daq_config and not np.isnan(daq_config["kappa"]["nominal"]):
+        kappa = daq_config["kappa"]["nominal"]
+
+        def fluence_to_TID(f):
+            return irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config["stopping_power"]
+
+        def TID_to_fluence(t):
+            return t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config["stopping_power"])
+
+        def damage(x):
+            return x * kappa
+
         dmg_label = r"1 MeV neutron fluence / $\mathrm{neq \ cm^{-2}}$"
     else:
-        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f * daq_config['stopping_power']
-        TIDToFluence = lambda t: t  / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
-        damage = lambda x: x
+
+        def fluence_to_TID(f):
+            return irrad_consts.MEV_PER_GRAM_TO_MRAD * f * daq_config["stopping_power"]
+
+        def TID_to_fluence(t):
+            return t / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config["stopping_power"])
+
+        def damage(x):
+            return x
+
         dmg_label = rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$"
 
     # Make figure and gridspec on which to place subplots
     fig = plt.figure()
     gs = GridSpec(2, 2, height_ratios=[2.5, 1], width_ratios=[2.5, 1], wspace=0.3, hspace=0.15)
-    
+
     # Make axes
     ax_complete = fig.add_subplot(gs[0])
     ax_beam = fig.add_subplot(gs[2], sharex=ax_complete)
     ax_result = fig.add_subplot(gs[1])
-    
+
     # Set axes parameters
     ax_result.yaxis.set_tick_params(labelright=False, right=False, labelleft=True, left=True)
     ax_result.yaxis.grid()
-    ax_result.set_xlabel('Row')
+    ax_result.set_xlabel("Row")
     ax_result.set_ylabel(dmg_label)
 
     # Make TID axis and plot title
-    ax_tid = ax_result.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
-    ax_complete.set_title("Irradiation overview", y=1.15, loc='right')
-    
+    ax_tid = ax_result.secondary_yaxis("right", functions=(fluence_to_TID, TID_to_fluence))
+    ax_complete.set_title("Irradiation overview", y=1.15, loc="right")
+
     # Axes container
     ax = (ax_complete, ax_beam, ax_result)
 
@@ -395,75 +473,94 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_beam.grid()
 
     # Start/stop overview plot at beginning/end of irradiation
-    start_ts, stop_ts = overview['row_hist']['center_timestamp'][0], overview['row_hist']['center_timestamp'][-1]
-    chrono_ts_idxs = np.argsort(overview['row_hist']['center_timestamp'])
-    row_chrono = overview['row_hist'][chrono_ts_idxs]
+    start_ts, stop_ts = overview["row_hist"]["center_timestamp"][0], overview["row_hist"]["center_timestamp"][-1]
+    chrono_ts_idxs = np.argsort(overview["row_hist"]["center_timestamp"])
+    row_chrono = overview["row_hist"][chrono_ts_idxs]
 
-    ax_complete.bar(_to_dt(row_chrono['center_timestamp']), damage(row_chrono['primary_damage']), _to_dt(row_chrono['duration'], True) , label='Row fluence')
-    ax_complete.errorbar(_to_dt(overview['scan_hist']['center_timestamp']), damage(overview['scan_hist']['primary_damage']), yerr=damage(overview['scan_hist']['primary_damage_error']), fmt='C1.', label='Scan fluence')
+    ax_complete.bar(
+        _to_dt(row_chrono["center_timestamp"]),
+        damage(row_chrono["primary_damage"]),
+        _to_dt(row_chrono["duration"], True),
+        label="Row fluence",
+    )
+    ax_complete.errorbar(
+        _to_dt(overview["scan_hist"]["center_timestamp"]),
+        damage(overview["scan_hist"]["primary_damage"]),
+        yerr=damage(overview["scan_hist"]["primary_damage_error"]),
+        fmt="C1.",
+        label="Scan fluence",
+    )
     ax_complete.set_ylabel(dmg_label)
-    ax_complete.yaxis.offsetText.set(va='bottom', ha='center')
+    ax_complete.yaxis.offsetText.set(va="bottom", ha="center")
 
     # Plot mask of where irradiation was halted for longer than 30 seconds
-    halt_criteria = overview['row_hist']['duration'].mean() + 3 * overview['row_hist']['duration'].std() + 10  # 10 seconds to acount for row switching and condition checking 
-    halt_start_idxs = np.argwhere(np.diff(row_chrono['center_timestamp']) > halt_criteria)
+    halt_criteria = (
+        overview["row_hist"]["duration"].mean() + 3 * overview["row_hist"]["duration"].std() + 10
+    )  # 10 seconds to acount for row switching and condition checking
+    halt_start_idxs = np.argwhere(np.diff(row_chrono["center_timestamp"]) > halt_criteria)
     for i in range(len(halt_start_idxs)):
-        h_start = row_chrono['center_timestamp'][halt_start_idxs[i]]
-        h_stop = row_chrono['center_timestamp'][halt_start_idxs[i]+1]
-        scan_hist_idx = np.searchsorted(overview['scan_hist']['scan'], row_chrono['scan'][halt_start_idxs[i]])
-        ax_complete.bar(_to_dt(h_start), damage(overview['scan_hist']['primary_damage'][scan_hist_idx]), _to_dt(h_stop-h_start, True),
-                        align='edge', label='Halt' if i == 0 else '', color='red', ls='-', alpha=1, zorder=-1)
+        h_start = row_chrono["center_timestamp"][halt_start_idxs[i]]
+        h_stop = row_chrono["center_timestamp"][halt_start_idxs[i] + 1]
+        scan_hist_idx = np.searchsorted(overview["scan_hist"]["scan"], row_chrono["scan"][halt_start_idxs[i]])
+        ax_complete.bar(
+            _to_dt(h_start),
+            damage(overview["scan_hist"]["primary_damage"][scan_hist_idx]),
+            _to_dt(h_stop - h_start, True),
+            align="edge",
+            label="Halt" if i == 0 else "",
+            color="red",
+            ls="-",
+            alpha=1,
+            zorder=-1,
+        )
 
-    ax_complete.legend(loc='upper left', fontsize=10)    
+    ax_complete.legend(loc="upper left", fontsize=10)
 
     # Add scan number ticks
-    ax_scan = ax_complete.secondary_xaxis('top')
-    ax_scan.set_xlabel('Scan number')
-    every_10nth_scan = len(overview['scan_hist']['scan'])//10 + 1
+    ax_scan = ax_complete.secondary_xaxis("top")
+    ax_scan.set_xlabel("Scan number")
+    every_10nth_scan = len(overview["scan_hist"]["scan"]) // 10 + 1
 
-    ax_scan.set_xticks(_to_dt(overview['scan_hist']['center_timestamp'][::every_10nth_scan]),
-                       overview['scan_hist']['scan'][::every_10nth_scan])
+    ax_scan.set_xticks(
+        _to_dt(overview["scan_hist"]["center_timestamp"][::every_10nth_scan]),
+        overview["scan_hist"]["scan"][::every_10nth_scan],
+    )
 
-    ax_tid.set_ylabel('TID / Mrad')
-    align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis='y')
+    ax_tid.set_ylabel("TID / Mrad")
+    align_axis(ax1=ax_complete, ax2=ax_tid, v1=0, v2=0, axis="y")
 
     # Irradiations plotted happened across different days
-    if datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y') != datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y'):
+    if datetime.fromtimestamp(start_ts).strftime("%d/%m/%Y") != datetime.fromtimestamp(stop_ts).strftime("%d/%m/%Y"):
         time_label = f"Time between {datetime.fromtimestamp(start_ts).strftime('%d/%m/%Y')} and {datetime.fromtimestamp(stop_ts).strftime('%d/%m/%Y')}"
-        time_fmt = '%H'
+        time_fmt = "%H"
     else:
         time_label = f"Time on {datetime.fromtimestamp(start_ts).strftime('%a %d/%m/%Y')}"
-        time_fmt = '%H:%M'
-    
+        time_fmt = "%H:%M"
+
     # Plot beam current
-    beam_ts, beam_nanos = win_from_timestamps(beam_data['timestamp'],
-                                              beam_data['beam_current'] / irrad_consts.nano,
-                                              start_ts,
-                                              stop_ts,
-                                              to_secs=False)
-    ax_beam.plot(_to_dt(beam_ts), beam_nanos, label='Beam current')
+    beam_ts, beam_nanos = win_from_timestamps(
+        beam_data["timestamp"], beam_data["beam_current"] / irrad_consts.nano, start_ts, stop_ts, to_secs=False
+    )
+    ax_beam.plot(_to_dt(beam_ts), beam_nanos, label="Beam current")
     ax_beam.set_ylim(0, beam_nanos.max() * 1.25)
     ax_beam.set_ylabel(f"{daq_config['ion'].capitalize()} current / nA")
     ax_beam.set_xlabel(time_label)
-    ax_beam.legend(loc='upper left', fontsize=8)
-
+    ax_beam.legend(loc="upper left", fontsize=8)
 
     # Plot last scan distribution
-    ax_result.bar(overview['result_hist']['row'], damage(overview['result_hist']['primary_damage']), label='Result')
-    ax_result.yaxis.offsetText.set(va='bottom', ha='center')
+    ax_result.bar(overview["result_hist"]["row"], damage(overview["result_hist"]["primary_damage"]), label="Result")
+    ax_result.yaxis.offsetText.set(va="bottom", ha="center")
 
-    if 'correction_scans' in overview:
-
+    if "correction_scans" in overview:
         # Count the amount of individual scans and fluence inside
-        indv_row_scans = dict(zip(overview['result_hist']['row'], [1] * len(overview['result_hist']['row'])))
-        indv_row_offsets = dict(zip(overview['result_hist']['row'], damage(overview['result_hist']['primary_damage'])))
+        indv_row_scans = dict(zip(overview["result_hist"]["row"], [1] * len(overview["result_hist"]["row"])))
+        indv_row_offsets = dict(zip(overview["result_hist"]["row"], damage(overview["result_hist"]["primary_damage"])))
         corrections_scans_labels = []
 
         # Loop over individual scans
-        for entry in overview['correction_scans']:
-
-            row = entry['row']
-            indv_damage = damage(entry['primary_damage'])
+        for entry in overview["correction_scans"]:
+            row = entry["row"]
+            indv_damage = damage(entry["primary_damage"])
 
             ax_result.bar(row, indv_damage, bottom=indv_row_offsets[row], color=f"C{indv_row_scans[row]}")
             indv_row_offsets[row] += indv_damage
@@ -472,54 +569,70 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
         # Resulting mean fluence on 1D
         mean = np.nanmean(list(indv_row_offsets.values()))
-        ax_result.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
+        ax_result.axhline(y=mean, label="Mean", ls="--", lw=1, c="gray", zorder=10)
 
-        leg1 = ax_result.legend(loc='upper center', fontsize=10)
+        leg1 = ax_result.legend(loc="upper center", fontsize=10)
 
         # Make custom colorbar to show number of correction scans, it's cheecky breeky-style
         max_indv_scans = max(indv_row_scans.values())
-        cmap = mc.ListedColormap([f'C{i}' for i in range(1, max_indv_scans)])
+        cmap = mc.ListedColormap([f"C{i}" for i in range(1, max_indv_scans)])
         norm = mc.BoundaryNorm(np.arange(0.5, max_indv_scans), cmap.N)
         mappable = cm.ScalarMappable(cmap=cmap, norm=norm)
         ax_cbar = fig.add_subplot(gs[3])  # Add colorbar to lower right axes but make new axes there for it
-        cb = plt.colorbar(mappable, ax=ax_cbar, ticks=range(1, max_indv_scans),label='n-th correction scan', location='top', orientation='horizontal')
-        cb._long_axis().set(label_position='bottom', ticks_position='bottom')  # Put cbar at top of ax_cbar but put labels and ticks downward
+        cb = plt.colorbar(
+            mappable,
+            ax=ax_cbar,
+            ticks=range(1, max_indv_scans),
+            label="n-th correction scan",
+            location="top",
+            orientation="horizontal",
+        )
+        cb._long_axis().set(
+            label_position="bottom", ticks_position="bottom"
+        )  # Put cbar at top of ax_cbar but put labels and ticks downward
         ax_cbar.remove()  # Cheeky-breeky remove the orginal axes where the cbar axes was attached at the top, hehe
 
         # Zoom in correction plot to see resulting distribution
-        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(list(indv_row_offsets.values()))*1.075)
+        ax_result.set_ylim(
+            min(damage(overview["result_hist"]["primary_damage"])) * 0.95, max(list(indv_row_offsets.values())) * 1.075
+        )
 
         # Beautiful custom patch showing colorbar
         cmh = [Rectangle((0, 0), 1, 1)]
-        handler_map = dict(zip(cmh, [HandlerColormap(cmap, num_stripes=max_indv_scans-1)]))
-        ax_result.legend(handles=leg1.legendHandles+cmh,
-                         labels=[t.get_text() for t in leg1.get_texts()] + ['Corrections'],
-                         handler_map=handler_map, loc='upper center', fontsize=10)
+        handler_map = dict(zip(cmh, [HandlerColormap(cmap, num_stripes=max_indv_scans - 1)]))
+        ax_result.legend(
+            handles=leg1.legendHandles + cmh,
+            labels=[t.get_text() for t in leg1.get_texts()] + ["Corrections"],
+            handler_map=handler_map,
+            loc="upper center",
+            fontsize=10,
+        )
     else:
         # Resulting mean fluence on 1D
-        mean = np.nanmean(damage(overview['result_hist']['primary_damage']))
-        ax_result.axhline(y=mean, label="Mean", ls='--', lw=1, c='gray', zorder=10)
+        mean = np.nanmean(damage(overview["result_hist"]["primary_damage"]))
+        ax_result.axhline(y=mean, label="Mean", ls="--", lw=1, c="gray", zorder=10)
 
-        ax_result.legend(loc='upper center', fontsize=10)
+        ax_result.legend(loc="upper center", fontsize=10)
 
         # Zoom in correction plot to see resulting distribution
-        ax_result.set_ylim(min(damage(overview['result_hist']['primary_damage']))*0.95, max(damage(overview['result_hist']['primary_damage']))*1.05)
+        ax_result.set_ylim(
+            min(damage(overview["result_hist"]["primary_damage"])) * 0.95,
+            max(damage(overview["result_hist"]["primary_damage"])) * 1.05,
+        )
 
     if temp_data is not None:
         ax_temp = ax_beam.twinx()
-        ax_temp.set_ylabel(r'Temperature / $\mathrm{^\circ C}$')
-        for i, temp in enumerate(t for t in temp_data.dtype.names if t != 'timestamp'):
-            temp_ts, temp_dt = win_from_timestamps(temp_data['timestamp'],
-                                                   temp_data[temp],
-                                                   start_ts,
-                                                   stop_ts,
-                                                   to_secs=False)
-            ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f'C{i+1}', label=f'{temp} temp.')
-        ax_temp.legend(loc='upper center', fontsize=8)
+        ax_temp.set_ylabel(r"Temperature / $\mathrm{^\circ C}$")
+        for i, temp in enumerate(t for t in temp_data.dtype.names if t != "timestamp"):
+            temp_ts, temp_dt = win_from_timestamps(
+                temp_data["timestamp"], temp_data[temp], start_ts, stop_ts, to_secs=False
+            )
+            ax_temp.plot(_to_dt(temp_ts), temp_dt, c=f"C{i + 1}", label=f"{temp} temp.")
+        ax_temp.legend(loc="upper center", fontsize=8)
 
     ax_beam.xaxis.set_major_formatter(md.DateFormatter(time_fmt))
-    for label in ax_beam.get_xticklabels(which='major'):
-        label.set_ha('right')
+    for label in ax_beam.get_xticklabels(which="major"):
+        label.set_ha("right")
         label.set_rotation(30)
 
     return fig, ax
@@ -527,71 +640,92 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
 
 def plot_generic_fig(plot_data, fit_data=None, hist_data=None, fig_ax=None, **sp_kwargs):
     fig, ax = plt.subplots(**sp_kwargs) if fig_ax is None else fig_ax
-    
-    # Make figure and axis
-    ax.set_title(plot_data['title'])
-    ax.set_xlabel(plot_data['xlabel'])
-    ax.set_ylabel(plot_data['ylabel'])
-    
-    if fit_data:
-        ax.plot(fit_data['xdata'], fit_data['func'](*fit_data['fit_args']), fit_data['fmt'], label=fit_data['label'], zorder=10)
-    if hist_data:
-        if isinstance(hist_data['bins'], (int, str, type(None))):
-            if hist_data['bins'] == 'stat':
-                n, s = np.nanmean(plot_data['xdata']), np.nanstd(plot_data['xdata'])
-                binwidth = 6 * s / 100.
-                bins = np.arange(n-3*s, n+3*s + binwidth, binwidth)
-            else:
-                bins = hist_data['bins']
 
-            _, _, _ = ax.hist(plot_data['xdata'], bins=bins, label=plot_data['label'])
-        elif len(hist_data['bins']) == 2:
-            cmap = plt.get_cmap(plt.rcParams['image.cmap'])
-            cmap.set_bad('w')
-            _, _, _, im = ax.hist2d(plot_data['xdata'], plot_data['ydata'], bins=hist_data['bins'],norm=hist_data['norm'], cmap=cmap, rasterized=True)
-            #im.set_edgecolor("face")
-            plt.colorbar(im, label=plot_data.get('label', ''))
+    # Make figure and axis
+    ax.set_title(plot_data["title"])
+    ax.set_xlabel(plot_data["xlabel"])
+    ax.set_ylabel(plot_data["ylabel"])
+
+    if fit_data:
+        ax.plot(
+            fit_data["xdata"],
+            fit_data["func"](*fit_data["fit_args"]),
+            fit_data["fmt"],
+            label=fit_data["label"],
+            zorder=10,
+        )
+    if hist_data:
+        if isinstance(hist_data["bins"], (int, str, type(None))):
+            if hist_data["bins"] == "stat":
+                n, s = np.nanmean(plot_data["xdata"]), np.nanstd(plot_data["xdata"])
+                binwidth = 6 * s / 100.0
+                bins = np.arange(n - 3 * s, n + 3 * s + binwidth, binwidth)
+            else:
+                bins = hist_data["bins"]
+
+            _, _, _ = ax.hist(plot_data["xdata"], bins=bins, label=plot_data["label"])
+        elif len(hist_data["bins"]) == 2:
+            cmap = plt.get_cmap(plt.rcParams["image.cmap"])
+            cmap.set_bad("w")
+            _, _, _, im = ax.hist2d(
+                plot_data["xdata"],
+                plot_data["ydata"],
+                bins=hist_data["bins"],
+                norm=hist_data["norm"],
+                cmap=cmap,
+                rasterized=True,
+            )
+            # im.set_edgecolor("face")
+            plt.colorbar(im, label=plot_data.get("label", ""))
         else:
-            raise ValueError('bins must be 2D iterable of intsd or int')
+            raise ValueError("bins must be 2D iterable of intsd or int")
     else:
-        ax.plot(plot_data['xdata'], plot_data['ydata'], plot_data['fmt'], label=plot_data['label'], alpha=plot_data.get('alpha', 1))
+        ax.plot(
+            plot_data["xdata"],
+            plot_data["ydata"],
+            plot_data["fmt"],
+            label=plot_data["label"],
+            alpha=plot_data.get("alpha", 1),
+        )
     ax.grid(True)
-    ax.legend(loc='best')
-    
+    ax.legend(loc="best")
+
     return fig, ax
 
 
 def plot_beam_current(timestamps, beam_current, ch_name=None, scan_data=None):
-
     dtfts = datetime.fromtimestamp(timestamps[0])
 
-    plot_data = {'xdata': [datetime.fromtimestamp(ts) for ts in timestamps],
-                 'ydata': beam_current,
-                 'xlabel': f"{dtfts.strftime('%d %b %Y')}",
-                 'ylabel': f"Cup channel {ch_name} current / nA",
-                 'label': f"{ch_name or 'Beam'} current over {duration_str_from_secs(seconds=timestamps[-1]-timestamps[0])}{' irradiation' if scan_data else ''}",
-                 'title': f"Current of channel {ch_name}",
-                 'fmt': 'C0-'}
+    plot_data = {
+        "xdata": [datetime.fromtimestamp(ts) for ts in timestamps],
+        "ydata": beam_current,
+        "xlabel": f"{dtfts.strftime('%d %b %Y')}",
+        "ylabel": f"Cup channel {ch_name} current / nA",
+        "label": f"{ch_name or 'Beam'} current over {duration_str_from_secs(seconds=timestamps[-1] - timestamps[0])}{' irradiation' if scan_data else ''}",
+        "title": f"Current of channel {ch_name}",
+        "fmt": "C0-",
+    }
 
     if ch_name is None:
-        plot_data['ylabel'] = 'Beam current / nA'
-        plot_data['title'] = "Beam current over time"
+        plot_data["ylabel"] = "Beam current / nA"
+        plot_data["title"] = "Beam current over time"
 
     if scan_data is not None:
-        plot_data['title'] = 'Beam current during irradiation'
+        plot_data["title"] = "Beam current during irradiation"
 
-    plot_data['label'] += ":\n    ({:.2f}{}{:.2f}) nA".format(np.nanmean(beam_current), u'\u00b1', np.nanstd(beam_current))
+    plot_data["label"] += ":\n    ({:.2f}{}{:.2f}) nA".format(
+        np.nanmean(beam_current), "\u00b1", np.nanstd(beam_current)
+    )
 
     fig, ax = plot_generic_fig(plot_data=plot_data)
 
-    ax.xaxis.set_major_formatter(md.DateFormatter('%H:%M'))
+    ax.xaxis.set_major_formatter(md.DateFormatter("%H:%M"))
     fig.autofmt_xdate()
 
     return fig, ax
 
 
 def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_data=None):
-
     fig, ax_hist_2d = plt.subplots()
 
     ax_hist_2d.set_aspect(1.0)
@@ -601,9 +735,9 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     anchor = make_axes_locatable(ax_hist_2d)
 
     # Create a bunch of new axes for the other hists and the cbar
-    ax_hist_h = anchor.append_axes('top', 0.85, pad=0.1, sharex=ax_hist_2d)
-    ax_hist_v = anchor.append_axes('left', 0.85, pad=0.1, sharey=ax_hist_2d)
-    ax_cbar = anchor.append_axes('right', 0.2, pad=0.1)
+    ax_hist_h = anchor.append_axes("top", 0.85, pad=0.1, sharex=ax_hist_2d)
+    ax_hist_v = anchor.append_axes("left", 0.85, pad=0.1, sharey=ax_hist_2d)
+    ax_cbar = anchor.append_axes("right", 0.2, pad=0.1)
 
     # Set the tick locations correctly and inverty y axis of one hist to place it on left
     ax_hist_h.xaxis.set_tick_params(labelbottom=False)
@@ -613,7 +747,7 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     # Make the plots and trash what we don't need
     _, _, _, im = ax_hist_2d.hist2d(horizontal_pos, vertical_pos, bins=(n_bins, n_bins), norm=mc.LogNorm(), cmin=1)
     _, _, _ = ax_hist_h.hist(horizontal_pos, bins=n_bins)
-    _, _, _ = ax_hist_v.hist(vertical_pos, bins=n_bins, orientation='horizontal')
+    _, _, _ = ax_hist_v.hist(vertical_pos, bins=n_bins, orientation="horizontal")
 
     # Add colorbar to predefined axis
     fig.colorbar(im, cax=ax_cbar, label="")
@@ -621,156 +755,209 @@ def plot_relative_beam_position(horizontal_pos, vertical_pos, n_bins=100, scan_d
     # Add reticle
     x_min, x_max = ax_hist_2d.get_xbound()
     y_min, y_max = ax_hist_2d.get_ybound()
-    ax_hist_2d.annotate(text='Right', xy=(0, 0), xycoords='data',
-                        xytext=(x_max, 0),
-                        textcoords='data',
-                        arrowprops=dict(arrowstyle='<-', ls='--', alpha=0.8),
-                        ha='right', va='center', rotation=270)
-    ax_hist_2d.annotate(text='Left', xy=(0, 0), xycoords='data',
-                        xytext=(x_min, 0),
-                        textcoords='data',
-                        arrowprops=dict(arrowstyle='<-', ls='--', alpha=0.8),
-                        ha='left', va='center', rotation=90)
-    ax_hist_2d.annotate(text='Up', xy=(0, 0), xycoords='data',
-                        xytext=(0, y_max),
-                        textcoords='data',
-                        arrowprops=dict(arrowstyle='<-', ls='--', alpha=0.8),
-                        ha='center', va='top')
-    ax_hist_2d.annotate(text='Down', xy=(0, 0), xycoords='data',
-                        xytext=(0, y_min),
-                        textcoords='data',
-                        arrowprops=dict(arrowstyle='<-', ls='--', alpha=0.8),
-                        ha='center', va='bottom')
+    ax_hist_2d.annotate(
+        text="Right",
+        xy=(0, 0),
+        xycoords="data",
+        xytext=(x_max, 0),
+        textcoords="data",
+        arrowprops=dict(arrowstyle="<-", ls="--", alpha=0.8),
+        ha="right",
+        va="center",
+        rotation=270,
+    )
+    ax_hist_2d.annotate(
+        text="Left",
+        xy=(0, 0),
+        xycoords="data",
+        xytext=(x_min, 0),
+        textcoords="data",
+        arrowprops=dict(arrowstyle="<-", ls="--", alpha=0.8),
+        ha="left",
+        va="center",
+        rotation=90,
+    )
+    ax_hist_2d.annotate(
+        text="Up",
+        xy=(0, 0),
+        xycoords="data",
+        xytext=(0, y_max),
+        textcoords="data",
+        arrowprops=dict(arrowstyle="<-", ls="--", alpha=0.8),
+        ha="center",
+        va="top",
+    )
+    ax_hist_2d.annotate(
+        text="Down",
+        xy=(0, 0),
+        xycoords="data",
+        xytext=(0, y_min),
+        textcoords="data",
+        arrowprops=dict(arrowstyle="<-", ls="--", alpha=0.8),
+        ha="center",
+        va="bottom",
+    )
 
     # Make labels and legends
     ax_hist_h.set_title(f"Beam-mean position relative to center {'during irradiation' if scan_data else ''}")
-    ax_hist_2d.set_xlabel('Rel. horizontal deviation / %')
-    ax_hist_v.set_ylabel('Rel. vertical deviation / %')
+    ax_hist_2d.set_xlabel("Rel. horizontal deviation / %")
+    ax_hist_v.set_ylabel("Rel. vertical deviation / %")
 
     # Fake a little legend
-    ax_hist_h.text(s=r'$\mathrm{\mu_h}$='+"({:.1f}{}{:.1f}) %".format(np.nanmean(horizontal_pos), u'\u00b1', np.nanstd(horizontal_pos)),
-                   x=x_min*0.95,
-                   y=ax_hist_h.get_ylim()[-1]*0.775, rotation=0, fontsize=10,
-                   bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.33))
-    ax_hist_v.text(s=r'$\mathrm{\mu_v}$='+"({:.1f}{}{:.1f}) %".format(np.nanmean(vertical_pos), u'\u00b1', np.nanstd(vertical_pos)),
-                   x=ax_hist_v.get_xlim()[0]*0.925,
-                   y=y_min*0.925, rotation=90, fontsize=10,
-                   bbox=dict(boxstyle='round', facecolor='white', edgecolor='grey', alpha=0.33))
+    ax_hist_h.text(
+        s=r"$\mathrm{\mu_h}$="
+        + "({:.1f}{}{:.1f}) %".format(np.nanmean(horizontal_pos), "\u00b1", np.nanstd(horizontal_pos)),
+        x=x_min * 0.95,
+        y=ax_hist_h.get_ylim()[-1] * 0.775,
+        rotation=0,
+        fontsize=10,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="grey", alpha=0.33),
+    )
+    ax_hist_v.text(
+        s=r"$\mathrm{\mu_v}$="
+        + "({:.1f}{}{:.1f}) %".format(np.nanmean(vertical_pos), "\u00b1", np.nanstd(vertical_pos)),
+        x=ax_hist_v.get_xlim()[0] * 0.925,
+        y=y_min * 0.925,
+        rotation=90,
+        fontsize=10,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="grey", alpha=0.33),
+    )
 
     return fig, (ax_hist_2d, ax_hist_h, ax_hist_v)
 
 
 def plot_calibration(calib_data, ref_data, calib_sig, ref_sig, red_chi, gamma_lambda, ion_name, ion_energy, hist=False):
-
     ion = get_ions()[ion_name]
 
     gamma_const, lambda_const = gamma_lambda
     gamma_percent = gamma_const * 100
 
-    fit_label=r'Linear fit: $I_\mathrm{SEE} = \gamma \cdot I_\mathrm{beam}\ /\ z_\mathrm{%s}$' % ion_name
-    fit_label += '\n\t' + fr'$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %'
-    fit_label += '\n\t' + r'$\lambda=z_\mathrm{%s}\ /\ (\gamma\ \cdot V_\mathrm{ref})$' % ion_name
-    fit_label += '\n\t' + r'$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$' % (lambda_const.n, lambda_const.s)
-    fit_label += '\n\t' + r'$\chi^2_{red}= %.2E\ $' % red_chi
+    fit_label = r"Linear fit: $I_\mathrm{SEE} = \gamma \cdot I_\mathrm{beam}\ /\ z_\mathrm{%s}$" % ion_name
+    fit_label += "\n\t" + rf"$\gamma=({gamma_percent.n:.2f} \pm {gamma_percent.s:.2f})$ %"
+    fit_label += "\n\t" + r"$\lambda=z_\mathrm{%s}\ /\ (\gamma\ \cdot V_\mathrm{ref})$" % ion_name
+    fit_label += "\n\t" + r"$\hspace{0.6}=(%.3f \pm %.3f) \ V^{-1}$" % (lambda_const.n, lambda_const.s)
+    fit_label += "\n\t" + r"$\chi^2_{red}= %.2E\ $" % red_chi
 
-    label_ion = f"{ion_energy:.3f} MeV {ion_name.lower()} data " r'($\Sigma$={}):'.format(len(calib_data)) + '\n' + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
+    label_ion = (
+        f"{ion_energy:.3f} MeV {ion_name.lower()} data " r"($\Sigma$={}):".format(len(calib_data))
+        + "\n"
+        + f"SEE channel '{calib_sig}' vs. cup channel '{ref_sig}'"
+    )
 
     # Make figure and axis
-    fig, ax = plot_generic_fig(plot_data={'xdata': ref_data,
-                                          'ydata': calib_data,
-                                          'xlabel': f"{ion_name.capitalize()} " + r"beam current $I_\mathrm{beam}$ / nA",
-                                          'ylabel': r"Surface-normalized SEE current $I_\mathrm{SEE}$ / nA",
-                                          'label': label_ion,
-                                          'title':"Beam monitor calibration",
-                                          'fmt':'C0.',
-                                          'alpha': 0.33},
-                               fit_data={'xdata': ref_data,
-                                         'func': lin_odr,
-                                         'fit_args': [[gamma_const.n / ion.n_charge], ref_data],
-                                         'fmt': 'C1-',
-                                         'label': fit_label},
-                               hist_data={'bins': (100, 100), 'norm': mc.LogNorm()} if hist else {})
-    
+    fig, ax = plot_generic_fig(
+        plot_data={
+            "xdata": ref_data,
+            "ydata": calib_data,
+            "xlabel": f"{ion_name.capitalize()} " + r"beam current $I_\mathrm{beam}$ / nA",
+            "ylabel": r"Surface-normalized SEE current $I_\mathrm{SEE}$ / nA",
+            "label": label_ion,
+            "title": "Beam monitor calibration",
+            "fmt": "C0.",
+            "alpha": 0.33,
+        },
+        fit_data={
+            "xdata": ref_data,
+            "func": lin_odr,
+            "fit_args": [[gamma_const.n / ion.n_charge], ref_data],
+            "fmt": "C1-",
+            "label": fit_label,
+        },
+        hist_data={"bins": (100, 100), "norm": mc.LogNorm()} if hist else {},
+    )
+
     return fig, ax
 
 
 def plot_fluence_distribution(fluence_data, ion, hardness_factor=1, stoping_power=1):
-
     plot_data = {
-        'xdata': fluence_data,
-        'xlabel': f"Fluence per scanned row / {ion}s/cm^2",
-        'ylabel': '#',
-        'label': "({:.2E}{}{:.2E}) {}s / cm^2".format(np.nanmean(fluence_data), u'\u00b1', np.nanstd(fluence_data), ion),
-        'title': "Row fluence distribution",
-        'fmt': 'C0'
+        "xdata": fluence_data,
+        "xlabel": f"Fluence per scanned row / {ion}s/cm^2",
+        "ylabel": "#",
+        "label": "({:.2E}{}{:.2E}) {}s / cm^2".format(np.nanmean(fluence_data), "\u00b1", np.nanstd(fluence_data), ion),
+        "title": "Row fluence distribution",
+        "fmt": "C0",
     }
 
-    fig, ax = plot_generic_fig(plot_data=plot_data, hist_data={'bins': 'stat'})
+    fig, ax = plot_generic_fig(plot_data=plot_data, hist_data={"bins": "stat"})
     ax_neq = ax.twiny()
     ax_neq.set_xlim([x * hardness_factor for x in ax.get_xlim()])
-    ax_neq.set_xlabel('NIEL fluence / neq/cm^2')
-    align_axis(ax, 0, ax_neq, 0, axis='x')
+    ax_neq.set_xlabel("NIEL fluence / neq/cm^2")
+    align_axis(ax, 0, ax_neq, 0, axis="x")
     ax_neq.grid(False)
     return fig, ax
 
 
 def generate_summary_page(summary_dict):
-
     # Build a rectangle in axes coords
-    left, width = .25, .5
-    bottom, height = .25, .5
+    left, width = 0.25, 0.5
+    bottom, height = 0.25, 0.5
     right = left + width
     top = bottom + height
 
     # Empty figure to start with
     fig = plt.figure()
-    #FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
-    ax.axis('off')
+    ax.axis("off")
 
     # Add HISKP logo to top right corner
-    logo_half_size = plt.imread(os.path.abspath(os.path.join(package_path, '../assets/hiskp.png')))
-    fig.figimage(logo_half_size, fig.bbox.xmax * .825, fig.bbox.ymax  * .825)
+    logo_half_size = plt.imread(os.path.abspath(os.path.join(package_path, "../assets/hiskp.png")))
+    fig.figimage(logo_half_size, fig.bbox.xmax * 0.825, fig.bbox.ymax * 0.825)
 
     # Make title
-    ax.text(s="Summary of Irradiation Campaign",x=0.5*(left+right),
-            y=bottom+top, horizontalalignment='center', verticalalignment='center', rotation=0, fontsize=16,
-            bbox=dict(boxstyle='round', facecolor='white', edgecolor='#004e9f', alpha=1))
-    
-    # Locations of individual tables
-    bboxxs = {'beam': (0.0, 0.3, 0.5, 0.5),
-              'irrad': (0.5, 0.3, 0.5, 0.5),
-              'sid': (0.0, 0.0, 1.0, 0.3)}
-    
-    bold_prop_text = lambda desc: rf"$\mathrm{{\mathbf{{[{desc}]}}\Rightarrow}}$"
+    ax.text(
+        s="Summary of Irradiation Campaign",
+        x=0.5 * (left + right),
+        y=bottom + top,
+        horizontalalignment="center",
+        verticalalignment="center",
+        rotation=0,
+        fontsize=16,
+        bbox=dict(boxstyle="round", facecolor="white", edgecolor="#004e9f", alpha=1),
+    )
 
-    headers = {'beam': 'Beam Properties', 'irrad': 'Irradiation Properties', 'sid': 'Sample ID(s)'}
-    
+    # Locations of individual tables
+    bboxxs = {"beam": (0.0, 0.3, 0.5, 0.5), "irrad": (0.5, 0.3, 0.5, 0.5), "sid": (0.0, 0.0, 1.0, 0.3)}
+
+    def bold_prop_text(desc):
+        return rf"$\mathrm{{\mathbf{{[{desc}]}}\Rightarrow}}$"
+
+    headers = {"beam": "Beam Properties", "irrad": "Irradiation Properties", "sid": "Sample ID(s)"}
+
     # Formatting
-    props = {'ion': lambda t: "{} {}".format(bold_prop_text('Ion'), t.capitalize()),
-             'kappa': lambda t: "{} {:.2f}".format(bold_prop_text('Hardness\, factor'), t),
-             'energy': lambda t: "{} {:.2f}".format(bold_prop_text('Energy\, /\, MeV'), t),
-             'current': lambda t: "{} {:.2f}".format(bold_prop_text('Avg.\, current\, /\, nA'), t),
-             'lambda': lambda t: "{} {:.3f}".format(bold_prop_text('Calibration\, /\, V^{-1}'), t),
-             'date': lambda t: "{} {}".format(bold_prop_text('Date'), datetime.fromtimestamp(t).strftime('%b %d %H:%M %Y')),
-             'duration': lambda t: "{} {}".format(bold_prop_text('Duration'), duration_str_from_secs(t)),
-             'fluence_ion': lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{%s}\, /\, ions/cm^{2}" % summary_dict['beam']['ion']), t),
-             'fluence_neq': lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{n_{eq}}\, /\, n_{eq}/cm^{2}"), t),
-             'tid': lambda t: "{} {:.1f}".format(bold_prop_text('TID\, /\, Mrad'), t),
-             'temp': lambda t: "{} {:.1f}".format(bold_prop_text('Avg.\, temperature\, /\, °C'), t),
-             'scan': lambda t: "{} {:d}".format(bold_prop_text('\#\, scans'), t)}
-    
+    props = {
+        "ion": lambda t: "{} {}".format(bold_prop_text("Ion"), t.capitalize()),
+        "kappa": lambda t: "{} {:.2f}".format(bold_prop_text("Hardness\, factor"), t),
+        "energy": lambda t: "{} {:.2f}".format(bold_prop_text("Energy\, /\, MeV"), t),
+        "current": lambda t: "{} {:.2f}".format(bold_prop_text("Avg.\, current\, /\, nA"), t),
+        "lambda": lambda t: "{} {:.3f}".format(bold_prop_text("Calibration\, /\, V^{-1}"), t),
+        "date": lambda t: "{} {}".format(bold_prop_text("Date"), datetime.fromtimestamp(t).strftime("%b %d %H:%M %Y")),
+        "duration": lambda t: "{} {}".format(bold_prop_text("Duration"), duration_str_from_secs(t)),
+        "fluence_ion": lambda t: "{} {:.2E}".format(
+            bold_prop_text("\Phi_{%s}\, /\, ions/cm^{2}" % summary_dict["beam"]["ion"]), t
+        ),
+        "fluence_neq": lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{n_{eq}}\, /\, n_{eq}/cm^{2}"), t),
+        "tid": lambda t: "{} {:.1f}".format(bold_prop_text("TID\, /\, Mrad"), t),
+        "temp": lambda t: "{} {:.1f}".format(bold_prop_text("Avg.\, temperature\, /\, °C"), t),
+        "scan": lambda t: "{} {:d}".format(bold_prop_text("\#\, scans"), t),
+    }
+
     for prp in summary_dict:
-        
         if isinstance(summary_dict[prp], dict):
-            cell_text = [[summary_dict[prp][v] if v not in props else props[v](summary_dict[prp][v])] for v in summary_dict[prp] if summary_dict[prp][v] is not None]
+            cell_text = [
+                [summary_dict[prp][v] if v not in props else props[v](summary_dict[prp][v])]
+                for v in summary_dict[prp]
+                if summary_dict[prp][v] is not None
+            ]
         elif isinstance(summary_dict[prp], list):
             cell_text = [[v if v not in props else props[v](v)] for v in summary_dict[prp] if v is not None]
         else:
             continue
 
         if cell_text:
-            tab = ax.table(cellText=cell_text, colLabels=[headers[prp]], bbox=bboxxs[prp], cellLoc='left', colColours=['#fcba00'])
+            tab = ax.table(
+                cellText=cell_text, colLabels=[headers[prp]], bbox=bboxxs[prp], cellLoc="left", colColours=["#fcba00"]
+            )
             tab.set_fontsize(8)
 
     return fig

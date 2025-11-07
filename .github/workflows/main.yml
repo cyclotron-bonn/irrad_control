@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11", "3.X"]
+        python-version: ["3.11"]  #, "3.X"]
 
     runs-on: ${{matrix.os}}    
 
@@ -64,7 +64,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11", "3.X"]
+        python-version: ["3.11"]  #, "3.X"]
 
     runs-on: ${{matrix.os}}
 
@@ -89,3 +89,24 @@ jobs:
           source .venv/bin/activate
           irrad_control --help
           irrad_analyse --help
+
+  format:
+    name: Format Python with Ruff
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v5
+      # https://github.com/astral-sh/ruff-action
+      - name: Install Ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "latest"
+          args: "--version"
+
+      # Linting and formatting via Ruff
+      - name: Run Ruff
+        run: |
+          ruff check
+          ruff format --check

@@ -46,17 +46,15 @@ class ProcessManager(object):
 
         # Update if we have no server credentials
         if hostname not in self.server:
-
             # Update server dict
             self.server[hostname] = username
 
         if hostname not in self.client:
-
             # Setup SSH client and connect to server
             self.client[hostname] = paramiko.SSHClient()
             self.client[hostname].set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            logging.info('Connecting to server {}@{}...'.format(username, hostname))
+            logging.info("Connecting to server {}@{}...".format(username, hostname))
 
             # Try to connect
             try:
@@ -64,57 +62,55 @@ class ProcessManager(object):
             # Something went wrong
             except (paramiko.BadHostKeyException, paramiko.AuthenticationException, paramiko.SSHException) as e:
                 # We need to add key, let user know
-                msg = f"Connecting to {username}@{hostname} failed. This is usually due to an unknown host ssh-key. Try creating a ssh-key on host PC via" \
-                      f" ssh-keygen and copy to {username}@{hostname} via ssh-copy-id!"
+                msg = (
+                    f"Connecting to {username}@{hostname} failed. This is usually due to an unknown host ssh-key. Try creating a ssh-key on host PC via"
+                    f" ssh-keygen and copy to {username}@{hostname} via ssh-copy-id!"
+                )
                 raise Exception(msg) from e
 
             # Success
-            logging.info('Successfully connected to server {}@{}!'.format(username, hostname))
+            logging.info("Successfully connected to server {}@{}!".format(username, hostname))
 
         else:
-
-            logging.info('Already connected to server {}@{}!'.format(username, hostname))
+            logging.info("Already connected to server {}@{}!".format(username, hostname))
 
     def configure_server(self, hostname, py_update=False, git_pull=False, branch=False):
-
         # Check whether remote server already has the script in the default installation path
-        remote_script = '/home/{}/irrad_control/scripts/install.sh'.format(self.server[hostname])
+        remote_script = "/home/{}/irrad_control/scripts/install.sh".format(self.server[hostname])
         remote_script_exists = self._check_file_exits(hostname=hostname, file_path=remote_script)
 
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
-            remote_script = '/home/{}/install.sh'.format(self.server[hostname])
-            local_script = os.path.join(script_path, 'install.sh')
+            remote_script = "/home/{}/install.sh".format(self.server[hostname])
+            local_script = os.path.join(script_path, "install.sh")
             self.copy_to_server(hostname, local_script, remote_script)
 
         # Add args to call remote script
         _rs = remote_script
-        _rs += ' --server'  # installs server dependencies
-        _rs += ' --update' if py_update else ''
-        _rs += ' --ic_update' if git_pull else ''
-        _rs += '' if not branch else ' -icb={}'.format(branch)
+        _rs += " --server"  # installs server dependencies
+        _rs += " --update" if py_update else ""
+        _rs += " --ic_update" if git_pull else ""
+        _rs += "" if not branch else " -icb={}".format(branch)
 
         # Run script to determine whether server RPi has miniconda and all packages installed
-        self._exec_cmd(hostname, 'bash {}'.format(_rs), log_stdout=True)
+        self._exec_cmd(hostname, "bash {}".format(_rs), log_stdout=True)
 
         # Remove script if we had to copy it
         if not remote_script_exists:
-            self._exec_cmd(hostname, 'rm {}'.format(remote_script))
+            self._exec_cmd(hostname, "rm {}".format(remote_script))
 
     def get_irrad_proc_info(self, hostname):
-
         # Check whether we're looking for a pid file on server or localhost
         if hostname in self.client:
-            pid_file_client = '/home/{}/.config/irrad_control/irrad_control.pid'.format(self.server[hostname])
-            pid_file_local = os.path.join(tmp_path, '{}_server.pid'.format(hostname))
+            pid_file_client = "/home/{}/.config/irrad_control/irrad_control.pid".format(self.server[hostname])
+            pid_file_local = os.path.join(tmp_path, "{}_server.pid".format(hostname))
             if self._check_file_exits(hostname=hostname, file_path=pid_file_client):
                 self.get_from_server(hostname=hostname, remote_filepath=pid_file_client, local_filepath=pid_file_local)
         else:
             pid_file_local = pid_file
 
-        if self._check_file_exits(hostname='localhost', file_path=pid_file_local):
-
-            with open(pid_file_local, 'r') as pid:
+        if self._check_file_exits(hostname="localhost", file_path=pid_file_local):
+            with open(pid_file_local, "r") as pid:
                 pid_info = yaml.safe_load(pid)
 
             if hostname in self.client:
@@ -123,43 +119,46 @@ class ProcessManager(object):
             return pid_info
 
     def _check_file_exits(self, hostname, file_path):
-
         if hostname in self.client:
             cmd_check_file_exits = 'if [[ -f {} ]]; then echo "1"; else echo "0"; fi'.format(file_path)
-            file_exists = int(self._exec_cmd(hostname=hostname, cmd=cmd_check_file_exits, return_stdout=True)[0]) == 1
+            response = self._exec_cmd(hostname=hostname, cmd=cmd_check_file_exits, return_stdout=True)
+            # 'response' is not None or empty list AND contains correct ret val
+            file_exists = bool(response and int(response[0]) == 1)
         else:
             file_exists = os.path.isfile(file_path)
 
         return file_exists
 
     def start_server_process(self, hostname):
+        host_user = self.server[hostname] + "@" + hostname
 
-        host_user = self.server[hostname] + '@' + hostname
+        logging.info("Attempting to start server process at host {}...".format(host_user))
 
-        logging.info('Attempting to start server process at host {}...'.format(host_user))
-
-        self._exec_cmd(hostname, 'nohup bash /home/{}/irrad_control/scripts/start_server.sh &'.format(self.server[hostname]))
+        self._exec_cmd(
+            hostname, "nohup bash /home/{}/irrad_control/scripts/start_server.sh &".format(self.server[hostname])
+        )
 
     def start_interpreter_process(self):
+        logging.info("Starting interpreter process...")
 
-        logging.info('Starting interpreter process...')
-
-        self.interpreter_proc = self._call_script(script=os.path.join(package_path, 'processes/converter.py'))
+        self.interpreter_proc = self._call_script(script=os.path.join(package_path, "processes/converter.py"))
 
     def _call_script(self, script, args=None, cmd=None):
-
         # Call the interpreter subprocess with the same python executable that runs irrad_control
-        return subprocess.Popen('{} {} {}'.format(sys.executable if not cmd else cmd, script, args if args is not None else ''),
-                                shell=True,
-                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+        return subprocess.Popen(
+            "{} {} {}".format(sys.executable if not cmd else cmd, script, args if args is not None else ""),
+            shell=True,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+        )
 
     def _exec_cmd(self, hostname, cmd, log_stdout=False, return_stdout=False):
         """Execute command on server using paramikos SSH implementation"""
 
         # Sanity check
         if hostname not in self.client:
-            logging.warning("SSH-client not connected to server. Call {}.connect_to_server method."
-                            .format(self.__class__.__name__))
+            logging.warning(
+                "SSH-client not connected to server. Call {}.connect_to_server method.".format(self.__class__.__name__)
+            )
             return
 
         # Execute; this is non-blocking so we have to wait until cmd has been transmitted to server before closing
@@ -192,7 +191,7 @@ class ProcessManager(object):
         """Copy remote file at remote_filepath to local_filepath"""
         self._sftp_server(hostname=hostname, local_filepath=local_filepath, remote_filepath=remote_filepath, put=False)
 
-    def _sftp_server(self, hostname, put ,local_filepath, remote_filepath):
+    def _sftp_server(self, hostname, put, local_filepath, remote_filepath):
         """SFTP channel for copying file from and to servers"""
         sftp = self.client[hostname].open_sftp()
         if put:
@@ -203,10 +202,9 @@ class ProcessManager(object):
 
     def register_pid(self, hostname, pid, name=None, ports=None):
         """Register a *PID* on a *hostname* for monitoring its 'is_alive' status"""
-        self.active_pids[hostname][pid] = {'name': name, 'active': True, 'ports': ports}
+        self.active_pids[hostname][pid] = {"name": name, "active": True, "ports": ports}
 
     def _check_ps_interaction(self, pid, name):
-
         if pid is None and name is None:
             raise ValueError("Either a PID or a process name has to be given")
 
@@ -223,12 +221,13 @@ class ProcessManager(object):
         return pid, name
 
     def check_process_status(self, hostname, pid=None, name=None):
-
         # Check if pid / name are valid
         pid, name = self._check_ps_interaction(pid, name)
 
         # Bash command outputting all running PIDs / names, separated by a whitespace
-        cmd = "ps -e | awk '{print $1,$4}' | grep " + "'{}'".format((r"\|").join(str(x) for x in name + pid if x is not None))
+        cmd = "ps -e | awk '{print $1,$4}' | grep " + "'{}'".format(
+            (r"\|").join(str(x) for x in name + pid if x is not None)
+        )
         ps_dict = {hostname: {}}
 
         # We are checking on the status of some remote process
@@ -252,40 +251,44 @@ class ProcessManager(object):
         """Function checking whether processes are alive"""
 
         for host in self.active_pids:
-
             host_pids = self.check_process_status(hostname=host, pid=list(self.active_pids[host].keys()))
 
             for pid in self.active_pids[host]:
-
                 if pid in host_pids[host]:
-                    self.active_pids[host][pid]['active'] = True
-                    self.active_pids[host][pid]['name'] = host_pids[host][pid]
+                    self.active_pids[host][pid]["active"] = True
+                    self.active_pids[host][pid]["name"] = host_pids[host][pid]
                 else:
-                    self.active_pids[host][pid]['active'] = False
+                    self.active_pids[host][pid]["active"] = False
 
-                msg = "Process {} with PID {} is {}active.".format(self.active_pids[host][pid]['name'],
-                                                                   pid, '' if self.active_pids[host][pid]['active'] else 'not ')
+                msg = "Process {} with PID {} is {}active.".format(
+                    self.active_pids[host][pid]["name"], pid, "" if self.active_pids[host][pid]["active"] else "not "
+                )
                 logging.debug(msg)
 
     def kill_proc(self, hostname, pid=None, name=None):
-
         # Check if pid / name are valid
         pid, name = self._check_ps_interaction(pid, name)
 
         if pid:
-
-            logging.info('Killing {} process with PID{} {}...'.format('server' if hostname in self.client else 'host',
-                                                                      '' if len(pid) == 1 else 's', ' '.join(str(p) for p in pid)))
+            logging.info(
+                "Killing {} process with PID{} {}...".format(
+                    "server" if hostname in self.client else "host",
+                    "" if len(pid) == 1 else "s",
+                    " ".join(str(p) for p in pid),
+                )
+            )
             if hostname in self.client:
-                self._exec_cmd(hostname, 'kill {}'.format(' '.join(str(p) for p in pid)))
+                self._exec_cmd(hostname, "kill {}".format(" ".join(str(p) for p in pid)))
             else:
-                subprocess.Popen(['kill'] + [str(p) for p in pid])
+                subprocess.Popen(["kill"] + [str(p) for p in pid])
 
         if name:
-
-            logging.info('Killing all {} processes with name{} {}...'.format('server' if hostname in self.client else 'host',
-                                                                             '' if len(name) == 1 else 's', ' '.join(name)))
+            logging.info(
+                "Killing all {} processes with name{} {}...".format(
+                    "server" if hostname in self.client else "host", "" if len(name) == 1 else "s", " ".join(name)
+                )
+            )
             if hostname in self.client:
-                self._exec_cmd(hostname, 'killall {}'.format(' '.join(name)))
+                self._exec_cmd(hostname, "killall {}".format(" ".join(name)))
             else:
-                subprocess.Popen(['killall'] + name)
+                subprocess.Popen(["killall"] + name)

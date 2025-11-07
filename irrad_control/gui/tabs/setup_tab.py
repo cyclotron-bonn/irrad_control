@@ -32,7 +32,7 @@ class IrradSetupTab(QtWidgets.QWidget):
         self.main_splitter.setOrientation(QtCore.Qt.Horizontal)
         self.main_splitter.addWidget(self.left_widget)
         self.main_splitter.addWidget(self.right_widget)
-        self.main_splitter.setSizes([int(self.width() / 2.)] * 2)
+        self.main_splitter.setSizes([int(self.width() / 2.0)] * 2)
         self.main_splitter.setChildrenCollapsible(False)
         self.right_widget.setMinimumSize(self.main_splitter.frameWidth(), self.main_splitter.height())
 
@@ -45,7 +45,7 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Dict to store info for setup in
         self.setup = {}
         self.session_setup = SessionSetupWidget()
-        self.session_setup.setup_widgets['selection'].setupChanged.connect(lambda setup: self.handle_server(setup))
+        self.session_setup.setup_widgets["selection"].setupChanged.connect(lambda setup: self.handle_server(setup))
         self.server_setup = ServerSetupWidget()
 
         # State of setup tab
@@ -53,7 +53,7 @@ class IrradSetupTab(QtWidgets.QWidget):
 
         # Connect signal
         self.setupCompleted.connect(lambda _: self.set_read_only(True))
-        
+
         # Setup te widgets for daq, session and connect
         self._init_setup()
 
@@ -64,18 +64,17 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Add main widget
         self.left_widget.layout().addWidget(self.session_setup)
         self.left_widget.layout().addStretch()
-        self.right_widget.layout().addWidget(QtWidgets.QLabel('Selected server(s)'))
+        self.right_widget.layout().addWidget(QtWidgets.QLabel("Selected server(s)"))
         self.right_widget.layout().addWidget(self.server_setup)
 
         # Button for completing the setup
-        self.btn_launch = QtWidgets.QPushButton('Start session')
+        self.btn_launch = QtWidgets.QPushButton("Start session")
         self.btn_launch.clicked.connect(self.update_setup)
         self.btn_launch.clicked.connect(lambda: self.setupCompleted.emit(self.setup))
         self.btn_launch.clicked.connect(self._save_setup)
         self.btn_launch.setEnabled(False)
 
         self.left_widget.layout().addWidget(self.btn_launch)
-        
 
         # Connect
         self.session_setup.setupValid.connect(self._check_setup)
@@ -86,7 +85,6 @@ class IrradSetupTab(QtWidgets.QWidget):
         self.btn_launch.setEnabled(self.isSetup)
 
     def handle_server(self, selection):
-
         # Add and overwrite
         for ip, name in selection.items():
             self.server_setup.add_server(ip, name=name)
@@ -104,8 +102,8 @@ class IrradSetupTab(QtWidgets.QWidget):
         # Save setup
         save_yaml(path=f"{self.setup['session']['outfile']}.yaml", data=self.setup)
 
-        initial_servers = initial_config['server']['all']
-        current_servers = config['server']['all']
+        initial_servers = initial_config["server"]["all"]
+        current_servers = config["server"]["all"]
 
         n_servers_changed = len(initial_servers) != len(current_servers)
         content_servers_changed = not all(current_servers[k] == initial_servers[k] for k in initial_servers)
@@ -118,48 +116,47 @@ class IrradSetupTab(QtWidgets.QWidget):
         """Update the info into the setup dict"""
 
         # Session setup
-        self.setup['session'] = self.session_setup.setup_widgets['session'].setup()
+        self.setup["session"] = self.session_setup.setup_widgets["session"].setup()
 
         # Network
-        self.setup['host'] = self.session_setup.setup_widgets['network'].setup()
+        self.setup["host"] = self.session_setup.setup_widgets["network"].setup()
 
         # Server setup
-        self.setup['server'] = {}
+        self.setup["server"] = {}
 
         # Loop over servers
         for server_ip, server_name in self.server_setup.server_ips.items():
-
             server_setup = {}
 
             # Update server name
-            server_setup['name'] = server_name
-            config['server']['all'][server_ip] = server_name
+            server_setup["name"] = server_name
+            config["server"]["all"][server_ip] = server_name
 
             # Readout
-            if self.server_setup.setup_widgets[server_ip]['readout_sel'].setup() != 'None':
-                server_setup['readout'] = self.server_setup.setup_widgets[server_ip]['readout_dev'].setup()
+            if self.server_setup.setup_widgets[server_ip]["readout_sel"].setup() != "None":
+                server_setup["readout"] = self.server_setup.setup_widgets[server_ip]["readout_dev"].setup()
 
             # DAQ
-            server_setup['daq'] = self.server_setup.setup_widgets[server_ip]['daq'].setup()
+            server_setup["daq"] = self.server_setup.setup_widgets[server_ip]["daq"].setup()
 
             # Server devices
-            server_setup['devices'] = {}
+            server_setup["devices"] = {}
 
             # Loop only over selected devices
-            for device in [d for d, s in self.server_setup.setup_widgets[server_ip]['device'].setup().items() if s]:
-
+            for device in [d for d, s in self.server_setup.setup_widgets[server_ip]["device"].setup().items() if s]:
                 # Setup device and init
-                server_setup['devices'][device] = {}
-                server_setup['devices'][device]['init'] = DEVICES_CONFIG[device]['init']
+                server_setup["devices"][device] = {}
+                server_setup["devices"][device]["init"] = DEVICES_CONFIG[device]["init"]
 
-                if device == 'ArduinoNTCReadout':
-                    server_setup['devices'][device]['setup'] = self.server_setup.setup_widgets[server_ip]['temp'].setup()
+                if device == "ArduinoNTCReadout":
+                    server_setup["devices"][device]["setup"] = self.server_setup.setup_widgets[server_ip][
+                        "temp"
+                    ].setup()
 
             # Add
-            self.setup['server'][server_ip] = server_setup
+            self.setup["server"][server_ip] = server_setup
 
     def set_read_only(self, read_only=True):
-
         # Disable/enable main widgets to set to read_only
         self.session_setup.set_read_only(read_only)
         self.server_setup.set_read_only(read_only)

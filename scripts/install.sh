@@ -221,13 +221,13 @@ pip_installer
 if [ "$IRRAD_INSTALL" != false ]; then
   if [ "$IRRAD_SERVER" != false ]; then
     echo "Installing irrad_server into $CONDA_ENV_NAME environment..."
-    cd $IRRAD_PATH && python setup.py develop server
+    pip install -e $IRRAD_PATH 
     create_server_start_script
     # Enable the pigpio deamon on boot
     sudo systemctl enable pigpiod.service
   else
     echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
-    python -m pip install -e $IRRAD_PATH
+    pip install -e $IRRAD_PATH
   fi
 fi
 

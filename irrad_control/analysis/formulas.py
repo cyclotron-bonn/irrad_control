@@ -1,4 +1,5 @@
 """Collection of analysis functions"""
+
 import math
 import numpy as np
 import irrad_control.analysis.constants as irrad_consts
@@ -123,7 +124,6 @@ def calibrated_beam_current(beam_monitor_sig, calibration_factor, full_scale_cur
 
 
 def rel_beam_position(sig_a, sig_b, plane):
-
     try:
         rel_pos = float(sig_a - sig_b) / float(sig_a + sig_b)
     except ZeroDivisionError:
@@ -133,7 +133,7 @@ def rel_beam_position(sig_a, sig_b, plane):
     rel_pos = 1.0 if rel_pos > 1 else -1 if rel_pos < -1 else rel_pos
 
     # Horizontally, if we are shifted to the left the graph should move to the left, therefore * -1
-    rel_pos *= -100 if plane == 'h' else 100
+    rel_pos *= -100 if plane == "h" else 100
 
     return rel_pos
 
@@ -153,7 +153,9 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
     ntc_resistance = ref_resistor / ((ref_voltage / ntc_voltage) - 1)
 
     # Calc temperature
-    temp = 1.0 / (1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * math.log(ntc_resistance / ntc_nominal))
+    temp = 1.0 / (
+        1.0 / (temp_nominal + irrad_consts.kelvin) + 1.0 / beta_coefficient * math.log(ntc_resistance / ntc_nominal)
+    )
 
     # Adjust to Celsius
     temp -= irrad_consts.kelvin
@@ -161,7 +163,7 @@ def get_ntc_temp(ntc_voltage, ref_voltage, ref_resistor=1e4, ntc_nominal=1e4, te
     return temp
 
 
-def get_hist_idx(val, bin_edges, side='left'):
+def get_hist_idx(val, bin_edges, side="left"):
     res = np.searchsorted(bin_edges, val, side=side)
     if isinstance(res, np.ndarray):
         return [int(idx) - 1 for idx in res]
@@ -178,17 +180,22 @@ def lin(x, *args):
 
 
 def red_chisquare(observed, expected, observed_error, popt):
-    return np.sum(((observed - expected) / observed_error)**2 / (len(observed_error) - len(popt) - 1))
+    return np.sum(((observed - expected) / observed_error) ** 2 / (len(observed_error) - len(popt) - 1))
+
 
 def gamma(energy, mass):
     return energy / mass + 1
-    
+
+
 def beta(energy=None, mass=None, gamma_val=None):
-    assert energy is not None and mass is not None or gamma_val is not None, "Either gamma or energy and mass has to be given"
-    
+    assert energy is not None and mass is not None or gamma_val is not None, (
+        "Either gamma or energy and mass has to be given"
+    )
+
     gv = gamma_val if gamma_val is not None else gamma(energy, mass)
-    
-    return (1 - 1 / gv**2)** .5
+
+    return (1 - 1 / gv**2) ** 0.5
+
 
 def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     """
@@ -213,7 +220,7 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
         """
         x = math.log10(beta_gamma)
 
-        # Constants from table 3.1 
+        # Constants from table 3.1
         x0, x1 = 0.202, 2.872
         cd = -4.436  # Given as "-C_d" in table
         delta0 = 0.14
@@ -223,7 +230,7 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
         if x < x0:
             return delta0 * 100.0 ** (x - x0)
         elif x < x1:
-            return  2 * x * math.log(10) + cd + a * (x1 - x) ** k
+            return 2 * x * math.log(10) + cd + a * (x1 - x) ** k
         else:
             return 2 * x * math.log(10) + cd
 
@@ -231,27 +238,27 @@ def bethe_bloch_Si(charge, mass, energy, density_normalized=True):
     K = 0.307  # MeV cm² / mol
 
     # Charge, atomic number, mean exitation energy and density of silicon
-    Z_Si, A_Si, I_Si, rho_Si= 14, 28.0855, 173e-6, 2.329  # e, u, MeV, g/cm³
+    Z_Si, A_Si, I_Si, rho_Si = 14, 28.0855, 173e-6, 2.329  # e, u, MeV, g/cm³
 
     # Electron mass
     m_e = 0.511  # MeV
-    
+
     # speed of light in nat units
     c = 1
-    
+
     # Lorentz gamma
     lorentz_gamma = gamma(energy=energy, mass=mass)
     lorentz_beta = beta(gamma_val=lorentz_gamma)
-    beta_gamma = lorentz_beta*lorentz_gamma
+    beta_gamma = lorentz_beta * lorentz_gamma
 
     # Max energy transfer
-    T_max = (2 * m_e* c**2 * beta_gamma**2) / (1 + (2 * lorentz_gamma * m_e / mass) + (m_e / mass)**2)
+    T_max = (2 * m_e * c**2 * beta_gamma**2) / (1 + (2 * lorentz_gamma * m_e / mass) + (m_e / mass) ** 2)
 
     # Prefactor
-    pre_fac = K * Z_Si / A_Si * (charge / lorentz_beta)**2 * (1 if density_normalized else rho_Si)
+    pre_fac = K * Z_Si / A_Si * (charge / lorentz_beta) ** 2 * (1 if density_normalized else rho_Si)
 
     # Log term
-    log_term = math.log(2 * m_e * (c * beta_gamma)**2 * T_max / I_Si**2)
+    log_term = math.log(2 * m_e * (c * beta_gamma) ** 2 * T_max / I_Si**2)
 
     # Correction for high energy
     delta_correction = delta(beta_gamma=beta_gamma)
@@ -276,7 +283,7 @@ def semi_empirical_mass_formula(n_protons, n_nucleons):
         Number of protons in the nucleus
     n_nucleons : int
         Number of overall nucleons (protons + neutrons)
-    
+
     Returns
     -------
     float:
@@ -291,16 +298,16 @@ def semi_empirical_mass_formula(n_protons, n_nucleons):
 
     pair_factor = 0
     if n_protons % 2 == 0 and n_neutrons % 2 == 0:
-        pair_factor = 1 
+        pair_factor = 1
     elif n_protons % 2 != 0 and n_neutrons % 2 != 0:
         pair_factor = -1
 
     # Hard-coded prefactors are in MeV
     volume_term = 15.67 * n_nucleons
-    surface_term = -17.23 * n_nucleons ** (2./3.)
-    coulomb_term = - 0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-.33)
+    surface_term = -17.23 * n_nucleons ** (2.0 / 3.0)
+    coulomb_term = -0.714 * n_protons * (n_protons - 1) * n_nucleons ** (-0.33)
     symmetry_term = -93.15 * (n_neutrons - n_protons) ** 2 / (4 * n_nucleons)
-    pair_term = 11.2 * n_nucleons ** (-.5) * pair_factor
+    pair_term = 11.2 * n_nucleons ** (-0.5) * pair_factor
 
     binding_energy = volume_term + surface_term + coulomb_term + symmetry_term + pair_term
 

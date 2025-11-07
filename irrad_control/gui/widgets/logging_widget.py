@@ -8,7 +8,7 @@ class LoggingWidget(QtWidgets.QWidget):
     Each log levels messages are displayed in a scrolling text edit in its own tab.
     """
 
-    def __init__(self, level='INFO', parent=None):
+    def __init__(self, level="INFO", parent=None):
         super(LoggingWidget, self).__init__(parent)
 
         # Layout
@@ -41,16 +41,17 @@ class LoggingWidget(QtWidgets.QWidget):
         self._init_ui()
 
     def _clear_icon(self, tab_idx):
-        self.tabs.setTabIcon(tab_idx, self._get_icon('CLEAR'))
+        self.tabs.setTabIcon(tab_idx, self._get_icon("CLEAR"))
 
     def _get_icon(self, level):
-
         # Icons
-        log_icons = {'DEBUG': self._style.SP_MessageBoxInformation,
-                     'INFO': self._style.SP_MessageBoxInformation,
-                     'WARNING': self._style.SP_MessageBoxWarning,
-                     'ERROR': self._style.SP_MessageBoxCritical,
-                     'NOTSET': self._style.SP_MessageBoxQuestion}
+        log_icons = {
+            "DEBUG": self._style.SP_MessageBoxInformation,
+            "INFO": self._style.SP_MessageBoxInformation,
+            "WARNING": self._style.SP_MessageBoxWarning,
+            "ERROR": self._style.SP_MessageBoxCritical,
+            "NOTSET": self._style.SP_MessageBoxQuestion,
+        }
 
         if level in log_icons:
             return self._style.standardIcon(log_icons[level])
@@ -58,7 +59,6 @@ class LoggingWidget(QtWidgets.QWidget):
         return QtGui.QIcon()
 
     def _init_ui(self):
-
         for tab in self.log_tabs:
             if log_levels[tab] >= log_levels[self._loglevel]:
                 self.log_consoles[tab] = QtWidgets.QPlainTextEdit()
@@ -74,16 +74,19 @@ class LoggingWidget(QtWidgets.QWidget):
 
         # None of the available levels found, e.g. CRITICAL or NOTSET; log to ERROR and give ? as icon
         if len(_levels) != 1:
-            return 'NOTSET'
+            return "NOTSET"
 
         return _levels[0]
 
     @staticmethod
     def _get_level_name(level):
-
         # Check if the level we're changing to exists
         if level not in log_levels:
-            raise KeyError("{} not a know logging level. Known levels are: {}".format(level, ', '.join([str(lvl) for lvl in log_levels])))
+            raise KeyError(
+                "{} not a know logging level. Known levels are: {}".format(
+                    level, ", ".join([str(lvl) for lvl in log_levels])
+                )
+            )
 
         # Deduce whether we're looking at level string or numeric level
         if isinstance(level, int):
@@ -104,7 +107,6 @@ class LoggingWidget(QtWidgets.QWidget):
 
         # Check if we're logging this level
         if level in self.log_consoles:
-
             self.log_consoles[level].appendPlainText(log)
 
             log_idx = self.tabs.indexOf(self.log_consoles[level])
@@ -125,7 +127,6 @@ class LoggingWidget(QtWidgets.QWidget):
 
         # Remove tab if new log level is higher than old
         if log_levels[self.tabs.tabText(0)] < log_levels[self._loglevel]:
-
             while log_levels[self.tabs.tabText(0)] < log_levels[self._loglevel]:
                 _tab = self.tabs.tabText(0)
                 self.tabs.removeTab(0)
@@ -133,7 +134,11 @@ class LoggingWidget(QtWidgets.QWidget):
         # Add tabs
         else:
             # Make list of tabs to add
-            tabs_to_add = [lvl for lvl in self.log_tabs if log_levels[lvl] >= log_levels[self._loglevel] and lvl not in self.log_consoles]
+            tabs_to_add = [
+                lvl
+                for lvl in self.log_tabs
+                if log_levels[lvl] >= log_levels[self._loglevel] and lvl not in self.log_consoles
+            ]
 
             # Add in reversed order since we're inserting at 0
             for tab in reversed(tabs_to_add):
