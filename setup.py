@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys
+import os
 from setuptools import (
     setup,
     find_packages,
@@ -8,17 +8,13 @@ from scripts.init_desktop_file import make_desktop_entry
 
 
 # Figure out if we're installing on control PC or on server
-_server = "server" in sys.argv
-
-# Remove "server" from sys.argv
-if _server:
-    sys.argv.remove("server")
+server_install = os.environ.get("IRRAD_SERVER", "false") == "true"
 
 version = "2.5.0"
 author = "Pascal Wolf"
 author_email = "wolf@physik.uni-bonn.de"
 
-with open("requirements.txt" if not _server else "requirements_server.txt") as f:
+with open("requirements.txt" if not server_install else "requirements_server.txt") as f:
     required = f.read().splitlines()
 
 # Make dict to pass to setup
