@@ -1,5 +1,4 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
-from irrad_control.devices import DEVICES_CONFIG
 from irrad_control.gui.widgets.util_widgets import GridContainer, NoBackgroundScrollArea
 
 

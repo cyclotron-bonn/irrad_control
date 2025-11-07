@@ -9,7 +9,7 @@ class RadiationMonitor(ArduinoFreqCounter):
 
     def __init__(self, counter_type, counter_port,  hv_port):
         
-        if not counter_type in RAD_MONITOR_CONFIG:
+        if counter_type not in RAD_MONITOR_CONFIG:
             raise KeyError(f'No configuration defined for counter type "{counter_type}"')
 
         super().__init__(port=counter_port)
@@ -35,13 +35,20 @@ class RadiationMonitor(ArduinoFreqCounter):
         # We are ramping up
         if direction == 'up':
             self.hv.hv_on()
-            criteria = lambda volt: volt < self.hv.high_voltage - 1
+            
+            def criteria(volt):
+                return volt < self.hv.high_voltage - 1
+            
             logging.info(f"Ramping voltage up to {self.hv.high_voltage} V...")
         # We are ramping down
         else:
             self.hv.hv_off()
-            criteria = lambda volt: volt > 1  # Outut sometimes remains 1 V when shutting down
-            logging.info(f"Ramping voltage down to 0 V...")
+            
+            def criteria(volt):
+                # Outut sometimes remains 1 V when shutting down
+                return volt > 1
+            
+            logging.info("Ramping voltage down to 0 V...")
 
         if blocking:
 
@@ -53,7 +60,7 @@ class RadiationMonitor(ArduinoFreqCounter):
             if n_seconds_to_ramp < 0:
                 logging.warning(f"Ramping {direction} voltage resulted in output voltage of {self.hv.voltage} V, ecpected is {self.hv.high_voltage if direction == 'up' else 0} V")
             else:
-                logging.info(f"Ramping voltage completed")
+                logging.info("Ramping voltage completed")
 
     def ramp_up(self):
         self._ramp(direction='up')

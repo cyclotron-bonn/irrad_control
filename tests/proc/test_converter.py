@@ -20,7 +20,7 @@ class TestConverter(unittest.TestCase):
         cls.context = zmq.Context()
 
         cls.fixture_path = os.path.join(os.path.dirname(__file__), '../fixtures')
-        cls.test_base = os.path.join(cls.fixture_path, f'test_irradiation')
+        cls.test_base = os.path.join(cls.fixture_path, 'test_irradiation')
 
         # Load the data
         cls.data, cls.config = load_irrad_data(data_file=cls.test_base+'.h5',

@@ -270,7 +270,9 @@ class MotorStageControlWidget(ControlWidget):
 
             ### Connect commands ###
             # Generate axis kwargs with respect to n_axis
-            axis_kwargs = lambda kwargs: kwargs if n_axis == 1 else {'axis': cbx_axis.currentIndex(), **kwargs}
+            def axis_kwargs(kwargs):
+                return kwargs if n_axis == 1 else {'axis': cbx_axis.currentIndex(), **kwargs}
+            
             # Send stop to all axes of motorstage
             btn_stop.clicked.connect(lambda _, ms=motorstage: self.send_cmd(hostname=self.server,
                                                                             target=ms,
@@ -480,7 +482,7 @@ class ScanControlWidget(ControlWidget):
             sv.setValue(1)
             se.setValue(14)
         elif damage == 'neq':
-            se.setSuffix(f" neq / cm^2")
+            se.setSuffix(" neq / cm^2")
             se.setRange(3, 20)
             sv.setValue(1)
             se.setValue(14)

@@ -209,7 +209,10 @@ class PlotWrapperWidget(QtWidgets.QWidget):
 
         # Generate filename
         number = 0
-        out_file = lambda n: os.path.join(self.plot_path, f'{self.file_name}_{n}.{self.file_format}')
+        
+        def out_file(n):
+            return os.path.join(self.plot_path, f'{self.file_name}_{n}.{self.file_format}')
+        
         while os.path.isfile(out_file(number)):
             number += 1
 
@@ -884,7 +887,7 @@ class BeamCurrentPlot(ScrollingIrradDataPlot):
                                               parent=parent)
         # Scale between beam current and number of ions per second
         ion_scale = get_ions()[ion].rate(1)
-        self.plt.setLabel('right', text=f'Ion rate', units=f'{ion.capitalize()}s / s')
+        self.plt.setLabel('right', text='Ion rate', units=f'{ion.capitalize()}s / s')
         self.plt.setLabel('left', text='Beam current', units='A')                                  
         self.plt.getAxis('right').enableAutoSIPrefix(False)
         self.plt.getAxis('right').setScale(scale=ion_scale)
@@ -1100,7 +1103,8 @@ class BeamPositionPlot(IrradPlotWidget):
             # Update kw
             kwargs['lut'] = lut
 
-        get_scale = lambda plt_range, n_bins: float(abs(plt_range[0] - plt_range[1])) / n_bins
+        def get_scale(plt_range, n_bins):
+            return float(abs(plt_range[0] - plt_range[1])) / n_bins
 
         # Add and manage position
         tr = pg.QtGui.QTransform()

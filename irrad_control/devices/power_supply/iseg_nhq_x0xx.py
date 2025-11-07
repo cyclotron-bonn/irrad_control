@@ -234,7 +234,9 @@ class IsegNHQx0xx(SerialDevice):
         str
             Module description string
         """
-        module_msg = lambda bit, prefix, t_msg, f_msg='': f'{prefix} ' + (t_msg if bit == '1' else f_msg)
+        def module_msg(bit, prefix, t_msg, f_msg=''):
+            return f'{prefix} ' + (t_msg if bit == '1' else f_msg)
+        
         _description = {
             0: lambda b: module_msg(bit=b, prefix='', t_msg="Quality of output voltage not given at present"),
             1: lambda b: module_msg(bit=b, prefix='', t_msg="V_MAX or I_MAX is / was exceeded"),

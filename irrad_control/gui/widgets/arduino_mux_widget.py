@@ -76,7 +76,7 @@ class ArduinoMuxWidget(ControlWidget):
                 num = int(line.split(":")[0])
                 name = "".join(line.split(":")[1:])
                 self.channel_boxes[num - 1].setText(name)
-            except:
+            except Exception as _:
                 pass
 
 

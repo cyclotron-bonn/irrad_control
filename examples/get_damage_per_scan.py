@@ -7,7 +7,7 @@ import os
 from irrad_control import package_path
 
 # Analysis submodules
-from irrad_control.analysis import utils, formulas
+from irrad_control.analysis import utils
 
 # Path to data file
 data_file = os.path.join(package_path, '../tests/fixtures/test_irrad_w_corr.h5')

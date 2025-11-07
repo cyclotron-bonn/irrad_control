@@ -49,7 +49,8 @@ class IrradIon(object):
 
     def _to_dict(self, data):
 
-        helper = lambda d: {'nominal': float(d[1]), 'sigma': float(d[2]), 'energy': float(d[0]), 'date': time.asctime(time.gmtime(d[3]))}
+        def helper(d):
+            return {'nominal': float(d[1]), 'sigma': float(d[2]), 'energy': float(d[0]), 'date': time.asctime(time.gmtime(d[3]))}
 
         if isinstance(data, list):
                 _data = {i: helper(dat) for i, dat in enumerate(data)}

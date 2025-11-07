@@ -141,8 +141,11 @@ class DUTScan(object):
         """
 
         # Convert mm to native axis unit
-        axis_mm_to_native = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_from_unit(val, unit='mm')
-        axis_native_to_mm = lambda axis_idx, val: self.scan_stage.axis[axis_idx].convert_to_unit(val, unit='mm')
+        def axis_mm_to_native(axis_idx, val):
+            return self.scan_stage.axis[axis_idx].convert_from_unit(val, unit='mm')
+        
+        def axis_native_to_mm(axis_idx, val):
+            return self.scan_stage.axis[axis_idx].convert_to_unit(val, unit='mm')
 
         # Store origin of relative coordinate system used for scan
         self._scan_params['origin'] = tuple(self.scan_stage.get_position())  # Native units

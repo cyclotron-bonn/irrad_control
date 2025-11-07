@@ -1,4 +1,17 @@
-from . import DEVICES_CONFIG
+__all__ = ["IrradDAQBoard",
+           "ADCBoard",
+           "ZaberAsciiPort",
+           "ZaberStepAxis",
+           "ZaberMultiAxis",
+           "ItemLinearStage",
+           "ScanStage",
+           "SetupTableStage",
+           "ExternalCupStage",
+           "ArduinoNTCReadout",
+           "ArduinoMUX",
+           "RadiationMonitor",
+           "TCA9555"]
+
 
 # Readout-related
 from .readout.daq_board import IrradDAQBoard
@@ -18,5 +31,3 @@ from .rad_monitor.rad_monitor import RadiationMonitor
 
 # Integrated circuits
 from .ic.TCA9555.tca9555 import TCA9555
-
-__all__ = [DEV for DEV in DEVICES_CONFIG]

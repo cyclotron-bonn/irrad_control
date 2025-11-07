@@ -12,7 +12,6 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from irrad_control.analysis.formulas import lin_odr
 from irrad_control.analysis.utils import duration_str_from_secs, win_from_timestamps
@@ -356,14 +355,27 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     # Plot scan overview
     if 'kappa' in daq_config and not np.isnan(daq_config['kappa']['nominal']):
         kappa = daq_config['kappa']['nominal']
-        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config['stopping_power']
-        TIDToFluence = lambda t: t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
-        damage = lambda x: x * kappa
+        
+        def fluence_to_TID(f):
+            return irrad_consts.MEV_PER_GRAM_TO_MRAD * f / kappa * daq_config['stopping_power']
+        
+        def TID_to_fluence(t):
+            return t * kappa / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
+        
+        def damage(x):
+            return x * kappa
+        
         dmg_label = r"1 MeV neutron fluence / $\mathrm{neq \ cm^{-2}}$"
     else:
-        FluenceToTID = lambda f: irrad_consts.MEV_PER_GRAM_TO_MRAD * f * daq_config['stopping_power']
-        TIDToFluence = lambda t: t  / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
-        damage = lambda x: x
+        def fluence_to_TID(f):
+            return irrad_consts.MEV_PER_GRAM_TO_MRAD * f * daq_config['stopping_power']
+        
+        def TID_to_fluence(t):
+            return t  / (irrad_consts.MEV_PER_GRAM_TO_MRAD * daq_config['stopping_power'])
+        
+        def damage(x):
+            return x
+
         dmg_label = rf"{daq_config['ion'].capitalize()} fluence / $\mathrm{{{daq_config['ion']}s\ cm^{{-2}}}}$"
 
     # Make figure and gridspec on which to place subplots
@@ -382,7 +394,7 @@ def plot_scan_overview(overview, beam_data, daq_config, temp_data=None):
     ax_result.set_ylabel(dmg_label)
 
     # Make TID axis and plot title
-    ax_tid = ax_result.secondary_yaxis('right', functions=(FluenceToTID, TIDToFluence))
+    ax_tid = ax_result.secondary_yaxis('right', functions=(fluence_to_TID, TID_to_fluence))
     ax_complete.set_title("Irradiation overview", y=1.15, loc='right')
     
     # Axes container
@@ -724,7 +736,6 @@ def generate_summary_page(summary_dict):
 
     # Empty figure to start with
     fig = plt.figure()
-    #FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
     ax.axis('off')
 
@@ -742,8 +753,9 @@ def generate_summary_page(summary_dict):
               'irrad': (0.5, 0.3, 0.5, 0.5),
               'sid': (0.0, 0.0, 1.0, 0.3)}
     
-    bold_prop_text = lambda desc: rf"$\mathrm{{\mathbf{{[{desc}]}}\Rightarrow}}$"
-
+    def bold_prop_text(desc):
+        return rf"$\mathrm{{\mathbf{{[{desc}]}}\Rightarrow}}$"
+    
     headers = {'beam': 'Beam Properties', 'irrad': 'Irradiation Properties', 'sid': 'Sample ID(s)'}
     
     # Formatting
