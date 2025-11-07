@@ -3,7 +3,7 @@ import os
 from .utils import tools
 
 # Version
-__version__ = '2.0.0'
+__version__ = '2.5.0'
 
 # Dirs to be checked / made
 tmp_dir = '/tmp/irrad_control'
