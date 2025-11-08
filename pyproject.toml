@@ -1,0 +1,85 @@
+[build-system]
+requires = [
+  "setuptools >= 77.0.3",
+  "setuptools-git",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irrad_control"
+dynamic = ["version"]
+requires-python = ">=3.11"
+readme = "README.rst"
+license = "MIT"
+description = "Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University",
+authors = [
+  {name = "Pacal Wolf", email = "wolf@physik.uni-bonn.de"},
+]
+maintainers = [
+  {name = "Pacal Wolf", email = "wolf@physik.uni-bonn.de"},
+]
+
+keywords = [
+  "pixel detector",
+  "radiation damage",
+  "irradiation"
+  "silicon",
+  "NIEL",
+  "TID",
+  "fluence",
+  "proton",
+  "high-energy physics"
+]
+
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  "Development Status :: 4 - Beta",
+
+  # Indicate who your project is intended for
+  "Intended Audience :: Physicists",
+  "Topic :: Radiation Hardness Testing :: Irradiation Site",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+main = [
+  "numpy<=1.26",
+  "pyzmq",
+  "paramiko>=3.4.0",  # SSH API in python
+  "pyyaml",
+  "tables",  # pytables HDF5 library in Python
+  "matplotlib<3.9.0",  # Plotting colors
+  "uncertainties",  # Error propagation
+  "pytest",
+  "numba",  # NumPy-aware JIT Compiler
+  "tqdm",
+  "scipy",
+  "pyqtgraph>=0.13",  # Fast plotting
+  "pyqt5>=5.15.2,<6",  # Qt library in Python  
+]
+
+sever = [
+  "pyzmq==26.2.0",
+  "pyyaml==6.0.2".
+  "pipyadc==2.1".  # Raspberry Pi ADS1256 library
+  "zaber.serial==0.9.1".  # Zaber Stages serial communictaion
+  "pyserial==3.5",
+]
+
+[project.scripts]
+irrad_control = "irrad_control.main:main"
+irrad_analyse = "irrad_control:analysis.main:main"
+
+[project.urls]
+Homepage = "https://www.zyklotron.hiskp.uni-bonn.de/experiments_cyclotron_EN.html"
+Reference = "https://doi.org/10.1016/j.nima.2024.169358"
+Repository = "https://github.com//cyclotron-bonn/irrad_control.git"
+Issues = "https://github.com/cyclotron-bonn/irrad_control/issues"
