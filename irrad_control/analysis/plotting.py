@@ -927,19 +927,19 @@ def generate_summary_page(summary_dict):
     # Formatting
     props = {
         "ion": lambda t: "{} {}".format(bold_prop_text("Ion"), t.capitalize()),
-        "kappa": lambda t: "{} {:.2f}".format(bold_prop_text("Hardness\, factor"), t),
-        "energy": lambda t: "{} {:.2f}".format(bold_prop_text("Energy\, /\, MeV"), t),
-        "current": lambda t: "{} {:.2f}".format(bold_prop_text("Avg.\, current\, /\, nA"), t),
-        "lambda": lambda t: "{} {:.3f}".format(bold_prop_text("Calibration\, /\, V^{-1}"), t),
+        "kappa": lambda t: "{} {:.2f}".format(bold_prop_text(r"Hardness\, factor"), t),
+        "energy": lambda t: "{} {:.2f}".format(bold_prop_text(r"Energy\, /\, MeV"), t),
+        "current": lambda t: "{} {:.2f}".format(bold_prop_text(r"Avg.\, current\, /\, nA"), t),
+        "lambda": lambda t: "{} {:.3f}".format(bold_prop_text(r"Calibration\, /\, V^{-1}"), t),
         "date": lambda t: "{} {}".format(bold_prop_text("Date"), datetime.fromtimestamp(t).strftime("%b %d %H:%M %Y")),
         "duration": lambda t: "{} {}".format(bold_prop_text("Duration"), duration_str_from_secs(t)),
         "fluence_ion": lambda t: "{} {:.2E}".format(
-            bold_prop_text("\Phi_{%s}\, /\, ions/cm^{2}" % summary_dict["beam"]["ion"]), t
+            bold_prop_text(r"\Phi_{%s}\, /\, ions/cm^{2}" % summary_dict["beam"]["ion"]), t
         ),
-        "fluence_neq": lambda t: "{} {:.2E}".format(bold_prop_text("\Phi_{n_{eq}}\, /\, n_{eq}/cm^{2}"), t),
-        "tid": lambda t: "{} {:.1f}".format(bold_prop_text("TID\, /\, Mrad"), t),
-        "temp": lambda t: "{} {:.1f}".format(bold_prop_text("Avg.\, temperature\, /\, °C"), t),
-        "scan": lambda t: "{} {:d}".format(bold_prop_text("\#\, scans"), t),
+        "fluence_neq": lambda t: "{} {:.2E}".format(bold_prop_text(r"\Phi_{n_{eq}}\, /\, n_{eq}/cm^{2}"), t),
+        "tid": lambda t: "{} {:.1f}".format(bold_prop_text(r"TID\, /\, Mrad"), t),
+        "temp": lambda t: "{} {:.1f}".format(bold_prop_text(r"Avg.\, temperature\, /\, °C"), t),
+        "scan": lambda t: "{} {:d}".format(bold_prop_text(r"\#\, scans"), t),
     }
 
     for prp in summary_dict:
