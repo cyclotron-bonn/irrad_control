@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11"]  #, "3.X"]
+        python-version: ["3.11"]
 
     runs-on: ${{matrix.os}}    
 
@@ -37,14 +37,11 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{matrix.python-version}}
-      
-      - name: Dependency installation
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
           
       - name: Package installation
-        run: pip install -e .
+        run: |
+          pip install --upgrade pip
+          pip install -e .[main]
 
       - name: Qt5 default installation  # Needed for running headless
         run: |
@@ -64,7 +61,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11"]  #, "3.X"]
+        python-version: ["3.11"]
 
     runs-on: ${{matrix.os}}
 
@@ -81,6 +78,7 @@ jobs:
 
       - name: Run install.sh
         run: |
+          pip install --upgrade pip
           echo "Installing to $PWD..."
           ./install.sh --ic_path=$PWD 
 
