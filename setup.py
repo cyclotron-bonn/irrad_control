@@ -25,15 +25,15 @@ def get_version_attr_from_file(file_):
 
 def generate_desktop_file():
     # Generate .dektop file
-    abs_dir = os.path.abspath(os.path.dirname(__file__))
+    ic_dir = os.path.join(os.path.dirname(__file__), "irrad_control")
     irrad_control_bin = os.path.join(os.path.dirname(sys.executable), "irrad_control")
     desktop_file = configparser.ConfigParser()
     desktop_file.optionxform = str  # Case sensitive
-    desktop_file.read(os.path.join(abs_dir, "assets", "irrad_control.desktop"))
-    version = get_version_attr_from_file(file_=os.path.join(abs_dir, "irrad_control/__init__.py"))
+    desktop_file.read(os.path.join(ic_dir, "assets", "irrad_control.desktop"))
+    version = get_version_attr_from_file(file_=os.path.join(ic_dir, "__init__.py"))
     desktop_file["Desktop Entry"]["Version"] = version
     desktop_file["Desktop Entry"]["Exec"] = irrad_control_bin
-    desktop_file["Desktop Entry"]["Icon"] = os.path.join(abs_dir, "assets", "icon.png")
+    desktop_file["Desktop Entry"]["Icon"] = os.path.join(ic_dir, "assets", "icon.png")
     desktop_file["Desktop Action control-window"]["Exec"] = f"{irrad_control_bin} --gui"
     desktop_file["Desktop Action monitor-window"]["Exec"] = f"{irrad_control_bin} --monitor"
     return desktop_file

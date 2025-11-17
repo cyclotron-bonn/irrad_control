@@ -18,7 +18,7 @@ function usage {
 
 function create_server_start_script {
   echo "Create irrad_sever start script"
-  START_SCRIPT=${IRRAD_PATH}/scripts/start_server.sh
+  START_SCRIPT=${IRRAD_PATH}/start_server.sh
   # Create empty file; if it already exists, clear contents
   echo -n >$START_SCRIPT
   if [ "$USE_VENV" == true ]; then

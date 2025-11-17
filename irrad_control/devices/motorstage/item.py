@@ -6,7 +6,6 @@ import os
 
 # Package imports
 from .base_axis import BaseAxis, base_axis_config_updater, load_base_axis_config
-from irrad_control import script_path
 
 
 class ItemTelnetClient(object):
@@ -173,7 +172,7 @@ class ItemLinearStage(BaseAxis):
         """
         Start the item GmbH propriatary telnet server to control the stage; requires sudo privileges inside the script
         """
-        self._daemon = subprocess.Popen([f"{os.path.join(script_path, 'item_daemon.sh')}", "--start"])
+        self._daemon = subprocess.Popen([f"{os.path.join(os.path.dirname(__file__), 'item_daemon.sh')}", "--start"])
         time.sleep(3)
 
     def stop_daemon(self):
@@ -183,7 +182,7 @@ class ItemLinearStage(BaseAxis):
         Python interpreter (aka self._daemon.terminate()) since it is not called with sudo privileges.
         Instead call a dedicated script using sudo as subprocess again
         """
-        self._stop_call = subprocess.run([f"{os.path.join(script_path, 'item_daemon.sh')}", "--stop"])
+        self._stop_call = subprocess.run([f"{os.path.join(os.path.dirname(__file__), 'item_daemon.sh')}", "--stop"])
         self._daemon.wait(timeout=3)
         time.sleep(3)
 

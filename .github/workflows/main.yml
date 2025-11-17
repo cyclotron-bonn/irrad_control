@@ -82,12 +82,12 @@ jobs:
       - name: Run install.sh
         run: |
           echo "Installing to $PWD..."
-          ./scripts/install.sh --ic_path=$PWD 
+          ./install.sh --ic_path=$PWD 
 
       - name: Check installation
         run: |
           source .venv/bin/activate
-          irrad_control --help
+          irrad_control --version
           irrad_analyse --help
 
   format:

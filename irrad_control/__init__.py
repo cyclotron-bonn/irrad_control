@@ -13,7 +13,6 @@ config_dir = f"{os.path.expanduser('~')}/.config/irrad_control"
 package_path = os.path.dirname(__file__)
 config_path = os.path.abspath(config_dir)
 tmp_path = os.path.abspath(tmp_dir)
-script_path = os.path.abspath(os.path.join(package_path, "../scripts"))
 
 # Files
 config_file = os.path.join(config_path, "config.yaml")

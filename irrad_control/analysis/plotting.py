@@ -901,7 +901,7 @@ def generate_summary_page(summary_dict):
     ax.axis("off")
 
     # Add HISKP logo to top right corner
-    logo_half_size = plt.imread(os.path.abspath(os.path.join(package_path, "../assets/hiskp.png")))
+    logo_half_size = plt.imread(os.path.abspath(os.path.join(package_path, "assets/hiskp.png")))
     fig.figimage(logo_half_size, fig.bbox.xmax * 0.825, fig.bbox.ymax * 0.825)
 
     # Make title

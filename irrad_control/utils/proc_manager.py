@@ -5,7 +5,7 @@ import paramiko
 import subprocess
 import yaml
 from collections import defaultdict
-from irrad_control import package_path, script_path, pid_file, tmp_path
+from irrad_control import package_path, pid_file, tmp_path
 
 
 class ProcessManager(object):
@@ -76,13 +76,13 @@ class ProcessManager(object):
 
     def configure_server(self, hostname, py_update=False, git_pull=False, branch=False):
         # Check whether remote server already has the script in the default installation path
-        remote_script = "/home/{}/irrad_control/scripts/install.sh".format(self.server[hostname])
+        remote_script = "/home/{}/irrad_control/install.sh".format(self.server[hostname])
         remote_script_exists = self._check_file_exits(hostname=hostname, file_path=remote_script)
 
         # If no remote script is found, copy script from host PC to server
         if not remote_script_exists:
             remote_script = "/home/{}/install.sh".format(self.server[hostname])
-            local_script = os.path.join(script_path, "install.sh")
+            local_script = os.path.join(package_path, "../install.sh")
             self.copy_to_server(hostname, local_script, remote_script)
 
         # Add args to call remote script
