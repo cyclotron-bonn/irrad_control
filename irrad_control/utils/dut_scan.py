@@ -39,6 +39,13 @@ class DUTScan(object):
         self._scan_safety_margin = (10, 5)  # (x, y) mm
         self._scan_beam_margin = (4, 3)  # (x, y) beam sigmas
 
+        # Allow to compensate for erroneous position reporting by scan stage controller
+        # Motor stage position error counter
+        # (Verified) current position; set after first move (per axis)
+        self._position_recovery_margin = 0.1  #  mm
+        self._position_errors = 0
+        self._current_native_position = [None, None]
+
         self.scan_stage = scan_stage
 
         # Keep track of scan number
@@ -254,14 +261,38 @@ class DUTScan(object):
                 check_call()
             time.sleep(self._between_checks_time)
 
-    def _return_to_origin(self, current_x=None, return_speed=10):
+    def _get_position(self, axis, unit=None):
+        """
+        Method that returns the current position of *axis* in *unit*.
+        This method only works within as the DUTScan class as it relies on the correct
+        cashing of positon data within the _move_and_check method.
+
+        Parameters
+        ----------
+        axis: int
+            The index of the axis
+        unit: str, None, optional
+            The unit in which the position is returned, by default None i.e. native units
+        """
+
+        if self._current_native_position[axis] is None:
+            self._current_native_position[axis] = self.scan_stage.axis[axis].get_position()
+
+        position = self._current_native_position[axis]
+
+        if unit is None:
+            return position
+
+        return self.scan_stage.axis[axis].convert_to_unit(position, unit=unit)
+
+    def _return_to_origin(self, return_speed=10):
         """
         Mehod that returns the scan to the origin.
         It resets the movement speeds, checks the current position and returns the box
         to the origin without moving the beam though the scan area
         """
 
-        current_x = current_x or self.scan_stage.axis[0].get_position()
+        current_x = self._get_position(axis=0)
 
         # Reset speeds
         for i in (1, 0):
@@ -277,24 +308,24 @@ class DUTScan(object):
         # We are on the close side of the scan area
         if current_x <= self._scan_params["start"][0]:
             # Move 3 sigma outside of the scan area, then to origin y and x
-            self._move_and_check(axis=0, position=current_x - x_return, error_check_only=True)
+            self._move_and_check(axis=0, position=current_x - x_return)
 
         # We have to move "around" scan area; We have "unlimited" space to the top so we should return around the bottom
         elif current_x >= self._scan_params["end"][0]:
             # Go to x value which is 3 sigma outside the scan area to the right
             # Go to y value which is 3 sigma outside the scan area to the bottom
-            self._move_and_check(axis=0, position=x_return + current_x, error_check_only=True)
+            self._move_and_check(axis=0, position=x_return + current_x)
             self._move_and_check(
-                axis=1, position=y_return + max(self._scan_params["rows"].values()), error_check_only=True
+                axis=1, position=y_return + max(self._scan_params["rows"].values())
             )  # Add lowest row a.k.a maximum y value
-            self._move_and_check(axis=0, position=self._scan_params["start"][0] - x_return, error_check_only=True)
+            self._move_and_check(axis=0, position=self._scan_params["start"][0] - x_return)
         else:
             raise ScanError("Trying to return from scan failed. Turn off beam and return manually!")
 
-        self._move_and_check(axis=1, position=self._scan_params["origin"][1], error_check_only=True)
-        self._move_and_check(axis=0, position=self._scan_params["origin"][0], error_check_only=True)
+        self._move_and_check(axis=1, position=self._scan_params["origin"][1])
+        self._move_and_check(axis=0, position=self._scan_params["origin"][0])
 
-    def _move_and_check(self, axis, position, unit=None, error_check_only=False, max_tries=5):
+    def _move_and_check(self, axis, position, unit=None, max_tries=5):
         """
         Method that moves to an absolute position, checks the respective axis for error and checks whether the target position is read back after the move.
         If the target is not read back from the axis after the move has been completed, we repeat the move a couple of times and try again.
@@ -308,8 +339,6 @@ class DUTScan(object):
             Target position in units known to axis. If unit is None, use native units
         unit : str, None, optional
             String of the unit in which the target position is given. If None, use axis native unit, by default None
-        error_check_only : bool, optional
-            Whether to only check for axis erros and not read back result position, by default False
         max_tries : int, optional
             Number of tries to move to position, by default 5
 
@@ -334,21 +363,22 @@ class DUTScan(object):
         for n in range(1, max_tries + 1):
             self.scan_stage.move_abs(axis=axis, value=target_in_native)
 
+            # Check no error and read back position after move in native
             success = not bool(self.scan_stage.axis[axis].error)
+            success &= self.scan_stage.axis[axis].get_position() == target_in_native
 
-            if not error_check_only:
-                # Read back position after move in native
-                success &= self.scan_stage.axis[axis].get_position() == target_in_native
-
-            # If the axis is not at the target or has an error value other than False, try again
-            if not success:
-                msg = f"Moving axis {axis} to position {position} {self.scan_stage.axis[axis].native_unit if unit is None else unit} failed. Try {n} of {max_tries}."
-                logging.error(msg)
-                time.sleep(0.1)
-
-            # Everything looks good so we can break out of the loop
-            else:
+            # Everything looks good
+            if success:
+                # Update current axis position and break out of the loop
+                self._current_native_position[axis] = target_in_native
                 break
+            # If the axis is not at the target or has an error value other than False, try again
+            else:
+                unt = self.scan_stage.axis[axis].native_unit if unit is None else unit
+                msg = f"Moving axis {axis} to position {position} {unt} failed. Try {n} of {max_tries}."
+                logging.warning(msg)
+                self._position_errors += 1
+                time.sleep(0.1)
 
         # If we enter this else block, we never reached our target / always errored
         else:
@@ -356,6 +386,62 @@ class DUTScan(object):
             msg += f"Current position: {self.scan_stage.axis[axis].get_position(unit=unit)} {unit or 'native units'}"
             msg += f"Axis error: {self.scan_stage.axis[axis].error or 'None'}"
             raise ScanError(msg)
+
+    def _get_current_row_x_target(self, recover_inaccuracy=True):
+        """
+        Method to determine whether current row is scanned from row start to row end position or vice versa.
+        This method accounts for inaccuracies in the readback of positions by the motorstage controller if
+        they are sufficiently small (see self._position_recovery_margin) and recover_inaccuracy=True.
+        """
+
+        # Read current x position if it has not been set before
+        x_current = self._get_position(axis=0)
+
+        # Read x start and end variables from scan params
+        x_start, x_end = self._scan_params["start"][0], self._scan_params["end"][0]
+
+        # Everything is well
+        if x_current == x_start:
+            return x_end
+        # Everything is well
+        elif x_current == x_end:
+            return x_start
+        # Everything is not well
+        else:
+            self._position_errors += 1
+            # Store positions in mm
+            x_erroneous_mm = self.scan_stage.axis[0].convert_to_unit(x_current, "mm")
+            x_start_mm = self.scan_stage.axis[0].convert_to_unit(x_start, "mm")
+            x_end_mm = self.scan_stage.axis[0].convert_to_unit(x_end, "mm")
+
+            msg = f"Current x-axis position ({x_erroneous_mm:.3f} mm) matches neither"
+            msg += f" start ({x_start_mm:.3f} mm) nor end ({x_end_mm:.3f} mm) of scan pattern."
+            logging.warning(msg)
+
+            # Try to recover where to go if we are at either start or end within some deviation
+            x_target = None
+            if recover_inaccuracy:
+                logging.warning("Attempting to recover erroneous position")
+                x_dev_native = self.scan_stage.axis[0].convert_from_unit(self._position_recovery_margin, "mm")
+                if x_start - x_dev_native <= x_current <= x_start + x_dev_native:
+                    x_target = x_end
+                elif x_end - x_dev_native <= x_current <= x_end + x_dev_native:
+                    x_target = x_start
+
+            if x_target is not None:
+                x_target_mm = self.scan_stage.axis[0].convert_to_unit(x_target, "mm")
+                logging.debug(
+                    f"Position recovered as {x_target_mm:.3f} mm within {self._position_recovery_margin} mm margin."
+                )
+                return x_target
+            else:
+                msg = "Unable to recover from errorneous position"
+                if recover_inaccuracy:
+                    msg += f"within {self._position_recovery_margin} mm margin."
+                else:
+                    msg += "due to 'recover_inaccuracy=False' setting."
+                msg += "Abort scan."
+                raise ScanError(msg)
 
     def scan_row(self, row, speed=None, repeat=1, from_origin=True):
         """
@@ -433,9 +519,6 @@ class DUTScan(object):
         if speed is not None:
             self.scan_stage.set_speed(speed, axis=0, unit="mm/s")
 
-        # Make x start and end variables
-        x_start, x_end = self._scan_params["start"][0], self._scan_params["end"][0]
-
         if data_pub is not None:
             # Publish stop data
             _meta = {"timestamp": time.time(), "name": self.zmq_config["sender"], "type": "scan"}
@@ -446,16 +529,13 @@ class DUTScan(object):
 
         # Check whether we are scanning from origin
         if from_origin:
-            self._move_and_check(axis=0, position=x_start)
+            self._move_and_check(axis=0, position=self._scan_params["start"][0])
 
         # Move to the current row
         self._move_and_check(axis=1, position=self._scan_params["rows"][row])
 
         # Scan row *repeat* times
         for _ in range(int(repeat)):
-            # Current x position
-            x_current = self.scan_stage.axis[0].get_position()
-
             # Check for beam conditions to be okay before scanning a row, if not wait
             self._wait_for_condition(
                 condition_call=self.irrad_events.beam_ok,
@@ -474,15 +554,15 @@ class DUTScan(object):
                     "row": row,
                     "speed": self.scan_stage.axis[0].get_speed(unit="mm/s"),
                     "accel": self.scan_stage.axis[0].get_accel(unit="mm/s^2"),
-                    "x_start": self.scan_stage.axis[0].get_position(unit="mm"),
-                    "y_start": self.scan_stage.axis[1].get_position(unit="mm"),
+                    "x_start": self._get_position(axis=0, unit="mm"),
+                    "y_start": self._get_position(axis=1, unit="mm"),
                 }
 
                 # Publish data
                 data_pub.send_json({"meta": _meta, "data": _data})
 
             # Scan the current row
-            self._move_and_check(axis=0, position=x_end if x_current == x_start else x_start)
+            self._move_and_check(axis=0, position=self._get_current_row_x_target())
 
             # Publish if we have a socket
             if data_pub is not None:
@@ -490,8 +570,8 @@ class DUTScan(object):
                 _meta = {"timestamp": time.time(), "name": self.zmq_config["sender"], "type": "scan"}
                 _data = {
                     "status": "scan_stop",
-                    "x_stop": self.scan_stage.axis[0].get_position(unit="mm"),
-                    "y_stop": self.scan_stage.axis[1].get_position(unit="mm"),
+                    "x_stop": self._get_position(axis=0, unit="mm"),
+                    "y_stop": self._get_position(axis=1, unit="mm"),
                 }
 
                 # Publish data
@@ -634,3 +714,8 @@ class DUTScan(object):
             # Reset signal so one can scan again
             for _, e in self.interaction_events.items():
                 e.clear()
+
+            # Log stage errors if present
+            if self._position_errors:
+                msg = f"{self._position_errors} position readback error(s) occured during scan."
+                logging.warning(msg)
