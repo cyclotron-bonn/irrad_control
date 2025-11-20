@@ -134,9 +134,7 @@ class ProcessManager(object):
 
         logging.info("Attempting to start server process at host {}...".format(host_user))
 
-        self._exec_cmd(
-            hostname, "nohup bash /home/{}/start_server.sh &".format(self.server[hostname])
-        )
+        self._exec_cmd(hostname, "nohup bash /home/{}/irrad_control/start_server.sh &".format(self.server[hostname]))
 
     def start_interpreter_process(self):
         logging.info("Starting interpreter process...")
