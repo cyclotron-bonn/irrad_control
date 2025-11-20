@@ -47,7 +47,7 @@ function pip_updater {
   echo "Checking for required packages..."
 
   # Check if irrad_control is already installed in this env
-  if [[ ! "{$ENV_PKGS[@]}" =~ "irrad-control" ]]; then
+  if [[ ! "{$ENV_PKGS[@]}" =~ "irrad_control" ]]; then
     IRRAD_INSTALL=true
     echo "irrad_control missing in current environment"
   else
@@ -59,6 +59,7 @@ function pip_updater {
 
 # Needed variables
 IRRAD_PATH=$PWD
+IRRAD_CLONED=false
 VENV_PATH=$IRRAD_PATH/.venv
 VENV_MANUAL=false
 USE_VENV=true
@@ -129,13 +130,18 @@ else
 fi
 
 # Get irrad_control software
-if [ ! -d "$IRRAD_PATH" ]; then
+if [ ! -d "$IRRAD_PATH/irrad_control" ]; then
 
   echo "irrad_control not found. Collecting irrad_control from $IRRAD_URL"
 
   # Clone into IRRAD_PATH
-  git clone $IRRAD_URL $IRRAD_PATH
+  cd $IRRAD_PATH && git clone $IRRAD_URL
+  IRRAD_CLONED=true
+
 else
+  if $IRRAD_CLONED; then
+    IRRAD_PATH=$IRRAD_PATH/irrad_control
+  fi
   if [ ! -f $IRRAD_PATH/pyproject.toml ]; then
     echo "$PWD not valid irrad_control path; pyproject.toml at $IRRAD_PATH missing!"
     exit 1
