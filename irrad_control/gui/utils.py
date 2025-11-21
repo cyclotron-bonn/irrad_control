@@ -41,7 +41,7 @@ def get_host_ip():
     """Returns the host IP address on UNIX systems. If not UNIX, returns None"""
 
     try:
-        host_ip = str(subprocess.check_output(['hostname', '-I']))
+        host_ip = str(subprocess.check_output(["hostname", "-I"])).split()[0]
     except (OSError, subprocess.CalledProcessError):
         host_ip = None
 
