@@ -273,8 +273,8 @@ class SessionSetup(BaseSetupWidget):
         setup['outfile'] = os.path.join(self.widgets['folder_edit'].text(), self.widgets['outfile_edit'].text() or self.widgets['outfile_edit'].placeholderText())
         
         if self.sids:
-            setup['sids'] = self.sids
-        
+            setup["sid"] = self.sids
+
         return setup
 
 
