@@ -19,10 +19,10 @@ readme = "README.rst"
 license = "MIT"
 description = "Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University"
 authors = [
-  {name = "Pascal Wolf", email = "wolf@physik.uni-bonn.de"},
+  {name = "Pascal Wolf", email = "plwolf@uni-bonn.de"},
 ]
 maintainers = [
-  {name = "Pascal Wolf", email = "wolf@physik.uni-bonn.de"},
+  {name = "Pascal Wolf", email = "plwolf@uni-bonn.de"},
 ]
 
 keywords = [

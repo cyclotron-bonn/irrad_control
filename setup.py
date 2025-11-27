@@ -13,7 +13,7 @@ def get_version_attr_from_file(file_):
         content = f.read()
         version_idx = 0
         while version == "unknown":
-            version_idx = content[version_idx:].find("__version__")
+            version_idx = content[version_idx:].find(v_attr)
             if version_idx == -1:
                 break
             else:
