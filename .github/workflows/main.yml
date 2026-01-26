@@ -1,10 +1,7 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push or pull request events
   push:
     branches:
       - main
@@ -13,98 +10,18 @@ on:
       - main
       - release*
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  tests:
-    name: Testing Python ${{matrix.python-version}} on ${{matrix.os}}
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.11"]
-
-    runs-on: ${{matrix.os}}    
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v5
-
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{matrix.python-version}}
-          
-      - name: Package installation
-        run: |
-          pip install --upgrade pip
-          pip install -e .[main]
-
-      - name: Qt5 default installation  # Needed for running headless
-        run: |
-          sudo apt-get update
-          sudo apt-get install qttools5-dev-tools --fix-missing
-        
-      - name: Headless display setup
-        uses: pyvista/setup-headless-display-action@v4  
-
-      - name: Testing on ref -> ${{github.head_ref || github.ref_name}}
-        run: pytest
-
   install:
-    name: Testing install.sh script with Python ${{matrix.python-version}}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.11"]
-
-    runs-on: ${{matrix.os}}
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v5
-
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{matrix.python-version}}
-
-      - name: Run install.sh
-        run: |
-          pip install --upgrade pip
-          echo "Installing to $PWD..."
-          ./install.sh --ic_path=$PWD 
-
-      - name: Check installation
-        run: |
-          source .venv/bin/activate
-          irrad_control --version
-          irrad_analyse --help
-
+    name: Testing the installer
+    uses: ./.github/workflows/install.yml
+    with:
+      PY_VERSION: "3.11"
+  pytest:
+    name: Running the tests
+    uses: ./.github/workflows/test.yml
+    with:
+      PY_VERSION: "3.11"
   format:
-    name: Format Python with Ruff
+   name: Running the Python formatter
+   uses: ./.github/workflows/format.yml
 
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v5
-      # https://github.com/astral-sh/ruff-action
-      - name: Install Ruff
-        uses: astral-sh/ruff-action@v3
-        with:
-          version: "latest"
-          args: "--version"
-
-      # Linting and formatting via Ruff
-      - name: Run Ruff
-        run: |
-          ruff check
-          ruff format --check
