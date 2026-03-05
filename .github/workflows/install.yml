@@ -24,11 +24,13 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
       - name: Run install.sh
+        id: install
         run: |
           pip install --upgrade pip
           echo "Installing to $PWD..."
           ./install.sh --ic_path=$PWD
       - name: Check installation
+        id: check
         run: |
           source .venv/bin/activate
           irrad_control --version

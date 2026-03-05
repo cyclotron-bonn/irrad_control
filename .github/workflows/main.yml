@@ -9,10 +9,15 @@ on:
     branches:
       - main
       - release*
+  # Run tests weekly: Mondays at 10 AM.
+  # NOTE: always runs on the default branch
+  # NOTE: cancelled after 60 days of inactivity on the repo
+  schedule:
+    - cron: "0 10 * * 1"
 
 jobs:
-  install:
-    name: Testing the installer
+  test_install:
+    name: Testing the install script
     uses: ./.github/workflows/install.yml
     with:
       PY_VERSION: "3.11"
@@ -21,7 +26,37 @@ jobs:
     uses: ./.github/workflows/test.yml
     with:
       PY_VERSION: "3.11"
-  format:
-   name: Running the Python formatter
-   uses: ./.github/workflows/format.yml
+  ruff_format:
+    name: Running the Python formatter
+    uses: ./.github/workflows/format.yml
 
+  # Zulip integration
+  zulip_notify_scheduled_test:
+    name: Scheduled test message
+    if: ${{ github.event.name == 'schedule' }}
+    uses: ./.github/workflows/zulip.yml
+    with:
+      TOPIC: "Github CI"
+      MESSAGE: ":info: Running scheduled integration tests...' :info:"
+    secrets:
+      API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}
+  zulip_notify_success:
+    name: Success message
+    needs: [test_install, pytest, ruff_format]
+    if: ${{ success() && ! contains(needs.*.result, 'failure') }}
+    uses: ./.github/workflows/zulip.yml
+    with:
+      TOPIC: "Github CI"
+      MESSAGE: ":check: Tests passed on '${{ github.head_ref || github.ref_name }}' :check:"
+    secrets:
+      API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}
+  zulip_notify_failure:
+    name: Failure message
+    needs: [test_install, pytest, ruff_format]
+    if: ${{ failure() || cancelled() || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+    uses: ./.github/workflows/zulip.yml
+    with:
+      TOPIC: "Github CI"
+      MESSAGE: ":warning: Tests fail on ref '${{ github.head_ref || github.ref_name }}': [results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) :warning:"
+    secrets:
+      API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}
