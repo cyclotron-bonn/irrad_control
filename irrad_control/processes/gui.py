@@ -441,16 +441,18 @@ class IrradGUI(QtWidgets.QMainWindow):
             lambda server, enable: self.daq_info_widget.record_btns[server].setVisible(enable)
         )
         self.control_tab.enableDAQRec.connect(
-            lambda server, enable: self.daq_info_widget.record_btns[server].clicked.connect(
-                lambda _, _server=server: self.send_cmd(
-                    hostname="localhost",
-                    target="interpreter",
-                    cmd="record_data",
-                    cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == "Resume"),
+            lambda server, enable: (
+                self.daq_info_widget.record_btns[server].clicked.connect(
+                    lambda _, _server=server: self.send_cmd(
+                        hostname="localhost",
+                        target="interpreter",
+                        cmd="record_data",
+                        cmd_data=(_server, self.daq_info_widget.record_btns[server].text() == "Resume"),
+                    )
                 )
+                if enable
+                else self.daq_info_widget.record_btns[server].clicked.disconnect()
             )
-            if enable
-            else self.daq_info_widget.record_btns[server].clicked.disconnect()
         )  # Pretty crazy connection. Basically connects or disconnects a button
 
         # connect devices tab

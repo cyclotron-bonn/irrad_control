@@ -78,11 +78,13 @@ class SessionSetupWidget(QtWidgets.QWidget):
 
         network_setup.serverIPsFound.connect(lambda ips: server_selection.add_selection(ips))
         network_setup.serverIPsFound.connect(
-            lambda ips: None
-            if len(ips) == 0
-            else server_selection.widgets[ips[0]]["checkbox"].setChecked(1)
-            if (config["server"]["default"] not in ips or len(ips) == 1)
-            else server_selection.widgets[config["server"]["default"]]["checkbox"].setChecked(1)
+            lambda ips: (
+                None
+                if len(ips) == 0
+                else server_selection.widgets[ips[0]]["checkbox"].setChecked(1)
+                if (config["server"]["default"] not in ips or len(ips) == 1)
+                else server_selection.widgets[config["server"]["default"]]["checkbox"].setChecked(1)
+            )
         )
 
         self.layout().addWidget(session_setup)

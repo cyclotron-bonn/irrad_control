@@ -805,19 +805,23 @@ class IrradConverter(DAQProcess):
             server=server,
             event_name="BeamDrift",
             trigger_condition=lambda: (
-                self.data_arrays[server]["beam"]["horizontal_beam_position"][0] ** 2
-                + self.data_arrays[server]["beam"]["vertical_beam_position"][0] ** 2
-            )
-            ** 0.5
-            > 50,
+                (
+                    self.data_arrays[server]["beam"]["horizontal_beam_position"][0] ** 2
+                    + self.data_arrays[server]["beam"]["vertical_beam_position"][0] ** 2
+                )
+                ** 0.5
+                > 50
+            ),
         )
 
         # If beam is low during scan
         self._check_irrad_event(
             server=server,
             event_name="BeamLow",
-            trigger_condition=lambda: self.data_arrays[server]["beam"]["beam_current"][0]
-            < self.data_arrays[server]["irrad"]["min_scan_current"][0],
+            trigger_condition=lambda: (
+                self.data_arrays[server]["beam"]["beam_current"][0]
+                < self.data_arrays[server]["irrad"]["min_scan_current"][0]
+            ),
         )
 
         # If beam is unstable
