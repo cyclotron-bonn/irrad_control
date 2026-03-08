@@ -13,11 +13,9 @@ except ModuleNotFoundError:
 if _QT_WORKER:
 
     class QtWorkerSignals(QtCore.QObject):
-
         finished = QtCore.pyqtSignal()
         exception = QtCore.pyqtSignal(Exception, str)
         timeout = QtCore.pyqtSignal()
-
 
     class QtWorker(QtCore.QRunnable):
         """
@@ -81,13 +79,12 @@ class ThreadWorker(threading.Thread):
     """
     Sub-class of threading.Thread which stores any exception which occurs during the Thread's 'run'-method.
     """
-    
-    def __init__(self, *args, **kwargs):
 
+    def __init__(self, *args, **kwargs):
         # Name thread according to function which is executed
-        if 'name' not in kwargs:
-            if 'target' in kwargs and kwargs['target'] is not None:
-                kwargs['name'] = kwargs['target'].__name__
+        if "name" not in kwargs:
+            if "target" in kwargs and kwargs["target"] is not None:
+                kwargs["name"] = kwargs["target"].__name__
 
         super(ThreadWorker, self).__init__(*args, **kwargs)
 

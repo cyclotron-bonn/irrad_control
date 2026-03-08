@@ -1,0 +1,170 @@
+[build-system]
+requires = [
+  "setuptools >= 77.0.3",
+  "setuptools_scm",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["irrad_control"]
+
+[tool.setuptools.dynamic]
+version = {attr = "irrad_control.__version__"}
+
+[project]
+name = "irrad_control"
+dynamic = ["version"]
+requires-python = ">=3.11"
+readme = "README.rst"
+license = "MIT"
+description = "Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University"
+authors = [
+  {name = "Pascal Wolf", email = "plwolf@uni-bonn.de"},
+]
+maintainers = [
+  {name = "Pascal Wolf", email = "plwolf@uni-bonn.de"},
+]
+
+keywords = [
+  "pixel detector",
+  "radiation damage",
+  "irradiation",
+  "silicon",
+  "NIEL",
+  "TID",
+  "fluence",
+  "proton",
+  "high-energy physics",
+]
+
+classifiers = [
+  # How mature is this project? Common values are
+  #   3 - Alpha
+  #   4 - Beta
+  #   5 - Production/Stable
+  "Development Status :: 4 - Beta",
+
+  # Indicate who your project is intended for
+  "Intended Audience :: Physicists",
+  "Topic :: Radiation Hardness Testing :: Irradiation Site",
+
+  # Specify the Python versions you support here.
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.optional-dependencies]
+main = [
+  "numpy<=1.26",
+  "pyzmq",
+  "paramiko>=3.4.0",  # SSH API in python
+  "pyyaml",
+  "tables",  # pytables HDF5 library in Python
+  "matplotlib<3.9.0",  # Plotting colors
+  "uncertainties",  # Error propagation
+  "pytest",
+  "numba",  # NumPy-aware JIT Compiler
+  "tqdm",
+  "scipy",
+  "pyqtgraph>=0.13",  # Fast plotting
+  "pyqt5>=5.15.2,<6",  # Qt library in Python  
+]
+
+server = [
+  "pyzmq==26.2.0",
+  "pyyaml==6.0.2",
+  "pipyadc==2.1",  # Raspberry Pi ADS1256 library
+  "zaber.serial==0.9.1",  # Zaber Stages serial communictaion
+  "pyserial==3.5",
+]
+
+[project.scripts]
+irrad_control = "irrad_control.main:main"
+irrad_analyse = "irrad_control.analysis.main:main"
+
+[project.urls]
+Homepage = "https://www.zyklotron.hiskp.uni-bonn.de/experiments_cyclotron_EN.html"
+Reference = "https://doi.org/10.1016/j.nima.2024.169358"
+Repository = "https://github.com//cyclotron-bonn/irrad_control.git"
+Issues = "https://github.com/cyclotron-bonn/irrad_control/issues"
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 120
+indent-width = 4
+
+# Assume Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["E4", "E7", "E9", "F"]
+ignore = ["F841", "F403"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = ["F841", "F403"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
+
+# Set the line length limit used when formatting code snippets in
+# docstrings.
+#
+# This only has an effect when the `docstring-code-format` setting is
+# enabled.
+docstring-code-line-length = "dynamic"

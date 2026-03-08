@@ -1,0 +1,42 @@
+name: Zulip message poster
+
+on:
+  workflow_call:
+    inputs:
+      CHANNEL:
+        default: "Irrad-Control"
+        required: false
+        type: string
+      EMAIL:
+        default: "irrad-control-bot@zulip.hiskp.uni-bonn.de"
+        required: false
+        type: string
+      URL:
+        default: "https://zulip.hiskp.uni-bonn.de"
+        required: false
+        type: string
+      TOPIC:
+        required: true
+        type: string
+      MESSAGE:
+        required: true
+        type: string
+    secrets:
+      API_KEY:
+        required: true
+
+jobs:
+  message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post message to Zulip channel
+        uses: zulip/github-actions-zulip/send-message@v1
+        with:
+          api-key: ${{ secrets.API_KEY }}
+          email: ${{ inputs.EMAIL }}
+          organization-url: ${{ inputs.URL }}
+          type: "stream"
+          # Notification channel
+          to: ${{ inputs.CHANNEL }}
+          topic: ${{ inputs.TOPIC }}
+          content: ${{ inputs.MESSAGE }}

@@ -18,7 +18,7 @@ function usage {
 
 function create_server_start_script {
   echo "Create irrad_sever start script"
-  START_SCRIPT=${IRRAD_PATH}/scripts/start_server.sh
+  START_SCRIPT=${IRRAD_PATH}/start_server.sh
   # Create empty file; if it already exists, clear contents
   echo -n >$START_SCRIPT
   if [ "$USE_VENV" == true ]; then
@@ -27,24 +27,15 @@ function create_server_start_script {
   echo "irrad_control --server" >> $START_SCRIPT 
 }
 
-function read_requirements {
-  
-  while IFS= read -r line; do
-    # Read package and remove comments and whitespaces
-    PKG=$(echo "$line" | cut -f1 -d"#" | xargs)
-    REQ_PKGS+=("$PKG")
-  done < $REQ_FILE
-}
-
 # Function to install and update packages
-function pip_installer {
+function pip_updater {
 
   # Get array of packages in env
   ENV_PKGS=$(python -m pip list | awk '/-/{p++;if(p==1){next}}p{print $1}')
 
   if $PIP_UPDATE; then
 
-    echo 'Updating pip'
+    echo 'Updating pip and packages...'
 
     # Update pip and packages
     python -m pip install --upgrade pip
@@ -56,50 +47,28 @@ function pip_installer {
   echo "Checking for required packages..."
 
   # Check if irrad_control is already installed in this env
-  if [[ ! "{$ENV_PKGS[@]}" =~ "irrad-control" ]]; then
+  if [[ ! "{$ENV_PKGS[@]}" =~ "irrad_control" ]]; then
     IRRAD_INSTALL=true
-  fi
-
-  # Loop over required packages and check if current env contains them
-  MISS_PKGS=()
-  for REQ in "${REQ_PKGS[@]}"; do
-
-    # As soon as one of the packages is missing, just install all and break
-    if [[ ! "{$ENV_PKGS[@]}" =~ "${REQ}" ]]; then
-      MISS_PKGS+=("$REQ")
-    fi
-  done
-
-  # Install everything we need
-  if [[ ! "${#MISS_PKGS[@]}" -eq 0 ]]; then
-
-      # List all packages separated by whitespace and remove leading /trainling whitespace
-      TO_BE_INSTALLED=$(echo "${MISS_PKGS[@]/#/}" "$1"| xargs)
-      
-      echo "Installing missing required packages" $TO_BE_INSTALLED
-      
-      # Upgrade pip and install needed packages from pip
-      python -m pip install $TO_BE_INSTALLED
+    echo "irrad_control missing in current environment"
   else
-    echo "All required packages are installed."
+    IRRAD_INSTALL=false
+    echo "irrad_control installed in current environment"
   fi
-
-  echo "Environment is set up."
 
 }
 
 # Needed variables
-IRRAD_PATH=$PWD/irrad_control
+IRRAD_PATH=$PWD
+IRRAD_CLONED=false
 VENV_PATH=$IRRAD_PATH/.venv
 VENV_MANUAL=false
 USE_VENV=true
 IRRAD_SERVER=false
 PIP_UPDATE=false
-IRRAD_URL="https://github.com/Cyclotron-Bonn/irrad_control"
+IRRAD_URL="https://github.com/cyclotron-bonn/irrad_control.git"
 IRRAD_BRANCH=false
 IRRAD_PULL=false
 IRRAD_INSTALL=false
-REQ_PKGS=()
 
 # Parse command line arguments
 for CMD in "$@"; do
@@ -160,23 +129,21 @@ else
   sudo apt-get install git
 fi
 
-# Set requirements file
-if [[ "$IRRAD_SERVER" != false ]]; then
-  REQ_FILE=$IRRAD_PATH/requirements_server.txt
-else
-  REQ_FILE=$IRRAD_PATH/requirements.txt
-fi
-
 # Get irrad_control software
-if [ ! -d "$IRRAD_PATH" ]; then
+if [ ! -d "$IRRAD_PATH/irrad_control" ]; then
 
   echo "irrad_control not found. Collecting irrad_control from $IRRAD_URL"
 
   # Clone into IRRAD_PATH
-  git clone $IRRAD_URL $IRRAD_PATH
+  cd $IRRAD_PATH && git clone $IRRAD_URL
+  IRRAD_CLONED=true
+
 else
-  if [ ! -f $REQ_FILE ]; then
-    echo "$PWD not valid irrad_control path; \"$(basename $REQ_FILE)\" at $REQ_FILE missing!"
+  if $IRRAD_CLONED; then
+    IRRAD_PATH=$IRRAD_PATH/irrad_control
+  fi
+  if [ ! -f $IRRAD_PATH/pyproject.toml ]; then
+    echo "$PWD not valid irrad_control path; pyproject.toml at $IRRAD_PATH missing!"
     exit 1
   else
     echo "Found irrad_control at $IRRAD_PATH"
@@ -191,14 +158,12 @@ if [ "$IRRAD_PULL" != false ]; then
   cd $IRRAD_PATH && git pull
 fi
 
-read_requirements
-
 # Set venv path correctly
 if [ "$VENV_MANUAL" != true ]; then
   VENV_PATH=$IRRAD_PATH/.venv
 fi
 
-# Miniconda is not installed; download and install
+# Use venv
 if [ "$USE_VENV" == true ]; then
 
   if [ ! -d "$VENV_PATH" ]; then
@@ -214,20 +179,21 @@ if [ "$USE_VENV" == true ]; then
   source $VENV_PATH/bin/activate
 fi
 
-# Install everything using pip
-pip_installer
+# Update pip if needed
+pip_updater
 
 # Install irrad_control if necessarry
 if [ "$IRRAD_INSTALL" != false ]; then
+  PY_EXEC=$(which python)
   if [ "$IRRAD_SERVER" != false ]; then
-    echo "Installing irrad_server into $CONDA_ENV_NAME environment..."
-    cd $IRRAD_PATH && python setup.py develop server
+    echo "Installing irrad_server into ${PY_EXEC%/bin/python} environment"
+    cd $IRRAD_PATH && pip install -e .[server] 
     create_server_start_script
     # Enable the pigpio deamon on boot
     sudo systemctl enable pigpiod.service
   else
-    echo "Installing irrad_control into $CONDA_ENV_NAME environment..."
-    python -m pip install -e $IRRAD_PATH
+    echo "Installing irrad_control into ${PY_EXEC%/bin/python} environment"
+    cd $IRRAD_PATH && pip install -e .[main] 
   fi
 fi
 

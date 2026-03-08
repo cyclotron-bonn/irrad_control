@@ -9,9 +9,8 @@ from irrad_control.processes.daq import DAQProcess
 
 
 class BaseDAQProcess(DAQProcess):
-
     def __init__(self):
-        super(BaseDAQProcess, self).__init__(name='TestDAQProcess')
+        super(BaseDAQProcess, self).__init__(name="TestDAQProcess")
 
     # Define clean up
     def clean_up(self):
@@ -19,10 +18,8 @@ class BaseDAQProcess(DAQProcess):
 
 
 class TestDAQProcess(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
-
         # Create process
         cls.daq_proc = BaseDAQProcess()
 
@@ -54,7 +51,6 @@ class TestDAQProcess(unittest.TestCase):
         time.sleep(1)
 
     def test_pid_file_content(self):
-
         pid_file_content = load_yaml(pid_file)
 
         # Check that it is not empty
@@ -64,10 +60,12 @@ class TestDAQProcess(unittest.TestCase):
         assert all(pid_file_content.values())
 
         # Check that all ports are found
-        assert all(isinstance(port, int) for port in pid_file_content['ports'].values())
+        assert all(isinstance(port, int) for port in pid_file_content["ports"].values())
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s")
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s - [%(levelname)-8s] (%(threadName)-10s) %(message)s"
+    )
     suite = unittest.TestLoader().loadTestsFromTestCase(TestDAQProcess)
     unittest.TextTestRunner(verbosity=2).run(suite)

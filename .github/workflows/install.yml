@@ -1,0 +1,37 @@
+name: Install irrad_control
+
+on:
+  workflow_call:
+    inputs:
+      PY_VERSION:
+        required: true
+        type: string
+
+jobs:
+  install:
+    name: Testing install.sh script with Python ${{matrix.python-version}}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["${{ inputs.PY_VERSION }}"]
+    runs-on: ${{matrix.os}}
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v5
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{matrix.python-version}}
+      - name: Run install.sh
+        id: install
+        run: |
+          pip install --upgrade pip
+          echo "Installing to $PWD..."
+          ./install.sh --ic_path=$PWD
+      - name: Check installation
+        id: check
+        run: |
+          source .venv/bin/activate
+          irrad_control --version
+          irrad_analyse --help

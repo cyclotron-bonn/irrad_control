@@ -12,8 +12,9 @@ class ZaberAsciiPort(AsciiSerial):
 class ZaberStepAxis(BaseAxis):
     """Base-class representing basic functionality of a Zaber motorstage with a stepper motor"""
 
-    def __init__(self, port, axis_addr=1, dev_addr=1, step=0.49609375e-6, travel=300e-3, model='X-XY-LRQ300BL-E01', config=None):
-
+    def __init__(
+        self, port, axis_addr=1, dev_addr=1, step=0.49609375e-6, travel=300e-3, model="X-XY-LRQ300BL-E01", config=None
+    ):
         self.port = port
 
         # If we are not already connected to a serial port, open one
@@ -35,7 +36,7 @@ class ZaberStepAxis(BaseAxis):
         self.travel = travel  # meter
         self.travel_microsteps = int(self.travel / self.microstep)
 
-        super(ZaberStepAxis, self).__init__(config=config, native_unit='step')
+        super(ZaberStepAxis, self).__init__(config=config, native_unit="step")
 
     @staticmethod
     def _check_reply(reply):
@@ -45,7 +46,7 @@ class ZaberStepAxis(BaseAxis):
         msg = "Axis {}: {}".format(reply.device_address, reply.data)
 
         # Flags are either 'OK' or 'RJ'
-        if reply.reply_flag != 'OK':
+        if reply.reply_flag != "OK":
             logging.error("Command rejected by {}".format(msg))
             return False
 
@@ -94,13 +95,13 @@ class ZaberStepAxis(BaseAxis):
             return int(value)
 
         else:
-            raise ValueError("Could not convert value {} {} unit {}".format(value, 'from' if to_native else 'to', unit))
+            raise ValueError("Could not convert value {} {} unit {}".format(value, "from" if to_native else "to", unit))
 
         # Determine factor wrt whether we go to or from physical unit
-        factor **= (-1.0 if to_native else 1.0)
+        factor **= -1.0 if to_native else 1.0
 
         # Scale the result between unit prefixes
-        factor *= self.unit_scale[unit.split('/')[0]] ** (1.0 if to_native else -1.0)
+        factor *= self.unit_scale[unit.split("/")[0]] ** (1.0 if to_native else -1.0)
 
         # Calculate result
         res = factor * value
@@ -155,7 +156,9 @@ class ZaberStepAxis(BaseAxis):
 
         # Check whether speed is not larger than *max_speed*
         if not (1 <= speed <= max_speed):
-            msg = "Maximum speed of this axis is {} mm/s. Speed not updated!".format(self.convert_to_unit(max_speed, 'mm/s'))
+            msg = "Maximum speed of this axis is {} mm/s. Speed not updated!".format(
+                self.convert_to_unit(max_speed, "mm/s")
+            )
             logging.warning(msg)
             return
 
@@ -200,8 +203,10 @@ class ZaberStepAxis(BaseAxis):
             steps = self.travel_microsteps if unit is None else self.convert_to_unit(self.travel_microsteps, unit)
             value = [steps - v for v in reversed(value)]
 
-        for i, lim in enumerate(('min', 'max')):
-            self._send_cmd("set limit.{} {}".format(lim, value[i] if unit is None else self.convert_from_unit(value[i], unit)))
+        for i, lim in enumerate(("min", "max")):
+            self._send_cmd(
+                "set limit.{} {}".format(lim, value[i] if unit is None else self.convert_from_unit(value[i], unit))
+            )
 
     def get_range(self, unit=None):
         """
@@ -215,7 +220,7 @@ class ZaberStepAxis(BaseAxis):
 
         # Issue command and wait for reply and check
         _range = []
-        for i, lim in enumerate(('min', 'max')):
+        for i, lim in enumerate(("min", "max")):
             _reply = self._send_cmd("get limit.{}".format(lim))
             _range.append(0 if self.error else int(_reply.data))
 
@@ -244,8 +249,9 @@ class ZaberStepAxis(BaseAxis):
 
         # Check whether speed is not larger than maxspeed
         if accel > max_accel:
-            msg = "Maximum acceleration of this axis is {} m/s^2." \
-                  "Acceleration not updated!".format(self.convert_to_unit(max_accel, 'm/s^2'))
+            msg = "Maximum acceleration of this axis is {} m/s^2.Acceleration not updated!".format(
+                self.convert_to_unit(max_accel, "m/s^2")
+            )
             logging.warning(msg)
             return
 
@@ -304,7 +310,7 @@ class ZaberStepAxis(BaseAxis):
 
         # Do sanity check whether movement is within axis range and move
         if self._check_move(value=target if absolute else target + self.get_position()):
-            self._send_cmd("move {} {}".format('abs' if absolute else 'rel', target))
+            self._send_cmd("move {} {}".format("abs" if absolute else "rel", target))
 
             # Block until movement is finished if wanted
             if self.blocking:
@@ -312,13 +318,13 @@ class ZaberStepAxis(BaseAxis):
 
     @base_axis_config_updater
     def move_rel(self, value, unit=None):
-        """ See self._move """
+        """See self._move"""
 
         self._move(value, unit, absolute=False)
 
     @base_axis_config_updater
     def move_abs(self, value, unit=None):
-        """ See self._move """
+        """See self._move"""
 
         self._move(value, unit, absolute=True)
 
@@ -334,11 +340,15 @@ class ZaberStepAxis(BaseAxis):
             name of position in self.config['axis']['positions'] to travel to
         """
         # Check if position is in config
-        if name not in self.config['axis']['positions']:
-            raise KeyError("Position '{}' not in known position: {}".format(name, ', '.join(n for n in self.config['axis']['positions'])))
+        if name not in self.config["axis"]["positions"]:
+            raise KeyError(
+                "Position '{}' not in known position: {}".format(
+                    name, ", ".join(n for n in self.config["axis"]["positions"])
+                )
+            )
 
         # Get values
-        pos, unit = (self.config['axis']['positions'][name][v] for v in ('value', 'unit'))
+        pos, unit = (self.config["axis"]["positions"][name][v] for v in ("value", "unit"))
 
         # Do the movement
         self.move_abs(pos, unit)
@@ -353,19 +363,20 @@ class ZaberStepAxis(BaseAxis):
         emergency: bool
             whether to shut off the driver current
         """
-        self._send_cmd('stop' if not emergency else 'estop')
-        self.config['axis']['position']['value'] = self.get_position(unit=self.config['axis']['position']['unit'])
+        self._send_cmd("stop" if not emergency else "estop")
+        self.config["axis"]["position"]["value"] = self.get_position(unit=self.config["axis"]["position"]["unit"])
 
 
 class ZaberMultiAxis(object):
     """Implements a multi-axis Zaber motorstage"""
 
-    def __init__(self, n_axis, axis_init, port='/dev/ttyUSB0', axis_addrs=None, dev_addrs=None, config=None, invert_axis=None):
-
+    def __init__(
+        self, n_axis, axis_init, port="/dev/ttyUSB0", axis_addrs=None, dev_addrs=None, config=None, invert_axis=None
+    ):
         # Holding the axis objects
         self.axis = []
 
-        self._axis_addrs = [i+1 for i in range(n_axis)] if axis_addrs is None else axis_addrs
+        self._axis_addrs = [i + 1 for i in range(n_axis)] if axis_addrs is None else axis_addrs
         self._dev_addrs = [1] * n_axis if dev_addrs is None else dev_addrs  # Default: share multi-axis controller
 
         self.port = port
@@ -377,21 +388,27 @@ class ZaberMultiAxis(object):
         # There is no config at all; FIXME; not pretty
         if config is None:
             axes_config = {n: load_base_axis_config() for n in range(n_axis)}
-            self.config = {'meta': load_base_axis_config()['meta'], 'axis': axes_config}
+            self.config = {"meta": load_base_axis_config()["meta"], "axis": axes_config}
         # We have config file or already loaded dict
         else:
             self.config = load_base_axis_config(config=config)
 
             # The config is the file path in which the config will be stored; no file yet
-            if len(self.config['axis']) != n_axis:
+            if len(self.config["axis"]) != n_axis:
                 axes_config = {n: load_base_axis_config(config=config) for n in range(n_axis)}
-                self.config = {'meta': load_base_axis_config(config=config)['meta'], 'axis': axes_config}
+                self.config = {"meta": load_base_axis_config(config=config)["meta"], "axis": axes_config}
 
         # Initialize axes
         for a in range(n_axis):
-            self.axis.append(ZaberStepAxis(port=self.port, axis_addr=self._axis_addrs[a], dev_addr=self._dev_addrs[a],
-                                           config=self.config['axis'][a],
-                                           **axis_init[a]))
+            self.axis.append(
+                ZaberStepAxis(
+                    port=self.port,
+                    axis_addr=self._axis_addrs[a],
+                    dev_addr=self._dev_addrs[a],
+                    config=self.config["axis"][a],
+                    **axis_init[a],
+                )
+            )
 
         if invert_axis:
             for axis in invert_axis:
@@ -414,7 +431,7 @@ class ZaberMultiAxis(object):
         list: list of *prop* for all axes
         """
 
-        return [getattr(a, f'get_{prop}')(unit=unit) for a in self.axis]
+        return [getattr(a, f"get_{prop}")(unit=unit) for a in self.axis]
 
     def _set_axis_prop(self, prop, value, unit=None, axis=None):
         """
@@ -432,29 +449,30 @@ class ZaberMultiAxis(object):
         """
 
         if isinstance(axis, int) and len(self.axis) > axis:
-            getattr(self.axis[axis], f'set_{prop}')(value=value, unit=unit)
+            getattr(self.axis[axis], f"set_{prop}")(value=value, unit=unit)
         else:
-            _ = [getattr(a, f'set_{prop}')(value=value, unit=unit) for a in self.axis]
+            _ = [getattr(a, f"set_{prop}")(value=value, unit=unit) for a in self.axis]
 
-    def get_physical_props(self, base_unit='mm'):
+    def get_physical_props(self, base_unit="mm"):
         return [a.get_physical_props(base_unit=base_unit) for a in self.axis]
 
     def home_stage(self):
         """Send all axis to their lower limit"""
         for axis in reversed(self.axis):
-            axis.move_abs(axis.config['range']['value'][0], unit=axis.config['range']['unit'])
+            axis.move_abs(axis.config["range"]["value"][0], unit=axis.config["range"]["unit"])
 
     def get_positions(self):
-
         axes_positions = [a.get_positions() for a in self.axis]
         common_positions = set(pos for ap in axes_positions for pos in ap)
 
         positions = {}
         for cp in common_positions:
-            coordinates, units, dates = ([pos[cp][x] for pos in axes_positions] for x in ('value', 'unit', 'date'))
+            coordinates, units, dates = ([pos[cp][x] for pos in axes_positions] for x in ("value", "unit", "date"))
             if any(len(set(x)) != 1 for x in (units, dates)):
-                logging.warning(f"Multi-axis position {cp} of motorstage {type(self).__name__} has differetn units / dates!")
-            positions[cp] = {'value': coordinates, 'unit': units[0], 'date': dates[0]} 
+                logging.warning(
+                    f"Multi-axis position {cp} of motorstage {type(self).__name__} has differetn units / dates!"
+                )
+            positions[cp] = {"value": coordinates, "unit": units[0], "date": dates[0]}
 
         return positions
 
@@ -467,7 +485,7 @@ class ZaberMultiAxis(object):
         """
 
         # Get position
-        return self._get_axis_prop(prop='position', unit=unit)
+        return self._get_axis_prop(prop="position", unit=unit)
 
     def set_speed(self, value, unit=None, axis=None):
         """
@@ -482,7 +500,7 @@ class ZaberMultiAxis(object):
         axis: int, None
             int of axis to set speed of; if None, all axis' speed is set
         """
-        self._set_axis_prop(prop='speed', value=value, unit=unit, axis=axis)
+        self._set_axis_prop(prop="speed", value=value, unit=unit, axis=axis)
 
     def get_speed(self, unit=None):
         """
@@ -493,7 +511,7 @@ class ZaberMultiAxis(object):
         unit : str, None
             unit in which speed should be converted. Must be in self.speed_units. If None, return speed in steps / s
         """
-        return self._get_axis_prop(prop='speed', unit=unit)
+        return self._get_axis_prop(prop="speed", unit=unit)
 
     def set_range(self, value, unit=None, axis=None):
         """
@@ -508,7 +526,7 @@ class ZaberMultiAxis(object):
         axis: int, None
             int of axis to set range of; if None, all axis' range is set
         """
-        self._set_axis_prop(prop='range', value=value, unit=unit, axis=axis)
+        self._set_axis_prop(prop="range", value=value, unit=unit, axis=axis)
 
     def get_range(self, unit=None):
         """
@@ -519,7 +537,7 @@ class ZaberMultiAxis(object):
         unit : str, None
             unit in which range should be converted. Must be in self.dist_units. If None, return speed in steps
         """
-        return self._get_axis_prop(prop='range', unit=unit)
+        return self._get_axis_prop(prop="range", unit=unit)
 
     def set_accel(self, value, unit=None, axis=None):
         """
@@ -532,7 +550,7 @@ class ZaberMultiAxis(object):
         unit : str, None
             unit in which distance is given. Must be in self.dist_units. If None, get acceleration in steps / s^2
         """
-        self._set_axis_prop(prop='accel', value=value, unit=unit, axis=axis)
+        self._set_axis_prop(prop="accel", value=value, unit=unit, axis=axis)
 
     def get_accel(self, unit=None):
         """
@@ -544,14 +562,14 @@ class ZaberMultiAxis(object):
             unit in which acceleration should be converted. Must be in self.accel_units.
             If None, get acceleration in steps / s^2
         """
-        return self._get_axis_prop(prop='accel', unit=unit)
+        return self._get_axis_prop(prop="accel", unit=unit)
 
     def move_rel(self, axis, value, unit=None):
-        """ See self._move """
+        """See self._move"""
         self.axis[axis].move_rel(value=value, unit=unit)
 
     def move_abs(self, axis, value, unit=None):
-        """ See self._move """
+        """See self._move"""
         self.axis[axis].move_abs(value=value, unit=unit)
 
     def move_pos(self, pos=None, unit=None, name=None):
@@ -572,7 +590,7 @@ class ZaberMultiAxis(object):
 
         if name is None and pos is None:
             raise ValueError("Either the 'pos' arguments or the name of the position have to be given")
-                    
+
         for i, axis in enumerate(self.axis):
             # If we're moving to an already known position
             if name is not None:
@@ -597,7 +615,9 @@ class ZaberMultiAxis(object):
         """
 
         for i, axis in enumerate(self.axis):
-            axis.add_position(name=name, value=axis.get_position(unit) if value is None else value[i], unit=unit, date=date)
+            axis.add_position(
+                name=name, value=axis.get_position(unit) if value is None else value[i], unit=unit, date=date
+            )
 
     def remove_position(self, name):
         """

@@ -1,4 +1,3 @@
-import time
 from PyQt5 import QtWidgets, QtCore
 from collections import defaultdict
 
@@ -38,14 +37,27 @@ class IrradControlTab(QtWidgets.QWidget):
             self.enable_control(server=server, enable=False)
 
     def _init_tab(self, server):
-
         # R/O device
-        ro_device = None if 'readout' not in self.setup[server] else self.setup[server]['readout']['device']
+        ro_device = None if "readout" not in self.setup[server] else self.setup[server]["readout"]["device"]
 
         # Get widgets
-        motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(server=server, enable=any(x in self.setup[server]['devices'] for x in ('ScanStage', 'SetupTableStage', 'ExternalCupStage')))
-        scan_widget = ic_cntrl_wdgts.ScanControlWidget(server=server, daq_setup=self.setup[server]['daq'], enable='ScanStage' in self.setup[server]['devices'] and ro_device is not None)
-        daq_widget = ic_cntrl_wdgts.DAQControlWidget(server=server, ro_device=ro_device, enable=ro_device is not None, enable_rad_mon='RadiationMonitor' in self.setup[server]['devices'])
+        motorstage_widget = ic_cntrl_wdgts.MotorStageControlWidget(
+            server=server,
+            enable=any(
+                x in self.setup[server]["devices"] for x in ("ScanStage", "SetupTableStage", "ExternalCupStage")
+            ),
+        )
+        scan_widget = ic_cntrl_wdgts.ScanControlWidget(
+            server=server,
+            daq_setup=self.setup[server]["daq"],
+            enable="ScanStage" in self.setup[server]["devices"] and ro_device is not None,
+        )
+        daq_widget = ic_cntrl_wdgts.DAQControlWidget(
+            server=server,
+            ro_device=ro_device,
+            enable=ro_device is not None,
+            enable_rad_mon="RadiationMonitor" in self.setup[server]["devices"],
+        )
         status_widget = ic_cntrl_wdgts.StatusInfoWidget()
 
         # Connect command signals
@@ -76,13 +88,13 @@ class IrradControlTab(QtWidgets.QWidget):
         splitter.addWidget(splitter_lower)
 
         # Add this to tab
-        self.tabs.addTab(NoBackgroundScrollArea(widget=splitter), self.setup[server]['name'])
+        self.tabs.addTab(NoBackgroundScrollArea(widget=splitter), self.setup[server]["name"])
 
         # Add to container
-        self.tab_widgets[server]['motorstage'] = motorstage_widget
-        self.tab_widgets[server]['scan'] = scan_widget
-        self.tab_widgets[server]['daq'] = daq_widget
-        self.tab_widgets[server]['status'] = status_widget
+        self.tab_widgets[server]["motorstage"] = motorstage_widget
+        self.tab_widgets[server]["scan"] = scan_widget
+        self.tab_widgets[server]["daq"] = daq_widget
+        self.tab_widgets[server]["status"] = status_widget
 
         # Appearance
         self.show()
@@ -93,25 +105,24 @@ class IrradControlTab(QtWidgets.QWidget):
 
     def enable_control(self, server, enable=True):
         for i in range(self.tabs.count()):
-            if self.tabs.tabText(i) == self.setup[server]['name']:
+            if self.tabs.tabText(i) == self.setup[server]["name"]:
                 self.tabs.widget(i).setEnabled(enable)
-
 
     def send_cmd(self, hostname, target, cmd, cmd_data=None):
         """Function emitting signal with command dict which is send to *server* in main"""
-        self.sendCmd.emit({'hostname': hostname, 'target': target, 'cmd': cmd, 'cmd_data': cmd_data})
+        self.sendCmd.emit({"hostname": hostname, "target": target, "cmd": cmd, "cmd_data": cmd_data})
 
-    def scan_status(self, server, status='started'):
-        read_only = status == 'started'
+    def scan_status(self, server, status="started"):
+        read_only = status == "started"
         # Set read-only state according to 'status'
         for t, w in self.tab_widgets[server].items():
             w.set_read_only(read_only=read_only)
-        
+
         # Always have scan interactino stuff and status enabled
-        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].setEnabled(True)
-        self.tab_widgets[server]['scan'].widgets['scan_interaction_container'].set_read_only(False)
-        self.tab_widgets[server]['status'].set_read_only(False)
-        self.tab_widgets[server]['scan'].enable_after_scan_ui(not read_only)
-            
+        self.tab_widgets[server]["scan"].widgets["scan_interaction_container"].setEnabled(True)
+        self.tab_widgets[server]["scan"].widgets["scan_interaction_container"].set_read_only(False)
+        self.tab_widgets[server]["status"].set_read_only(False)
+        self.tab_widgets[server]["scan"].enable_after_scan_ui(not read_only)
+
     def update_rec_state(self, server, state):
-        self.tab_widgets[server]['daq'].update_rec_state(state)
+        self.tab_widgets[server]["daq"].update_rec_state(state)

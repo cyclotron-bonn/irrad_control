@@ -1,46 +1,63 @@
 #!/usr/bin/env python
+import os
 import sys
-from setuptools import setup, find_packages  # This setup relies on setuptools since distutils is insufficient and badly hacked code
-from scripts.init_desktop_file import make_desktop_entry
+import configparser
+
+from setuptools import setup
 
 
-# Figure out if we're installing on control PC or on server
-_server = 'server' in sys.argv
+def get_version_attr_from_file(file_):
+    version = "unknown"
+    v_attr = "__version__"
+    with open(file_) as f:
+        content = f.read()
+        version_idx = 0
+        while version == "unknown":
+            version_idx = content[version_idx:].find(v_attr)
+            if version_idx == -1:
+                break
+            else:
+                version_str = content[version_idx:].splitlines()[0]
+                if "=" in version_str:
+                    version = version_str.split("=")[-1].strip()
+    return version
 
-# Remove "server" from sys.argv
-if _server:
-    sys.argv.remove('server')
 
-version = '2.4.2'
-author = 'Pascal Wolf'
-author_email = 'wolf@physik.uni-bonn.de'
+def generate_desktop_file():
+    # Generate .dektop file
+    ic_dir = os.path.join(os.path.dirname(__file__), "irrad_control")
+    irrad_control_bin = os.path.join(os.path.dirname(sys.executable), "irrad_control")
+    desktop_file = configparser.ConfigParser()
+    desktop_file.optionxform = str  # Case sensitive
+    desktop_file.read(os.path.join(ic_dir, "assets", "irrad_control.desktop"))
+    version = get_version_attr_from_file(file_=os.path.join(ic_dir, "__init__.py"))
+    desktop_file["Desktop Entry"]["Version"] = version
+    desktop_file["Desktop Entry"]["Exec"] = irrad_control_bin
+    desktop_file["Desktop Entry"]["Icon"] = os.path.join(ic_dir, "assets", "icon.png")
+    desktop_file["Desktop Action control-window"]["Exec"] = f"{irrad_control_bin} --gui"
+    desktop_file["Desktop Action monitor-window"]["Exec"] = f"{irrad_control_bin} --monitor"
+    return desktop_file
 
-with open('requirements.txt' if not _server else 'requirements_server.txt') as f:
-    required = f.read().splitlines()
 
-# Make dict to pass to setup
-setup_kwargs = {'name': 'irrad_control',
-                'version': version,
-                'description': 'Control, DAQ and analysis software for the irradiation facility at HISKP cyclotron at Bonn University',
-                'url': 'https://github.com/Cyclotron-Bonn/irrad_control',
-                'license': 'MIT License',
-                'long_description': '',
-                'author': author,
-                'maintainer': author,
-                'author_email': author_email,
-                'maintainer_email': author_email,
-                'packages': find_packages(),
-                'setup_requires': ['setuptools'],
-                'install_requires': required,
-                'include_package_data': True,  # accept all data files and directories matched by MANIFEST.in or found in source control
-                'package_data': {'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
-                'keywords': ['radiation damage', 'NIEL', 'silicon', 'irradiation', 'proton', 'fluence'],
-                'platforms': 'any',
-                'entry_points': {'console_scripts': ['irrad_control = irrad_control.main:main', 'irrad_analyse = irrad_control.analysis.main:main']}
-                }
+def register_desktop_file(conf_parser):
+    target_path = os.path.join(os.path.expanduser("~"), ".local", "share", "applications")
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    with open(os.path.join(target_path, "irrad_control.desktop"), "w") as dsktpfl:
+        conf_parser.write(dsktpfl, space_around_delimiters=False)
+    st = os.stat(os.path.join(os.path.expanduser("~"), ".local", "share", "applications", "irrad_control.desktop"))
+    os.chmod(
+        os.path.join(os.path.expanduser("~"), ".local", "share", "applications", "irrad_control.desktop"),
+        st.st_mode | 0o111,
+    )  # Make executable for everyone
 
-# Setup
-setup(**setup_kwargs)
 
-# Desktop file
-make_desktop_entry(version=version)
+def make_desktop_entry():
+    register_desktop_file(conf_parser=generate_desktop_file())
+
+
+# Call setup
+setup()
+
+# Create desktop file
+make_desktop_entry()
