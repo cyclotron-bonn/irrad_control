@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/zulip.yml
     with:
       TOPIC: "Github CI"
-      MESSAGE: ":info: Running scheduled integration tests...' :info:"
+      MESSAGE: ":info: Running scheduled integration tests' :info:"
     secrets:
       API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}
   zulip_notify_success:
@@ -47,7 +47,7 @@ jobs:
     uses: ./.github/workflows/zulip.yml
     with:
       TOPIC: "Github CI"
-      MESSAGE: ":check: Tests passed on '${{ github.head_ref || github.ref_name }}' :check:"
+      MESSAGE: ":check: Tests passed on branch '${{ github.head_ref || github.ref_name }}' :check:"
     secrets:
       API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}
   zulip_notify_failure:
@@ -57,6 +57,6 @@ jobs:
     uses: ./.github/workflows/zulip.yml
     with:
       TOPIC: "Github CI"
-      MESSAGE: ":warning: Tests fail on ref '${{ github.head_ref || github.ref_name }}': [results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) :warning:"
+      MESSAGE: ":warning: Tests fail on branch '${{ github.head_ref || github.ref_name }}': [results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) :warning:"
     secrets:
       API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}

@@ -10,6 +10,6 @@ jobs:
     uses: ./.github/workflows/zulip.yml
     with:
       TOPIC: "Release"
-      MESSAGE: ":tada: New version release on branch '$GITHUB_REF_NAME' :tada:\nRelease: ${{ github.event.release.name}}\nTag: ${{ github.event.release.tag_name }}\nLink: ${{ github.event.release.html_url }}"
+      MESSAGE: ":tada: New version release on branch '${{ github.head_ref || github.ref_name }}' :tada:\nRelease: ${{ github.event.release.name}}\nTag: ${{ github.event.release.tag_name }}\nLink: ${{ github.event.release.html_url }}"
     secrets:
       API_KEY: ${{ secrets.ZULIP_BOT_API_KEY }}

@@ -172,6 +172,7 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 =========
 
+- v2.5.1: GH actions Zulip messages rewording / fix, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.1>`_
 - v2.5.0: Added sample ID and MUX device, bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.0>`_
 - v2.4.3: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.3>`_
 - v2.4.2: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.2>`_
