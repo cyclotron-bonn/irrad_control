@@ -9,7 +9,7 @@ on:
     branches:
       - main
       - release*
-  # Run tests weekly: Mondays at 10 AM.
+  # Run tests weekly: Mondays at 10 AM. (UTC)
   # NOTE: always runs on the default branch
   # NOTE: cancelled after 60 days of inactivity on the repo
   schedule:
@@ -33,7 +33,7 @@ jobs:
   # Zulip integration
   zulip_notify_scheduled_test:
     name: Scheduled test message
-    if: ${{ github.event.name == 'schedule' }}
+    if: ${{ github.event_name == 'schedule' }}
     uses: ./.github/workflows/zulip.yml
     with:
       TOPIC: "Github CI"
