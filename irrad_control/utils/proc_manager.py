@@ -89,11 +89,11 @@ class ProcessManager(object):
         _rs = remote_script
         _rs += " --server"  # installs server dependencies
         _rs += " --update" if py_update else ""
-        _rs += " --ic_update" if git_pull else ""
-        _rs += "" if not branch else " -icb={}".format(branch)
+        _rs += " --ic-update" if git_pull else ""
+        _rs += "" if not branch else f" --ic-branch={branch}"
 
         # Run script to determine whether server RPi has miniconda and all packages installed
-        self._exec_cmd(hostname, "bash {}".format(_rs), log_stdout=True)
+        self._exec_cmd(hostname, f"bash {_rs}", log_stdout=True)
 
         # Remove script if we had to copy it
         if not remote_script_exists:
@@ -132,9 +132,16 @@ class ProcessManager(object):
     def start_server_process(self, hostname):
         host_user = self.server[hostname] + "@" + hostname
 
-        logging.info("Attempting to start server process at host {}...".format(host_user))
+        logging.info(f"Attempting to start server process at host {host_user}...")
 
-        self._exec_cmd(hostname, "nohup bash /home/{}/irrad_control/start_server.sh &".format(self.server[hostname]))
+        run_server_script_path = f"/home/{self.server[hostname]}/run_irrad_server.sh"
+
+        if not self._check_file_exits(hostname=hostname, file_path=run_server_script_path):
+            raise RuntimeError(
+                f"Server start script {run_server_script_path} not found on {host_user}. \
+                               Is irrad_control installed on this server?"
+            )
+        self._exec_cmd(hostname, f"nohup bash {run_server_script_path} &")
 
     def start_interpreter_process(self):
         logging.info("Starting interpreter process...")
