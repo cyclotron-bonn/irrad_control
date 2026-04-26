@@ -19,13 +19,21 @@ jobs:
   test_install:
     name: Testing the install script
     uses: ./.github/workflows/install.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ["3.11", "3.12"]
     with:
-      PY_VERSION: "3.11"
+      PY_VERSION: ${{ matrix.python_version }}
   pytest:
     name: Running the tests
     uses: ./.github/workflows/test.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ["3.11", "3.12"]
     with:
-      PY_VERSION: "3.11"
+      PY_VERSION: ${{ matrix.python_version }}
   ruff_format:
     name: Running the Python formatter
     uses: ./.github/workflows/format.yml
