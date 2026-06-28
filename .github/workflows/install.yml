@@ -9,29 +9,80 @@ on:
 
 jobs:
   install:
-    name: Testing install.sh script with Python ${{matrix.python-version}}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["${{ inputs.PY_VERSION }}"]
-    runs-on: ${{matrix.os}}
+    name: Testing install.sh script with Python ${{ inputs.python-version }}
+    runs-on: ubuntu-latest
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v5
       - name: Setup python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{matrix.python-version}}
-      - name: Run install.sh
-        id: install
+          python-version: ${{ inputs.PY_VERSION }}
+      # Basic installation without any cmd line args
+      - name: Test base install
         run: |
-          pip install --upgrade pip
-          echo "Installing to $PWD..."
-          ./install.sh --ic_path=$PWD
-      - name: Check installation
-        id: check
+          ./install.sh
+          if ! [[ -d ".venv" ]]; then
+            echo "Virtual Python environment was not created"
+            exit 1
+          else
+            source .venv/bin/activate
+          fi
+          py_location=$(which python)
+          if ! [[ "$py_location" == "$PWD/.venv/bin/python" ]]; then
+            echo "Virtual environment was not activated"
+            exit 1
+          fi
+          if ! [[ -f "$HOME/.local/share/applications/irrad_control.desktop" ]]; then
+            echo "Desktop file was not created during install"
+            exit 1
+          fi
+          # Test install
+          irrad_control --version
+          irrad_analyse --help
+      # Advanced install with pulling repo again
+      - name: Test advanced install
         run: |
-          source .venv/bin/activate
+          test_path=$(mktemp -d /tmp/XXXXXX)
+          branch_name=${{ github.head_ref || github.ref_name }}
+          ./install.sh --no-venv --ic-path=$test_path --ic-branch=$branch_name
+          if ! [[ -d "$test_path" ]]; then
+            echo "Specified install location was not created"
+            exit 1
+          fi
+          if [[ -d "$test_path/.venv" ]]; then
+            echo "Created virtual environment when it was not specified"
+            exit 1
+          fi
+          if ! [[ -f "$HOME/.local/share/applications/irrad_control.desktop" ]]; then
+            echo "Desktop file was not created during install"
+            exit 1
+          fi
+          cd $test_path/irrad_control
+          current_branch=$(git symbolic-ref --short HEAD)
+          if ! [[ $current_branch != $branch_name ]]; then
+            echo "Install script did not check out target branch"
+          fi
+          # Test install
+          irrad_control --version
+          irrad_analyse --help
+      # Test that install discovers repo
+      - name: Test install repo discovery
+        run: |
+          test_path=$(mktemp -d /tmp/XXXXXX)
+          branch_name=${{ github.head_ref || github.ref_name }}
+          git clone https://github.com/cyclotron-bonn/irrad_control "$test_path/irrad_control"
+          ./install.sh --ic-path=$test_path --ic-branch=$branch_name
+          if ! [[ -d "$test_path/irrad_control/.venv" ]]; then
+            echo "Virtual Python environment was not created"
+            exit 1
+          else
+            source $test_path/irrad_control/.venv/bin/activate
+          fi
+          if ! [[ -f "$HOME/.local/share/applications/irrad_control.desktop" ]]; then
+            echo "Desktop file was not created during install"
+            exit 1
+          fi
+          # Test install
           irrad_control --version
           irrad_analyse --help

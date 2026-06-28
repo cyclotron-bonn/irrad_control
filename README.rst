@@ -32,7 +32,7 @@ Installation
 Prerequisites
 -------------
 
-``irrad_control`` requires Python >= 3.11 (3.11 and latest (3.X) are tested). When installing using the ``install.sh`` script (see below), the current active Python environment is used to create a virtual environment.
+``irrad_control`` requires Python >= 3.11,<3.13. When installing using the ``install.sh`` script (see below), the current active Python environment is used to create a virtual environment.
 However, it is recommended to use a Python interpreter isolated from your system Python such as `Miniconda <https://conda.io/miniconda.html>`_. After installation, the included ``conda`` package manager
 allows to easily create new, isolated environments and activate them using the ``conda activate YourEnvName`` command.
 
@@ -46,18 +46,18 @@ Download the `install.sh <./scripts/install.sh>`_ script, make it executable by 
    ./install.sh
 
 This will download ``irrad_control`` to the current directory, create a virtual Python envirnoment at ``.venv`` and install ``irrad_control`` in it.
-If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can point to it instead of downloading a new copy by passing the ``--ic_path`` flag
+If you alrady have a copy of ``irrad_control`` (e.g. in your version control) you can point to it instead of downloading a new copy by passing the ``--ic-path`` flag
 
 .. code-block:: bash
 
-   ./install.sh --ic_path=/path/to/irrad_control
+   ./install.sh --ic-path=/path/to/irrad_control
 
 If you want to install ``irrad_control`` without wanting the script to create a virtual environment for you (e.g. because you use your own isolated ``conda`` environment),
-pass the ``--no_venv`` flag to directly install into the active Python environment
+pass the ``--no-venv`` flag to directly install into the active Python environment
 
 .. code-block:: bash
 
-   ./install.sh --no_venv
+   ./install.sh --no-venv
 
 To see an overview of options call ``./install --help``. The software is now available via
 
@@ -72,13 +72,15 @@ To install ``irrad_control``, first clone the repository, then move into its roo
 
 .. code-block:: bash
 
-   pip install -e .
+   pip install -e .[main]
 
-which installs into the activate Python envoronment in editable mode, allowing to make changes to the code if needed. The software is now available via
+which installs into the activate Python environment in editable mode, allowing to make changes to the code if needed. The software is now available via
 
 .. code-block:: bash
 
    irrad_control
+
+**Note**: *Only editable install is currently supported*
 
 Quick Setup
 ============
@@ -172,13 +174,14 @@ from irradiation data of an ITkPixV1 Si-pixel detector, irradiatied to 1e16 neq/
 Changelog
 =========
 
-- v2.5.1: GH actions Zulip messages rewording / fix, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.1>`_
-- v2.5.0: Added sample ID and MUX device, bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.0>`_
-- v2.4.3: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.3>`_
-- v2.4.2: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.2>`_
-- v2.4.1: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.1>`_
-- v2.4.0: Maintenance and minor bugs, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.0>`_
-- v2.3.1: Bug fixes and maintenance, see see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.3.1>`_
+- v2.5.2: Improved installation script, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.2>`_
+- v2.5.1: GH actions Zulip messages rewording / fix, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.1>`_
+- v2.5.0: Added sample ID and MUX device, bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.5.0>`_
+- v2.4.3: Bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.3>`_
+- v2.4.2: Bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.2>`_
+- v2.4.1: Bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.1>`_
+- v2.4.0: Maintenance and minor bugs, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.4.0>`_
+- v2.3.1: Bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.3.1>`_
 - v2.3.0: Extended analysis capabilities and SEE data acquisition, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.3.0>`_
 - v2.2.1: Bug fixes and maintenance, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.2.1>`_
 - v2.2.0: Event distribution system and Bethe-Bloch stopping power calculation for arbitrary ions, bug fixes, see `release <https://github.com/Cyclotron-Bonn/irrad_control/releases/tag/v2.2.0>`_
